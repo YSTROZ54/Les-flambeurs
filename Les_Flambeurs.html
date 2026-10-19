@@ -1040,29 +1040,42 @@
             </div>
           </div>
 
-          <div id="cupsFriendSetupBox" class="hidden p-3.5 rounded-xl bg-orange-950/40 border border-orange-400/40 space-y-3">
-            <div class="text-xs font-extrabold text-orange-200">🕵️ Configuration secrète (Joueur 1) :</div>
+          <!-- Choix de qui cache la bille (Solo & Multi) -->
+          <div id="cupsHiderChoiceContainer" class="space-y-1.5">
+            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Qui cache la bille d'or ?</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" onclick="setCupsHider('me')" id="chider-me" class="pill-choice active">
+                👤 Moi
+              </button>
+              <button type="button" onclick="setCupsHider('opponent')" id="chider-opp" class="pill-choice">
+                <span id="cupsHiderOpponentLabel">🤖 Roxy (Bot)</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="cupsFriendSetupBox" class="p-3.5 rounded-xl bg-orange-950/40 border border-orange-400/40 space-y-3">
+            <div id="cupsSetupTitle" class="text-xs font-extrabold text-orange-200">🕵️ Où caches-tu la bille ? :</div>
             <div class="space-y-2 text-xs">
               <div>
                 <span class="text-stone-400 block mb-1">Gobelet de départ :</span>
                 <div class="grid grid-cols-3 gap-1.5">
-                  <button onclick="setCupsStart(0)" id="cstart-0" class="pill-choice">Gauche</button>
-                  <button onclick="setCupsStart(1)" id="cstart-1" class="pill-choice active">Milieu</button>
-                  <button onclick="setCupsStart(2)" id="cstart-2" class="pill-choice">Droite</button>
+                  <button type="button" onclick="setCupsStart(0)" id="cstart-0" class="pill-choice">Gauche</button>
+                  <button type="button" onclick="setCupsStart(1)" id="cstart-1" class="pill-choice active">Milieu</button>
+                  <button type="button" onclick="setCupsStart(2)" id="cstart-2" class="pill-choice">Droite</button>
                 </div>
               </div>
               <div>
-                <span class="text-stone-400 block mb-1">Position finale :</span>
+                <span class="text-stone-400 block mb-1">Gobelet d'arrivée (après mélange) :</span>
                 <div class="grid grid-cols-3 gap-1.5">
-                  <button onclick="setCupsEnd(0)" id="cend-0" class="pill-choice">Gauche</button>
-                  <button onclick="setCupsEnd(1)" id="cend-1" class="pill-choice">Milieu</button>
-                  <button onclick="setCupsEnd(2)" id="cend-2" class="pill-choice active">Droite</button>
+                  <button type="button" onclick="setCupsEnd(0)" id="cend-0" class="pill-choice">Gauche</button>
+                  <button type="button" onclick="setCupsEnd(1)" id="cend-1" class="pill-choice">Milieu</button>
+                  <button type="button" onclick="setCupsEnd(2)" id="cend-2" class="pill-choice active">Droite</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <button id="cupsStartBtn" onclick="startCupsGame()" class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg">
+          <button id="cupsStartBtn" onclick="startCupsGame()" class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer">
             🥤 Mélanger les Gobelets
           </button>
         </div>
@@ -1892,6 +1905,7 @@
     }
 
     async function syncRemoteAccounts() {
+      try { processExpiredBankDonations(); } catch (e) {}
       const db = getAccountsDB();
       let changed = false;
       let remoteRowsCount = 0;
@@ -1999,6 +2013,38 @@
           const newFriendReqs = Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : [];
           const newGameInvs = Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [];
           const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
+          const remoteBankTransfers = Array.isArray(myAcc.bankTransfers) ? myAcc.bankTransfers : [];
+
+          // Synchroniser les statuts des virements bancaires ('Accepté', 'Refusé', 'Expiré')
+          let btChanged = false;
+          if (remoteBankTransfers.length > 0) {
+            state.bankTransfers = (state.bankTransfers || []).map(localT => {
+              const match = remoteBankTransfers.find(rt => rt.id === localT.id);
+              if (match && match.status !== localT.status) {
+                btChanged = true;
+                return { ...localT, status: match.status };
+              }
+              return localT;
+            });
+            remoteBankTransfers.forEach(rt => {
+              if (!state.bankTransfers.some(lt => lt.id === rt.id)) {
+                state.bankTransfers.unshift(rt);
+                btChanged = true;
+              }
+            });
+            state.bankTransfers = state.bankTransfers.slice(0, 15);
+          }
+
+          // Nettoyer et normaliser les amis locaux s'ils ont été renommés ou supprimés
+          if (Array.isArray(state.friends)) {
+            state.friends = state.friends.map(f => {
+              const fk = (f || '').toLowerCase().trim();
+              return db[fk] ? db[fk].username : f;
+            }).filter(f => {
+              const fk = (f || '').toLowerCase().trim();
+              return remoteRowsCount > 0 ? Boolean(db[fk]) : true;
+            });
+          }
 
           const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
           const hasFriendReqDiff = JSON.stringify(state.pendingFriendRequests || []) !== JSON.stringify(newFriendReqs);
@@ -2006,16 +2052,19 @@
           const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
           const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
 
-          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff) {
+          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff || btChanged) {
             state.pendingTransfers = newTransfers;
             state.pendingFriendRequests = newFriendReqs;
             state.pendingGameInvites = newGameInvs;
             state.friends = newFriends;
             if (hasBalanceDiff) state.balance = myAcc.balance;
+            saveState();
             if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || newGameInvs.length > oldGameInvLen) {
               playCoinWinSound();
             }
             updateGlobalUI();
+            renderBankHistory();
+            renderFriendsModalList();
           }
           checkPendingNotifications();
         }
@@ -2031,6 +2080,7 @@
           updateLobbyUI('bj');
         } else if (currentRoomKey === 'cups') {
           updateLobbyUI('cups');
+          syncCupsMultiplayer();
         }
       } catch (e) {}
 
@@ -2970,16 +3020,23 @@
     }
 
     /* ================= MISE À JOUR DE L'INTERFACE GLOBALE ================= */
-    function getAvatarDisplay() {
-      const avItem = SHOP_CATALOG.find(i => i.id === state.equipped.avatar);
-      if (avItem && avItem.emoji) return avItem.emoji;
-      if (state.avatarEmoji) return state.avatarEmoji;
-      return (state.username || '?').trim().charAt(0).toUpperCase();
+    function getAvatarDisplay(customAcc) {
+      const acc = customAcc || state;
+      const equippedAvatar = acc.equipped && acc.equipped.avatar ? acc.equipped.avatar : null;
+      if (equippedAvatar) {
+        const item = SHOP_CATALOG.find(i => i.id === equippedAvatar);
+        if (item && item.emoji) return item.emoji;
+      }
+      if (acc.avatarEmoji && acc.avatarEmoji !== '?' && acc.avatarEmoji !== 'null') {
+        return acc.avatarEmoji;
+      }
+      const name = (acc.username || '').trim();
+      return name ? name.charAt(0).toUpperCase() : '🎭';
     }
 
     function updateGlobalUI() {
       checkStreakExpiry();
-      const avatarText = getAvatarDisplay();
+      const avatarText = getAvatarDisplay(state);
 
       document.getElementById('topBalance').textContent = fmt(state.balance);
       document.getElementById('hallBalanceInline').textContent = fmt(state.balance);
@@ -3049,44 +3106,32 @@
       if (!container) return;
 
       const db = getAccountsDB();
-      const meKey = (state.username || '').toLowerCase();
+      const meKey = (state.username || '').toLowerCase().trim();
       const playersMap = {};
 
-      // 1. Ajouter tous les comptes de la base Supabase Cloud
+      // 1. Ajouter tous les comptes réels de la base Supabase Cloud
       Object.keys(db).forEach(k => {
         const acc = db[k];
-        if (acc && acc.username) {
-          playersMap[acc.username.toLowerCase()] = {
+        if (acc && acc.username && !isUsernameBanned(k)) {
+          const uKey = acc.username.toLowerCase().trim();
+          playersMap[uKey] = {
             name: acc.username,
-            avatarEmoji: acc.avatarEmoji || '🎭',
+            avatarEmoji: getAvatarDisplay(acc),
             balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 5500,
-            isMe: acc.username.toLowerCase() === meKey
+            isMe: uKey === meKey
           };
         }
       });
 
-      // 2. Toujours s'assurer que le joueur actif est présent avec son solde actuel
-      if (state.username) {
+      // 2. Toujours s'assurer que le joueur actif est présent avec son solde et avatar actuels
+      if (state.username && !isUsernameBanned(meKey)) {
         playersMap[meKey] = {
           name: state.username,
-          avatarEmoji: state.avatarEmoji || '🎭',
+          avatarEmoji: getAvatarDisplay(state),
           balance: state.balance ?? 5500,
           isMe: true
         };
       }
-
-      // 3. Ajouter les potes locaux s'ils ne sont pas déjà inclus
-      (state.friends || []).forEach(fname => {
-        const k = fname.toLowerCase();
-        if (!playersMap[k]) {
-          playersMap[k] = {
-            name: fname,
-            avatarEmoji: '🎲',
-            balance: state.friendBalances[fname] || 5000,
-            isMe: false
-          };
-        }
-      });
 
       const list = Object.values(playersMap).sort((a, b) => b.balance - a.balance);
 
@@ -3308,8 +3353,14 @@
       state.balance -= item.price;
       if (!state.ownedSkins.includes(item.id)) state.ownedSkins.push(item.id);
       state.equipped[item.category] = item.id;
+      if (item.category === 'avatar') {
+        state.avatarEmoji = item.emoji || (state.username ? state.username.charAt(0).toUpperCase() : '🎭');
+      }
       playCoinWinSound();
       saveState();
+      updateGlobalUI();
+      renderLeaderboard();
+      pushRemoteAccount(state);
       if (currentRoomKey === 'poker') renderPokerTable(false);
       showToast(`✨ « ${item.name} » acheté et équipé !`);
     }
@@ -3318,7 +3369,13 @@
       const item = SHOP_CATALOG.find(i => i.id === id);
       if (!item) return;
       state.equipped[item.category] = item.id;
+      if (item.category === 'avatar') {
+        state.avatarEmoji = item.emoji || (state.username ? state.username.charAt(0).toUpperCase() : '🎭');
+      }
       saveState();
+      updateGlobalUI();
+      renderLeaderboard();
+      pushRemoteAccount(state);
       if (currentRoomKey === 'poker') renderPokerTable(false);
       showToast(`✔ « ${item.name} » équipé !`);
     }
@@ -3475,9 +3532,10 @@
         to: recipient,
         amount: amount,
         note: note,
-        status: 'En attente'
+        status: 'En attente',
+        timestamp: Date.now()
       });
-      state.bankTransfers = state.bankTransfers.slice(0, 10);
+      state.bankTransfers = state.bankTransfers.slice(0, 15);
 
       const amtInp = document.getElementById('bankAmountInput');
       if (amtInp) amtInp.value = '';
@@ -3491,9 +3549,140 @@
       showToast(`💸 Don de ${fmt(amount)} € envoyé à ${recipient} (en attente de son acceptation) !`);
     }
 
+    /* ================= GESTION DES VIREMENTS EXPIRÉS (REMBOURSEMENT AUTO SOUS 30 MIN) ================= */
+    function processExpiredBankDonations() {
+      const now = Date.now();
+      const EXPIRATION_MS = 30 * 60 * 1000; // 30 minutes
+      const db = getAccountsDB();
+      let dbModified = false;
+
+      // 1. Virements en attente reçus par le joueur actif non acceptés sous 30 min
+      if (Array.isArray(state.pendingTransfers) && state.pendingTransfers.length > 0) {
+        const validTransfers = [];
+        state.pendingTransfers.forEach(tx => {
+          const txTime = Number(tx.timestamp) || 0;
+          if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
+            // Le don a expiré : rembourser immédiatement l'expéditeur
+            const sKey = (tx.from || '').toLowerCase().trim();
+            const refundAmt = Number(tx.amount) || 0;
+            if (db[sKey]) {
+              db[sKey].balance = (db[sKey].balance || 0) + refundAmt;
+              if (Array.isArray(db[sKey].bankTransfers)) {
+                const senderTx = db[sKey].bankTransfers.find(x => x.id === tx.id);
+                if (senderTx) senderTx.status = 'Expiré (Remboursé)';
+              }
+              pushRemoteAccount(db[sKey]);
+              dbModified = true;
+            }
+            if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
+            state.bankTransfers.unshift({
+              id: tx.id,
+              from: tx.from,
+              to: state.username,
+              amount: refundAmt,
+              note: tx.note,
+              status: 'Expiré (Non réclamé)',
+              timestamp: txTime
+            });
+            showToast(`⏱️ Le don de ${fmt(refundAmt)} € de ${tx.from} a expiré après 30 min sans acceptation et lui a été retourné.`);
+          } else {
+            validTransfers.push(tx);
+          }
+        });
+        if (validTransfers.length !== state.pendingTransfers.length) {
+          state.pendingTransfers = validTransfers;
+          saveState();
+        }
+      }
+
+      // 2. Virements envoyés par le joueur actif restés "En attente" plus de 30 minutes
+      if (Array.isArray(state.bankTransfers) && state.bankTransfers.length > 0) {
+        let refundedSender = false;
+        state.bankTransfers.forEach(tx => {
+          if (tx.status === 'En attente' && tx.from && tx.from.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
+            const txTime = Number(tx.timestamp) || 0;
+            if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
+              const rKey = (tx.to || '').toLowerCase().trim();
+              const refundAmt = Number(tx.amount) || 0;
+              if (db[rKey] && Array.isArray(db[rKey].pendingTransfers)) {
+                db[rKey].pendingTransfers = db[rKey].pendingTransfers.filter(p => p.id !== tx.id);
+                pushRemoteAccount(db[rKey]);
+                dbModified = true;
+              }
+              state.balance = (state.balance || 0) + refundAmt;
+              tx.status = 'Expiré (Remboursé)';
+              refundedSender = true;
+              showToast(`💰 Ton don de ${fmt(refundAmt)} € à ${tx.to} n'a pas été accepté sous 30 min : Tu as été intégralement remboursé !`);
+            }
+          }
+        });
+        if (refundedSender) {
+          saveState();
+          updateGlobalUI();
+        }
+      }
+
+      // 3. Scan général sur toute la base
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (acc && Array.isArray(acc.pendingTransfers)) {
+          const keep = [];
+          let accChanged = false;
+          acc.pendingTransfers.forEach(tx => {
+            const txTime = Number(tx.timestamp) || 0;
+            if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
+              accChanged = true;
+              const sKey = (tx.from || '').toLowerCase().trim();
+              const amt = Number(tx.amount) || 0;
+              if (db[sKey]) {
+                db[sKey].balance = (db[sKey].balance || 0) + amt;
+                if (Array.isArray(db[sKey].bankTransfers)) {
+                  const stx = db[sKey].bankTransfers.find(x => x.id === tx.id);
+                  if (stx) stx.status = 'Expiré (Remboursé)';
+                }
+                pushRemoteAccount(db[sKey]);
+              }
+            } else {
+              keep.push(tx);
+            }
+          });
+          if (accChanged) {
+            acc.pendingTransfers = keep;
+            dbModified = true;
+            pushRemoteAccount(acc);
+          }
+        }
+      });
+
+      if (dbModified) {
+        saveAccountsDB(db);
+      }
+    }
+
     function renderBankHistory() {
       const box = document.getElementById('bankHistoryList');
       if (!box) return;
+
+      // Synchronisation immédiate des statuts 'En attente' si le destinataire a déjà accepté
+      const db = getAccountsDB();
+      let changed = false;
+      if (Array.isArray(state.bankTransfers)) {
+        state.bankTransfers.forEach(t => {
+          if (t.status === 'En attente' && t.to) {
+            const recKey = (t.to || '').toLowerCase().trim();
+            if (db[recKey]) {
+              const stillPending = (db[recKey].pendingTransfers || []).some(pt => pt.id === t.id);
+              if (!stillPending) {
+                const recTx = (db[recKey].bankTransfers || []).find(bt => bt.id === t.id);
+                t.status = (recTx && recTx.status) ? recTx.status : 'Accepté';
+                changed = true;
+              }
+            }
+          }
+        });
+        if (changed) saveState();
+      }
+
       if (!state.bankTransfers || state.bankTransfers.length === 0) {
         box.innerHTML = '<div class="p-4 rounded-xl bg-black/40 border border-white/10 text-stone-400 text-center text-xs">Aucun virement pour le moment. Fais un don à un joueur pour lancer l\'historique !</div>';
         return;
@@ -3524,6 +3713,7 @@
 
     /* ================= GESTION DES NOTIFICATIONS DE VIREMENT (BAS DROITE) ================= */
     function checkPendingTransfersNotification() {
+      processExpiredBankDonations();
       const card = document.getElementById('bankPendingTransferNotification');
       if (!card) return;
 
@@ -3564,20 +3754,33 @@
         to: state.username,
         amount: amount,
         note: cur.note,
-        status: 'Accepté'
+        status: 'Accepté',
+        timestamp: cur.timestamp || Date.now()
       });
-      state.bankTransfers = state.bankTransfers.slice(0, 10);
+      state.bankTransfers = state.bankTransfers.slice(0, 15);
 
       // 3. Mettre à jour l'historique de l'expéditeur si présent dans la base
       const db = getAccountsDB();
-      const senderKey = (cur.from || '').toLowerCase();
-      if (db[senderKey] && Array.isArray(db[senderKey].bankTransfers)) {
+      const senderKey = (cur.from || '').toLowerCase().trim();
+      if (db[senderKey]) {
+        if (!Array.isArray(db[senderKey].bankTransfers)) db[senderKey].bankTransfers = [];
         const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
         if (t) {
           t.status = 'Accepté';
-          saveAccountsDB(db);
-          pushRemoteAccount(db[senderKey]);
+        } else {
+          db[senderKey].bankTransfers.unshift({
+            id: cur.id,
+            from: cur.from,
+            to: state.username,
+            amount: amount,
+            note: cur.note,
+            status: 'Accepté',
+            timestamp: cur.timestamp || Date.now()
+          });
         }
+        db[senderKey].bankTransfers = db[senderKey].bankTransfers.slice(0, 15);
+        saveAccountsDB(db);
+        pushRemoteAccount(db[senderKey]);
       }
 
       // 4. Sauvegarde locale + envoi immédiat vers Supabase
@@ -3585,6 +3788,7 @@
       playCoinWinSound();
       updateGlobalUI();
       checkPendingNotifications();
+      renderBankHistory();
       showToast(`✅ Virement de +${fmt(amount)} € accepté avec succès !`);
     }
 
@@ -3788,6 +3992,52 @@
       { r: '6', v: 6 }, { r: '7', v: 7 }, { r: '8', v: 8 }, { r: '9', v: 9 },
       { r: '10', v: 10 }, { r: 'J', v: 11 }, { r: 'Q', v: 12 }, { r: 'K', v: 13 }, { r: 'A', v: 14 }
     ];
+
+    function createDeck() {
+      const deck = [];
+      SUITS.forEach(st => {
+        RANKS.forEach(rk => {
+          deck.push({
+            r: rk.r,
+            v: rk.v,
+            s: st.s,
+            color: st.color,
+            type: st.type
+          });
+        });
+      });
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function renderCardHTML(c, size = 'lg', hidden = false, game = 'poker') {
+      const sizeClass = size === 'sm' ? 'card-sm' : 'card-lg';
+      if (hidden || !c) {
+        return `<div class="playing-card ${sizeClass} card-back"></div>`;
+      }
+      let skinClass = '';
+      if (game === 'blackjack') {
+        const bjSkin = SHOP_CATALOG.find(i => i.id === (state.equipped && state.equipped.bjCardSkin));
+        if (bjSkin && bjSkin.skinClass) skinClass = bjSkin.skinClass;
+      } else {
+        const pokerSkin = SHOP_CATALOG.find(i => i.id === (state.equipped && state.equipped.cardSkin));
+        if (pokerSkin && pokerSkin.skinClass) skinClass = pokerSkin.skinClass;
+      }
+      const isRed = (c.s === '♥' || c.s === '♦' || c.type === 'suit-red');
+      const typeClass = isRed ? 'suit-red' : 'suit-black';
+      const colorClass = isRed ? 'text-red-500' : 'text-slate-900';
+
+      return `
+        <div class="playing-card ${sizeClass} ${skinClass} ${typeClass}">
+          <div class="text-[10px] sm:text-xs leading-none font-black ${colorClass}">${c.r}</div>
+          <div class="text-center text-sm sm:text-lg leading-none my-auto select-none ${colorClass}">${c.s}</div>
+          <div class="text-[10px] sm:text-xs leading-none font-black text-right rotate-180 ${colorClass}">${c.r}</div>
+        </div>
+      `;
+    }
     const BOT_PROFILES = [
       { name: 'Viper (Bot)', avatar: '🕶️' },
       { name: 'Le Baron (Bot)', avatar: '🎩' },
@@ -4083,8 +4333,7 @@
           bannerTxt.innerHTML = `⚔️ <strong>Duel Gobelets :</strong> ${state.username} vs <strong>${realParticipants[0].username}</strong> ! Devinez où est la bille d'or !`;
         }
 
-        const setupBox = document.getElementById('cupsFriendSetupBox');
-        if (setupBox) setupBox.classList.toggle('hidden', !(isMulti && !l.fillWithBots));
+        updateCupsSetupBoxVisibility();
       }
     }
 
@@ -5315,30 +5564,83 @@
       bet: 100,
       mult: 2.0,
       positions: [0, 1, 2],
-      ballCupId: 1
+      ballCupId: 1,
+      hider: 'me',
+      activeRoundId: null,
+      lastFinishedRoundId: null,
+      isShuffling: false
     };
 
+    function setCupsHider(h) {
+      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord la manche de gobelets en cours !');
+      cupsGame.hider = h;
+      const meBtn = document.getElementById('chider-me');
+      const oppBtn = document.getElementById('chider-opp');
+      if (meBtn) meBtn.classList.toggle('active', h === 'me');
+      if (oppBtn) oppBtn.classList.toggle('active', h === 'opponent');
+      updateCupsSetupBoxVisibility();
+    }
+
+    function updateCupsSetupBoxVisibility() {
+      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
+      const participants = getTableParticipants('cups');
+      const oppName = (isMulti && participants.length > 0) ? participants[0].username : (lobbies.cups && lobbies.cups.fillWithBots ? 'Roxy (Bot)' : 'Collègue');
+      
+      const oppLbl = document.getElementById('cupsHiderOpponentLabel');
+      if (oppLbl) oppLbl.textContent = isMulti ? `👥 ${oppName}` : `🤖 Roxy (Bot)`;
+
+      const setupBox = document.getElementById('cupsFriendSetupBox');
+      const startBtn = document.getElementById('cupsStartBtn');
+
+      if (cupsGame.hider === 'me') {
+        if (setupBox) setupBox.classList.remove('hidden');
+        const title = document.getElementById('cupsSetupTitle');
+        if (title) title.textContent = `🕵️ Choisis où tu caches la bille (${state.username || 'Moi'}) :`;
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.textContent = isMulti ? `🥤 Lancer le défi à ${oppName}` : '🥤 Cacher & Faire deviner le Bot';
+          startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
+        }
+      } else {
+        if (setupBox) setupBox.classList.add('hidden');
+        if (startBtn) {
+          if (isMulti) {
+            startBtn.disabled = true;
+            startBtn.textContent = `⏳ En attente que ${oppName} cache la bille...`;
+            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-stone-800 border border-orange-500/30 text-orange-300 opacity-80 cursor-not-allowed';
+          } else {
+            startBtn.disabled = false;
+            startBtn.textContent = '🥤 Mélanger les Gobelets (Devine la bille)';
+            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
+          }
+        }
+      }
+    }
+
     function setCupsGameMode(m) {
-      if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
+      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.mode = m;
       updateCurrentTable('cups');
       updateLobbyUI('cups');
+      updateCupsSetupBoxVisibility();
       showToast(m === 'solo' ? '🤖 Gobelets : Solo direct contre le Bot' : '🌐 Gobelets : Salon Multijoueur activé');
     }
 
     function setCupsTableType(t) {
-      if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
+      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.tableType = t;
       updateCurrentTable('cups');
       updateLobbyUI('cups');
+      updateCupsSetupBoxVisibility();
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.cups.roomCode}]`);
     }
 
     function toggleCupsFillBots() {
-      if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
+      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.fillWithBots = !lobbies.cups.fillWithBots;
       updateCurrentTable('cups');
       updateLobbyUI('cups');
+      updateCupsSetupBoxVisibility();
       showToast(lobbies.cups.fillWithBots ? '🤖 Places vides : comblées par le bot' : '🚫 Places vides : vrai duel Joueur 1 vs Joueur 2');
     }
 
@@ -5349,15 +5651,15 @@
 
     function setCupsSpeed(s) {
       cupsGame.speed = s;
-      ['normal', 'fast', 'insane'].forEach(k => document.getElementById(`cspeed-${k}`).classList.toggle('active', k === s));
+      ['normal', 'fast', 'insane'].forEach(k => document.getElementById(`cspeed-${k}`)?.classList.toggle('active', k === s));
     }
     function setCupsStart(n) {
       cupsGame.startPos = n;
-      [0, 1, 2].forEach(k => document.getElementById(`cstart-${k}`).classList.toggle('active', k === n));
+      [0, 1, 2].forEach(k => document.getElementById(`cstart-${k}`)?.classList.toggle('active', k === n));
     }
     function setCupsEnd(n) {
       cupsGame.endPos = n;
-      [0, 1, 2].forEach(k => document.getElementById(`cend-${k}`).classList.toggle('active', k === n));
+      [0, 1, 2].forEach(k => document.getElementById(`cend-${k}`)?.classList.toggle('active', k === n));
     }
 
     function updateCupVisualPositions() {
@@ -5372,7 +5674,7 @@
     }
 
     function startCupsGame() {
-      if (cupsGame.canPick) return;
+      if (cupsGame.isShuffling || cupsGame.canPick) return;
       let bet = parseInt(document.getElementById('cupsBetInput').value) || 100;
       if (bet < 10) bet = 10;
       if (bet > 250) {
@@ -5382,40 +5684,140 @@
       }
       if (bet > state.balance) return showToast('❌ Solde insuffisant.');
 
-      state.balance -= bet;
-      saveState();
-
       const speedMode = cupsGame.speed;
       cupsGame.mult = speedMode === 'normal' ? 1.5 : speedMode === 'fast' ? 2.0 : 2.5;
       cupsGame.bet = bet;
       cupsGame.positions = [0, 1, 2];
 
-      let startPos = Math.floor(Math.random() * 3);
-      let targetEndPos = Math.floor(Math.random() * 3);
-      const isDuel = lobbies.cups.mode === 'multi' && !lobbies.cups.fillWithBots;
-      if (isDuel) {
-        startPos = cupsGame.startPos;
-        targetEndPos = cupsGame.endPos;
-      }
+      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
+      const participants = getTableParticipants('cups');
+      const oppName = (isMulti && participants.length > 0) ? participants[0].username : 'Roxy (Bot)';
 
-      cupsGame.ballCupId = startPos;
-      updateCupVisualPositions();
+      // 1. SI JE SUIS CELUI QUI CACHE LA BILLE
+      if (cupsGame.hider === 'me') {
+        state.balance -= bet;
+        saveState();
+        updateGlobalUI();
 
-      const ball = document.getElementById('cupGoldenBall');
-      ball.style.opacity = '1';
-      [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`).classList.toggle('lifted', id === cupsGame.ballCupId));
-      document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet se trouve la bille...';
+        const startPos = cupsGame.startPos;
+        const targetEndPos = cupsGame.endPos;
+        cupsGame.ballCupId = startPos;
+        cupsGame.isShuffling = true;
+        updateCupVisualPositions();
 
-      setTimeout(() => {
-        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`).classList.remove('lifted'));
+        const ball = document.getElementById('cupGoldenBall');
+        if (ball) ball.style.opacity = '1';
+        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
+        document.getElementById('cupsBanner').textContent = `👀 Tu caches la bille sous le gobelet ${startPos === 0 ? 'Gauche' : startPos === 1 ? 'Milieu' : 'Droite'}...`;
+
         setTimeout(() => {
-          ball.style.opacity = '0';
-          runCupsShuffle(speedMode, targetEndPos, isDuel);
-        }, 350);
-      }, 1000);
+          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
+          setTimeout(() => {
+            if (ball) ball.style.opacity = '0';
+
+            if (isMulti) {
+              // Lancement du round multi partagé
+              const roundId = 'cr_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+              const roundObj = {
+                id: roundId,
+                hider: state.username,
+                guesser: oppName,
+                startPos: startPos,
+                endPos: targetEndPos,
+                speed: speedMode,
+                bet: bet,
+                mult: cupsGame.mult,
+                status: 'shuffling',
+                pickedCup: null,
+                winner: null,
+                timestamp: Date.now()
+              };
+              cupsGame.activeRoundId = roundId;
+              state.currentTable = {
+                ...(state.currentTable || {}),
+                game: 'cups',
+                cupsRound: roundObj
+              };
+              saveState();
+              pushRemoteAccount(state);
+
+              // Transmettre aussi directement à l'adversaire
+              const db = getAccountsDB();
+              const oppKey = oppName.toLowerCase().trim();
+              if (db[oppKey]) {
+                db[oppKey].currentTable = db[oppKey].currentTable || {};
+                db[oppKey].currentTable.cupsRound = roundObj;
+                saveAccountsDB(db);
+                pushRemoteAccount(db[oppKey]);
+              }
+
+              runCupsShuffle(speedMode, targetEndPos, true, () => {
+                cupsGame.isShuffling = false;
+                cupsGame.canPick = false; // Le cacheur ne devine pas !
+                document.getElementById('cupsBanner').textContent = `⏳ Défi envoyé à ${oppName} ! En attente qu'il choisisse son gobelet...`;
+              });
+            } else {
+              // Mode Solo : Le bot Roxy essaie de deviner
+              runCupsShuffle(speedMode, targetEndPos, true, () => {
+                cupsGame.isShuffling = false;
+                document.getElementById('cupsBanner').textContent = '🤖 Roxy (Bot) analyse les gobelets pour deviner...';
+                setTimeout(() => {
+                  // Roxy fait un choix (33% de chance de trouver le bon)
+                  const botPick = Math.random() < 0.33 ? targetEndPos : Math.floor(Math.random() * 3);
+                  const pickedEl = document.getElementById(`cupSlot${botPick}`);
+                  const ballEl = document.getElementById(`cupSlot${cupsGame.ballCupId}`);
+                  if (pickedEl) pickedEl.classList.add('lifted');
+                  if (ballEl) ballEl.classList.add('lifted');
+                  if (ball) ball.style.opacity = '1';
+
+                  if (botPick === cupsGame.ballCupId) {
+                    document.getElementById('cupsBanner').textContent = `🤖 Roxy a trouvé ta bille sous le gobelet ${botPick === 0 ? 'Gauche' : botPick === 1 ? 'Milieu' : 'Droite'} ! Tu perds ta mise.`;
+                  } else {
+                    const win = Math.floor(bet * cupsGame.mult);
+                    state.balance += win;
+                    playCoinWinSound();
+                    saveState();
+                    updateGlobalUI();
+                    document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes +${fmt(win)} pièces !`;
+                    showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+                  }
+                }, 1400);
+              });
+            }
+          }, 350);
+        }, 1000);
+      } else {
+        // 2. SI L'ADVERSAIRE CACHE LA BILLE (EN SOLO : LE BOT CACHE)
+        state.balance -= bet;
+        saveState();
+        updateGlobalUI();
+
+        const startPos = Math.floor(Math.random() * 3);
+        const targetEndPos = Math.floor(Math.random() * 3);
+        cupsGame.ballCupId = startPos;
+        cupsGame.isShuffling = true;
+        updateCupVisualPositions();
+
+        const ball = document.getElementById('cupGoldenBall');
+        if (ball) ball.style.opacity = '1';
+        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
+        document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet se trouve la bille...';
+
+        setTimeout(() => {
+          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
+          setTimeout(() => {
+            if (ball) ball.style.opacity = '0';
+            runCupsShuffle(speedMode, targetEndPos, true, () => {
+              cupsGame.isShuffling = false;
+              cupsGame.canPick = true;
+              document.getElementById('cupsBanner').textContent = '👇 Clique sur le gobelet qui cache la bille !';
+            });
+          }, 350);
+        }, 1000);
+      }
     }
 
-    function runCupsShuffle(speedMode, targetEndPos, forceEndPos) {
+    function runCupsShuffle(speedMode, targetEndPos, forceEndPos, onComplete) {
       const steps = speedMode === 'normal' ? 7 : speedMode === 'fast' ? 10 : 14;
       const interval = speedMode === 'normal' ? 370 : speedMode === 'fast' ? 260 : 190;
       let currentStep = 0;
@@ -5443,8 +5845,7 @@
         if (currentStep >= steps) {
           clearInterval(timer);
           setTimeout(() => {
-            cupsGame.canPick = true;
-            document.getElementById('cupsBanner').textContent = '👇 Clique sur le gobelet qui cache la bille !';
+            if (typeof onComplete === 'function') onComplete();
           }, interval);
         }
       }, interval);
@@ -5456,23 +5857,127 @@
 
       const ball = document.getElementById('cupGoldenBall');
       updateCupVisualPositions();
-      ball.style.opacity = '1';
+      if (ball) ball.style.opacity = '1';
 
-      document.getElementById(`cupSlot${clickedCupId}`).classList.add('lifted');
-      document.getElementById(`cupSlot${cupsGame.ballCupId}`).classList.add('lifted');
+      document.getElementById(`cupSlot${clickedCupId}`)?.classList.add('lifted');
+      document.getElementById(`cupSlot${cupsGame.ballCupId}`)?.classList.add('lifted');
 
-      if (clickedCupId === cupsGame.ballCupId) {
-        const win = Math.floor(cupsGame.bet * cupsGame.mult);
-        state.balance += win;
-        playCoinWinSound();
-        saveState();
-        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces !`;
-        showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
+      const isCorrect = (clickedCupId === cupsGame.ballCupId);
+
+      if (isMulti) {
+        // En multijoueur : valider le tour
+        const participants = getTableParticipants('cups');
+        const hiderName = participants.length > 0 ? participants[0].username : 'Collègue';
+
+        if (isCorrect) {
+          const win = Math.floor(cupsGame.bet * cupsGame.mult);
+          state.balance += win;
+          playCoinWinSound();
+          saveState();
+          updateGlobalUI();
+          document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! Tu as trouvé la bille de ${hiderName} : +${fmt(win)} pièces !`;
+          showToast(`🥤 Gobelets Duel : +${fmt(win)} pièces !`);
+        } else {
+          document.getElementById('cupsBanner').textContent = `❌ Raté ! ${hiderName} a bien caché sa bille (elle était sous le gobelet ${cupsGame.ballCupId === 0 ? 'Gauche' : cupsGame.ballCupId === 1 ? 'Milieu' : 'Droite'}).`;
+        }
+
+        // Publier la fin du round aux deux joueurs
+        if (state.currentTable && state.currentTable.cupsRound) {
+          state.currentTable.cupsRound.status = 'finished';
+          state.currentTable.cupsRound.pickedCup = clickedCupId;
+          state.currentTable.cupsRound.winner = isCorrect ? state.username : hiderName;
+          saveState();
+          pushRemoteAccount(state);
+
+          const db = getAccountsDB();
+          const oppKey = hiderName.toLowerCase().trim();
+          if (db[oppKey]) {
+            db[oppKey].currentTable = db[oppKey].currentTable || {};
+            db[oppKey].currentTable.cupsRound = state.currentTable.cupsRound;
+            // Si le cacheur a gagné le duel, il récupère le pot (mise * 2)
+            if (!isCorrect) {
+              db[oppKey].balance = (db[oppKey].balance || 0) + Math.floor(cupsGame.bet * cupsGame.mult);
+            }
+            saveAccountsDB(db);
+            pushRemoteAccount(db[oppKey]);
+          }
+        }
       } else {
-        const isDuel = lobbies.cups.mode === 'multi' && !lobbies.cups.fillWithBots;
-        document.getElementById('cupsBanner').textContent = isDuel
-          ? '❌ Raté ! Ton adversaire a bien caché sa bille !'
-          : '❌ Raté ! La bille était sous un autre gobelet.';
+        // Mode Solo classique
+        if (isCorrect) {
+          const win = Math.floor(cupsGame.bet * cupsGame.mult);
+          state.balance += win;
+          playCoinWinSound();
+          saveState();
+          updateGlobalUI();
+          document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces !`;
+          showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+        } else {
+          document.getElementById('cupsBanner').textContent = '❌ Raté ! La bille était sous un autre gobelet.';
+        }
+      }
+    }
+
+    /* ================= SYNCHRONISATION MULTIJOUEUR GOBELETS EN TEMPS RÉEL ================= */
+    function syncCupsMultiplayer() {
+      if (!lobbies.cups || lobbies.cups.mode !== 'multi') return;
+      const participants = getTableParticipants('cups');
+      if (participants.length === 0) return;
+
+      const opp = participants[0];
+      const db = getAccountsDB();
+      const oppKey = opp.username.toLowerCase().trim();
+      const oppAcc = db[oppKey];
+      const round = state.currentTable?.cupsRound || oppAcc?.currentTable?.cupsRound;
+
+      if (!round || !round.id) return;
+
+      // 1. Détection d'une manche lancée par l'adversaire où je suis le devineur
+      if (round.status === 'shuffling' && round.guesser && round.guesser.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
+        if (cupsGame.activeRoundId !== round.id && !cupsGame.isShuffling) {
+          cupsGame.activeRoundId = round.id;
+          cupsGame.ballCupId = round.startPos;
+          cupsGame.bet = round.bet;
+          cupsGame.mult = round.mult;
+          cupsGame.positions = [0, 1, 2];
+          cupsGame.isShuffling = true;
+          updateCupVisualPositions();
+
+          const ball = document.getElementById('cupGoldenBall');
+          if (ball) ball.style.opacity = '0';
+
+          document.getElementById('cupsBanner').textContent = `🌀 ${round.hider} mélange les gobelets... Regarde bien !`;
+          runCupsShuffle(round.speed, round.endPos, true, () => {
+            cupsGame.isShuffling = false;
+            cupsGame.canPick = true;
+            document.getElementById('cupsBanner').textContent = `👇 ${round.hider} a fini de mélanger ! Clique sur le gobelet qui cache la bille !`;
+          });
+        }
+      }
+
+      // 2. Détection de la fin de manche où j'étais le cacheur
+      if (round.status === 'finished' && round.hider && round.hider.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
+        if (cupsGame.lastFinishedRoundId !== round.id) {
+          cupsGame.lastFinishedRoundId = round.id;
+          const ball = document.getElementById('cupGoldenBall');
+          updateCupVisualPositions();
+          if (ball) ball.style.opacity = '1';
+
+          if (round.pickedCup !== null) {
+            document.getElementById(`cupSlot${round.pickedCup}`)?.classList.add('lifted');
+          }
+          document.getElementById(`cupSlot${round.endPos}`)?.classList.add('lifted');
+
+          if (round.winner === state.username) {
+            playCoinWinSound();
+            document.getElementById('cupsBanner').textContent = `🎉 ${round.guesser} a choisi le mauvais gobelet (${round.pickedCup === 0 ? 'Gauche' : round.pickedCup === 1 ? 'Milieu' : 'Droite'}) ! Tu gagnes le duel et récupères le pot !`;
+            showToast(`🥤 Duel Gobelets remporté face à ${round.guesser} !`);
+          } else {
+            document.getElementById('cupsBanner').textContent = `❌ ${round.guesser} a trouvé ta bille cachée sous le gobelet ${round.endPos === 0 ? 'Gauche' : round.endPos === 1 ? 'Milieu' : 'Droite'} !`;
+          }
+          updateGlobalUI();
+        }
       }
     }
 
@@ -5533,9 +6038,9 @@
 
       box.innerHTML = friendsList.map(fname => {
         const db = getAccountsDB();
-        const acc = db[fname.toLowerCase()];
+        const acc = db[fname.toLowerCase().trim()];
         const bal = acc ? acc.balance : (state.friendBalances[fname] || 5000);
-        const avatar = acc ? (acc.avatarEmoji || '🎭') : '🎲';
+        const avatar = getAvatarDisplay(acc);
 
         return `
           <div class="flex items-center justify-between p-2.5 rounded-xl bg-black/60 border border-white/10 hover:border-white/20 transition">
@@ -5716,6 +6221,87 @@
       document.getElementById('profileModal').classList.remove('hidden');
     }
 
+    async function propagatePseudoChangeInDb(oldName, cleanNew) {
+      if (!oldName || !cleanNew || oldName.toLowerCase().trim() === cleanNew.toLowerCase().trim()) return;
+      const oldKey = oldName.toLowerCase().trim();
+      const db = getAccountsDB();
+      const promises = [];
+
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (!acc) return;
+        let modified = false;
+
+        // 1. Amis
+        if (Array.isArray(acc.friends)) {
+          const idx = acc.friends.findIndex(f => (f || '').toLowerCase().trim() === oldKey);
+          if (idx !== -1) {
+            acc.friends[idx] = cleanNew;
+            modified = true;
+          }
+        }
+
+        // 2. Soldes d'amis
+        if (acc.friendBalances) {
+          Object.keys(acc.friendBalances).forEach(fbKey => {
+            if (fbKey.toLowerCase().trim() === oldKey) {
+              acc.friendBalances[cleanNew] = acc.friendBalances[fbKey];
+              delete acc.friendBalances[fbKey];
+              modified = true;
+            }
+          });
+        }
+
+        // 3. Demandes d'amis en attente
+        if (Array.isArray(acc.pendingFriendRequests)) {
+          acc.pendingFriendRequests.forEach(req => {
+            if (req.from && req.from.toLowerCase().trim() === oldKey) { req.from = cleanNew; modified = true; }
+            if (req.to && req.to.toLowerCase().trim() === oldKey) { req.to = cleanNew; modified = true; }
+          });
+        }
+
+        // 4. Invitations de jeux en attente
+        if (Array.isArray(acc.pendingGameInvites)) {
+          acc.pendingGameInvites.forEach(inv => {
+            if (inv.from && inv.from.toLowerCase().trim() === oldKey) { inv.from = cleanNew; modified = true; }
+            if (inv.to && inv.to.toLowerCase().trim() === oldKey) { inv.to = cleanNew; modified = true; }
+          });
+        }
+
+        // 5. Virements en attente
+        if (Array.isArray(acc.pendingTransfers)) {
+          acc.pendingTransfers.forEach(tx => {
+            if (tx.from && tx.from.toLowerCase().trim() === oldKey) { tx.from = cleanNew; modified = true; }
+            if (tx.to && tx.to.toLowerCase().trim() === oldKey) { tx.to = cleanNew; modified = true; }
+          });
+        }
+
+        // 6. Historique des virements
+        if (Array.isArray(acc.bankTransfers)) {
+          acc.bankTransfers.forEach(tx => {
+            if (tx.from && tx.from.toLowerCase().trim() === oldKey) { tx.from = cleanNew; modified = true; }
+            if (tx.to && tx.to.toLowerCase().trim() === oldKey) { tx.to = cleanNew; modified = true; }
+          });
+        }
+
+        if (modified) {
+          promises.push(pushRemoteAccount(acc));
+        }
+      });
+
+      // Mettre à jour l'état local du joueur actif
+      if (Array.isArray(state.friends)) {
+        state.friends = state.friends.map(f => (f || '').toLowerCase().trim() === oldKey ? cleanNew : f);
+      }
+      if (state.friendBalances && state.friendBalances[oldName] !== undefined) {
+        state.friendBalances[cleanNew] = state.friendBalances[oldName];
+        delete state.friendBalances[oldName];
+      }
+
+      saveAccountsDB(db);
+      await Promise.allSettled(promises);
+    }
+
     async function resetOrDeletePseudo() {
       if (!state.username) return showToast('❌ Tu dois être connecté.');
 
@@ -5761,6 +6347,7 @@
       const currentAcc = db[oldKey] || { ...state };
       delete db[oldKey];
       await deleteRemoteAccount(oldName);
+      await propagatePseudoChangeInDb(oldName, cleanNew);
 
       currentAcc.username = cleanNew;
       currentAcc.balance = state.balance;
@@ -5775,6 +6362,7 @@
       updateGlobalUI();
       renderLeaderboard();
       renderBank();
+      renderFriendsModalList();
       setupPokerSeats();
       document.getElementById('profileModal')?.classList.add('hidden');
 
@@ -5828,6 +6416,7 @@
           const currentAcc = db[oldKey] || { ...state };
           delete db[oldKey];
           await deleteRemoteAccount(oldName);
+          await propagatePseudoChangeInDb(oldName, v);
 
           currentAcc.username = v;
           currentAcc.balance = state.balance;
@@ -5855,6 +6444,7 @@
       updateGlobalUI();
       renderLeaderboard();
       renderBank();
+      renderFriendsModalList();
       setupPokerSeats();
       showToast('✅ Profil sauvegardé avec succès.');
     }
