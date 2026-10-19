@@ -1177,18 +1177,79 @@
   <!-- ================================================================= -->
   <!-- MODAL : MENU SECRET DU PATRON (5 CURSEURS DE CHANCE / WINRATE)    -->
   <!-- ================================================================= -->
-  <div id="adminModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto hidden">
-    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-auto">
+  <div id="adminModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto hidden">
+    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-2xl w-full p-5 sm:p-7 space-y-5 shadow-2xl my-auto">
+      
+      <!-- En-tête -->
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
-        <div>
-          <h3 class="font-serif-title text-xl font-extrabold text-amber-300">👑 Menu du Patron</h3>
-          <p class="text-xs text-stone-400">Ajoute de l'argent à qui tu veux ou règle les pourcentages de chance (Winrate)</p>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-xl">
+            👑
+          </div>
+          <div>
+            <h3 class="font-serif-title text-xl font-extrabold text-amber-300">Menu du Patron &amp; Base de Données</h3>
+            <p class="text-xs text-stone-400">Consulte tous les comptes créés, gère leurs soldes et configure le casino.</p>
+          </div>
         </div>
-        <button onclick="closeAdminModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+        <button onclick="closeAdminModal()" class="text-stone-400 hover:text-white text-xl font-bold p-1">✕</button>
       </div>
 
-      <div class="p-4 rounded-2xl bg-black/60 border border-amber-500/30 space-y-3">
-        <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">💰 Créditer des pièces (Joueur du serveur actif)</div>
+      <!-- Barre d'onglets du Panel Admin -->
+      <div class="flex p-1 bg-black/50 border border-white/10 rounded-2xl gap-1">
+        <button id="adminTabBtnAccounts" onclick="switchAdminTab('accounts')" class="flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow">
+          👥 Comptes Joueurs (<span id="adminTabCountBadge">0</span>)
+        </button>
+        <button id="adminTabBtnCredit" onclick="switchAdminTab('credit')" class="flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white">
+          💰 Crédit Rapide
+        </button>
+        <button id="adminTabBtnWinrate" onclick="switchAdminTab('winrate')" class="flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white">
+          ⚙️ Winrate (%)
+        </button>
+      </div>
+
+      <!-- ONGLET 1 : ANNUAIRE & GESTION DES COMPTES (BASE DE DONNÉES) -->
+      <div id="adminTabAccountsView" class="space-y-4">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-extrabold text-amber-300 uppercase tracking-wider">Comptes enregistrés :</span>
+            <span id="adminTotalAccountsBadge" class="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-extrabold text-xs">0 joueur</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="adminSearchPlayerInput" oninput="filterAdminAccountsList()" type="text" placeholder="Rechercher un pseudo..." class="bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3 py-1.5 text-xs text-white outline-none">
+            <button onclick="adminRefreshAccounts()" title="Recharger depuis la base" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center gap-1 transition">
+              🔄 Actualiser
+            </button>
+          </div>
+        </div>
+
+        <!-- Conteneur des cartes joueurs -->
+        <div id="adminAccountsListContainer" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <!-- Injecté dynamiquement par renderAdminAccountsList() -->
+        </div>
+
+        <!-- Synchronisation Cloud Optionnelle (Firebase / REST) -->
+        <div class="pt-2 border-t border-white/10">
+          <details class="text-xs group">
+            <summary class="cursor-pointer text-stone-400 hover:text-amber-300 font-bold flex items-center justify-between select-none">
+              <span>🌐 Base de données en ligne (Pour synchroniser entre plusieurs PC / téléphones)</span>
+              <span class="text-[10px] text-amber-400 group-open:rotate-180 transition">▼</span>
+            </summary>
+            <div class="mt-2.5 p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2 text-[11px] text-stone-300">
+              <p>Par défaut, la base enregistre sur le serveur local. Pour synchroniser automatiquement tous les téléphones et PC distants sur Vercel, collez l'URL de votre base Firebase Realtime Database (ou REST API) :</p>
+              <div class="flex gap-2">
+                <input id="adminCloudDbUrlInput" type="text" placeholder="https://votre-projet-default-rtdb.firebaseio.com" class="w-full bg-black/80 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-white outline-none">
+                <button onclick="saveAdminCloudDbUrl()" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs whitespace-nowrap">
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- ONGLET 2 : CRÉDIT RAPIDE -->
+      <div id="adminTabCreditView" class="p-4 rounded-2xl bg-black/60 border border-amber-500/30 space-y-3 hidden">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">💰 Créditer des pièces directement</div>
         <div id="adminActivePlayersPills" class="flex flex-wrap gap-1.5">
           <button onclick="setAdminTarget(state.username)" class="pill-choice active">Moi</button>
         </div>
@@ -1201,7 +1262,8 @@
         </div>
       </div>
 
-      <div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3 text-xs">
+      <!-- ONGLET 3 : CURSEURS DE CHANCE (WINRATE %) -->
+      <div id="adminTabWinrateView" class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3 text-xs hidden">
         <div class="font-extrabold uppercase tracking-wider text-sky-300">⚙️ Curseurs de Chance (Winrate %)</div>
 
         <div class="space-y-1">
@@ -1233,6 +1295,7 @@
           Enregistrer les réglages de chance
         </button>
       </div>
+
     </div>
   </div>
 
@@ -1598,10 +1661,108 @@
       }
     }
 
+    const STORAGE_KEY_CLOUD_URL = 'flambeurs_cloud_db_url';
+
+    function getCloudDbUrl() {
+      return (localStorage.getItem(STORAGE_KEY_CLOUD_URL) || '').trim().replace(/\/+$/, '');
+    }
+
     function saveAccountsDB(db) {
       try {
         localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(db));
       } catch (e) {}
+    }
+
+    async function syncRemoteAccounts() {
+      const cloudUrl = getCloudDbUrl();
+      const db = getAccountsDB();
+      let changed = false;
+
+      // 1. Essai via URL Cloud (Firebase / REST)
+      if (cloudUrl) {
+        try {
+          const fetchUrl = cloudUrl.endsWith('.json') ? cloudUrl : `${cloudUrl}/accounts.json`;
+          const res = await fetch(fetchUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+              Object.keys(data).forEach(k => {
+                if (data[k] && data[k].username) {
+                  db[k] = { ...(db[k] || {}), ...data[k] };
+                  changed = true;
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      } else {
+        // 2. Essai via serveur local /api/accounts
+        try {
+          const res = await fetch('/api/accounts');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+              Object.keys(data).forEach(k => {
+                if (data[k] && data[k].username) {
+                  db[k] = { ...(db[k] || {}), ...data[k] };
+                  changed = true;
+                }
+              });
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (changed) {
+        saveAccountsDB(db);
+        const activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
+        if (activeUser && db[activeUser.toLowerCase()]) {
+          state = { ...state, ...db[activeUser.toLowerCase()] };
+          updateGlobalUI();
+        }
+      }
+      return db;
+    }
+
+    async function pushRemoteAccount(account) {
+      if (!account || !account.username) return;
+      const key = account.username.toLowerCase();
+      const cloudUrl = getCloudDbUrl();
+
+      if (cloudUrl) {
+        try {
+          const targetUrl = `${cloudUrl}/accounts/${key}.json`;
+          await fetch(targetUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(account)
+          });
+        } catch (e) {}
+      } else {
+        try {
+          await fetch('/api/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(account)
+          });
+        } catch (e) {}
+      }
+    }
+
+    async function deleteRemoteAccount(username) {
+      if (!username) return;
+      const key = username.toLowerCase();
+      const cloudUrl = getCloudDbUrl();
+
+      if (cloudUrl) {
+        try {
+          await fetch(`${cloudUrl}/accounts/${key}.json`, { method: 'DELETE' });
+        } catch (e) {}
+      } else {
+        try {
+          await fetch(`/api/accounts?username=${encodeURIComponent(username)}`, { method: 'DELETE' });
+        } catch (e) {}
+      }
     }
 
     function openAuthModal(defaultTab = 'login') {
@@ -1759,6 +1920,7 @@
 
       db[key] = newAcc;
       saveAccountsDB(db);
+      pushRemoteAccount(newAcc);
 
       localStorage.setItem(STORAGE_KEY_SESSION, username);
       state = { ...newAcc };
@@ -1858,6 +2020,7 @@
       processOfflineBuildingsIncome();
       injectCoins();
       updateGlobalUI();
+      syncRemoteAccounts().catch(() => {});
     }
 
     function saveState() {
@@ -1871,6 +2034,7 @@
             ...state
           };
           saveAccountsDB(db);
+          pushRemoteAccount(db[key]);
         }
       } catch (e) {}
       updateGlobalUI();
@@ -1945,10 +2109,257 @@
       }
     }
 
+    /* ================= MENU SECRET DU PATRON & ANNUAIRE BASE DE DONNÉES ================= */
+    function switchAdminTab(tab) {
+      const isAcc = tab === 'accounts';
+      const isCredit = tab === 'credit';
+      const isWinrate = tab === 'winrate';
+
+      const btnAcc = document.getElementById('adminTabBtnAccounts');
+      const btnCredit = document.getElementById('adminTabBtnCredit');
+      const btnWin = document.getElementById('adminTabBtnWinrate');
+
+      if (btnAcc) btnAcc.className = isAcc ? 'flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow' : 'flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white';
+      if (btnCredit) btnCredit.className = isCredit ? 'flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow' : 'flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white';
+      if (btnWin) btnWin.className = isWinrate ? 'flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow' : 'flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white';
+
+      const viewAcc = document.getElementById('adminTabAccountsView');
+      const viewCredit = document.getElementById('adminTabCreditView');
+      const viewWin = document.getElementById('adminTabWinrateView');
+
+      if (viewAcc) viewAcc.classList.toggle('hidden', !isAcc);
+      if (viewCredit) viewCredit.classList.toggle('hidden', !isCredit);
+      if (viewWin) viewWin.classList.toggle('hidden', !isWinrate);
+
+      if (isAcc) renderAdminAccountsList();
+      if (isCredit) renderAdminPlayerPills();
+    }
+
+    function renderAdminAccountsList() {
+      const container = document.getElementById('adminAccountsListContainer');
+      const badge = document.getElementById('adminTotalAccountsBadge');
+      const tabBadge = document.getElementById('adminTabCountBadge');
+      if (!container) return;
+
+      const db = getAccountsDB();
+      const list = Object.keys(db).map(k => db[k]).filter(a => a && a.username);
+
+      const count = list.length;
+      if (badge) badge.textContent = `${count} joueur${count > 1 ? 's' : ''}`;
+      if (tabBadge) tabBadge.textContent = count;
+
+      const cloudUrlInput = document.getElementById('adminCloudDbUrlInput');
+      if (cloudUrlInput && !cloudUrlInput.value) {
+        cloudUrlInput.value = getCloudDbUrl();
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 rounded-2xl bg-black/40 border border-white/10 text-center space-y-2">
+            <span class="text-3xl">📭</span>
+            <p class="text-xs text-stone-400 font-bold">Aucun compte trouvé dans la base.</p>
+            <p class="text-[11px] text-stone-500">Quand tes potes ou toi créerez un compte via l'écran d'entrée, ils s'afficheront tous ici automatiquement !</p>
+          </div>
+        `;
+        return;
+      }
+
+      const q = (document.getElementById('adminSearchPlayerInput')?.value || '').toLowerCase().trim();
+      const filtered = q ? list.filter(a => a.username.toLowerCase().includes(q)) : list;
+
+      container.innerHTML = filtered.map(acc => {
+        const key = acc.username.toLowerCase();
+        const isCurrent = key === (state.username || '').toLowerCase();
+        const pwd = acc.password || 'Non défini';
+        const buildingsCount = Object.keys(acc.buildingsOwned || {}).length;
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-black/60 border border-white/10 hover:border-amber-400/40 transition space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-xl flex items-center justify-center border border-amber-400/30">
+                  ${acc.avatarEmoji || '🎭'}
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-black text-amber-200 text-sm">${acc.username}</span>
+                    ${isCurrent ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black">Toi</span>' : ''}
+                  </div>
+                  <div class="flex items-center gap-2 text-[11px] text-stone-400">
+                    <span>Mot de passe :</span>
+                    <span id="pwd-${key}" class="font-mono-num font-bold text-stone-300">••••••••</span>
+                    <button onclick="togglePasswordVisibility('${key}', '${pwd.replace(/'/g, "\\'")}')" class="text-xs text-amber-400 hover:text-amber-300 font-bold" title="Voir / Masquer le mot de passe">👁️</button>
+                  </div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono-num font-black text-emerald-300 text-sm sm:text-base">${fmt(acc.balance)} €</div>
+                <div class="text-[10px] text-stone-400">${buildingsCount} bâtiment${buildingsCount > 1 ? 's' : ''}</div>
+              </div>
+            </div>
+
+            <!-- Actions du Patron -->
+            <div class="flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-white/10 text-[11px]">
+              <div class="flex flex-wrap gap-1">
+                <button onclick="adminQuickCredit('${acc.username.replace(/'/g, "\\'")}', 5000)" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/30">+5 000</button>
+                <button onclick="adminQuickCredit('${acc.username.replace(/'/g, "\\'")}', 25000)" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/30">+25 000</button>
+                <button onclick="adminQuickCredit('${acc.username.replace(/'/g, "\\'")}', -5000)" class="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold border border-rose-500/30">-5 000</button>
+                <button onclick="adminPromptCustomBalance('${acc.username.replace(/'/g, "\\'")}', ${acc.balance})" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 font-bold border border-white/10">✏️ Solde</button>
+                <button onclick="adminPromptPassword('${acc.username.replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold border border-purple-500/30">🔑 MDP</button>
+              </div>
+              <div class="flex gap-1">
+                <button onclick="adminResetPlayer('${acc.username.replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold" title="Remettre à 5 500 €">🔄 5 500</button>
+                <button onclick="adminDeleteAccount('${acc.username.replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-300 font-bold border border-red-500/40" title="Supprimer le joueur">🗑️</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function togglePasswordVisibility(key, actualPwd) {
+      const el = document.getElementById(`pwd-${key}`);
+      if (!el) return;
+      if (el.textContent === '••••••••') {
+        el.textContent = actualPwd;
+        el.className = 'font-mono-num font-bold text-amber-300';
+      } else {
+        el.textContent = '••••••••';
+        el.className = 'font-mono-num font-bold text-stone-300';
+      }
+    }
+
+    function filterAdminAccountsList() {
+      renderAdminAccountsList();
+    }
+
+    async function adminRefreshAccounts() {
+      await syncRemoteAccounts();
+      renderAdminAccountsList();
+      showToast('🔄 Base de données actualisée avec succès !');
+    }
+
+    function saveAdminCloudDbUrl() {
+      const inp = document.getElementById('adminCloudDbUrlInput');
+      const url = (inp?.value || '').trim();
+      localStorage.setItem(STORAGE_KEY_CLOUD_URL, url);
+      showToast('🌐 URL Cloud enregistrée ! Synchronisation en cours...');
+      adminRefreshAccounts();
+    }
+
+    async function adminQuickCredit(username, amount) {
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      if (!db[key]) return;
+
+      db[key].balance = Math.max(0, (db[key].balance || 0) + amount);
+      saveAccountsDB(db);
+      await pushRemoteAccount(db[key]);
+
+      if (key === (state.username || '').toLowerCase()) {
+        state.balance = db[key].balance;
+        saveState();
+      }
+
+      renderAdminAccountsList();
+      renderLeaderboard();
+      renderBank();
+      showToast(`💰 Patron : ${amount > 0 ? '+' : ''}${fmt(amount)} € pour ${username} !`);
+    }
+
+    async function adminPromptCustomBalance(username, current) {
+      const input = prompt(`Entre le nouveau solde pour « ${username} » :`, current);
+      if (input === null) return;
+      const num = parseInt(input);
+      if (isNaN(num) || num < 0) return showToast('❌ Montant invalide.');
+
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      if (!db[key]) return;
+
+      db[key].balance = num;
+      saveAccountsDB(db);
+      await pushRemoteAccount(db[key]);
+
+      if (key === (state.username || '').toLowerCase()) {
+        state.balance = num;
+        saveState();
+      }
+
+      renderAdminAccountsList();
+      renderLeaderboard();
+      renderBank();
+      showToast(`✏️ Solde de « ${username} » fixé à ${fmt(num)} €.`);
+    }
+
+    async function adminPromptPassword(username) {
+      const newPwd = prompt(`Entre le nouveau mot de passe pour « ${username} » :`);
+      if (newPwd === null) return;
+      if (newPwd.trim().length < 3) return showToast('❌ Le mot de passe doit comporter au moins 3 caractères.');
+
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      if (!db[key]) return;
+
+      db[key].password = newPwd.trim();
+      saveAccountsDB(db);
+      await pushRemoteAccount(db[key]);
+
+      if (key === (state.username || '').toLowerCase()) {
+        state.password = newPwd.trim();
+        saveState();
+      }
+
+      renderAdminAccountsList();
+      showToast(`🔑 Mot de passe de « ${username} » mis à jour !`);
+    }
+
+    async function adminResetPlayer(username) {
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      if (!db[key]) return;
+
+      db[key].balance = 5500;
+      saveAccountsDB(db);
+      await pushRemoteAccount(db[key]);
+
+      if (key === (state.username || '').toLowerCase()) {
+        state.balance = 5500;
+        saveState();
+      }
+
+      renderAdminAccountsList();
+      renderLeaderboard();
+      renderBank();
+      showToast(`🔄 Compte de « ${username} » réinitialisé à 5 500 €.`);
+    }
+
+    async function adminDeleteAccount(username) {
+      if (!confirm(`⚠️ Es-tu sûr de vouloir supprimer définitivement le compte de « ${username} » de la base de données ?`)) {
+        return;
+      }
+
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      delete db[key];
+      saveAccountsDB(db);
+      await deleteRemoteAccount(username);
+
+      if (key === (state.username || '').toLowerCase()) {
+        logoutPlayer();
+      } else {
+        renderAdminAccountsList();
+        renderLeaderboard();
+        renderBank();
+        showToast(`🗑️ Compte « ${username} » supprimé de la base de données.`);
+      }
+    }
+
     function renderAdminPlayerPills() {
       const box = document.getElementById('adminActivePlayersPills');
       if (!box) return;
-      const allPlayers = [state.username, ...state.friends, ...Object.keys(state.friendBalances)];
+      const db = getAccountsDB();
+      const allPlayers = [state.username, ...Object.keys(db).map(k => db[k]?.username), ...state.friends];
       const uniquePlayers = [...new Set(allPlayers.filter(Boolean))];
       box.innerHTML = uniquePlayers.map((name, idx) => `
         <button onclick="setAdminTarget('${name.replace(/'/g, "\\'")}')" class="pill-choice ${idx === 0 ? 'active' : ''}">
@@ -1958,8 +2369,9 @@
     }
 
     function openAdminModal() {
+      switchAdminTab('accounts');
       renderAdminPlayerPills();
-      document.getElementById('adminTargetInput').value = state.username;
+      document.getElementById('adminTargetInput').value = state.username || '';
       document.getElementById('adminCrashLuck').value = CONFIG_CASINO.CHANCE_CRASH;
       document.getElementById('lblLuckCrash').textContent = CONFIG_CASINO.CHANCE_CRASH + '%';
       document.getElementById('adminRouletteLuck').value = CONFIG_CASINO.CHANCE_ROULETTE;
@@ -1991,9 +2403,16 @@
       const target = document.getElementById('adminTargetInput').value.trim() || state.username;
       const amount = parseInt(document.getElementById('adminAmountInput').value) || 0;
       if (amount === 0) return;
-      if (target.toLowerCase() === state.username.toLowerCase()) {
+      if (target.toLowerCase() === (state.username || '').toLowerCase()) {
         state.balance = Math.max(0, state.balance + amount);
       } else {
+        const db = getAccountsDB();
+        const key = target.toLowerCase();
+        if (db[key]) {
+          db[key].balance = Math.max(0, (db[key].balance || 5000) + amount);
+          saveAccountsDB(db);
+          pushRemoteAccount(db[key]);
+        }
         state.friendBalances[target] = Math.max(0, (state.friendBalances[target] || 5000) + amount);
         poker.opponents.forEach(o => {
           if (o.name.toLowerCase() === target.toLowerCase()) o.stack = state.friendBalances[target];
@@ -2001,6 +2420,7 @@
       }
       playCoinWinSound();
       saveState();
+      renderAdminAccountsList();
       renderAdminPlayerPills();
       if (currentRoomKey === 'poker') renderPokerTable(false);
       showToast(`👑 Patron : +${fmt(amount)} pièces ajoutées à ${target} !`);
