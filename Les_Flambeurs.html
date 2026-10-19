@@ -1661,10 +1661,21 @@
       }
     }
 
-    const STORAGE_KEY_CLOUD_URL = 'flambeurs_cloud_db_url';
+    /* ================= BASE DE DONNÉES CLOUD : SUPABASE POSTGRESQL ================= */
+    const SUPABASE_CONFIG = {
+      url: 'https://gyjyncljhlatomnbmwxa.supabase.co',
+      anonKey: 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee'
+    };
 
-    function getCloudDbUrl() {
-      return (localStorage.getItem(STORAGE_KEY_CLOUD_URL) || '').trim().replace(/\/+$/, '');
+    async function supabaseFetch(endpoint, options = {}) {
+      const url = `${SUPABASE_CONFIG.url}/rest/v1/${endpoint}`;
+      const headers = {
+        'apikey': SUPABASE_CONFIG.anonKey,
+        'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      };
+      return fetch(url, { ...options, headers });
     }
 
     function saveAccountsDB(db) {
@@ -1674,44 +1685,51 @@
     }
 
     async function syncRemoteAccounts() {
-      const cloudUrl = getCloudDbUrl();
       const db = getAccountsDB();
       let changed = false;
 
-      // 1. Essai via URL Cloud (Firebase / REST)
-      if (cloudUrl) {
-        try {
-          const fetchUrl = cloudUrl.endsWith('.json') ? cloudUrl : `${cloudUrl}/accounts.json`;
-          const res = await fetch(fetchUrl);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && typeof data === 'object') {
-              Object.keys(data).forEach(k => {
-                if (data[k] && data[k].username) {
-                  db[k] = { ...(db[k] || {}), ...data[k] };
-                  changed = true;
-                }
-              });
-            }
+      // 1. Synchro principale avec Supabase Cloud (PostgreSQL)
+      try {
+        const res = await supabaseFetch('accounts?select=*');
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows)) {
+            rows.forEach(row => {
+              if (row && row.username) {
+                const key = row.username.toLowerCase();
+                const extraData = (row.data && typeof row.data === 'object') ? row.data : {};
+                db[key] = {
+                  ...DEFAULT_USER_STATE,
+                  ...extraData,
+                  username: row.username,
+                  password: row.password || '',
+                  avatarEmoji: row.avatar || '🎭',
+                  balance: typeof row.balance === 'number' ? row.balance : parseInt(row.balance) || 5500
+                };
+                changed = true;
+              }
+            });
           }
-        } catch (e) {}
-      } else {
-        // 2. Essai via serveur local /api/accounts
-        try {
-          const res = await fetch('/api/accounts');
-          if (res.ok) {
-            const data = await res.json();
-            if (data && typeof data === 'object') {
-              Object.keys(data).forEach(k => {
-                if (data[k] && data[k].username) {
-                  db[k] = { ...(db[k] || {}), ...data[k] };
-                  changed = true;
-                }
-              });
-            }
-          }
-        } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('Erreur synchro Supabase:', e);
       }
+
+      // 2. Synchro serveur local /api/accounts (si actif)
+      try {
+        const res = await fetch('/api/accounts');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data === 'object') {
+            Object.keys(data).forEach(k => {
+              if (data[k] && data[k].username && !db[k]) {
+                db[k] = { ...(db[k] || {}), ...data[k] };
+                changed = true;
+              }
+            });
+          }
+        }
+      } catch (e) {}
 
       if (changed) {
         saveAccountsDB(db);
@@ -1726,43 +1744,57 @@
 
     async function pushRemoteAccount(account) {
       if (!account || !account.username) return;
-      const key = account.username.toLowerCase();
-      const cloudUrl = getCloudDbUrl();
+      const row = {
+        username: account.username,
+        password: account.password || '',
+        avatar: account.avatarEmoji || '🎭',
+        balance: account.balance ?? 5500,
+        data: {
+          equipped: account.equipped || {},
+          ownedSkins: account.ownedSkins || [],
+          buildingsOwned: account.buildingsOwned || {},
+          chestStreak: account.chestStreak || 1,
+          lastChestTime: account.lastChestTime || 0,
+          friends: account.friends || [],
+          friendBalances: account.friendBalances || {},
+          bankTransfers: account.bankTransfers || []
+        },
+        updated_at: new Date().toISOString()
+      };
 
-      if (cloudUrl) {
-        try {
-          const targetUrl = `${cloudUrl}/accounts/${key}.json`;
-          await fetch(targetUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(account)
-          });
-        } catch (e) {}
-      } else {
-        try {
-          await fetch('/api/accounts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(account)
-          });
-        } catch (e) {}
+      // Envoi immédiat vers Supabase Cloud
+      try {
+        await supabaseFetch('accounts', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify(row)
+        });
+      } catch (e) {
+        console.warn('Erreur push Supabase:', e);
       }
+
+      // Sauvegarde serveur local si actif
+      try {
+        await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(account)
+        });
+      } catch (e) {}
     }
 
     async function deleteRemoteAccount(username) {
       if (!username) return;
-      const key = username.toLowerCase();
-      const cloudUrl = getCloudDbUrl();
-
-      if (cloudUrl) {
-        try {
-          await fetch(`${cloudUrl}/accounts/${key}.json`, { method: 'DELETE' });
-        } catch (e) {}
-      } else {
-        try {
-          await fetch(`/api/accounts?username=${encodeURIComponent(username)}`, { method: 'DELETE' });
-        } catch (e) {}
+      try {
+        await supabaseFetch(`accounts?username=eq.${encodeURIComponent(username)}`, {
+          method: 'DELETE'
+        });
+      } catch (e) {
+        console.warn('Erreur suppression Supabase:', e);
       }
+      try {
+        await fetch(`/api/accounts?username=${encodeURIComponent(username)}`, { method: 'DELETE' });
+      } catch (e) {}
     }
 
     function openAuthModal(defaultTab = 'login') {
@@ -2370,6 +2402,7 @@
 
     function openAdminModal() {
       switchAdminTab('accounts');
+      syncRemoteAccounts().then(() => renderAdminAccountsList()).catch(() => {});
       renderAdminPlayerPills();
       document.getElementById('adminTargetInput').value = state.username || '';
       document.getElementById('adminCrashLuck').value = CONFIG_CASINO.CHANCE_CRASH;
@@ -2384,6 +2417,14 @@
       document.getElementById('lblLuckSlot').textContent = CONFIG_CASINO.CHANCE_MACHINE_A_SOUS + '%';
       document.getElementById('adminModal').classList.remove('hidden');
     }
+
+    // Auto-rafraîchissement en temps réel dès que le menu du Patron est ouvert
+    setInterval(() => {
+      const modal = document.getElementById('adminModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        syncRemoteAccounts().then(() => renderAdminAccountsList()).catch(() => {});
+      }
+    }, 6000);
 
     function closeAdminModal() {
       document.getElementById('adminModal').classList.add('hidden');
