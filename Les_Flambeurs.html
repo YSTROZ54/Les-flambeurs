@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>LES FLAMBEURS — Le Casino Anonyme</title>
+  <link rel="icon" type="image/x-icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
+  <link rel="shortcut icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
+  <link rel="apple-touch-icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -1540,6 +1543,75 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- NOTIFICATION FLOTTANTE DE DEMANDE D'AMI EN ATTENTE (BAS DROITE)  -->
+  <!-- ================================================================= -->
+  <div id="friendRequestNotification" class="fixed bottom-6 right-6 z-[120] max-w-sm w-[calc(100%-3rem)] bg-stone-900 border-2 border-purple-400 rounded-3xl p-4 sm:p-5 shadow-2xl space-y-3 backdrop-blur-xl hidden transform transition-all duration-300">
+    <div class="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/40 text-xl flex items-center justify-center animate-bounce">
+          👥
+        </div>
+        <div>
+          <h4 class="font-serif-title font-extrabold text-sm text-purple-300">Demande d'Ami !</h4>
+          <p id="pendingFriendFromText" class="text-xs text-stone-300">De la part de <strong class="text-white">...</strong></p>
+        </div>
+      </div>
+      <span class="w-2.5 h-2.5 rounded-full bg-purple-400 animate-ping"></span>
+    </div>
+
+    <div class="bg-black/50 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
+      <p class="text-xs text-stone-300">Souhaite t'ajouter à ses potes pour jouer et faire des parties multi ensemble !</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 pt-1">
+      <button onclick="declineCurrentFriendRequest()" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 border border-white/15 text-stone-300 font-extrabold text-xs transition">
+        ❌ Refuser
+      </button>
+      <button onclick="acceptCurrentFriendRequest()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-400 to-indigo-600 hover:brightness-110 text-white font-black text-xs shadow-lg transition transform active:scale-95 flex items-center justify-center gap-1">
+        <span>✅</span> <span>Accepter</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- NOTIFICATION FLOTTANTE D'INVITATION DE JEU MULTIJOUEUR (BAS DROITE) -->
+  <!-- ================================================================= -->
+  <div id="gameInviteNotification" class="fixed bottom-6 right-6 z-[120] max-w-sm w-[calc(100%-3rem)] bg-stone-900 border-2 border-amber-400 rounded-3xl p-4 sm:p-5 shadow-2xl space-y-3 backdrop-blur-xl hidden transform transition-all duration-300">
+    <div class="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xl flex items-center justify-center animate-bounce">
+          🎮
+        </div>
+        <div>
+          <h4 class="font-serif-title font-extrabold text-sm text-amber-300">Invitation de Jeu !</h4>
+          <p id="pendingGameFromText" class="text-xs text-stone-300">De la part de <strong class="text-white">...</strong></p>
+        </div>
+      </div>
+      <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+    </div>
+
+    <div class="bg-black/50 border border-white/10 rounded-2xl p-3 space-y-1.5">
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-stone-400 font-bold">Jeu :</span>
+        <span id="pendingGameNameText" class="font-extrabold text-white">♠️ Poker</span>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-stone-400 font-bold">Table :</span>
+        <span id="pendingGameTableText" class="font-mono-num font-bold text-amber-300">Table Publique</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 pt-1">
+      <button onclick="declineCurrentGameInvite()" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 border border-white/15 text-stone-300 font-extrabold text-xs transition">
+        ❌ Refuser
+      </button>
+      <button onclick="acceptCurrentGameInvite()" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition transform active:scale-95 flex items-center justify-center gap-1">
+        <span>🚀</span> <span>Rejoindre</span>
+      </button>
+    </div>
+  </div>
+
   <!-- NOTIFICATION TOAST -->
   <div id="toastBox" class="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-stone-950 border-2 border-amber-400 text-amber-100 text-xs font-extrabold shadow-2xl hidden"></div>
 <script>
@@ -1708,7 +1780,9 @@
         slots: 35
       },
       bankTransfers: [],
-      pendingTransfers: []
+      pendingTransfers: [],
+      pendingFriendRequests: [],
+      pendingGameInvites: []
     };
 
     let state = { ...DEFAULT_USER_STATE };
@@ -1766,7 +1840,10 @@
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
                   balance: typeof row.balance === 'number' ? row.balance : parseInt(row.balance) || 5500,
-                  pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : []
+                  friends: Array.isArray(extraData.friends) ? extraData.friends : [],
+                  pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : [],
+                  pendingFriendRequests: Array.isArray(extraData.pendingFriendRequests) ? extraData.pendingFriendRequests : [],
+                  pendingGameInvites: Array.isArray(extraData.pendingGameInvites) ? extraData.pendingGameInvites : []
                 };
                 changed = true;
               }
@@ -1800,20 +1877,33 @@
       const activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
       if (activeUser && db[activeUser.toLowerCase()]) {
         const myAcc = db[activeUser.toLowerCase()];
-        const oldLen = (state.pendingTransfers || []).length;
+        const oldTransfersLen = (state.pendingTransfers || []).length;
+        const oldFriendsReqLen = (state.pendingFriendRequests || []).length;
+        const oldGameInvLen = (state.pendingGameInvites || []).length;
+
         const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
+        const newFriendReqs = Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : [];
+        const newGameInvs = Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [];
+        const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
+
         const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
+        const hasFriendReqDiff = JSON.stringify(state.pendingFriendRequests || []) !== JSON.stringify(newFriendReqs);
+        const hasGameInvDiff = JSON.stringify(state.pendingGameInvites || []) !== JSON.stringify(newGameInvs);
+        const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
         const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
 
-        if (hasTransfersDiff || hasBalanceDiff) {
+        if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff) {
           state.pendingTransfers = newTransfers;
+          state.pendingFriendRequests = newFriendReqs;
+          state.pendingGameInvites = newGameInvs;
+          state.friends = newFriends;
           if (hasBalanceDiff) state.balance = myAcc.balance;
-          if (newTransfers.length > oldLen) {
+          if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || newGameInvs.length > oldGameInvLen) {
             playCoinWinSound();
           }
           updateGlobalUI();
         }
-        checkPendingTransfersNotification();
+        checkPendingNotifications();
       }
 
       try { renderLeaderboard(); } catch (e) {}
@@ -1842,7 +1932,9 @@
           friends: account.friends || [],
           friendBalances: account.friendBalances || {},
           bankTransfers: account.bankTransfers || [],
-          pendingTransfers: account.pendingTransfers || []
+          pendingTransfers: account.pendingTransfers || [],
+          pendingFriendRequests: account.pendingFriendRequests || [],
+          pendingGameInvites: account.pendingGameInvites || []
         },
         updated_at: new Date().toISOString()
       };
@@ -2120,6 +2212,9 @@
       } else {
         state.bankTransfers = [];
       }
+      if (!Array.isArray(state.pendingTransfers)) state.pendingTransfers = [];
+      if (!Array.isArray(state.pendingFriendRequests)) state.pendingFriendRequests = [];
+      if (!Array.isArray(state.pendingGameInvites)) state.pendingGameInvites = [];
 
       // Synchronise les limites strictes des 3 bâtiments (max 2)
       Object.keys(state.buildingsOwned).forEach(k => {
@@ -2223,22 +2318,17 @@
       const inp = document.getElementById('adminPasswordInput');
       const pwd = (inp ? inp.value : '').trim();
 
-      // Sécurité stricte : Seul le compte « Alex » a le droit d'accéder au Menu Patron
-      if (!isCurrentUserAdmin()) {
-        showToast('⛔ Accès refusé : Seul le compte « Alex » a les droits d\'accès au Menu Patron !');
+      // Sécurité discrète : si le compte n'est pas Alex ou si le mot de passe est faux, simple "Accès refusé"
+      if (!isCurrentUserAdmin() || pwd.toUpperCase() !== 'BATMAN') {
+        showToast('⛔ Accès refusé.');
         closeAdminPasswordModal();
         if (inp) inp.value = '';
         return;
       }
 
-      if (pwd.toUpperCase() === 'BATMAN') {
-        closeAdminPasswordModal();
-        openAdminModal();
-        showToast('🦇 Code BATMAN validé : Bienvenue Alex !');
-      } else {
-        showToast('❌ Mot de passe incorrect ! Tape BATMAN');
-        if (inp) inp.value = '';
-      }
+      closeAdminPasswordModal();
+      openAdminModal();
+      showToast('🦇 Accès validé : Bienvenue Patron !');
     }
 
     /* ================= MENU SECRET DU PATRON & ANNUAIRE BASE DE DONNÉES ================= */
@@ -3336,7 +3426,7 @@
       saveState();
       playCoinWinSound();
       updateGlobalUI();
-      checkPendingTransfersNotification();
+      checkPendingNotifications();
       showToast(`✅ Virement de +${fmt(amount)} € accepté avec succès !`);
     }
 
@@ -3363,8 +3453,143 @@
 
       saveState();
       updateGlobalUI();
-      checkPendingTransfersNotification();
+      checkPendingNotifications();
       showToast(`❌ Don de ${fmt(amount)} € refusé (remboursé à ${cur.from}).`);
+    }
+
+    /* ================= GESTION GLOBALE DES NOTIFICATIONS (VIREMENTS, AMIS, JEUX) ================= */
+    function checkPendingNotifications() {
+      checkPendingTransfersNotification();
+      checkPendingFriendRequestsNotification();
+      checkPendingGameInvitesNotification();
+    }
+
+    /* ================= NOTIFICATIONS DE DEMANDES D'AMI ================= */
+    function checkPendingFriendRequestsNotification() {
+      const card = document.getElementById('friendRequestNotification');
+      if (!card) return;
+
+      const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      if (list.length === 0) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      const cur = list[0];
+      const fromEl = document.getElementById('pendingFriendFromText');
+      if (fromEl) fromEl.innerHTML = `De la part de <strong class="text-white">${cur.from}</strong>`;
+
+      card.classList.remove('hidden');
+    }
+
+    async function acceptCurrentFriendRequest() {
+      const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      if (list.length === 0) return;
+
+      const cur = list[0];
+      const friendName = cur.from;
+      state.pendingFriendRequests = list.slice(1);
+
+      // 1. Ajouter ami sur le compte local actif
+      if (!Array.isArray(state.friends)) state.friends = [];
+      if (!state.friends.some(f => f.toLowerCase() === friendName.toLowerCase())) {
+        state.friends.push(friendName);
+      }
+      if (!state.friendBalances) state.friendBalances = {};
+      if (!state.friendBalances[friendName]) state.friendBalances[friendName] = 5000;
+
+      // 2. Ajouter aussi l'ami sur le compte distant de l'expéditeur (amitié réciproque)
+      const db = getAccountsDB();
+      const senderKey = friendName.toLowerCase();
+      if (db[senderKey]) {
+        if (!Array.isArray(db[senderKey].friends)) db[senderKey].friends = [];
+        if (!db[senderKey].friends.some(f => f.toLowerCase() === (state.username || '').toLowerCase())) {
+          db[senderKey].friends.push(state.username);
+        }
+        if (!db[senderKey].friendBalances) db[senderKey].friendBalances = {};
+        if (!db[senderKey].friendBalances[state.username]) db[senderKey].friendBalances[state.username] = state.balance || 5500;
+        saveAccountsDB(db);
+        await pushRemoteAccount(db[senderKey]);
+      }
+
+      saveState();
+      playCoinWinSound();
+      updateGlobalUI();
+      renderFriendsModalList();
+      checkPendingNotifications();
+      showToast(`🎉 Tu es maintenant ami avec ${friendName} !`);
+    }
+
+    async function declineCurrentFriendRequest() {
+      const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      if (list.length === 0) return;
+
+      const cur = list[0];
+      state.pendingFriendRequests = list.slice(1);
+      saveState();
+      updateGlobalUI();
+      checkPendingNotifications();
+      showToast(`❌ Demande d'ami de ${cur.from} refusée.`);
+    }
+
+    /* ================= NOTIFICATIONS D'INVITATIONS DE JEU MULTIJOUEUR ================= */
+    function checkPendingGameInvitesNotification() {
+      const card = document.getElementById('gameInviteNotification');
+      if (!card) return;
+
+      const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      if (list.length === 0) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      const cur = list[0];
+      const fromEl = document.getElementById('pendingGameFromText');
+      const nameEl = document.getElementById('pendingGameNameText');
+      const tableEl = document.getElementById('pendingGameTableText');
+
+      if (fromEl) fromEl.innerHTML = `De la part de <strong class="text-white">${cur.from}</strong>`;
+      if (nameEl) nameEl.textContent = cur.gameName || cur.room;
+      if (tableEl) tableEl.textContent = cur.tableType === 'private' ? `Table Privée [${cur.roomCode}]` : 'Table Publique';
+
+      card.classList.remove('hidden');
+    }
+
+    async function acceptCurrentGameInvite() {
+      const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      if (list.length === 0) return;
+
+      const cur = list[0];
+      state.pendingGameInvites = list.slice(1);
+      saveState();
+      checkPendingNotifications();
+
+      // Rejoindre directement la salle
+      switchRoom(cur.room);
+
+      // Si le jeu utilise un lobby (poker, blackjack, gobelets), passer en mode multi
+      if (lobbies[cur.room]) {
+        lobbies[cur.room].mode = 'multi';
+        if (cur.roomCode) {
+          lobbies[cur.room].tableType = cur.tableType || 'private';
+          lobbies[cur.room].roomCode = cur.roomCode;
+        }
+        updateLobbyUI(cur.room === 'blackjack' ? 'bj' : cur.room);
+      }
+
+      playCoinWinSound();
+      showToast(`🚀 Tu as rejoint la partie de ${cur.from} (${cur.gameName}) !`);
+    }
+
+    async function declineCurrentGameInvite() {
+      const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      if (list.length === 0) return;
+
+      const cur = list[0];
+      state.pendingGameInvites = list.slice(1);
+      saveState();
+      checkPendingNotifications();
+      showToast(`❌ Invitation de ${cur.from} déclinée.`);
     }
 
     /* ================= POKER ENGINE (TOUS MODES & RESPONSIVE MOBILE) ================= */
@@ -4993,20 +5218,56 @@
       }).join('');
     }
 
-    function quickAddFriendFromDb(username) {
-      if (!username) return;
-      if (!state.friends) state.friends = [];
-      if (!state.friends.some(f => f.toLowerCase() === username.toLowerCase())) {
-        state.friends.push(username);
-        if (!state.friendBalances[username]) state.friendBalances[username] = 5000;
-        saveState();
-        renderFriendsModalList();
-        renderLeaderboard();
-        showToast(`👥 « ${username} » ajouté à tes amis !`);
+    async function sendFriendRequest(targetUsername) {
+      if (!targetUsername) return;
+      const targetName = targetUsername.trim();
+      const meName = (state.username || '').trim();
+
+      if (!meName) {
+        return showToast('❌ Connecte-toi d\'abord pour ajouter des amis.');
       }
+
+      if (targetName.toLowerCase() === meName.toLowerCase()) {
+        return showToast('❌ Tu ne peux pas t\'ajouter toi-même !');
+      }
+
+      if (state.friends && state.friends.some(f => f.toLowerCase() === targetName.toLowerCase())) {
+        return showToast(`ℹ️ « ${targetName} » est déjà dans ta liste d'amis !`);
+      }
+
+      const db = getAccountsDB();
+      const targetKey = targetName.toLowerCase();
+      const targetAcc = db[targetKey];
+
+      if (!targetAcc) {
+        return showToast(`❌ Aucun joueur « ${targetName} » trouvé sur le casino.`);
+      }
+
+      const reqs = Array.isArray(targetAcc.pendingFriendRequests) ? targetAcc.pendingFriendRequests : [];
+      if (reqs.some(r => r.from.toLowerCase() === meName.toLowerCase())) {
+        return showToast(`⏳ Demande d'ami déjà envoyée à ${targetAcc.username} !`);
+      }
+
+      const reqObj = {
+        id: 'freq_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        from: meName,
+        to: targetAcc.username,
+        timestamp: Date.now()
+      };
+
+      if (!Array.isArray(targetAcc.pendingFriendRequests)) targetAcc.pendingFriendRequests = [];
+      targetAcc.pendingFriendRequests.push(reqObj);
+      saveAccountsDB(db);
+      await pushRemoteAccount(targetAcc);
+
+      showToast(`📨 Demande d'ami envoyée à ${targetAcc.username} !`);
     }
 
-    function inviteFriendToPlay(friendName) {
+    function quickAddFriendFromDb(username) {
+      sendFriendRequest(username);
+    }
+
+    async function inviteFriendToPlay(friendName) {
       let room = currentRoomKey;
       if (!['poker', 'crash', 'cups', 'roulette', 'slots', 'mines', 'blackjack'].includes(room)) {
         room = 'poker';
@@ -5022,7 +5283,6 @@
         blackjack: '🃏 Blackjack'
       };
 
-      const siteUrl = window.location.origin + window.location.pathname;
       const currentLobby = lobbies[room];
       let lobbyExtra = '';
       if (currentLobby && currentLobby.mode === 'multi') {
@@ -5031,7 +5291,26 @@
           : ` (Table Multijoueur Publique)`;
       }
 
-      const inviteMsg = `Hey ${friendName} ! Rejoins-moi sur Les Flambeurs dans la salle ${roomNames[room] || room}${lobbyExtra} pour jouer ensemble ! 👉 ${siteUrl}`;
+      // Envoi de la notification en direct sur le compte du joueur
+      const inviteObj = {
+        id: 'ginv_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        from: state.username,
+        to: friendName,
+        room: room,
+        gameName: roomNames[room] || room,
+        tableType: currentLobby?.tableType || 'public',
+        roomCode: currentLobby?.roomCode || '',
+        timestamp: Date.now()
+      };
+
+      const db = getAccountsDB();
+      const fKey = friendName.toLowerCase();
+      if (db[fKey]) {
+        if (!Array.isArray(db[fKey].pendingGameInvites)) db[fKey].pendingGameInvites = [];
+        db[fKey].pendingGameInvites.push(inviteObj);
+        saveAccountsDB(db);
+        await pushRemoteAccount(db[fKey]);
+      }
 
       if (room === 'poker') {
         const emptySeat = poker.opponents.find(o => o.isEmpty);
@@ -5045,18 +5324,16 @@
         }
       }
 
+      const siteUrl = window.location.origin + window.location.pathname;
+      const inviteMsg = `Hey ${friendName} ! Rejoins-moi sur Les Flambeurs dans la salle ${roomNames[room] || room}${lobbyExtra} pour jouer ensemble ! 👉 ${siteUrl}`;
+
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(inviteMsg).then(() => {
-          showToast(`📨 Invitation copiée pour ${friendName} !`);
-        }).catch(() => {
-          prompt(`Copie ce message pour inviter ${friendName} :`, inviteMsg);
-        });
-      } else {
-        prompt(`Copie ce message pour inviter ${friendName} :`, inviteMsg);
+        navigator.clipboard.writeText(inviteMsg).catch(() => {});
       }
 
       closeFriendsModal();
       switchRoom(room);
+      showToast(`🎮 Invitation envoyée à ${friendName} (notif directe) !`);
     }
 
     function addNewFriend() {
@@ -5070,15 +5347,8 @@
         return showToast('ℹ️ Ce joueur est déjà dans ta liste !');
       }
 
-      state.friends.push(name);
-      if (!state.friendBalances[name]) state.friendBalances[name] = 5000;
-      saveState();
+      sendFriendRequest(name);
       if (inp) inp.value = '';
-      renderFriendsModalList();
-      renderBank();
-      renderLeaderboard();
-      setupPokerSeats();
-      showToast(`👥 Joueur « ${name} » ajouté !`);
     }
 
     function removeFriend(name) {

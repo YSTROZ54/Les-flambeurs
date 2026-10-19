@@ -62,7 +62,9 @@ export default async function handler(req, res) {
               friends: body.friends || [],
               friendBalances: body.friendBalances || {},
               bankTransfers: body.bankTransfers || [],
-              pendingTransfers: body.pendingTransfers || []
+              pendingTransfers: body.pendingTransfers || [],
+              pendingFriendRequests: body.pendingFriendRequests || [],
+              pendingGameInvites: body.pendingGameInvites || []
             },
             updated_at: new Date().toISOString()
           };
