@@ -1126,10 +1126,17 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="lg:col-span-6 rounded-2xl p-6 bg-stone-950/90 border border-amber-500/30 space-y-4 shadow-xl">
           <h3 class="font-serif-title text-lg font-bold text-white">💸 Envoyer de l'argent à un joueur</h3>
-          <div>
-            <label class="text-xs text-stone-400 font-bold">Clique sur un joueur ou tape son blase :</label>
-            <div id="bankFriendsListPills" class="flex flex-wrap gap-2 mt-1.5 mb-2"></div>
-            <input id="bankCustomRecipient" type="text" value="" placeholder="Tape le blase du joueur..." class="w-full bg-black/70 border border-white/15 rounded-xl px-3.5 py-2.5 text-white text-sm font-bold focus:outline-none">
+          <div class="relative">
+            <label class="text-xs text-stone-300 font-bold block mb-1.5">Destinataire du virement :</label>
+            <div class="relative">
+              <input id="bankCustomRecipient" type="text" autocomplete="off" oninput="handleBankRecipientAutocomplete(this.value)" onfocus="handleBankRecipientAutocomplete(this.value)" placeholder="Tape le pseudo (ex: Alex)..." class="w-full bg-black/70 border border-white/20 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-white text-sm font-bold focus:outline-none transition pr-10">
+              <span class="absolute right-3.5 top-2.5 text-stone-400 text-sm pointer-events-none">🔍</span>
+            </div>
+            
+            <!-- Liste d'autocomplétion dynamique -->
+            <div id="bankAutocompleteDropdown" class="absolute left-0 right-0 top-full mt-1.5 bg-stone-900 border border-amber-400/50 rounded-2xl shadow-2xl z-30 max-h-52 overflow-y-auto hidden divide-y divide-white/5">
+              <!-- Rempli en temps réel par handleBankRecipientAutocomplete() -->
+            </div>
           </div>
 
           <div>
@@ -1305,29 +1312,39 @@
 
   <!-- MODAL : GÉRER LES JOUEURS & POTES DU CLUB -->
   <div id="friendsModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-stone-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+    <div class="bg-stone-900 border-2 border-emerald-500/40 rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <h3 class="font-serif-title text-xl font-extrabold text-white flex items-center gap-2">
-          <span>👥</span> <span>Joueurs &amp; Potes du Cercle</span>
+          <span>👥</span> <span>Mes Amis &amp; Invitations de Jeu</span>
         </h3>
         <button onclick="closeFriendsModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-stone-300">Ajoute les blases de tes vrais potes pour jouer ensemble en multi, suivre leur solde et leur faire des dons.</p>
+      <p class="text-xs text-stone-300">Ajoute tes potes en ami pour les inviter directement sur les tables de jeu (Poker, Crash, Gobelets, etc.) ou leur faire des dons.</p>
 
+      <!-- Champ ajout manuel -->
       <div class="flex gap-2">
-        <input id="newFriendInput" type="text" onkeydown="if(event.key==='Enter') addNewFriend()" placeholder="Entre le blase d'un joueur..." class="w-full bg-black/70 border border-white/15 rounded-xl px-3.5 py-2 text-sm text-white font-bold focus:outline-none focus:border-emerald-400">
+        <input id="newFriendInput" type="text" onkeydown="if(event.key==='Enter') addNewFriend()" placeholder="Entre le pseudo d'un joueur..." class="w-full bg-black/70 border border-white/15 focus:border-emerald-400 rounded-xl px-3.5 py-2 text-sm text-white font-bold focus:outline-none">
         <button onclick="addNewFriend()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs whitespace-nowrap shadow-lg">
           + Ajouter
         </button>
       </div>
 
-      <div class="space-y-2">
-        <div class="text-[11px] uppercase tracking-wider text-stone-400 font-bold flex justify-between">
-          <span>Joueurs enregistrés (<span id="friendsCountBadge">0</span>)</span>
-          <span>Solde</span>
+      <!-- Suggestions des joueurs inscrits sur le Casino -->
+      <div id="friendsSuggestionsContainer" class="space-y-1.5 hidden bg-black/40 p-3 rounded-2xl border border-white/5">
+        <div class="text-[11px] uppercase tracking-wider text-amber-300 font-extrabold flex items-center gap-1.5">
+          <span>✨ Joueurs du Casino à ajouter en ami :</span>
         </div>
-        <div id="friendsListContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+        <div id="friendsSuggestionsList" class="flex flex-wrap gap-1.5 pt-1"></div>
+      </div>
+
+      <!-- Liste de mes amis -->
+      <div class="space-y-2 pt-2 border-t border-white/10">
+        <div class="text-[11px] uppercase tracking-wider text-stone-400 font-bold flex justify-between">
+          <span>Mes Amis (<span id="friendsCountBadge">0</span>)</span>
+          <span>Actions &amp; Invitation</span>
+        </div>
+        <div id="friendsListContainer" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
       </div>
 
       <div class="pt-2 flex justify-end">
@@ -1458,8 +1475,7 @@
         👤 Changer d'avatar dans la Boutique
       </button>
 
-      <div class="flex justify-between items-center pt-2 border-t border-white/10">
-        <button onclick="resetAccount()" class="text-xs text-rose-400 hover:underline">Remettre à 5 500 €</button>
+      <div class="flex justify-end items-center pt-2 border-t border-white/10">
         <button onclick="saveProfile()" class="px-5 py-2 rounded-xl bg-amber-500 text-black font-extrabold text-xs hover:bg-amber-400 transition">Sauvegarder</button>
       </div>
 
@@ -2120,13 +2136,34 @@
       document.getElementById('adminPasswordModal').classList.add('hidden');
     }
 
+    /* ================= SÉCURITÉ PATRON : ACCÈS EXCLUSIF AU PATRON ================= */
+    const BOSS_USERNAMES = ['alex', 'omega3.0', 'omega'];
+
+    function isCurrentUserAdmin() {
+      const current = (state.username || '').toLowerCase().trim();
+      if (!current) return false;
+      if (BOSS_USERNAMES.includes(current)) return true;
+      const db = getAccountsDB();
+      const acc = db[current];
+      return Boolean(acc && (acc.isAdmin === true || acc.data?.isAdmin === true));
+    }
+
     function verifyAdminPassword() {
       const inp = document.getElementById('adminPasswordInput');
       const pwd = (inp ? inp.value : '').trim();
+
+      // Sécurité stricte : Le code BATMAN ne fonctionne QUE si le compte connecté est le Patron
+      if (!isCurrentUserAdmin()) {
+        showToast('⛔ Accès refusé : Ce menu secret est strictement réservé au Patron !');
+        closeAdminPasswordModal();
+        if (inp) inp.value = '';
+        return;
+      }
+
       if (pwd.toUpperCase() === 'BATMAN') {
         closeAdminPasswordModal();
         openAdminModal();
-        showToast('🦇 Code BATMAN validé : Menu du Patron ouvert !');
+        showToast('🦇 Code BATMAN validé : Bienvenue Patron !');
       } else {
         showToast('❌ Mot de passe incorrect ! Tape BATMAN');
         if (inp) inp.value = '';
@@ -2967,32 +3004,101 @@
       showToast(`✔ « ${item.name} » équipé !`);
     }
 
-    /* ================= LA BANQUE DU CLUB ================= */
-    function selectBankFriend(name) {
-      const inp = document.getElementById('bankCustomRecipient');
-      if (inp) inp.value = name;
-      const pills = document.querySelectorAll('#bankFriendsListPills .pill-choice');
-      pills.forEach(p => p.classList.toggle('active', p.textContent.trim() === name));
+    /* ================= LA BANQUE DU CLUB & AUTOCOMPLÉTION ================= */
+    function handleBankRecipientAutocomplete(val) {
+      const dropdown = document.getElementById('bankAutocompleteDropdown');
+      if (!dropdown) return;
+
+      const query = (val || '').trim().toLowerCase();
+      if (!query) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      const db = getAccountsDB();
+      const meKey = (state.username || '').toLowerCase();
+      const candidates = {};
+
+      // Tous les comptes Supabase Cloud
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (acc && acc.username && k !== meKey) {
+          candidates[k] = {
+            username: acc.username,
+            avatarEmoji: acc.avatarEmoji || '🎭',
+            balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 5500
+          };
+        }
+      });
+
+      // Potes locaux
+      (state.friends || []).forEach(f => {
+        const k = f.toLowerCase();
+        if (k !== meKey && !candidates[k]) {
+          candidates[k] = {
+            username: f,
+            avatarEmoji: '🎲',
+            balance: state.friendBalances[f] || 5000
+          };
+        }
+      });
+
+      // Filtrage par préfixe en priorité, puis par inclusion
+      const matches = Object.values(candidates).filter(c => {
+        const u = c.username.toLowerCase();
+        return u.startsWith(query) || u.includes(query);
+      }).sort((a, b) => {
+        const aStarts = a.username.toLowerCase().startsWith(query);
+        const bStarts = b.username.toLowerCase().startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return a.username.localeCompare(b.username);
+      });
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = `
+          <div class="px-4 py-3 text-xs text-stone-400 italic">
+            Aucun joueur trouvé pour « ${val} »
+          </div>
+        `;
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = matches.map(c => `
+        <button type="button" onclick="selectBankRecipientFromAutocomplete('${c.username.replace(/'/g, "\\'")}')" class="w-full px-4 py-2.5 text-left flex items-center justify-between hover:bg-amber-500/20 transition group">
+          <div class="flex items-center gap-2.5">
+            <span class="text-base">${c.avatarEmoji}</span>
+            <span class="font-extrabold text-white text-xs group-hover:text-amber-300">${c.username}</span>
+          </div>
+          <span class="font-mono-num text-[11px] font-bold text-amber-300/80">${fmt(c.balance)} €</span>
+        </button>
+      `).join('');
+
+      dropdown.classList.remove('hidden');
     }
 
-    function renderBank() {
-      const pillsBox = document.getElementById('bankFriendsListPills');
-      if (pillsBox) {
-        const db = getAccountsDB();
-        const meKey = (state.username || '').toLowerCase();
-        const dbPlayers = Object.keys(db)
-          .map(k => db[k]?.username)
-          .filter(u => u && u.toLowerCase() !== meKey);
-        const combined = Array.from(new Set([...dbPlayers, ...(state.friends || [])]));
+    function selectBankRecipientFromAutocomplete(username) {
+      const inp = document.getElementById('bankCustomRecipient');
+      if (inp) inp.value = username;
+      const dropdown = document.getElementById('bankAutocompleteDropdown');
+      if (dropdown) dropdown.classList.add('hidden');
+      const amountInp = document.getElementById('bankAmountInput');
+      if (amountInp) amountInp.focus();
+    }
 
-        if (combined.length === 0) {
-          pillsBox.innerHTML = '<span class="text-stone-400 text-xs italic">Aucun autre joueur inscrit. Tape un pseudo ci-dessous !</span>';
-        } else {
-          pillsBox.innerHTML = combined.map(f => `
-            <button onclick="selectBankFriend('${f.replace(/'/g, "\\'")}')" class="pill-choice">${f}</button>
-          `).join('');
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('bankAutocompleteDropdown');
+      const inp = document.getElementById('bankCustomRecipient');
+      if (dropdown && !dropdown.classList.contains('hidden')) {
+        if (!dropdown.contains(e.target) && e.target !== inp) {
+          dropdown.classList.add('hidden');
         }
       }
+    });
+
+    function renderBank() {
       renderBankHistory();
       renderAdminPlayerPills();
     }
@@ -4610,47 +4716,126 @@
     function renderFriendsModalList() {
       const box = document.getElementById('friendsListContainer');
       const badge = document.getElementById('friendsCountBadge');
-      if (badge) badge.textContent = state.friends.length;
+      const suggBox = document.getElementById('friendsSuggestionsContainer');
+      const suggList = document.getElementById('friendsSuggestionsList');
       if (!box) return;
 
-      if (!state.friends || state.friends.length === 0) {
+      const friendsList = state.friends || [];
+      if (badge) badge.textContent = friendsList.length;
+
+      // 1. Suggestions de joueurs inscrits sur le Casino (Cloud Supabase)
+      if (suggBox && suggList) {
+        const db = getAccountsDB();
+        const meKey = (state.username || '').toLowerCase();
+        const friendKeys = friendsList.map(f => f.toLowerCase());
+        const candidates = Object.keys(db)
+          .filter(k => k !== meKey && !friendKeys.includes(k))
+          .map(k => db[k]);
+
+        if (candidates.length > 0) {
+          suggList.innerHTML = candidates.map(c => `
+            <button type="button" onclick="quickAddFriendFromDb('${c.username.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition">
+              <span>${c.avatarEmoji || '🎭'}</span>
+              <span>${c.username}</span>
+              <span class="text-emerald-400 font-extrabold text-sm ml-0.5">＋</span>
+            </button>
+          `).join('');
+          suggBox.classList.remove('hidden');
+        } else {
+          suggBox.classList.add('hidden');
+        }
+      }
+
+      // 2. Liste de mes amis
+      if (friendsList.length === 0) {
         box.innerHTML = `
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 text-stone-400 text-center text-xs space-y-1">
-            <p class="font-bold text-stone-300">Aucun joueur enregistré pour le moment.</p>
-            <p class="text-[11px]">Tape le blase d'un pote ci-dessus pour l'ajouter au cercle !</p>
+            <p class="font-bold text-stone-300">Aucun ami dans ta liste pour l'instant.</p>
+            <p class="text-[11px]">Clique sur un joueur du Casino ci-dessus ou tape son pseudo pour l'ajouter et l'inviter à jouer !</p>
           </div>
         `;
         return;
       }
 
-      box.innerHTML = state.friends.map(fname => {
-        const bal = state.friendBalances[fname] || 5000;
-        const initial = fname.charAt(0).toUpperCase();
+      box.innerHTML = friendsList.map(fname => {
+        const db = getAccountsDB();
+        const acc = db[fname.toLowerCase()];
+        const bal = acc ? acc.balance : (state.friendBalances[fname] || 5000);
+        const avatar = acc ? (acc.avatarEmoji || '🎭') : '🎲';
+
         return `
           <div class="flex items-center justify-between p-2.5 rounded-xl bg-black/60 border border-white/10 hover:border-white/20 transition">
             <div class="flex items-center gap-2.5">
-              <div class="w-7 h-7 rounded-full bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center">${initial}</div>
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/30 text-base flex items-center justify-center">${avatar}</div>
               <div>
                 <div class="text-xs font-bold text-white">${fname}</div>
-                <div class="text-[10px] text-stone-400">Joueur réel</div>
+                <div class="font-mono-num text-[10px] text-amber-300 font-bold">${fmt(bal)} €</div>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="font-mono-num text-xs font-bold text-amber-300">${fmt(bal)} 🪙</span>
-              <button onclick="removeFriend('${fname.replace(/'/g, "\\'")}')" title="Retirer ce joueur" class="text-stone-400 hover:text-rose-400 text-xs px-2 py-1 rounded hover:bg-white/5 transition">🗑️</button>
+            <div class="flex items-center gap-1.5">
+              <button onclick="inviteFriendToPlay('${fname.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-extrabold text-xs flex items-center gap-1.5 shadow transition">
+                <span>🎮</span> <span>Inviter</span>
+              </button>
+              <button onclick="removeFriend('${fname.replace(/'/g, "\\'")}')" title="Retirer de mes amis" class="text-stone-400 hover:text-rose-400 text-xs px-2.5 py-1.5 rounded-xl hover:bg-white/5 transition">🗑️</button>
             </div>
           </div>
         `;
       }).join('');
     }
 
+    function quickAddFriendFromDb(username) {
+      if (!username) return;
+      if (!state.friends) state.friends = [];
+      if (!state.friends.some(f => f.toLowerCase() === username.toLowerCase())) {
+        state.friends.push(username);
+        if (!state.friendBalances[username]) state.friendBalances[username] = 5000;
+        saveState();
+        renderFriendsModalList();
+        renderLeaderboard();
+        showToast(`👥 « ${username} » ajouté à tes amis !`);
+      }
+    }
+
+    function inviteFriendToPlay(friendName) {
+      let room = currentRoomKey;
+      if (!['poker', 'crash', 'cups', 'roulette', 'slots', 'mines', 'blackjack'].includes(room)) {
+        room = 'poker';
+      }
+
+      const roomNames = {
+        poker: '♠️ Poker',
+        crash: '🚀 Fusée Crash',
+        cups: '🥤 Les Gobelets',
+        roulette: '🎡 Roulette',
+        slots: '🎰 Machine à Sous',
+        mines: '🔐 Chambre Forte',
+        blackjack: '🃏 Blackjack'
+      };
+
+      const siteUrl = window.location.origin + window.location.pathname;
+      const inviteMsg = `Hey ${friendName} ! Rejoins-moi sur Les Flambeurs dans la salle ${roomNames[room] || room} pour jouer ensemble ! 👉 ${siteUrl}`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(inviteMsg).then(() => {
+          showToast(`📨 Invitation copiée pour ${friendName} ! Envoie-la lui pour qu'il te rejoigne.`);
+        }).catch(() => {
+          prompt(`Copie ce message pour inviter ${friendName} :`, inviteMsg);
+        });
+      } else {
+        prompt(`Copie ce message pour inviter ${friendName} :`, inviteMsg);
+      }
+
+      closeFriendsModal();
+      switchRoom(room);
+    }
+
     function addNewFriend() {
       const inp = document.getElementById('newFriendInput');
       const name = (inp?.value || '').trim();
-      if (!name) return showToast('❌ Entre le blase d\'un joueur.');
+      if (!name) return showToast('❌ Entre le pseudo d\'un joueur.');
       if (name.toLowerCase() === state.username.toLowerCase()) return showToast('❌ Tu ne peux pas t\'ajouter toi-même !');
       const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
-      if (FAKE_TEST_PROFILES.includes(name.toLowerCase())) return showToast('❌ Ce blase de test n\'est plus autorisé.');
+      if (FAKE_TEST_PROFILES.includes(name.toLowerCase())) return showToast('❌ Ce pseudo n\'est pas autorisé.');
       if (state.friends.some(f => f.toLowerCase() === name.toLowerCase())) {
         return showToast('ℹ️ Ce joueur est déjà dans ta liste !');
       }
@@ -4727,13 +4912,10 @@
       setupPokerSeats();
       showToast('✅ Profil sauvegardé avec succès.');
     }
+
     function resetAccount() {
-      state.balance = 5500;
-      state.chestStreak = 1;
-      state.lastChestTime = 0;
-      saveState();
-      document.getElementById('profileModal').classList.add('hidden');
-      showToast('Compte remis à 5 500 pièces.');
+      // Désactivé à la demande du créateur
+      showToast('ℹ️ Option désactivée.');
     }
 
     window.addEventListener('DOMContentLoaded', () => {
