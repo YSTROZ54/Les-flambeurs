@@ -4,10 +4,10 @@
 
              },
     "countdownStartTime":  0,
-    "crashPoint":  2.0,
     "updatedAt":  0,
-    "countdownDuration":  7000,
     "status":  "waiting",
+    "countdownDuration":  7000,
+    "crashPoint":  2.0,
     "launchTime":  0,
     "history":  [
                     2.45,

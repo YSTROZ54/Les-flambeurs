@@ -398,7 +398,7 @@
         <div class="rounded-2xl p-6 bg-stone-950/90 border border-white/15 backdrop-blur-xl space-y-4 shadow-xl max-w-3xl mx-auto">
           <div class="flex items-center justify-between">
             <h3 class="font-serif-title text-xl font-extrabold text-amber-200">🏆 Classement</h3>
-            <span class="text-xs text-stone-400">Blase &amp; Argent sur le compte</span>
+            <span class="text-xs text-stone-400">Argent sur le compte</span>
           </div>
           <div id="leaderboardList" class="divide-y divide-white/10 text-sm"></div>
         </div>
@@ -2502,8 +2502,14 @@
         openAuthModal(Object.keys(db).length > 0 ? 'login' : 'register');
       }
 
-      // Nettoyage définitif des faux profils de test (Don Corleone, Maxime, Lucas, Théo)
-      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
+      // Nettoyage définitif des faux profils de test et anciens blases (Don Corleone, grandfrigo, etc.)
+      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim', 'grandfrigo'];
+      FAKE_TEST_PROFILES.forEach(fake => {
+        if (db[fake]) {
+          delete db[fake];
+          saveAccountsDB(db);
+        }
+      });
       const isFake = (n) => !n || FAKE_TEST_PROFILES.includes(n.toString().toLowerCase().trim());
       if (Array.isArray(state.friends)) {
         state.friends = state.friends.filter(f => !isFake(f));
@@ -3241,31 +3247,35 @@
       const meKey = (state.username || '').toLowerCase().trim();
       const playersMap = {};
 
+      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim', 'grandfrigo'];
+
       // 1. Ajouter tous les comptes réels de la base Supabase Cloud
       Object.keys(db).forEach(k => {
         const acc = db[k];
         if (acc && acc.username && !k.startsWith('__') && !isUsernameBanned(k)) {
           const uKey = acc.username.toLowerCase().trim();
+          if (FAKE_TEST_PROFILES.includes(uKey)) return;
           playersMap[uKey] = {
             name: acc.username,
             avatarEmoji: getAvatarDisplay(acc),
-            balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 5500,
-            isMe: uKey === meKey
+            balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 0,
+            isMe: isUserLoggedIn() && uKey === meKey
           };
         }
       });
 
-      // 2. Toujours s'assurer que le joueur actif est présent avec son solde et avatar actuels
-      if (state.username && !isUsernameBanned(meKey)) {
+      // 2. Toujours s'assurer que le joueur actif connecté est présent avec son solde et avatar actuels
+      if (isUserLoggedIn() && state.username && !isUsernameBanned(meKey) && !FAKE_TEST_PROFILES.includes(meKey)) {
         playersMap[meKey] = {
           name: state.username,
           avatarEmoji: getAvatarDisplay(state),
-          balance: state.balance ?? 5500,
+          balance: state.balance ?? 0,
           isMe: true
         };
       }
 
-      const list = Object.values(playersMap).sort((a, b) => b.balance - a.balance);
+      // 10 joueurs maximum au classement
+      const list = Object.values(playersMap).sort((a, b) => b.balance - a.balance).slice(0, 10);
 
       if (list.length === 0) {
         container.innerHTML = `
