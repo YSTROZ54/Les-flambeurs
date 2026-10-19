@@ -2180,10 +2180,10 @@
       // Synchronisation en temps réel des participants multijoueurs
       try {
         if (currentRoomKey === 'poker') {
-          setupPokerSeats();
+          syncPokerMultiplayer();
           updateLobbyUI('poker');
         } else if (currentRoomKey === 'blackjack') {
-          renderBlackjack();
+          syncBjMultiplayer();
           updateLobbyUI('bj');
         } else if (currentRoomKey === 'cups') {
           updateLobbyUI('cups');
@@ -2238,12 +2238,13 @@
         console.warn('Erreur push Supabase:', e);
       }
 
-      // Sauvegarde serveur local si actif
+      // Sauvegarde serveur local si actif avec keepalive pour persister même à la fermeture
       try {
         await fetch('/api/accounts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(account)
+          body: JSON.stringify(account),
+          keepalive: true
         });
       } catch (e) {}
     }
@@ -2451,6 +2452,9 @@
     }
 
     function logoutPlayer() {
+      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+        try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
+      }
       localStorage.removeItem(STORAGE_KEY_SESSION);
       document.getElementById('profileModal').classList.add('hidden');
       state = { ...DEFAULT_USER_STATE, balance: 0, username: '' };
@@ -3318,6 +3322,14 @@
 
     function switchRoom(room, fromHistory = false) {
       if (!ALL_ROOMS.includes(room)) room = 'hall';
+      const prevRoom = currentRoomKey;
+
+      if (prevRoom && prevRoom !== room) {
+        if (['poker', 'blackjack', 'cups'].includes(prevRoom)) {
+          try { handlePlayerLeavingGame(prevRoom); } catch (e) {}
+        }
+      }
+
       currentRoomKey = room;
 
       ALL_ROOMS.forEach(r => {
@@ -3339,9 +3351,7 @@
         } catch (e) {}
       }
 
-      if (['poker', 'blackjack', 'cups'].includes(room)) {
-        updateCurrentTable(room);
-      }
+      updateCurrentTable(room);
 
       if (room === 'poker') {
         setupPokerSeats();
@@ -4300,9 +4310,126 @@
       showToast(`🚪 Salon privé « ${val} » rejoint !`);
     }
 
+    function handlePlayerLeavingGame(game) {
+      if (!game || !state.username) return;
+
+      // ==============================================================
+      // 1. POKER MULTIJOUEUR
+      // Si une personne quitte la page ou change de jeu, tout ce qu'elle
+      // avait misé reste au milieu et elle est retirée de la table.
+      // ==============================================================
+      if (game === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
+        const inHand = poker.inProgress;
+        const realPlayers = getTableParticipants('poker');
+
+        if (inHand) {
+          poker.inProgress = false;
+          setPokerBtns(false);
+          poker.heroCards = [];
+          poker.heroBet = 0;
+
+          // S'il ne reste qu'un seul adversaire, il remporte le pot
+          if (realPlayers.length === 1) {
+            const opp = realPlayers[0];
+            const db = getAccountsDB();
+            const oppKey = (opp.username || '').toLowerCase().trim();
+            if (db[oppKey]) {
+              db[oppKey].currentTable = db[oppKey].currentTable || {};
+              db[oppKey].currentTable.pokerForfeit = {
+                winner: opp.username,
+                pot: poker.pot,
+                loser: state.username,
+                timestamp: Date.now()
+              };
+              db[oppKey].balance = (db[oppKey].balance || 0) + poker.pot;
+              saveAccountsDB(db);
+              pushRemoteAccount(db[oppKey]);
+            }
+          }
+        }
+
+        state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
+        saveState();
+        pushRemoteAccount(state);
+      }
+
+      // ==============================================================
+      // 2. BLACKJACK MULTIJOUEUR
+      // Si une personne quitte le jeu ou change de jeu, c'est celui
+      // qui reste qui gagne ce qui était parié de base.
+      // ==============================================================
+      if (game === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
+        if (bj.active) {
+          const winPot = bj.bet * 2;
+          bj.active = false;
+          document.getElementById('bjActionControls')?.classList.add('hidden');
+
+          const realPlayers = getTableParticipants('blackjack');
+          if (realPlayers.length > 0) {
+            const opp = realPlayers[0];
+            const db = getAccountsDB();
+            const oppKey = (opp.username || '').toLowerCase().trim();
+            if (db[oppKey]) {
+              db[oppKey].currentTable = db[oppKey].currentTable || {};
+              db[oppKey].currentTable.bjForfeit = {
+                winner: opp.username,
+                pot: winPot,
+                loser: state.username,
+                timestamp: Date.now()
+              };
+              db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
+              saveAccountsDB(db);
+              pushRemoteAccount(db[oppKey]);
+            }
+          }
+        }
+        state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
+        saveState();
+        pushRemoteAccount(state);
+      }
+
+      // ==============================================================
+      // 3. GOBELETS MULTIJOUEUR
+      // Exactement pareil pour le jeu gobelets : celui qui reste gagne
+      // ce qui était parié de base.
+      // ==============================================================
+      if (game === 'cups' && lobbies.cups && lobbies.cups.mode === 'multi') {
+        const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
+        if (isRoundRunning) {
+          const winPot = Math.floor(cupsGame.bet * cupsGame.mult);
+          cupsGame.isShuffling = false;
+          cupsGame.canPick = false;
+
+          const realPlayers = getTableParticipants('cups');
+          if (realPlayers.length > 0) {
+            const opp = realPlayers[0];
+            const db = getAccountsDB();
+            const oppKey = (opp.username || '').toLowerCase().trim();
+            if (db[oppKey]) {
+              db[oppKey].currentTable = db[oppKey].currentTable || {};
+              db[oppKey].currentTable.cupsForfeit = {
+                winner: opp.username,
+                pot: winPot,
+                loser: state.username,
+                timestamp: Date.now()
+              };
+              db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
+              saveAccountsDB(db);
+              pushRemoteAccount(db[oppKey]);
+            }
+          }
+        }
+        state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
+        saveState();
+        pushRemoteAccount(state);
+      }
+    }
+
     function updateCurrentTable(room) {
       if (!['poker', 'blackjack', 'cups'].includes(room)) {
-        state.currentTable = {};
+        state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
+        saveState();
+        pushRemoteAccount(state);
         return;
       }
       const lobbyKey = room === 'blackjack' ? 'bj' : room;
@@ -4311,6 +4438,7 @@
       state.currentTable = {
         ...existing,
         game: room,
+        leftTable: false,
         mode: l.mode || 'solo',
         tableType: l.tableType || 'public',
         roomCode: l.roomCode || '',
@@ -4346,6 +4474,9 @@
         const ct = acc.currentTable || acc.data?.currentTable;
         if (!ct) return;
 
+        // Si le joueur a quitté la table ou n'a pas de jeu actif
+        if (ct.leftTable || !ct.game) return;
+
         const accGame = (ct.game === 'bj' ? 'blackjack' : ct.game);
         if (accGame !== targetGame) return;
 
@@ -4376,13 +4507,17 @@
         }
       });
 
-      // 2. Partenaires invités ou ayant invité
+      // 2. Partenaires invités ou ayant invité (uniquement s'ils sont encore sur la même table)
       const partners = (state.activeRoomPartners && state.activeRoomPartners[targetGame]) || [];
       partners.forEach(name => {
         const u = (name || '').toLowerCase().trim();
         if (u && u !== me && !seen.has(u)) {
-          seen.add(u);
           const acc = db[u];
+          const ct = acc?.currentTable || acc?.data?.currentTable;
+          if (ct && (ct.leftTable || !ct.game || (ct.game === 'bj' ? 'blackjack' : ct.game) !== targetGame)) {
+            return;
+          }
+          seen.add(u);
           participants.push({
             username: name,
             avatarEmoji: acc?.avatarEmoji || acc?.avatar || '👤',
@@ -4857,6 +4992,83 @@
         }
         saveState();
         renderPokerTable(true);
+      }
+    }
+
+    /* ================= SYNCHRONISATION MULTIJOUEUR POKER EN TEMPS RÉEL ================= */
+    function syncPokerMultiplayer() {
+      if (currentRoomKey !== 'poker' || !lobbies.poker || lobbies.poker.mode !== 'multi') return;
+
+      const currentParticipants = getTableParticipants('poker');
+      const activeNames = new Set(currentParticipants.map(p => (p.username || '').toLowerCase().trim()));
+      const db = getAccountsDB();
+      const myKey = (state.username || '').toLowerCase().trim();
+      const myAcc = db[myKey];
+
+      // A. Forfait direct signalé par un adversaire ayant quitté la table
+      if (myAcc && myAcc.currentTable && myAcc.currentTable.pokerForfeit) {
+        const pf = myAcc.currentTable.pokerForfeit;
+        if (pf.winner && pf.winner.toLowerCase().trim() === myKey) {
+          const potWon = pf.pot || poker.pot;
+          poker.inProgress = false;
+          setPokerBtns(false);
+          delete myAcc.currentTable.pokerForfeit;
+          saveAccountsDB(db);
+          pushRemoteAccount(myAcc);
+          playCoinWinSound();
+          document.getElementById('pokerTableAnnouncement').textContent = `🏆 ${pf.loser} a quitté le jeu ! Ses mises restent au milieu et tu remportes le pot (${fmt(potWon)} €) !`;
+          showToast(`🏆 ${pf.loser} a quitté le jeu. Tu remportes le pot de ${fmt(potWon)} € !`);
+          setupPokerSeats();
+          renderPokerTable(true);
+          return;
+        }
+      }
+
+      // B. Si une main est en cours et qu'un joueur assis s'est déconnecté ou a changé de jeu
+      if (poker.inProgress) {
+        let oppLeft = false;
+        let leftName = '';
+
+        poker.opponents.forEach(o => {
+          if (o.isFriend && !o.isEmpty) {
+            const oppUser = (o.name || '').toLowerCase().trim();
+            if (!activeNames.has(oppUser)) {
+              oppLeft = true;
+              leftName = o.name;
+              // Retiré de la table, mais ses mises restent dans poker.pot !
+              o.isEmpty = true;
+              o.folded = true;
+              o.cards = [];
+              o.status = 'A quitté';
+              o.name = 'Siège libre';
+              o.avatar = '🪑';
+            }
+          }
+        });
+
+        if (oppLeft) {
+          const remainingActive = poker.opponents.filter(o => !o.isEmpty && !o.folded);
+          if (remainingActive.length === 0) {
+            // Seul joueur restant à la table : il remporte tout le pot !
+            const potWon = poker.pot;
+            poker.inProgress = false;
+            setPokerBtns(false);
+            state.balance += potWon;
+            playCoinWinSound();
+            saveState();
+            updateGlobalUI();
+            document.getElementById('pokerTableAnnouncement').textContent = `🏆 ${leftName} a quitté la table ! Ses mises restent au milieu et tu remportes le pot (${fmt(potWon)} €) !`;
+            showToast(`🏆 ${leftName} a quitté le jeu. Tu remportes le pot (${fmt(potWon)} €) !`);
+            renderPokerTable(true);
+          } else {
+            // La main continue avec les joueurs restants, avec toutes les mises au milieu
+            document.getElementById('pokerTableAnnouncement').textContent = `⚠️ ${leftName} a quitté la table. Ses mises restent dans le pot (${fmt(poker.pot)} €).`;
+            renderPokerTable(false);
+          }
+        }
+      } else {
+        // Hors main : actualiser les sièges
+        setupPokerSeats();
       }
     }
 
@@ -6559,6 +6771,8 @@
       bj.deck = createDeck();
       bj.player = [bj.deck.pop(), bj.deck.pop()];
       bj.dealer = [bj.deck.pop(), bj.deck.pop()];
+      const realPlayers = getTableParticipants('blackjack');
+      bj.hasRealOpponent = (lobbies.bj.mode === 'multi' && realPlayers.length > 0);
       bj.coPlayer = lobbies.bj.mode === 'multi' ? [bj.deck.pop(), bj.deck.pop()] : [];
       bj.bet = bet;
 
@@ -6661,6 +6875,39 @@
       document.getElementById('bjStatusBanner').textContent = `${msg} (Prochaine main dans 7s)`;
       document.getElementById('bjActionControls').classList.add('hidden');
       startBlackjackCooldown();
+    }
+
+    /* ================= SYNCHRONISATION MULTIJOUEUR BLACKJACK EN TEMPS RÉEL ================= */
+    function syncBjMultiplayer() {
+      if (currentRoomKey !== 'blackjack' || !lobbies.bj || lobbies.bj.mode !== 'multi') return;
+
+      const realPlayers = getTableParticipants('blackjack');
+      const db = getAccountsDB();
+      const myKey = (state.username || '').toLowerCase().trim();
+      const myAcc = db[myKey];
+
+      // A. Forfait direct signalé par l'adversaire
+      if (myAcc && myAcc.currentTable && myAcc.currentTable.bjForfeit) {
+        const bjf = myAcc.currentTable.bjForfeit;
+        if (bjf.winner && bjf.winner.toLowerCase().trim() === myKey) {
+          const winAmount = bjf.pot || (bj.bet * 2);
+          delete myAcc.currentTable.bjForfeit;
+          saveAccountsDB(db);
+          pushRemoteAccount(myAcc);
+          endBj(`🏆 ${bjf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
+          showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
+          return;
+        }
+      }
+
+      // B. Si la main est en cours et que l'adversaire a disparu des participants
+      if (bj.active && (bj.hasRealOpponent || !lobbies.bj.fillWithBots)) {
+        if (realPlayers.length === 0) {
+          const winAmount = bj.bet * 2;
+          endBj(`🏆 Ton adversaire a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
+          showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
+        }
+      }
     }
 
     /* ================= LES GOBELETS (POSITIONNEMENT % RESPONSIVE MOBILE) ================= */
@@ -7129,8 +7376,56 @@
     /* ================= SYNCHRONISATION MULTIJOUEUR GOBELETS EN TEMPS RÉEL ================= */
     function syncCupsMultiplayer() {
       if (!lobbies.cups || lobbies.cups.mode !== 'multi') return;
+
+      const db = getAccountsDB();
+      const myKey = (state.username || '').toLowerCase().trim();
+      const myAcc = db[myKey];
+
+      // A. Forfait direct signalé par l'adversaire
+      if (myAcc && myAcc.currentTable && myAcc.currentTable.cupsForfeit) {
+        const cf = myAcc.currentTable.cupsForfeit;
+        if (cf.winner && cf.winner.toLowerCase().trim() === myKey) {
+          const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
+          if (isRoundRunning) {
+            const win = cf.pot || Math.floor(cupsGame.bet * cupsGame.mult);
+            state.balance += win;
+            playCoinWinSound();
+            cupsGame.isShuffling = false;
+            cupsGame.canPick = false;
+            if (state.currentTable?.cupsRound) state.currentTable.cupsRound.status = 'finished';
+            delete myAcc.currentTable.cupsForfeit;
+            saveAccountsDB(db);
+            pushRemoteAccount(myAcc);
+            saveState();
+            updateGlobalUI();
+            document.getElementById('cupsBanner').textContent = `🏆 ${cf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(win)} 🪙) !`;
+            showToast(`🏆 Victoire par forfait aux Gobelets (+${fmt(win)} €) !`);
+            updateCupsSetupBoxVisibility();
+            return;
+          }
+        }
+      }
+
       const participants = getTableParticipants('cups');
-      if (participants.length === 0) return;
+      const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
+
+      // B. Si aucun adversaire à la table alors qu'une manche était en cours
+      if (participants.length === 0) {
+        if (isRoundRunning) {
+          const win = Math.floor(cupsGame.bet * cupsGame.mult);
+          state.balance += win;
+          playCoinWinSound();
+          cupsGame.isShuffling = false;
+          cupsGame.canPick = false;
+          if (state.currentTable?.cupsRound) state.currentTable.cupsRound.status = 'finished';
+          saveState();
+          updateGlobalUI();
+          document.getElementById('cupsBanner').textContent = `🏆 Ton adversaire a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(win)} 🪙) !`;
+          showToast(`🏆 Victoire par forfait aux Gobelets (+${fmt(win)} €) !`);
+          updateCupsSetupBoxVisibility();
+        }
+        return;
+      }
 
       const opp = participants[0];
       const db = getAccountsDB();
@@ -7223,12 +7518,23 @@
       }
     }
 
-    // Intervalle de synchronisation rapide pour le jeu des gobelets (600ms)
-    if (!window._cupsSyncTimer) {
-      window._cupsSyncTimer = setInterval(() => {
-        if (currentRoomKey === 'cups' && lobbies.cups && lobbies.cups.mode === 'multi') {
-          syncCupsMultiplayer();
-        }
+    // Intervalle de synchronisation rapide multijoueur (600ms) pour Poker, Blackjack et Gobelets
+    let _multiPollCounter = 0;
+    if (!window._multiGameSyncTimer) {
+      window._multiGameSyncTimer = setInterval(() => {
+        try {
+          _multiPollCounter++;
+          if (_multiPollCounter % 3 === 0) {
+            syncRemoteAccounts().catch(() => {});
+          }
+          if (currentRoomKey === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
+            syncPokerMultiplayer();
+          } else if (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
+            syncBjMultiplayer();
+          } else if (currentRoomKey === 'cups' && lobbies.cups && lobbies.cups.mode === 'multi') {
+            syncCupsMultiplayer();
+          }
+        } catch (e) {}
       }, 600);
     }
 
@@ -7748,6 +8054,18 @@
       updateCrashActionBtnText();
       syncCrashMultiplayer();
       drawCrashScene(false);
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+        try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+        try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
+      }
     });
   </script>
 </body>
