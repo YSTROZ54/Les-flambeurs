@@ -530,3 +530,20 @@ select {
   background: rgba(245, 158, 11, 0.05);
 }
 
+/* ================= AUTH MODAL (CONNEXION & INSCRIPTION) ================= */
+.init-av-btn {
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.init-av-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.init-av-btn.active {
+  border-color: #f59e0b !important;
+  background-color: rgba(245, 158, 11, 0.25) !important;
+  transform: scale(1.12);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+

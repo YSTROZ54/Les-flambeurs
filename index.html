@@ -1285,23 +1285,135 @@
     </div>
   </div>
 
-  <!-- MODAL : PROFIL (SANS BOUTON PATRON VISIBLE) -->
-  <div id="profileModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-stone-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="font-serif-title text-xl font-bold text-amber-200">Ton Blase &amp; Avatar</h3>
-        <button onclick="document.getElementById('profileModal').classList.add('hidden')" class="text-stone-400 hover:text-white">✕</button>
+  <!-- ================================================================= -->
+  <!-- MODAL : AUTHENTIFICATION (CONNEXION & INSCRIPTION DES JOUEURS)     -->
+  <!-- ================================================================= -->
+  <div id="authModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border-2 border-amber-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      <!-- Glow d'ambiance -->
+      <div class="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-12 -right-12 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- En-tête -->
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold">
+          🎭 Cercle Privé des Flambeurs
+        </div>
+        <h2 class="font-serif-title text-2xl sm:text-3xl font-black text-amber-200 tracking-wide">
+          ENTRÉE DU CASINO
+        </h2>
+        <p class="text-xs text-stone-400">
+          Connecte-toi à ton compte ou crée ton blase pour recevoir tes jetons de bienvenue.
+        </p>
       </div>
-      <input id="profileNameInput" type="text" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-white font-bold">
+
+      <!-- Onglets Connexion / Inscription -->
+      <div class="flex p-1 bg-black/50 border border-white/10 rounded-2xl">
+        <button id="authTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow">
+          🔑 Connexion
+        </button>
+        <button id="authTabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white">
+          ✨ Inscription (Nouveau)
+        </button>
+      </div>
+
+      <!-- FORMULAIRE : CONNEXION -->
+      <form id="authLoginForm" onsubmit="event.preventDefault(); submitLogin();" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1.5">Ton Blase / Pseudo :</label>
+          <input id="authLoginUser" type="text" autocomplete="username" placeholder="Ex: Tony_Montana" required class="w-full bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-white font-bold text-sm outline-none transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1.5">Mot de passe :</label>
+          <input id="authLoginPass" type="password" autocomplete="current-password" placeholder="••••••••" required class="w-full bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-white font-bold text-sm outline-none transition">
+        </div>
+        <div id="authLoginError" class="hidden text-xs text-rose-400 font-bold bg-rose-950/40 border border-rose-500/30 rounded-xl p-2.5 text-center"></div>
+        <button type="submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-black font-extrabold text-sm shadow-xl transition transform active:scale-95">
+          ♠️ Entrer dans le Cercle
+        </button>
+      </form>
+
+      <!-- FORMULAIRE : INSCRIPTION -->
+      <form id="authRegisterForm" onsubmit="event.preventDefault(); submitRegister();" class="space-y-4 hidden">
+        <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 flex items-center gap-3">
+          <span class="text-2xl">🎁</span>
+          <div class="text-xs">
+            <span class="font-extrabold text-emerald-300">Offre de Bienvenue :</span>
+            <p class="text-stone-300"><strong>5 500 €</strong> de jetons crédités immédiatement sur ton compte !</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1.5">Choisis ton Blase :</label>
+          <input id="authRegUser" type="text" autocomplete="username" placeholder="Ex: Lucky_Vince" required class="w-full bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-white font-bold text-sm outline-none transition">
+          <p class="text-[10px] text-stone-500 mt-1">Ce nom s'affichera au poker, blackjack, classements et transferts.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-300 mb-1.5">Mot de passe :</label>
+            <input id="authRegPass" type="password" autocomplete="new-password" placeholder="••••••••" required class="w-full bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3 py-2.5 text-white font-bold text-sm outline-none transition">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-300 mb-1.5">Confirmer :</label>
+            <input id="authRegPassConfirm" type="password" autocomplete="new-password" placeholder="••••••••" required class="w-full bg-black/60 border border-white/15 focus:border-amber-400 rounded-xl px-3 py-2.5 text-white font-bold text-sm outline-none transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1.5">Choisis ton avatar initial :</label>
+          <div class="flex items-center justify-between gap-1.5 bg-black/40 p-2 rounded-2xl border border-white/10">
+            <button type="button" onclick="selectInitialAvatar('🎭')" class="init-av-btn active w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">🎭</button>
+            <button type="button" onclick="selectInitialAvatar('🃏')" class="init-av-btn w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">🃏</button>
+            <button type="button" onclick="selectInitialAvatar('🕶️')" class="init-av-btn w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">🕶️</button>
+            <button type="button" onclick="selectInitialAvatar('🦁')" class="init-av-btn w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">🦁</button>
+            <button type="button" onclick="selectInitialAvatar('👑')" class="init-av-btn w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">👑</button>
+            <button type="button" onclick="selectInitialAvatar('🎲')" class="init-av-btn w-10 h-10 rounded-xl bg-white/10 text-xl flex items-center justify-center hover:bg-amber-500/30 transition border border-transparent">🎲</button>
+          </div>
+          <input id="authRegAvatar" type="hidden" value="🎭">
+        </div>
+
+        <div id="authRegError" class="hidden text-xs text-rose-400 font-bold bg-rose-950/40 border border-rose-500/30 rounded-xl p-2.5 text-center"></div>
+
+        <button type="submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-black font-extrabold text-sm shadow-xl transition transform active:scale-95">
+          ✨ Créer mon compte &amp; Recevoir 5 500 €
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL : PROFIL (BLASE, MOT DE PASSE & DÉCONNEXION) -->
+  <div id="profileModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-amber-500/40 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="font-serif-title text-xl font-bold text-amber-200">Profil du Flambeur</h3>
+        <button onclick="document.getElementById('profileModal').classList.add('hidden')" class="text-stone-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-stone-400 mb-1">Blase / Pseudo :</label>
+          <input id="profileNameInput" type="text" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-white font-bold text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-400 mb-1">Nouveau mot de passe :</label>
+          <input id="profilePassInput" type="password" placeholder="Laisser vide pour ne pas changer" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-white font-bold text-sm">
+        </div>
+      </div>
 
       <button onclick="document.getElementById('profileModal').classList.add('hidden'); switchRoom('shop');" class="w-full py-2.5 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-200 font-extrabold text-xs hover:bg-purple-500/30 transition">
         👤 Changer d'avatar dans la Boutique
       </button>
 
-      <div class="flex justify-between items-center pt-2">
-        <button onclick="resetAccount()" class="text-xs text-rose-400 hover:underline">Réinitialiser à 5 500</button>
-        <button onclick="saveProfile()" class="px-5 py-2 rounded-xl bg-amber-500 text-black font-extrabold text-xs">Sauvegarder</button>
+      <div class="flex justify-between items-center pt-2 border-t border-white/10">
+        <button onclick="resetAccount()" class="text-xs text-rose-400 hover:underline">Remettre à 5 500 €</button>
+        <button onclick="saveProfile()" class="px-5 py-2 rounded-xl bg-amber-500 text-black font-extrabold text-xs hover:bg-amber-400 transition">Sauvegarder</button>
       </div>
+
+      <!-- Bouton Déconnexion -->
+      <button onclick="logoutPlayer()" class="w-full py-2.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-red-200 font-extrabold text-xs transition flex items-center justify-center gap-2">
+        🚪 Se déconnecter / Changer de Joueur
+      </button>
     </div>
   </div>
 
@@ -1439,10 +1551,15 @@
       { id: 'b_club', name: '🥂 Night-club VIP', cost: 50000, hourly: 700, desc: 'Bouteilles et tables VIP réservées aux gros flambeurs.' }
     ];
 
-    /* ================= ÉTAT SAUVEGARDÉ ================= */
+    /* ================= GESTION DES COMPTES & AUTHENTIFICATION ================= */
+    const STORAGE_KEY_ACCOUNTS = 'flambeurs_accounts_v2';
+    const STORAGE_KEY_SESSION = 'flambeurs_active_session';
     const STORAGE_KEY = 'les_flambeurs_v6_complete';
-    let state = {
-      username: 'Alex',
+
+    const DEFAULT_USER_STATE = {
+      username: '',
+      password: '',
+      avatarEmoji: '🎭',
       balance: 5500,
       chestStreak: 1,
       lastChestTime: 0,
@@ -1470,19 +1587,239 @@
       bankTransfers: []
     };
 
-    function loadState() {
+    let state = { ...DEFAULT_USER_STATE };
+
+    function getAccountsDB() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          state = {
-            ...state,
-            ...parsed,
-            equipped: { ...state.equipped, ...(parsed.equipped || {}) },
-            luckConfig: { ...state.luckConfig, ...(parsed.luckConfig || {}) }
-          };
-        }
+        const raw = localStorage.getItem(STORAGE_KEY_ACCOUNTS);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveAccountsDB(db) {
+      try {
+        localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(db));
       } catch (e) {}
+    }
+
+    function openAuthModal(defaultTab = 'login') {
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.remove('hidden');
+      switchAuthTab(defaultTab);
+    }
+
+    function closeAuthModal() {
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchAuthTab(tab) {
+      const isLogin = tab === 'login';
+      const loginTabBtn = document.getElementById('authTabLogin');
+      const regTabBtn = document.getElementById('authTabRegister');
+      const loginForm = document.getElementById('authLoginForm');
+      const regForm = document.getElementById('authRegisterForm');
+
+      if (loginTabBtn) {
+        loginTabBtn.className = isLogin
+          ? 'flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow'
+          : 'flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white';
+      }
+      if (regTabBtn) {
+        regTabBtn.className = !isLogin
+          ? 'flex-1 py-2 rounded-xl text-xs font-black transition bg-amber-500 text-black shadow'
+          : 'flex-1 py-2 rounded-xl text-xs font-black transition text-stone-400 hover:text-white';
+      }
+
+      if (loginForm) loginForm.classList.toggle('hidden', !isLogin);
+      if (regForm) regForm.classList.toggle('hidden', isLogin);
+
+      const errLogin = document.getElementById('authLoginError');
+      if (errLogin) errLogin.classList.add('hidden');
+      const errReg = document.getElementById('authRegError');
+      if (errReg) errReg.classList.add('hidden');
+    }
+
+    function selectInitialAvatar(emoji) {
+      const avInp = document.getElementById('authRegAvatar');
+      if (avInp) avInp.value = emoji;
+      document.querySelectorAll('.init-av-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === emoji);
+      });
+    }
+
+    function submitLogin() {
+      const userInp = document.getElementById('authLoginUser');
+      const passInp = document.getElementById('authLoginPass');
+      const errBox = document.getElementById('authLoginError');
+
+      const username = (userInp?.value || '').trim();
+      const password = (passInp?.value || '').trim();
+
+      if (!username || !password) {
+        errBox.textContent = '❌ Merci de remplir tous les champs.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      const acc = db[key];
+
+      if (!acc) {
+        errBox.textContent = `❌ Aucun compte « ${username} » trouvé. Crée ton profil via l'onglet Inscription.`;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (acc.password && acc.password !== password) {
+        errBox.textContent = '❌ Mot de passe incorrect pour ce joueur.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // Connexion réussie
+      localStorage.setItem(STORAGE_KEY_SESSION, acc.username);
+      state = {
+        ...DEFAULT_USER_STATE,
+        ...acc,
+        equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
+        luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
+      };
+
+      closeAuthModal();
+      updateGlobalUI();
+      setupPokerSeats();
+      renderLeaderboard();
+      renderBank();
+      showToast(`👋 Bon retour au club, ${state.username} !`);
+    }
+
+    function submitRegister() {
+      const userInp = document.getElementById('authRegUser');
+      const passInp = document.getElementById('authRegPass');
+      const passConfInp = document.getElementById('authRegPassConfirm');
+      const avInp = document.getElementById('authRegAvatar');
+      const errBox = document.getElementById('authRegError');
+
+      const username = (userInp?.value || '').trim();
+      const password = (passInp?.value || '').trim();
+      const passConf = (passConfInp?.value || '').trim();
+      const avatar = (avInp?.value || '🎭').trim();
+
+      if (!username || !password || !passConf) {
+        errBox.textContent = '❌ Merci de remplir tous les champs.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (username.length < 2) {
+        errBox.textContent = '❌ Le blase doit comporter au moins 2 caractères.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
+      if (FAKE_TEST_PROFILES.includes(username.toLowerCase())) {
+        errBox.textContent = '❌ Ce blase de test n\'est pas autorisé.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const db = getAccountsDB();
+      const key = username.toLowerCase();
+      if (db[key]) {
+        errBox.textContent = '❌ Ce blase est déjà pris ! Choisis un autre pseudo ou connecte-toi.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (password.length < 3) {
+        errBox.textContent = '❌ Le mot de passe doit faire au moins 3 caractères.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (password !== passConf) {
+        errBox.textContent = '❌ Les deux mots de passe ne correspondent pas.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // Création du compte
+      const newAcc = {
+        ...DEFAULT_USER_STATE,
+        username: username,
+        password: password,
+        avatarEmoji: avatar,
+        balance: 5500
+      };
+
+      db[key] = newAcc;
+      saveAccountsDB(db);
+
+      localStorage.setItem(STORAGE_KEY_SESSION, username);
+      state = { ...newAcc };
+
+      closeAuthModal();
+      updateGlobalUI();
+      setupPokerSeats();
+      renderLeaderboard();
+      renderBank();
+      showToast(`🎉 Bienvenue ${username} ! 5 500 € crédités sur ton compte.`);
+    }
+
+    function logoutPlayer() {
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      document.getElementById('profileModal').classList.add('hidden');
+      state = { ...DEFAULT_USER_STATE };
+      updateGlobalUI();
+      openAuthModal('login');
+      showToast('🚪 Tu t\'es déconnecté.');
+    }
+
+    function loadState() {
+      const db = getAccountsDB();
+      let activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
+
+      // Si aucun compte dans db mais données legacy locales existantes, migration vers compte local
+      if (Object.keys(db).length === 0) {
+        try {
+          const legacyRaw = localStorage.getItem(STORAGE_KEY);
+          if (legacyRaw) {
+            const parsed = JSON.parse(legacyRaw);
+            const legacyName = parsed.username || 'Alex';
+            db[legacyName.toLowerCase()] = {
+              ...DEFAULT_USER_STATE,
+              ...parsed,
+              username: legacyName,
+              password: '123'
+            };
+            saveAccountsDB(db);
+            if (!activeUser) {
+              activeUser = legacyName;
+              localStorage.setItem(STORAGE_KEY_SESSION, activeUser);
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (activeUser && db[activeUser.toLowerCase()]) {
+        const acc = db[activeUser.toLowerCase()];
+        state = {
+          ...DEFAULT_USER_STATE,
+          ...acc,
+          equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
+          luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
+        };
+        closeAuthModal();
+      } else {
+        // Nouveau joueur (comme le collègue) ou session déconnectée : ouverture obligatoire du modal
+        state = { ...DEFAULT_USER_STATE };
+        openAuthModal(Object.keys(db).length > 0 ? 'login' : 'register');
+      }
 
       // Nettoyage définitif des faux profils de test (Don Corleone, Maxime, Lucas, Théo)
       const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
@@ -1526,6 +1863,15 @@
     function saveState() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (state.username) {
+          const db = getAccountsDB();
+          const key = state.username.toLowerCase();
+          db[key] = {
+            ...(db[key] || {}),
+            ...state
+          };
+          saveAccountsDB(db);
+        }
       } catch (e) {}
       updateGlobalUI();
     }
@@ -1822,7 +2168,8 @@
     function getAvatarDisplay() {
       const avItem = SHOP_CATALOG.find(i => i.id === state.equipped.avatar);
       if (avItem && avItem.emoji) return avItem.emoji;
-      return (state.username || 'A').trim().charAt(0).toUpperCase();
+      if (state.avatarEmoji) return state.avatarEmoji;
+      return (state.username || '?').trim().charAt(0).toUpperCase();
     }
 
     function updateGlobalUI() {
@@ -1833,9 +2180,9 @@
       document.getElementById('hallBalanceInline').textContent = fmt(state.balance);
       document.getElementById('pokerHeroStack').textContent = fmt(state.balance);
 
-      document.getElementById('topUsername').textContent = state.username;
-      document.getElementById('hallUsername').textContent = state.username;
-      document.getElementById('pokerHeroName').textContent = state.username;
+      document.getElementById('topUsername').textContent = state.username || 'Connexion';
+      document.getElementById('hallUsername').textContent = state.username || 'Joueur';
+      document.getElementById('pokerHeroName').textContent = state.username || 'Joueur';
 
       document.getElementById('topAvatar').textContent = avatarText;
       document.getElementById('hallAvatar').textContent = avatarText;
@@ -3829,14 +4176,54 @@
     }
 
     function openProfileModal() {
+      if (!state.username) {
+        openAuthModal('login');
+        return;
+      }
       document.getElementById('profileNameInput').value = state.username;
+      const passInp = document.getElementById('profilePassInput');
+      if (passInp) passInp.value = '';
       document.getElementById('profileModal').classList.remove('hidden');
     }
+
     function saveProfile() {
       const v = document.getElementById('profileNameInput').value.trim();
-      if (v) state.username = v;
+      const newPass = document.getElementById('profilePassInput')?.value.trim();
+      const oldName = state.username || '';
+      const oldKey = oldName.toLowerCase();
+
+      if (v) {
+        const db = getAccountsDB();
+        const newKey = v.toLowerCase();
+        if (newKey !== oldKey && db[newKey]) {
+          return showToast('❌ Ce blase est déjà pris par un autre joueur.');
+        }
+
+        const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
+        if (FAKE_TEST_PROFILES.includes(newKey)) {
+          return showToast('❌ Ce blase de test n\'est pas autorisé.');
+        }
+
+        const currentAcc = db[oldKey] || { ...state };
+        delete db[oldKey];
+
+        currentAcc.username = v;
+        if (newPass) currentAcc.password = newPass;
+
+        db[newKey] = currentAcc;
+        saveAccountsDB(db);
+
+        state.username = v;
+        if (newPass) state.password = newPass;
+        localStorage.setItem(STORAGE_KEY_SESSION, v);
+      }
+
       saveState();
       document.getElementById('profileModal').classList.add('hidden');
+      renderLeaderboard();
+      renderBank();
+      setupPokerSeats();
+      showToast('✅ Profil sauvegardé avec succès.');
     }
     function resetAccount() {
       state.balance = 5500;
