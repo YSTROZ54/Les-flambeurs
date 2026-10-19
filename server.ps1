@@ -106,6 +106,65 @@ while ($listener.IsListening) {
             continue
         }
 
+        # ENDPOINT JEU CRASH FUSEE EN LIGNE : /api/crash
+        if ($urlPath -eq '/api/crash') {
+            $crashFile = Join-Path $baseDir "crash_state.json"
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            $response.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+
+            if ($request.HttpMethod -eq 'OPTIONS') {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
+            if (-not (Test-Path $crashFile)) {
+                $initJson = '{"id":0,"status":"waiting","countdownStartTime":0,"countdownDuration":7000,"launchTime":0,"crashPoint":2.0,"bets":{},"history":[2.45,1.35,4.10,1.15,3.20,1.80],"updatedAt":0}'
+                Set-Content -Path $crashFile -Value $initJson -Encoding UTF8
+            }
+
+            if ($request.HttpMethod -eq 'GET') {
+                $content = $null
+                try {
+                    if (Test-Path $crashFile) {
+                        $raw = Get-Content -Raw -Encoding UTF8 $crashFile
+                        if ($raw -and $raw.Trim().StartsWith('{') -and $raw.Trim().EndsWith('}')) {
+                            $null = ConvertFrom-Json $raw -ErrorAction Stop
+                            $content = $raw
+                        }
+                    }
+                } catch {}
+                if (-not $content) {
+                    $content = '{"id":0,"status":"waiting","countdownStartTime":0,"countdownDuration":7000,"launchTime":0,"crashPoint":2.0,"bets":{},"history":[2.45,1.35,4.10,1.15,3.20,1.80],"updatedAt":0}'
+                    try { Set-Content -Path $crashFile -Value $content -Encoding UTF8 } catch {}
+                }
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes($content)
+                $response.StatusCode = 200
+                $response.ContentLength64 = $bytes.Length
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            }
+            elseif ($request.HttpMethod -eq 'POST') {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $body = $reader.ReadToEnd()
+                $reader.Close()
+
+                if ($body -and $body.Trim().StartsWith('{') -and $body.Trim().EndsWith('}')) {
+                    try {
+                        $null = ConvertFrom-Json $body -ErrorAction Stop
+                        Set-Content -Path $crashFile -Value $body -Encoding UTF8
+                    } catch {}
+                }
+                $resBytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
+                $response.StatusCode = 200
+                $response.ContentLength64 = $resBytes.Length
+                $response.OutputStream.Write($resBytes, 0, $resBytes.Length)
+            }
+            $response.OutputStream.Close()
+            continue
+        }
+
         $relPath = $urlPath.TrimStart('/').Replace('/', [System.IO.Path]::DirectorySeparatorChar)
         $localPath = Join-Path $baseDir $relPath
 
