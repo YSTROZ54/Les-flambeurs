@@ -616,7 +616,6 @@
             </div>
             <div class="flex items-center bg-black/60 border border-sky-500/30 rounded-xl overflow-hidden focus-within:border-sky-400">
               <input id="crashBetInput" type="number" value="100" min="10" placeholder="Ex: 100" class="w-full bg-transparent px-3.5 py-2.5 text-white font-mono-num font-bold focus:outline-none text-base">
-              <button type="button" onclick="doubleInputBet('crashBetInput')" title="Doubler la mise" class="px-4 py-2.5 text-xs font-extrabold text-amber-300 bg-sky-500/15 hover:bg-sky-500/25 border-l border-sky-500/30 transition">×2</button>
             </div>
 
             <!-- CHOIX RAPIDES : 50, 100, 200, 300, 500 -->
@@ -637,18 +636,35 @@
             <input id="crashAutoInput" type="number" step="0.1" min="1.1" placeholder="Ex: 2.00 (encaissement automatique)" class="mt-1.5 w-full bg-black/60 border border-sky-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num text-sm focus:outline-none focus:border-sky-400">
           </div>
 
+          <!-- CARTOUCHE DE LA MISE ACTIVE ENGAGÉE DANS LE VOL -->
+          <div id="crashActiveBetBanner" class="p-3 rounded-xl bg-sky-950/60 border border-sky-500/30 flex items-center justify-between transition-all">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl">🪙</span>
+              <div>
+                <div class="text-[10px] uppercase font-bold text-sky-300 tracking-wider">Mise engagée</div>
+                <div id="crashActiveBetValue" class="text-sm font-mono-num font-extrabold text-white">0 pièce (aucune)</div>
+              </div>
+            </div>
+            <div id="crashActiveBetStatus" class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 text-stone-300 border border-white/10">
+              Non misé
+            </div>
+          </div>
+
           <!-- ZONE DES ACTIONS CRASH MULTIJOUEUR -->
           <div class="space-y-2.5">
-            <button id="crashActionBtn" onclick="handleCrashButton()" class="w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2">
-              <span>💰</span> <span>MISER SANS LANCER</span>
+            <button id="crashActionBtn" onclick="handleCrashButton()" style="touch-action: manipulation; user-select: none;" class="w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer flex items-center justify-center gap-2">
+              <span id="crashActionBtnIcon" class="pointer-events-none">💰</span>
+              <span id="crashActionBtnText" class="pointer-events-none">MISER SANS LANCER</span>
             </button>
 
-            <button id="crashLaunchBtn" onclick="handleCrashLaunch()" class="w-full py-3 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow cursor-pointer flex items-center justify-center gap-2">
-              <span>🚀</span> <span>DÉCOLLER (COMPTE À REBOURS 7S)</span>
+            <button id="crashLaunchBtn" onclick="handleCrashLaunch()" style="touch-action: manipulation; user-select: none;" class="w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow cursor-pointer flex items-center justify-center gap-2">
+              <span id="crashLaunchBtnIcon" class="pointer-events-none">🚀</span>
+              <span id="crashLaunchBtnText" class="pointer-events-none">DÉCOLLER (COMPTE À REBOURS 7S)</span>
             </button>
 
-            <button id="crashCancelBtn" onclick="handleCrashCancelBet()" class="w-full py-1.5 rounded-lg text-xs font-bold text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition hidden flex items-center justify-center gap-1.5">
-              <span>✖</span> <span>Annuler ma mise</span>
+            <button id="crashCancelBtn" onclick="handleCrashCancelBet()" style="touch-action: manipulation; user-select: none;" class="w-full py-2 rounded-xl text-xs font-bold text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 active:scale-[0.98] transition hidden flex items-center justify-center gap-1.5">
+              <span class="pointer-events-none">✖</span>
+              <span id="crashCancelBtnText" class="pointer-events-none">Annuler ma mise</span>
             </button>
           </div>
 
@@ -675,6 +691,10 @@
             <div id="crashMultiplierText" class="font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)] transition-colors duration-200">1.00×</div>
             <div id="crashStatusSub" class="mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center">
               PRÊT AU DÉCOLLAGE
+            </div>
+            <!-- BADGE HUD VISUEL MONTRANT LA MISE ENGAGÉE EN DIRECT -->
+            <div id="crashHudBetPill" class="mt-2 px-3 py-1 rounded-full text-xs font-mono-num font-bold bg-black/85 backdrop-blur-md text-amber-300 border border-amber-400/40 text-center shadow-lg transition-all hidden">
+              🪙 Ma mise : 0 pièce
             </div>
           </div>
         </div>
@@ -4821,6 +4841,17 @@
       ]
     };
 
+    function getMyCrashBet() {
+      if (!crashSync || !crashSync.bets) return null;
+      const myName = getCrashCurrentUsername().toLowerCase();
+      for (const key of Object.keys(crashSync.bets)) {
+        if (key.trim().toLowerCase() === myName) {
+          return crashSync.bets[key];
+        }
+      }
+      return null;
+    }
+
     function setCrashQuickBet(amount) {
       const input = document.getElementById('crashBetInput');
       if (input) {
@@ -4911,7 +4942,7 @@
                   <span>${escapeHtml(b.name || 'Joueur')}</span>
                   ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/25 text-sky-200 border border-sky-400/40 font-black">Moi</span>' : ''}
                 </div>
-                <div class="text-[11px] font-mono-num text-stone-400">${fmt(b.bet)} 🪙</div>
+                <div class="text-[11px] font-mono-num text-stone-400 font-bold">${fmt(b.bet)} 🪙</div>
               </div>
             </div>
             <div>
@@ -4931,49 +4962,127 @@
       return mult;
     }
 
+    function updateCrashCommittedBetDisplay() {
+      const banner = document.getElementById('crashActiveBetBanner');
+      const valEl = document.getElementById('crashActiveBetValue');
+      const statusEl = document.getElementById('crashActiveBetStatus');
+      const hudPill = document.getElementById('crashHudBetPill');
+
+      const myBet = getMyCrashBet();
+      if (myBet && myBet.bet > 0) {
+        if (banner) {
+          banner.className = 'p-3 rounded-xl bg-sky-500/15 border border-sky-400/50 flex items-center justify-between transition-all shadow-md';
+        }
+        if (valEl) {
+          valEl.textContent = `${fmt(myBet.bet)} pièces`;
+        }
+
+        let statusText = '⏳ Mise prête';
+        let statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30';
+        let hudText = `🪙 Ma mise : ${fmt(myBet.bet)} pièces`;
+
+        if (myBet.cashedOut) {
+          statusText = `✅ Encaissé (${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''})`;
+          statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+          hudText = `✅ Encaissé : +${fmt(myBet.win || 0)} 🪙 à ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''}`;
+        } else if (crashSync.status === 'crashed') {
+          statusText = '💥 Crashé';
+          statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30';
+          hudText = `💥 Mise perdue : ${fmt(myBet.bet)} 🪙`;
+        } else if (crashSync.status === 'flying') {
+          const curMult = getCrashMultiplierAt(Date.now());
+          const curGain = Math.floor(myBet.bet * curMult);
+          statusText = `🚀 En vol (+${fmt(curGain)})`;
+          statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 animate-pulse';
+          hudText = `🪙 Mise : ${fmt(myBet.bet)} 🪙 • Gain : ${fmt(curGain)} 🪙`;
+        } else if (crashSync.status === 'countdown') {
+          const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
+          statusText = `⏳ Décollage (${secLeft}s)`;
+          statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 animate-pulse';
+          hudText = `🪙 Ma mise à bord : ${fmt(myBet.bet)} pièces`;
+        }
+
+        if (statusEl) {
+          statusEl.textContent = statusText;
+          statusEl.className = statusClass;
+        }
+        if (hudPill) {
+          hudPill.classList.remove('hidden');
+          hudPill.textContent = hudText;
+        }
+      } else {
+        if (banner) {
+          banner.className = 'p-3 rounded-xl bg-sky-950/60 border border-sky-500/30 flex items-center justify-between transition-all';
+        }
+        if (valEl) {
+          valEl.textContent = '0 pièce (aucune)';
+        }
+        if (statusEl) {
+          statusEl.textContent = 'Non misé';
+          statusEl.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 text-stone-400 border border-white/10';
+        }
+        if (hudPill) {
+          hudPill.classList.add('hidden');
+        }
+      }
+    }
+
     function updateCrashActionBtnText() {
       const actionBtn = document.getElementById('crashActionBtn');
-      const launchBtn = document.getElementById('crashLaunchBtn');
-      const cancelBtn = document.getElementById('crashCancelBtn');
-      if (!actionBtn) return;
+      const actionIcon = document.getElementById('crashActionBtnIcon');
+      const actionText = document.getElementById('crashActionBtnText');
 
-      const myKey = getCrashCurrentUsername();
-      const myBet = (crashSync.bets && crashSync.bets[myKey]) ? crashSync.bets[myKey] : null;
+      const launchBtn = document.getElementById('crashLaunchBtn');
+      const launchIcon = document.getElementById('crashLaunchBtnIcon');
+      const launchText = document.getElementById('crashLaunchBtnText');
+
+      const cancelBtn = document.getElementById('crashCancelBtn');
+      const cancelText = document.getElementById('crashCancelBtnText');
+
+      if (!actionBtn || !actionText) return;
+
+      const myBet = getMyCrashBet();
       const totalBetsCount = crashSync.bets ? Object.keys(crashSync.bets).length : 0;
+
+      // Met à jour la cartouche visuelle de la mise engagée
+      updateCrashCommittedBetDisplay();
 
       if (crashSync.status === 'waiting') {
         if (myBet) {
-          // Le joueur a déjà posé sa mise sans lancer
           actionBtn.disabled = true;
           actionBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-sm bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 opacity-95 flex items-center justify-center gap-2';
-          actionBtn.innerHTML = `<span>✅</span> <span>MISE DE ${fmt(myBet.bet)} 🪙 PRÊTE À BORD</span>`;
+          if (actionIcon) actionIcon.textContent = '✅';
+          actionText.textContent = `MISE DE ${fmt(myBet.bet)} 🪙 PRÊTE À BORD`;
 
           if (launchBtn) {
             launchBtn.classList.remove('hidden');
             launchBtn.disabled = false;
-            launchBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
-            launchBtn.innerHTML = '<span>🚀</span> <span>LANCER LE DÉCOLLAGE (7S)</span>';
+            launchBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
+            if (launchIcon) launchIcon.textContent = '🚀';
+            if (launchText) launchText.textContent = 'LANCER LE DÉCOLLAGE (7S)';
           }
 
           if (cancelBtn) {
             cancelBtn.classList.remove('hidden');
-            cancelBtn.innerHTML = `<span>✖</span> <span>Annuler ma mise (${fmt(myBet.bet)} 🪙)</span>`;
+            if (cancelText) cancelText.textContent = `Annuler ma mise (${fmt(myBet.bet)} 🪙)`;
           }
         } else {
-          // Le joueur n'a pas encore misé
           actionBtn.disabled = false;
-          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2';
-          actionBtn.innerHTML = '<span>💰</span> <span>MISER SANS LANCER</span>';
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer flex items-center justify-center gap-2';
+          if (actionIcon) actionIcon.textContent = '💰';
+          actionText.textContent = 'MISER SANS LANCER';
 
           if (launchBtn) {
             launchBtn.classList.remove('hidden');
             launchBtn.disabled = false;
             if (totalBetsCount > 0) {
-              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow cursor-pointer flex items-center justify-center gap-2';
-              launchBtn.innerHTML = `<span>🚀</span> <span>DÉCOLLER AVEC LES ${totalBetsCount} PARIEUR(S) (7S)</span>`;
+              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow cursor-pointer flex items-center justify-center gap-2';
+              if (launchIcon) launchIcon.textContent = '🚀';
+              if (launchText) launchText.textContent = `DÉCOLLER AVEC LES ${totalBetsCount} PARIEUR(S) (7S)`;
             } else {
-              launchBtn.className = 'w-full py-3 rounded-xl font-scifi font-extrabold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 transition shadow cursor-pointer flex items-center justify-center gap-2';
-              launchBtn.innerHTML = '<span>🚀</span> <span>MISER ET DÉCOLLER DIRECTEMENT</span>';
+              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 active:scale-[0.98] transition shadow cursor-pointer flex items-center justify-center gap-2';
+              if (launchIcon) launchIcon.textContent = '🚀';
+              if (launchText) launchText.textContent = 'MISER ET DÉCOLLER DIRECTEMENT';
             }
           }
 
@@ -4989,11 +5098,13 @@
         if (myBet) {
           actionBtn.disabled = true;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-amber-500/20 border border-amber-400/40 text-amber-200 cursor-not-allowed opacity-90 flex items-center justify-center gap-2';
-          actionBtn.innerHTML = `<span>⏳</span> <span>VOL REJOINT ! DÉCOLLAGE DANS ${secLeft}S</span>`;
+          if (actionIcon) actionIcon.textContent = '⏳';
+          actionText.textContent = `VOL REJOINT ! DÉCOLLAGE DANS ${secLeft}S`;
         } else {
           actionBtn.disabled = false;
-          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
-          actionBtn.innerHTML = `<span>➕</span> <span>REJOINDRE LE VOL (${secLeft}S)</span>`;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
+          if (actionIcon) actionIcon.textContent = '➕';
+          actionText.textContent = `REJOINDRE LE VOL (${secLeft}S)`;
         }
       } else if (crashSync.status === 'flying') {
         const curMult = getCrashMultiplierAt(Date.now());
@@ -5003,40 +5114,45 @@
         if (myBet && !myBet.cashedOut) {
           const currentGain = Math.floor(myBet.bet * curMult);
           actionBtn.disabled = false;
-          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2 animate-pulse';
-          actionBtn.innerHTML = `<span>🪂</span> <span>S'ÉJECTER & ENCAISSER (${fmt(currentGain)} 🪙)</span>`;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer flex items-center justify-center gap-2 animate-pulse';
+          if (actionIcon) actionIcon.textContent = '🪂';
+          actionText.textContent = `S'ÉJECTER & ENCAISSER (${fmt(currentGain)} 🪙)`;
         } else if (myBet && myBet.cashedOut) {
           actionBtn.disabled = true;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-emerald-500/40 text-emerald-300 opacity-90 cursor-not-allowed flex items-center justify-center gap-2';
-          actionBtn.innerHTML = `<span>✅</span> <span>ENCAISSÉ À ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''} (+${fmt(myBet.win || 0)} 🪙)</span>`;
+          if (actionIcon) actionIcon.textContent = '✅';
+          actionText.textContent = `ENCAISSÉ À ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''} (+${fmt(myBet.win || 0)} 🪙)`;
         } else {
           actionBtn.disabled = true;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-sky-500/30 text-sky-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
-          actionBtn.innerHTML = `<span>👀</span> <span>VOL MULTI EN COURS (${curMult.toFixed(2)}×)</span>`;
+          if (actionIcon) actionIcon.textContent = '👀';
+          actionText.textContent = `VOL MULTI EN COURS (${curMult.toFixed(2)}×)`;
         }
       } else if (crashSync.status === 'crashed') {
         if (cancelBtn) cancelBtn.classList.add('hidden');
         if (launchBtn) launchBtn.classList.add('hidden');
         actionBtn.disabled = true;
         actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-rose-950/80 border border-rose-500/50 text-rose-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
-        actionBtn.innerHTML = `<span>💥</span> <span>CRASH À ${crashSync.crashPoint.toFixed(2)}×</span>`;
+        if (actionIcon) actionIcon.textContent = '💥';
+        actionText.textContent = `CRASH À ${crashSync.crashPoint.toFixed(2)}×`;
       }
     }
 
     // BOUTON 1 : MISER SANS LANCER / REJOINDRE LE VOL / S'ÉJECTER
     function handleCrashButton() {
-      const myKey = getCrashCurrentUsername();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      const myBet = getMyCrashBet();
 
-      // 1. En vol : Éjection
-      if (crashSync.status === 'flying' && myBet && !myBet.cashedOut) {
-        performCrashCashout();
+      // 1. En vol : Éjection immédiate
+      if (crashSync.status === 'flying') {
+        if (myBet && !myBet.cashedOut) {
+          performCrashCashout();
+        }
         return;
       }
 
-      // 2. Si vol en cours ou crash
-      if (crashSync.status === 'flying' || crashSync.status === 'crashed') {
-        return showToast('⏳ Attends la fin du vol pour la prochaine manche !');
+      // 2. Si crash en cours
+      if (crashSync.status === 'crashed') {
+        return showToast('⏳ Attends la fin du crash pour la prochaine manche !');
       }
 
       // 3. En compte à rebours : rejoindre
@@ -5068,9 +5184,9 @@
       }
 
       const myKey = getCrashCurrentUsername();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      let myBet = getMyCrashBet();
 
-      // Si le joueur n'a pas encore misé, on mise pour lui d'abord
+      // Si le joueur n'a pas encore misé, on mise pour lui d'abord avec le montant saisi
       if (!myBet) {
         const betInput = document.getElementById('crashBetInput');
         const bet = parseInt(betInput ? betInput.value : '0') || 0;
@@ -5092,9 +5208,10 @@
           win: 0,
           avatar: getCrashCurrentAvatar()
         };
+        myBet = crashSync.bets[myKey];
       }
 
-      // Lancement du compte à rebours universel de 7s
+      // Lancement immédiat du compte à rebours universel de 7s
       const now = Date.now();
       const countdownDuration = 7000;
       const launchTime = now + countdownDuration;
@@ -5121,11 +5238,14 @@
         });
       }
 
-      showToast(`🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.`);
-      pushCrashStateToServer();
-      startCrashAnimLoop();
-      renderCrashLiveBets();
+      // Feedback instantané local (0 lag)
       updateCrashActionBtnText();
+      renderCrashLiveBets();
+      startCrashAnimLoop();
+      showToast(`🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.`);
+
+      // Synchronisation serveur
+      pushCrashStateToServer();
     }
 
     // BOUTON 3 : ANNULER LA MISE
@@ -5133,8 +5253,7 @@
       if (crashSync.status !== 'waiting') {
         return showToast('❌ Impossible d\'annuler une fois le compte à rebours lancé !');
       }
-      const myKey = getCrashCurrentUsername();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      const myBet = getMyCrashBet();
       if (!myBet) return;
 
       state.balance += myBet.bet;
@@ -5143,7 +5262,13 @@
       const balDisplay = document.getElementById('crashUserBalanceDisplay');
       if (balDisplay) balDisplay.textContent = fmt(state.balance);
 
-      delete crashSync.bets[myKey];
+      const myKey = getCrashCurrentUsername().toLowerCase();
+      for (const k of Object.keys(crashSync.bets)) {
+        if (k.trim().toLowerCase() === myKey) {
+          delete crashSync.bets[k];
+          break;
+        }
+      }
       crashSync.updatedAt = Date.now();
 
       pushCrashStateToServer();
@@ -5192,14 +5317,14 @@
     }
 
     function performCrashCashout() {
-      const myKey = getCrashCurrentUsername();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      const myBet = getMyCrashBet();
       if (!myBet || myBet.cashedOut || crashSync.status !== 'flying') return;
 
       const now = Date.now();
       const mult = getCrashMultiplierAt(now);
       if (mult >= crashSync.crashPoint) return; // Trop tard
 
+      // Verrouillage instantané du gain en local (0ms lag)
       myBet.cashedOut = true;
       myBet.cashMult = parseFloat(mult.toFixed(2));
       myBet.win = Math.floor(myBet.bet * myBet.cashMult);
@@ -5212,11 +5337,14 @@
       if (balDisplay) balDisplay.textContent = fmt(state.balance);
 
       crashSync.updatedAt = Date.now();
-      pushCrashStateToServer();
 
-      renderCrashLiveBets();
+      // Mise à jour immédiate de l'interface
       updateCrashActionBtnText();
+      renderCrashLiveBets();
       showToast(`🪂 Encaissé à ${myBet.cashMult.toFixed(2)}× : +${fmt(myBet.win)} pièces !`);
+
+      // Push serveur en arrière-plan
+      pushCrashStateToServer();
     }
 
     async function pushCrashStateToServer() {
@@ -5262,8 +5390,7 @@
 
     function mergeCrashServerState(srv) {
       if (!srv) return;
-      const myKey = getCrashCurrentUsername();
-      const localMyBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      const localMyBet = getMyCrashBet();
 
       // Si le serveur a une manche différente ou plus récente
       if (srv.id !== crashSync.id || srv.updatedAt > crashSync.updatedAt || srv.status !== crashSync.status) {
@@ -5280,11 +5407,15 @@
 
         // Fusion des paris
         crashSync.bets = srv.bets || {};
+
         // Protéger notre encaissement local si déjà validé
-        if (localMyBet && localMyBet.cashedOut && crashSync.bets[myKey]) {
-          crashSync.bets[myKey].cashedOut = true;
-          crashSync.bets[myKey].cashMult = localMyBet.cashMult;
-          crashSync.bets[myKey].win = localMyBet.win;
+        if (localMyBet && localMyBet.cashedOut) {
+          const srvBet = getMyCrashBet();
+          if (srvBet) {
+            srvBet.cashedOut = true;
+            srvBet.cashMult = localMyBet.cashMult;
+            srvBet.win = localMyBet.win;
+          }
         }
 
         crashSync.updatedAt = srv.updatedAt || Date.now();
@@ -5318,8 +5449,7 @@
         const now = Date.now();
         const multText = document.getElementById('crashMultiplierText');
         const subText = document.getElementById('crashStatusSub');
-        const myKey = getCrashCurrentUsername();
-        const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+        const myBet = getMyCrashBet();
 
         if (crashSync.status === 'countdown') {
           // En attente du décollage (7s)
