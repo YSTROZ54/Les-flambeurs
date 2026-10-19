@@ -1507,6 +1507,9 @@
   <!-- ================================================================= -->
   <div id="authModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
     <div class="bg-stone-900 border-2 border-amber-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      <!-- Bouton fermer / mode spectateur -->
+      <button type="button" onclick="closeAuthModal(); showToast('👀 Mode Spectateur actif : connecte-toi pour miser et recevoir des jetons.');" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white flex items-center justify-center text-sm transition" title="Fermer et regarder en spectateur">✕</button>
+
       <!-- Glow d'ambiance -->
       <div class="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
       <div class="absolute -bottom-12 -right-12 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -1596,6 +1599,13 @@
           ✨ Créer mon compte &amp; Recevoir 5 500 €
         </button>
       </form>
+
+      <!-- Option Spectateur sans argent -->
+      <div class="pt-3 border-t border-white/10 text-center">
+        <button type="button" onclick="closeAuthModal(); showToast('👀 Mode Spectateur actif : connecte-toi pour miser et recevoir tes jetons.');" class="text-xs text-stone-400 hover:text-amber-300 font-bold transition flex items-center justify-center gap-1.5 mx-auto">
+          <span>👁️</span> Continuer en simple spectateur (0 €, sans mise)
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1894,7 +1904,7 @@
       username: '',
       password: '',
       avatarEmoji: '🎭',
-      balance: 5500,
+      balance: 0,
       chestStreak: 1,
       lastChestTime: 0,
       friends: [],
@@ -1927,6 +1937,10 @@
     };
 
     let state = { ...DEFAULT_USER_STATE };
+
+    function isUserLoggedIn() {
+      return Boolean(state && state.username && state.username.trim().length > 0 && localStorage.getItem(STORAGE_KEY_SESSION));
+    }
 
     const STORAGE_KEY_BANNED = 'flambeurs_banned_accounts_v1';
 
@@ -2441,10 +2455,10 @@
     function logoutPlayer() {
       localStorage.removeItem(STORAGE_KEY_SESSION);
       document.getElementById('profileModal').classList.add('hidden');
-      state = { ...DEFAULT_USER_STATE };
+      state = { ...DEFAULT_USER_STATE, balance: 0, username: '' };
       updateGlobalUI();
       openAuthModal('login');
-      showToast('🚪 Tu t\'es déconnecté.');
+      showToast('🚪 Tu t\'es déconnecté. Mode spectateur actif.');
     }
 
     function loadState() {
@@ -2483,8 +2497,8 @@
         };
         closeAuthModal();
       } else {
-        // Nouveau joueur (comme le collègue) ou session déconnectée : ouverture obligatoire du modal
-        state = { ...DEFAULT_USER_STATE };
+        // Mode spectateur par défaut si non connecté : aucun argent donné (solde = 0)
+        state = { ...DEFAULT_USER_STATE, balance: 0, username: '' };
         openAuthModal(Object.keys(db).length > 0 ? 'login' : 'register');
       }
 
@@ -2987,6 +3001,11 @@
     }
 
     function claimDailyChest() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour ouvrir le coffre quotidien et recevoir tes jetons !');
+        openAuthModal('login');
+        return;
+      }
       checkStreakExpiry();
       const now = Date.now();
       const cooldown = 24 * 3600 * 1000 - (now - state.lastChestTime);
@@ -3011,6 +3030,7 @@
     }
 
     function processOfflineBuildingsIncome() {
+      if (!isUserLoggedIn()) return;
       const hourly = getTotalHourlyIncome();
       if (hourly <= 0) {
         state.lastBuildingTick = Date.now();
@@ -3029,6 +3049,11 @@
     }
 
     function buyBuilding(id) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour acheter des bâtiments !');
+        openAuthModal('login');
+        return;
+      }
       const b = BUILDINGS_CATALOG.find(x => x.id === id);
       if (!b) return;
       const count = state.buildingsOwned[id] || 0;
@@ -3044,6 +3069,11 @@
     }
 
     function sellBuilding(id) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour gérer tes bâtiments !');
+        openAuthModal('login');
+        return;
+      }
       const b = BUILDINGS_CATALOG.find(x => x.id === id);
       if (!b) return;
       const count = state.buildingsOwned[id] || 0;
@@ -3058,6 +3088,11 @@
     }
 
     function simulateOneHourBuildings() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour gérer tes bâtiments !');
+        openAuthModal('login');
+        return;
+      }
       const hourly = getTotalHourlyIncome();
       if (hourly <= 0) return showToast('Achète d\'abord au moins un bâtiment !');
       state.balance += hourly;
@@ -3131,15 +3166,17 @@
 
     function updateGlobalUI() {
       checkStreakExpiry();
-      const avatarText = getAvatarDisplay(state);
+      const logged = isUserLoggedIn();
+      const avatarText = logged ? getAvatarDisplay(state) : '👀';
 
-      document.getElementById('topBalance').textContent = fmt(state.balance);
-      document.getElementById('hallBalanceInline').textContent = fmt(state.balance);
-      document.getElementById('pokerHeroStack').textContent = fmt(state.balance);
+      const dispBal = logged ? fmt(state.balance) : '0';
+      document.getElementById('topBalance').textContent = dispBal;
+      document.getElementById('hallBalanceInline').textContent = dispBal;
+      document.getElementById('pokerHeroStack').textContent = dispBal;
 
-      document.getElementById('topUsername').textContent = state.username || 'Connexion';
-      document.getElementById('hallUsername').textContent = state.username || 'Joueur';
-      document.getElementById('pokerHeroName').textContent = state.username || 'Joueur';
+      document.getElementById('topUsername').textContent = logged ? state.username : 'Connexion';
+      document.getElementById('hallUsername').textContent = logged ? state.username : 'Spectateur (non connecté)';
+      document.getElementById('pokerHeroName').textContent = logged ? state.username : 'Spectateur';
 
       document.getElementById('topAvatar').textContent = avatarText;
       document.getElementById('hallAvatar').textContent = avatarText;
@@ -3454,6 +3491,11 @@
     }
 
     function buySkin(id) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour acheter dans la boutique !');
+        openAuthModal('login');
+        return;
+      }
       const item = SHOP_CATALOG.find(i => i.id === id);
       if (!item) return;
       if (state.balance < item.price) return showToast('❌ Pas assez de pièces pour acheter cet article !');
@@ -3473,6 +3515,11 @@
     }
 
     function equipSkin(id) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour équiper des articles !');
+        openAuthModal('login');
+        return;
+      }
       const item = SHOP_CATALOG.find(i => i.id === id);
       if (!item) return;
       state.equipped[item.category] = item.id;
@@ -3587,12 +3634,17 @@
     }
 
     function sendBankDonation() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour effectuer un virement bancaire !');
+        openAuthModal('login');
+        return;
+      }
       const recipient = document.getElementById('bankCustomRecipient').value.trim();
       const amount = parseInt(document.getElementById('bankAmountInput').value) || 0;
       const note = document.getElementById('bankNoteInput').value.trim() || 'Bon jeu !';
 
       if (!recipient) return showToast('❌ Choisis le blase du destinataire.');
-      if (recipient.toLowerCase() === state.username.toLowerCase()) return showToast('❌ Tu ne peux pas te faire de don à toi-même !');
+      if (recipient.toLowerCase() === (state.username || '').toLowerCase()) return showToast('❌ Tu ne peux pas te faire de don à toi-même !');
       if (amount < 5) return showToast('❌ Le don minimum est de 5 pièces.');
       if (amount > state.balance) return showToast('❌ Tu n\'as pas assez de pièces sur ton compte.');
 
@@ -3843,6 +3895,11 @@
     }
 
     async function acceptCurrentPendingTransfer() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Connecte-toi pour recevoir ce virement !');
+        openAuthModal('login');
+        return;
+      }
       const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
       if (list.length === 0) return;
 
@@ -3928,6 +3985,12 @@
 
     /* ================= GESTION GLOBALE DES NOTIFICATIONS (VIREMENTS, AMIS, JEUX) ================= */
     function checkPendingNotifications() {
+      if (!isUserLoggedIn()) {
+        document.getElementById('transferNotification')?.classList.add('hidden');
+        document.getElementById('friendRequestNotification')?.classList.add('hidden');
+        document.getElementById('gameInviteNotification')?.classList.add('hidden');
+        return;
+      }
       checkPendingTransfersNotification();
       checkPendingFriendRequestsNotification();
       checkPendingGameInvitesNotification();
@@ -4661,6 +4724,11 @@
     }
 
     function startPokerHand() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer au Poker !');
+        openAuthModal('login');
+        return;
+      }
       const blind = Math.max(10, parseInt(document.getElementById('pokerBlindsInput').value) || 100);
       if (state.balance < blind) return showToast('❌ Pas assez de pièces !');
       if (!poker.opponents.length) setupPokerSeats();
@@ -5096,21 +5164,12 @@
         } else {
           actionBtn.disabled = false;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer flex items-center justify-center gap-2';
-          if (actionIcon) actionIcon.textContent = '💰';
-          actionText.textContent = 'MISER SANS LANCER';
+          if (actionIcon) actionIcon.textContent = isUserLoggedIn() ? '💰' : '🔒';
+          actionText.textContent = isUserLoggedIn() ? 'MISER SANS LANCER' : 'SE CONNECTER POUR MISER';
 
+          // RÈGLE : Si tu n'as pas misé tu ne peux pas cliquer sur décoller -> bouton retiré
           if (launchBtn) {
-            launchBtn.classList.remove('hidden');
-            launchBtn.disabled = false;
-            if (totalBetsCount > 0) {
-              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow cursor-pointer flex items-center justify-center gap-2';
-              if (launchIcon) launchIcon.textContent = '🚀';
-              if (launchText) launchText.textContent = `DÉCOLLER AVEC LES ${totalBetsCount} PARIEUR(S) (7S)`;
-            } else {
-              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 active:scale-[0.98] transition shadow cursor-pointer flex items-center justify-center gap-2';
-              if (launchIcon) launchIcon.textContent = '🚀';
-              if (launchText) launchText.textContent = 'MISER ET DÉCOLLER DIRECTEMENT';
-            }
+            launchBtn.classList.add('hidden');
           }
 
           if (cancelBtn) {
@@ -5130,8 +5189,8 @@
         } else {
           actionBtn.disabled = false;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
-          if (actionIcon) actionIcon.textContent = '➕';
-          actionText.textContent = `REJOINDRE LE VOL (${secLeft}S)`;
+          if (actionIcon) actionIcon.textContent = isUserLoggedIn() ? '➕' : '🔒';
+          actionText.textContent = isUserLoggedIn() ? `REJOINDRE LE VOL (${secLeft}S)` : `SE CONNECTER POUR REJOINDRE (${secLeft}S)`;
         }
       } else if (crashSync.status === 'flying') {
         const curMult = getCrashMultiplierAt(Date.now());
@@ -5153,7 +5212,7 @@
           actionBtn.disabled = true;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-sky-500/30 text-sky-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
           if (actionIcon) actionIcon.textContent = '👀';
-          actionText.textContent = `VOL MULTI EN COURS (${curMult.toFixed(2)}×)`;
+          actionText.textContent = `MODE SPECTATEUR (${curMult.toFixed(2)}×)`;
         }
       } else if (crashSync.status === 'crashed') {
         if (cancelBtn) cancelBtn.classList.add('hidden');
@@ -5167,6 +5226,11 @@
 
     // BOUTON 1 : MISER SANS LANCER / REJOINDRE LE VOL / S'ÉJECTER
     function handleCrashButton() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour pouvoir miser et jouer !');
+        openAuthModal('login');
+        return;
+      }
       const myBet = getMyCrashBet();
 
       // 1. En vol : Éjection immédiate
@@ -5203,6 +5267,11 @@
 
     // BOUTON 2 : DÉCOLLER (LANCER LE COMPTE À REBOURS DE 7S)
     function handleCrashLaunch() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour pouvoir jouer !');
+        openAuthModal('login');
+        return;
+      }
       if (crashSync.status === 'countdown') {
         return showToast('⏳ Le compte à rebours est déjà en cours !');
       }
@@ -5210,36 +5279,9 @@
         return showToast('⏳ Attends la fin du vol en cours.');
       }
 
-      const totalBetsCount = crashSync.bets ? Object.keys(crashSync.bets).length : 0;
       let myBet = getMyCrashBet();
-
-      // Si le joueur n'a pas encore misé, mais qu'il est seul et clique sur "Miser et décoller"
-      if (!myBet && totalBetsCount === 0) {
-        const betInput = document.getElementById('crashBetInput');
-        const bet = parseInt(betInput ? betInput.value : '0') || 0;
-        if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
-        if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
-
-        state.balance -= bet;
-        saveState();
-
-        const balDisplay = document.getElementById('crashUserBalanceDisplay');
-        if (balDisplay) balDisplay.textContent = fmt(state.balance);
-
-        const myKey = getCrashCurrentUsername();
-        myActiveCrashBet = {
-          roundId: crashSync.id,
-          name: myKey,
-          bet: bet,
-          cashedOut: false,
-          cashMult: null,
-          win: 0,
-          avatar: getCrashCurrentAvatar()
-        };
-
-        if (!crashSync.bets) crashSync.bets = {};
-        crashSync.bets[myKey] = myActiveCrashBet;
-        myBet = myActiveCrashBet;
+      if (!myBet) {
+        return showToast('❌ Tu dois miser d\'abord avant de pouvoir faire décoller la fusée !');
       }
 
       // Lancement du compte à rebours universel de 7s
@@ -5310,6 +5352,11 @@
     }
 
     function placeCrashBetInternal(startLaunchDirectly) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour pouvoir miser !');
+        openAuthModal('login');
+        return;
+      }
       const betInput = document.getElementById('crashBetInput');
       const bet = parseInt(betInput ? betInput.value : '0') || 0;
       if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
@@ -5922,6 +5969,11 @@
     let slotSpinning = false;
 
     function pullSlotLever() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer à la machine à sous !');
+        openAuthModal('login');
+        return;
+      }
       if (slotSpinning) return;
       const bet = parseInt(document.getElementById('slotBetInput').value) || 0;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
@@ -6031,6 +6083,11 @@
     }
 
     function placeRouletteBet(key, label, mult) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour miser à la roulette !');
+        openAuthModal('login');
+        return;
+      }
       if (roulette.spinning || roulette.cooldownRemaining > 0) {
         return showToast('⏳ Attends la fin du compte à rebours de 7s !');
       }
@@ -6179,6 +6236,11 @@
     }
 
     function spinRouletteWheel() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer à la roulette !');
+        openAuthModal('login');
+        return;
+      }
       if (roulette.spinning || roulette.cooldownRemaining > 0) return;
       if (!Object.keys(roulette.bets).length) return showToast('Pose au moins un jeton sur le tapis !');
 
@@ -6288,6 +6350,11 @@
     }
 
     function startMinesGame() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer à la Chambre Forte !');
+        openAuthModal('login');
+        return;
+      }
       const bet = parseInt(document.getElementById('minesBetInput').value) || 0;
       const cnt = mines.count || 3;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
@@ -6469,6 +6536,11 @@
     }
 
     function startBlackjack() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer au Blackjack !');
+        openAuthModal('login');
+        return;
+      }
       if (bj.active || bj.cooldownRemaining > 0) return;
       const bet = parseInt(document.getElementById('bjBetInput').value) || 0;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
@@ -6773,6 +6845,11 @@
     }
 
     function startCupsGame() {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Tu dois être connecté pour jouer aux Gobelets !');
+        openAuthModal('login');
+        return;
+      }
       if (cupsGame.isShuffling || cupsGame.canPick) return;
       let bet = parseInt(document.getElementById('cupsBetInput').value) || 100;
       if (bet < 10) bet = 10;
