@@ -26,6 +26,23 @@ $mimeTypes = @{
 $baseDir = $PSScriptRoot
 if (-not $baseDir) { $baseDir = (Get-Location).Path }
 
+function Convert-PSObjectToHashtable($obj) {
+    if ($null -eq $obj) { return $null }
+    if ($obj -is [System.Collections.IEnumerable] -and $obj -isnot [string] -and $obj -isnot [System.Collections.IDictionary]) {
+        $arr = @()
+        foreach ($item in $obj) { $arr += (Convert-PSObjectToHashtable $item) }
+        return ,$arr
+    }
+    if ($obj -is [PSCustomObject] -or $obj -is [System.Management.Automation.PSCustomObject]) {
+        $ht = @{}
+        foreach ($p in $obj.PSObject.Properties) {
+            $ht[$p.Name] = Convert-PSObjectToHashtable $p.Value
+        }
+        return $ht
+    }
+    return $obj
+}
+
 while ($listener.IsListening) {
     try {
         $context = $listener.GetContext()
@@ -69,11 +86,11 @@ while ($listener.IsListening) {
                 $reader.Close()
 
                 $currentRaw = Get-Content -Raw -Encoding UTF8 $dbFile
-                $currentObj = if ($currentRaw) { $currentRaw | ConvertFrom-Json -AsHashtable } else { @{} }
+                $currentObj = if ($currentRaw) { Convert-PSObjectToHashtable ($currentRaw | ConvertFrom-Json) } else { @{} }
                 if (-not $currentObj) { $currentObj = @{} }
 
-                $postObj = $body | ConvertFrom-Json -AsHashtable
-                if ($postObj.username) {
+                $postObj = Convert-PSObjectToHashtable ($body | ConvertFrom-Json)
+                if ($postObj -and $postObj.username) {
                     $key = $postObj.username.ToLower()
                     $currentObj[$key] = $postObj
                 }
@@ -90,7 +107,7 @@ while ($listener.IsListening) {
                 $targetUser = $request.QueryString["username"]
                 if ($targetUser) {
                     $currentRaw = Get-Content -Raw -Encoding UTF8 $dbFile
-                    $currentObj = if ($currentRaw) { $currentRaw | ConvertFrom-Json -AsHashtable } else { @{} }
+                    $currentObj = if ($currentRaw) { Convert-PSObjectToHashtable ($currentRaw | ConvertFrom-Json) } else { @{} }
                     if ($currentObj -and $currentObj.ContainsKey($targetUser.ToLower())) {
                         $currentObj.Remove($targetUser.ToLower())
                         $newRaw = $currentObj | ConvertTo-Json -Depth 10
@@ -120,47 +137,184 @@ while ($listener.IsListening) {
                 continue
             }
 
-            if (-not (Test-Path $crashFile)) {
-                $initJson = '{"id":0,"status":"waiting","countdownStartTime":0,"countdownDuration":7000,"launchTime":0,"crashPoint":2.0,"bets":{},"history":[2.45,1.35,4.10,1.15,3.20,1.80],"updatedAt":0}'
-                Set-Content -Path $crashFile -Value $initJson -Encoding UTF8
+            # Charger l'état actuel ou l'initialiser
+            $currentObj = $null
+            if (Test-Path $crashFile) {
+                try {
+                    $rawContent = Get-Content -Raw -Encoding UTF8 $crashFile
+                    if ($rawContent) { $currentObj = Convert-PSObjectToHashtable ($rawContent | ConvertFrom-Json) }
+                } catch {}
+            }
+            if (-not $currentObj) {
+                $currentObj = @{
+                    id = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    status = "waiting"
+                    countdownStartTime = 0
+                    countdownDuration = 7000
+                    launchTime = 0
+                    crashPoint = 2.0
+                    crashedAtTime = 0
+                    bets = @{}
+                    history = @(2.45, 1.35, 4.10, 1.15, 3.20, 1.80)
+                    updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                }
+            }
+            if (-not $currentObj.bets) { $currentObj.bets = @{} }
+
+            $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+
+            # Progression temporelle automatique
+            if ($currentObj.status -eq 'countdown') {
+                if ($now -ge $currentObj.launchTime -and $currentObj.launchTime -gt 0) {
+                    $currentObj.status = 'flying'
+                    $currentObj.updatedAt = $now
+                }
+            }
+            elseif ($currentObj.status -eq 'flying') {
+                $elapsed = [Math]::Max(0.0, ($now - $currentObj.launchTime) / 1000.0)
+                $curMult = [Math]::Pow([Math]::E, 0.15 * $elapsed)
+                if ($curMult -ge [double]$currentObj.crashPoint) {
+                    $currentObj.status = 'crashed'
+                    $currentObj.crashedAtTime = $now
+                    $currentObj.updatedAt = $now
+                    if (-not $currentObj.history) { $currentObj.history = @() }
+                    $newHist = @([Math]::Round([double]$currentObj.crashPoint, 2)) + @($currentObj.history)
+                    if ($newHist.Length -gt 8) { $newHist = $newHist[0..7] }
+                    $currentObj.history = $newHist
+                }
+            }
+            elseif ($currentObj.status -eq 'crashed') {
+                if ($currentObj.crashedAtTime -gt 0 -and ($now - $currentObj.crashedAtTime) -ge 4000) {
+                    $currentObj.status = 'waiting'
+                    $currentObj.launchTime = 0
+                    $currentObj.countdownStartTime = 0
+                    $currentObj.crashedAtTime = 0
+                    $currentObj.bets = @{}
+                    $currentObj.updatedAt = $now
+                }
             }
 
-            if ($request.HttpMethod -eq 'GET') {
-                $content = $null
-                try {
-                    if (Test-Path $crashFile) {
-                        $raw = Get-Content -Raw -Encoding UTF8 $crashFile
-                        if ($raw -and $raw.Trim().StartsWith('{') -and $raw.Trim().EndsWith('}')) {
-                            $null = ConvertFrom-Json $raw -ErrorAction Stop
-                            $content = $raw
-                        }
-                    }
-                } catch {}
-                if (-not $content) {
-                    $content = '{"id":0,"status":"waiting","countdownStartTime":0,"countdownDuration":7000,"launchTime":0,"crashPoint":2.0,"bets":{},"history":[2.45,1.35,4.10,1.15,3.20,1.80],"updatedAt":0}'
-                    try { Set-Content -Path $crashFile -Value $content -Encoding UTF8 } catch {}
-                }
-                $bytes = [System.Text.Encoding]::UTF8.GetBytes($content)
-                $response.StatusCode = 200
-                $response.ContentLength64 = $bytes.Length
-                $response.OutputStream.Write($bytes, 0, $bytes.Length)
-            }
-            elseif ($request.HttpMethod -eq 'POST') {
+            if ($request.HttpMethod -eq 'POST') {
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
                 $body = $reader.ReadToEnd()
                 $reader.Close()
 
-                if ($body -and $body.Trim().StartsWith('{') -and $body.Trim().EndsWith('}')) {
+                if ($body) {
                     try {
-                        $null = ConvertFrom-Json $body -ErrorAction Stop
-                        Set-Content -Path $crashFile -Value $body -Encoding UTF8
+                        $postObj = Convert-PSObjectToHashtable ($body | ConvertFrom-Json)
+                        if ($postObj) {
+                            # ACTION 1: PLACER UNE MISE
+                            if ($postObj.action -eq 'bet' -and $postObj.bet -and $postObj.bet.name) {
+                                $bName = [string]$postObj.bet.name
+                                $currentObj.bets[$bName] = @{
+                                    name = $bName
+                                    bet = [int]$postObj.bet.bet
+                                    cashedOut = $false
+                                    cashMult = $null
+                                    win = 0
+                                    avatar = if ($postObj.bet.avatar) { [string]$postObj.bet.avatar } else { "" }
+                                }
+                                $currentObj.updatedAt = $now
+                            }
+                            # ACTION 2: ANNULER UNE MISE
+                            elseif ($postObj.action -eq 'cancel' -and $postObj.name) {
+                                $target = [string]$postObj.name.ToLower().Trim()
+                                foreach ($k in @($currentObj.bets.Keys)) {
+                                    if ($k.ToLower().Trim() -eq $target) {
+                                        $currentObj.bets.Remove($k)
+                                        break
+                                    }
+                                }
+                                $currentObj.updatedAt = $now
+                            }
+                            # ACTION 3: DÉCOLLAGE
+                            elseif ($postObj.action -eq 'launch') {
+                                if ($currentObj.status -eq 'waiting') {
+                                    $currentObj.id = $now
+                                    $currentObj.status = 'countdown'
+                                    $currentObj.countdownStartTime = $now
+                                    $currentObj.countdownDuration = if ($postObj.countdownDuration) { [int]$postObj.countdownDuration } else { 7000 }
+                                    $currentObj.launchTime = $now + $currentObj.countdownDuration
+                                    $currentObj.crashPoint = if ($postObj.crashPoint) { [double]$postObj.crashPoint } else { [Math]::Round(1.08 + (Get-Random -Minimum 0.1 -Maximum 5.0), 2) }
+                                    $currentObj.crashedAtTime = 0
+                                    $currentObj.updatedAt = $now
+
+                                    if ($postObj.bet -and $postObj.bet.name) {
+                                        $bName = [string]$postObj.bet.name
+                                        $currentObj.bets[$bName] = @{
+                                            name = $bName
+                                            bet = [int]$postObj.bet.bet
+                                            cashedOut = $false
+                                            cashMult = $null
+                                            win = 0
+                                            avatar = if ($postObj.bet.avatar) { [string]$postObj.bet.avatar } else { "" }
+                                        }
+                                    }
+
+                                    foreach ($k in $currentObj.bets.Keys) {
+                                        $currentObj.bets[$k].cashedOut = $false
+                                        $currentObj.bets[$k].cashMult = $null
+                                        $currentObj.bets[$k].win = 0
+                                    }
+                                }
+                            }
+                            # ACTION 4: ENCAISSEMENT
+                            elseif ($postObj.action -eq 'cashout' -and $postObj.name) {
+                                $target = [string]$postObj.name.ToLower().Trim()
+                                foreach ($k in $currentObj.bets.Keys) {
+                                    if ($k.ToLower().Trim() -eq $target) {
+                                        $currentObj.bets[$k].cashedOut = $true
+                                        $currentObj.bets[$k].cashMult = [double]$postObj.cashMult
+                                        $currentObj.bets[$k].win = [int]$postObj.win
+                                        break
+                                    }
+                                }
+                                $currentObj.updatedAt = $now
+                            }
+                            # FUSION ÉTAT COMPLET DU CLIENT
+                            else {
+                                if ($postObj.status -eq 'countdown' -and $currentObj.status -eq 'waiting') {
+                                    $currentObj.id = if ($postObj.id) { $postObj.id } else { $now }
+                                    $currentObj.status = 'countdown'
+                                    $currentObj.countdownStartTime = if ($postObj.countdownStartTime) { $postObj.countdownStartTime } else { $now }
+                                    $currentObj.countdownDuration = if ($postObj.countdownDuration) { $postObj.countdownDuration } else { 7000 }
+                                    $currentObj.launchTime = if ($postObj.launchTime) { $postObj.launchTime } else { $now + 7000 }
+                                    $currentObj.crashPoint = if ($postObj.crashPoint) { $postObj.crashPoint } else { 2.0 }
+                                    $currentObj.crashedAtTime = 0
+                                }
+
+                                if ($postObj.bets -and $postObj.bets.Count -gt 0) {
+                                    foreach ($bk in $postObj.bets.Keys) {
+                                        $inBet = $postObj.bets[$bk]
+                                        if (-not $currentObj.bets.ContainsKey($bk)) {
+                                            $currentObj.bets[$bk] = $inBet
+                                        } else {
+                                            if ($inBet.cashedOut) {
+                                                $currentObj.bets[$bk].cashedOut = $true
+                                                $currentObj.bets[$bk].cashMult = $inBet.cashMult
+                                                $currentObj.bets[$bk].win = $inBet.win
+                                            }
+                                        }
+                                    }
+                                }
+                                $currentObj.updatedAt = $now
+                            }
+                        }
                     } catch {}
                 }
-                $resBytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
-                $response.StatusCode = 200
-                $response.ContentLength64 = $resBytes.Length
-                $response.OutputStream.Write($resBytes, 0, $resBytes.Length)
             }
+
+            # Sauvegarde fichier JSON
+            try {
+                $newJson = $currentObj | ConvertTo-Json -Depth 6
+                Set-Content -Path $crashFile -Value $newJson -Encoding UTF8
+            } catch {}
+
+            $outJson = $currentObj | ConvertTo-Json -Depth 6
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+            $response.StatusCode = 200
+            $response.ContentLength64 = $bytes.Length
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
             $response.OutputStream.Close()
             continue
         }

@@ -2024,6 +2024,7 @@
 
             rows.forEach(row => {
               if (row && row.username) {
+                if (row.username.startsWith('__')) return;
                 const key = row.username.toLowerCase();
                 const extraData = (row.data && typeof row.data === 'object') ? row.data : {};
                 
@@ -2065,6 +2066,7 @@
           const data = await res.json();
           if (data && typeof data === 'object') {
             Object.keys(data).forEach(k => {
+              if (k.startsWith('__')) return;
               if (data[k] && data[k].username && !db[k]) {
                 db[k] = { ...(db[k] || {}), ...data[k] };
                 changed = true;
@@ -2658,7 +2660,7 @@
       if (!container) return;
 
       const db = getAccountsDB();
-      const list = Object.keys(db).map(k => db[k]).filter(a => a && a.username);
+      const list = Object.keys(db).filter(k => !k.startsWith('__')).map(k => db[k]).filter(a => a && a.username);
 
       const count = list.length;
       if (badge) badge.textContent = `${count} joueur${count > 1 ? 's' : ''}`;
@@ -3205,7 +3207,7 @@
       // 1. Ajouter tous les comptes réels de la base Supabase Cloud
       Object.keys(db).forEach(k => {
         const acc = db[k];
-        if (acc && acc.username && !isUsernameBanned(k)) {
+        if (acc && acc.username && !k.startsWith('__') && !isUsernameBanned(k)) {
           const uKey = acc.username.toLowerCase().trim();
           playersMap[uKey] = {
             name: acc.username,
@@ -5244,8 +5246,13 @@
       startCrashAnimLoop();
       showToast(`🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.`);
 
-      // Synchronisation serveur
-      pushCrashStateToServer();
+      // Synchronisation serveur & Supabase Cloud
+      pushCrashStateToServer({
+        action: 'launch',
+        countdownDuration: countdownDuration,
+        crashPoint: crashPoint,
+        bet: myBet
+      });
     }
 
     // BOUTON 3 : ANNULER LA MISE
@@ -5271,7 +5278,7 @@
       }
       crashSync.updatedAt = Date.now();
 
-      pushCrashStateToServer();
+      pushCrashStateToServer({ action: 'cancel', name: getCrashCurrentUsername() });
       renderCrashLiveBets();
       updateCrashActionBtnText();
       showToast(`✖ Mise de ${fmt(myBet.bet)} 🪙 annulée et remboursée.`);
@@ -5310,7 +5317,7 @@
         showToast(`💰 Mise de ${fmt(bet)} 🪙 enregistrée ! Ton blaze est prêt à bord.`);
       }
 
-      pushCrashStateToServer();
+      pushCrashStateToServer({ action: 'bet', bet: crashSync.bets[myKey] });
       renderCrashLiveBets();
       updateCrashActionBtnText();
       startCrashAnimLoop();
@@ -5344,25 +5351,64 @@
       showToast(`🪂 Encaissé à ${myBet.cashMult.toFixed(2)}× : +${fmt(myBet.win)} pièces !`);
 
       // Push serveur en arrière-plan
-      pushCrashStateToServer();
+      pushCrashStateToServer({
+        action: 'cashout',
+        name: myBet.name,
+        cashMult: myBet.cashMult,
+        win: myBet.win
+      });
     }
 
-    async function pushCrashStateToServer() {
+    async function pushCrashStateToServer(actionPayload) {
       crashSync.updatedAt = Date.now();
+      const payload = actionPayload || {
+        ...crashSync,
+        updatedAt: crashSync.updatedAt
+      };
+
+      // 1. Envoi au serveur HTTP (/api/crash)
       try {
-        await fetch(getCrashApiUrl(), {
+        fetch(getCrashApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(crashSync)
-        });
+          body: JSON.stringify(payload)
+        }).then(r => r.ok ? r.json() : null)
+          .then(data => {
+            const st = data?.state || data;
+            if (st && (st.status || st.bets)) mergeCrashServerState(st);
+          })
+          .catch(() => {});
       } catch (e) {}
 
-      // Fallback Supabase table sync
+      // 2. Envoi direct à Supabase Cloud pour synchronisation universelle multi-appareils
       try {
-        if (state && state.currentTable) {
-          state.currentTable.crashRound = crashSync;
-          if (typeof pushTableState === 'function') pushTableState();
-        }
+        const crashToSave = {
+          id: crashSync.id,
+          status: crashSync.status,
+          countdownStartTime: crashSync.countdownStartTime,
+          countdownDuration: crashSync.countdownDuration,
+          launchTime: crashSync.launchTime,
+          crashPoint: crashSync.crashPoint,
+          crashedAtTime: crashSync.crashedAtTime,
+          bets: crashSync.bets || {},
+          history: crashSync.history || [],
+          updatedAt: Date.now()
+        };
+
+        const row = {
+          username: '__crash_game__',
+          password: 'sys',
+          avatar: '🚀',
+          balance: 0,
+          data: { crash: crashToSave },
+          updated_at: new Date().toISOString()
+        };
+
+        supabaseFetch('accounts', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify(row)
+        }).catch(() => {});
       } catch (e) {}
     }
 
@@ -5371,29 +5417,49 @@
       if (isCrashSyncing) return;
       isCrashSyncing = true;
       try {
-        const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
-        if (res.ok) {
-          const serverState = await res.json();
-          if (serverState && (serverState.updatedAt || serverState.status)) {
-            mergeCrashServerState(serverState);
+        let serverState = null;
+
+        // 1. Essai API /api/crash
+        try {
+          const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            const st = data.state || data;
+            if (st && (st.status || st.bets)) {
+              serverState = st;
+            }
           }
+        } catch (e) {}
+
+        // 2. Si pas de réponse serveur HTTP ou hors ligne, synchronisation directe Supabase Cloud
+        if (!serverState) {
+          try {
+            const sRes = await supabaseFetch('accounts?username=eq.__crash_game__');
+            if (sRes.ok) {
+              const rows = await sRes.json();
+              if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.crash) {
+                serverState = rows[0].data.crash;
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (serverState) {
+          mergeCrashServerState(serverState);
         }
       } catch (e) {
-        // Fallback Supabase
-        if (state && state.currentTable && state.currentTable.crashRound) {
-          mergeCrashServerState(state.currentTable.crashRound);
-        }
       } finally {
         isCrashSyncing = false;
       }
     }
 
     function mergeCrashServerState(srv) {
-      if (!srv) return;
-      const localMyBet = getMyCrashBet();
+      if (!srv || typeof srv !== 'object') return;
+      const myBet = getMyCrashBet();
+      const now = Date.now();
 
-      // Si le serveur a une manche différente ou plus récente
-      if (srv.id !== crashSync.id || srv.updatedAt > crashSync.updatedAt || srv.status !== crashSync.status) {
+      // 1. Nouvelle manche (ID différent)
+      if (srv.id && srv.id !== crashSync.id) {
         crashSync.id = srv.id;
         crashSync.status = srv.status;
         crashSync.countdownStartTime = srv.countdownStartTime || 0;
@@ -5401,29 +5467,81 @@
         crashSync.launchTime = srv.launchTime || 0;
         crashSync.crashPoint = srv.crashPoint || 2.0;
         crashSync.crashedAtTime = srv.crashedAtTime || 0;
-        if (srv.history && Array.isArray(srv.history)) {
+        crashSync.bets = srv.bets || {};
+        if (Array.isArray(srv.history) && srv.history.length > 0) {
           crashSync.history = srv.history;
         }
-
-        // Fusion des paris
-        crashSync.bets = srv.bets || {};
-
-        // Protéger notre encaissement local si déjà validé
-        if (localMyBet && localMyBet.cashedOut) {
-          const srvBet = getMyCrashBet();
-          if (srvBet) {
-            srvBet.cashedOut = true;
-            srvBet.cashMult = localMyBet.cashMult;
-            srvBet.win = localMyBet.win;
-          }
-        }
-
-        crashSync.updatedAt = srv.updatedAt || Date.now();
+        crashSync.updatedAt = srv.updatedAt || now;
 
         if (crashSync.status === 'countdown' || crashSync.status === 'flying') {
           startCrashAnimLoop();
         }
 
+        renderCrashHistoryPills();
+        renderCrashLiveBets();
+        updateCrashActionBtnText();
+        return;
+      }
+
+      // 2. Changement de statut ou mise à jour de la manche en cours
+      let hasChange = false;
+      if (srv.status && srv.status !== crashSync.status) {
+        crashSync.status = srv.status;
+        crashSync.countdownStartTime = srv.countdownStartTime || crashSync.countdownStartTime;
+        crashSync.countdownDuration = srv.countdownDuration || crashSync.countdownDuration;
+        crashSync.launchTime = srv.launchTime || crashSync.launchTime;
+        crashSync.crashPoint = srv.crashPoint || crashSync.crashPoint;
+        crashSync.crashedAtTime = srv.crashedAtTime || crashSync.crashedAtTime;
+        hasChange = true;
+      }
+
+      // 3. Fusion des paris : on prend les paris du serveur SANS écraser le nôtre
+      if (srv.bets && typeof srv.bets === 'object') {
+        if (!crashSync.bets) crashSync.bets = {};
+        const oldKeys = Object.keys(crashSync.bets).sort().join(',');
+        const sKeys = Object.keys(srv.bets).sort().join(',');
+
+        if (oldKeys !== sKeys) {
+          hasChange = true;
+        }
+
+        Object.keys(srv.bets).forEach(k => {
+          const sBet = srv.bets[k];
+          if (!sBet || !sBet.name) return;
+          const cur = crashSync.bets[k];
+          if (!cur) {
+            crashSync.bets[k] = sBet;
+            hasChange = true;
+          } else {
+            if (sBet.cashedOut && !cur.cashedOut) {
+              cur.cashedOut = true;
+              cur.cashMult = sBet.cashMult;
+              cur.win = sBet.win;
+              hasChange = true;
+            }
+          }
+        });
+
+        // Protéger l'encaissement du joueur local s'il a déjà encaissé
+        if (myBet && myBet.cashedOut) {
+          const liveMyBet = getMyCrashBet();
+          if (liveMyBet) {
+            liveMyBet.cashedOut = true;
+            liveMyBet.cashMult = myBet.cashMult;
+            liveMyBet.win = myBet.win;
+          }
+        }
+      }
+
+      if (Array.isArray(srv.history) && srv.history.length > 0) {
+        crashSync.history = srv.history;
+      }
+
+      if (hasChange) {
+        crashSync.updatedAt = now;
+        if (crashSync.status === 'countdown' || crashSync.status === 'flying') {
+          startCrashAnimLoop();
+        }
         renderCrashHistoryPills();
         renderCrashLiveBets();
         updateCrashActionBtnText();
@@ -5456,7 +5574,11 @@
           if (now >= crashSync.launchTime) {
             crashSync.status = 'flying';
             crashSync.updatedAt = now;
-            pushCrashStateToServer();
+            pushCrashStateToServer({
+              status: 'flying',
+              launchTime: crashSync.launchTime,
+              crashPoint: crashSync.crashPoint
+            });
             if (subText) {
               subText.textContent = '🚀 DÉCOLLAGE IMMÉDIAT !';
               subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-sky-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-sky-200 font-scifi border border-sky-400/40 text-center';
@@ -5508,7 +5630,11 @@
             renderCrashHistoryPills();
             renderCrashLiveBets();
             updateCrashActionBtnText();
-            pushCrashStateToServer();
+            pushCrashStateToServer({
+              status: 'crashed',
+              crashPoint: crashSync.crashPoint,
+              crashedAtTime: now
+            });
 
             if (myBet && !myBet.cashedOut) {
               showToast(`💥 Trop tard ! La fusée a explosé à ${crashSync.crashPoint.toFixed(2)}×.`);
@@ -5558,7 +5684,10 @@
             drawCrashScene(false, 1.0);
             renderCrashLiveBets();
             updateCrashActionBtnText();
-            pushCrashStateToServer();
+            pushCrashStateToServer({
+              status: 'waiting',
+              bets: {}
+            });
           }
         } else if (crashSync.status === 'waiting') {
           if (multText) {
