@@ -637,10 +637,20 @@
             <input id="crashAutoInput" type="number" step="0.1" min="1.1" placeholder="Ex: 2.00 (encaissement automatique)" class="mt-1.5 w-full bg-black/60 border border-sky-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num text-sm focus:outline-none focus:border-sky-400">
           </div>
 
-          <!-- BOUTON PRINCIPAL D'ACTION DYNAMIQUE -->
-          <button id="crashActionBtn" onclick="handleCrashButton()" class="w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2">
-            <span>🚀</span> <span>MISER & LANCER LE VOL</span>
-          </button>
+          <!-- ZONE DES ACTIONS CRASH MULTIJOUEUR -->
+          <div class="space-y-2.5">
+            <button id="crashActionBtn" onclick="handleCrashButton()" class="w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2">
+              <span>💰</span> <span>MISER SANS LANCER</span>
+            </button>
+
+            <button id="crashLaunchBtn" onclick="handleCrashLaunch()" class="w-full py-3 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow cursor-pointer flex items-center justify-center gap-2">
+              <span>🚀</span> <span>DÉCOLLER (COMPTE À REBOURS 7S)</span>
+            </button>
+
+            <button id="crashCancelBtn" onclick="handleCrashCancelBet()" class="w-full py-1.5 rounded-lg text-xs font-bold text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition hidden flex items-center justify-center gap-1.5">
+              <span>✖</span> <span>Annuler ma mise</span>
+            </button>
+          </div>
 
           <!-- PANNEAU DES JOUEURS À BORD DU VOL MULTIJOUEUR EN DIRECT -->
           <div class="pt-3 border-t border-white/10 space-y-2">
@@ -4753,6 +4763,38 @@
     }
 
     /* ================= FUSÉE CRASH MULTIJOUEUR EN LIGNE SYNCHRONISÉ (DÉPART RÉEL SUR MISE, 7S DÉLAI, MULTIPLIER DÉTERMINISTE) ================= */
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getCrashApiUrl() {
+      if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+        return 'http://localhost:8080/api/crash';
+      }
+      return '/api/crash';
+    }
+
+    function getCrashCurrentUsername() {
+      return (state.username || 'Joueur').trim();
+    }
+
+    function getCrashCurrentAvatar() {
+      if (typeof getAvatarDisplay === 'function') {
+        return getAvatarDisplay(state);
+      }
+      if (state.equipped && state.equipped.avatar && typeof SHOP_CATALOG !== 'undefined') {
+        const it = SHOP_CATALOG.find(i => i.id === state.equipped.avatar);
+        if (it && it.emoji) return it.emoji;
+      }
+      return state.avatarEmoji || '🧑‍🚀';
+    }
+
     let crashSync = {
       id: 0,
       status: 'waiting', // 'waiting' | 'countdown' | 'flying' | 'crashed'
@@ -4837,7 +4879,7 @@
         return;
       }
 
-      const myKey = (state.username || 'Moi').trim().toLowerCase();
+      const myKey = getCrashCurrentUsername().toLowerCase();
 
       container.innerHTML = betsList.map(b => {
         const isMe = (b.name || '').trim().toLowerCase() === myKey;
@@ -4854,8 +4896,10 @@
           const curMult = getCrashMultiplierAt(Date.now());
           const curGain = Math.floor(b.bet * curMult);
           statusBadge = `<span class="text-xs font-mono-num text-sky-300 flex items-center gap-1 font-bold"><span>🚀</span> <span>${fmt(curGain)}</span></span>`;
+        } else if (crashSync.status === 'countdown') {
+          statusBadge = `<span class="text-xs text-amber-300 font-bold">⏳ Paré au vol</span>`;
         } else {
-          statusBadge = `<span class="text-xs text-amber-300 font-bold">⏳ Prêt</span>`;
+          statusBadge = `<span class="text-xs text-sky-300 font-bold">🪙 Mise prête</span>`;
         }
 
         return `
@@ -4864,8 +4908,8 @@
               <span class="text-base">${b.avatar || '🧑‍🚀'}</span>
               <div>
                 <div class="font-bold text-white flex items-center gap-1.5">
-                  <span>${escapeHtml(b.name || 'Anonyme')}</span>
-                  ${isMe ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30 font-bold">Moi</span>' : ''}
+                  <span>${escapeHtml(b.name || 'Joueur')}</span>
+                  ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/25 text-sky-200 border border-sky-400/40 font-black">Moi</span>' : ''}
                 </div>
                 <div class="text-[11px] font-mono-num text-stone-400">${fmt(b.bet)} 🪙</div>
               </div>
@@ -4888,122 +4932,157 @@
     }
 
     function updateCrashActionBtnText() {
-      const btn = document.getElementById('crashActionBtn');
-      if (!btn) return;
-      const myKey = (state.username || 'Moi').trim();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      const actionBtn = document.getElementById('crashActionBtn');
+      const launchBtn = document.getElementById('crashLaunchBtn');
+      const cancelBtn = document.getElementById('crashCancelBtn');
+      if (!actionBtn) return;
+
+      const myKey = getCrashCurrentUsername();
+      const myBet = (crashSync.bets && crashSync.bets[myKey]) ? crashSync.bets[myKey] : null;
+      const totalBetsCount = crashSync.bets ? Object.keys(crashSync.bets).length : 0;
 
       if (crashSync.status === 'waiting') {
-        btn.disabled = false;
-        btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2';
-        btn.innerHTML = '<span>🚀</span> <span>MISER & LANCER LE VOL</span>';
+        if (myBet) {
+          // Le joueur a déjà posé sa mise sans lancer
+          actionBtn.disabled = true;
+          actionBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-sm bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 opacity-95 flex items-center justify-center gap-2';
+          actionBtn.innerHTML = `<span>✅</span> <span>MISE DE ${fmt(myBet.bet)} 🪙 PRÊTE À BORD</span>`;
+
+          if (launchBtn) {
+            launchBtn.classList.remove('hidden');
+            launchBtn.disabled = false;
+            launchBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
+            launchBtn.innerHTML = '<span>🚀</span> <span>LANCER LE DÉCOLLAGE (7S)</span>';
+          }
+
+          if (cancelBtn) {
+            cancelBtn.classList.remove('hidden');
+            cancelBtn.innerHTML = `<span>✖</span> <span>Annuler ma mise (${fmt(myBet.bet)} 🪙)</span>`;
+          }
+        } else {
+          // Le joueur n'a pas encore misé
+          actionBtn.disabled = false;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-sky-400 to-indigo-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2';
+          actionBtn.innerHTML = '<span>💰</span> <span>MISER SANS LANCER</span>';
+
+          if (launchBtn) {
+            launchBtn.classList.remove('hidden');
+            launchBtn.disabled = false;
+            if (totalBetsCount > 0) {
+              launchBtn.className = 'w-full py-3.5 rounded-xl font-scifi font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow cursor-pointer flex items-center justify-center gap-2';
+              launchBtn.innerHTML = `<span>🚀</span> <span>DÉCOLLER AVEC LES ${totalBetsCount} PARIEUR(S) (7S)</span>`;
+            } else {
+              launchBtn.className = 'w-full py-3 rounded-xl font-scifi font-extrabold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 transition shadow cursor-pointer flex items-center justify-center gap-2';
+              launchBtn.innerHTML = '<span>🚀</span> <span>MISER ET DÉCOLLER DIRECTEMENT</span>';
+            }
+          }
+
+          if (cancelBtn) {
+            cancelBtn.classList.add('hidden');
+          }
+        }
       } else if (crashSync.status === 'countdown') {
         const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (launchBtn) launchBtn.classList.add('hidden');
+
         if (myBet) {
-          btn.disabled = true;
-          btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-amber-500/20 border border-amber-400/40 text-amber-200 cursor-not-allowed opacity-90 flex items-center justify-center gap-2';
-          btn.innerHTML = `<span>⏳</span> <span>VOL REJOINT ! DÉCOLLAGE DANS ${secLeft}S</span>`;
+          actionBtn.disabled = true;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-amber-500/20 border border-amber-400/40 text-amber-200 cursor-not-allowed opacity-90 flex items-center justify-center gap-2';
+          actionBtn.innerHTML = `<span>⏳</span> <span>VOL REJOINT ! DÉCOLLAGE DANS ${secLeft}S</span>`;
         } else {
-          btn.disabled = false;
-          btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
-          btn.innerHTML = `<span>➕</span> <span>REJOINDRE LE VOL (${secLeft}S)</span>`;
+          actionBtn.disabled = false;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
+          actionBtn.innerHTML = `<span>➕</span> <span>REJOINDRE LE VOL (${secLeft}S)</span>`;
         }
       } else if (crashSync.status === 'flying') {
         const curMult = getCrashMultiplierAt(Date.now());
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (launchBtn) launchBtn.classList.add('hidden');
+
         if (myBet && !myBet.cashedOut) {
           const currentGain = Math.floor(myBet.bet * curMult);
-          btn.disabled = false;
-          btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2 animate-pulse';
-          btn.innerHTML = `<span>🪂</span> <span>S'ÉJECTER & ENCAISSER (${fmt(currentGain)} 🪙)</span>`;
+          actionBtn.disabled = false;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer flex items-center justify-center gap-2 animate-pulse';
+          actionBtn.innerHTML = `<span>🪂</span> <span>S'ÉJECTER & ENCAISSER (${fmt(currentGain)} 🪙)</span>`;
         } else if (myBet && myBet.cashedOut) {
-          btn.disabled = true;
-          btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-emerald-500/40 text-emerald-300 opacity-90 cursor-not-allowed flex items-center justify-center gap-2';
-          btn.innerHTML = `<span>✅</span> <span>ENCAISSÉ À ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''} (+${fmt(myBet.win || 0)} 🪙)</span>`;
+          actionBtn.disabled = true;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-emerald-500/40 text-emerald-300 opacity-90 cursor-not-allowed flex items-center justify-center gap-2';
+          actionBtn.innerHTML = `<span>✅</span> <span>ENCAISSÉ À ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''} (+${fmt(myBet.win || 0)} 🪙)</span>`;
         } else {
-          btn.disabled = true;
-          btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-sky-500/30 text-sky-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
-          btn.innerHTML = `<span>👀</span> <span>VOL MULTI EN COURS (${curMult.toFixed(2)}×)</span>`;
+          actionBtn.disabled = true;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-stone-800 border border-sky-500/30 text-sky-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
+          actionBtn.innerHTML = `<span>👀</span> <span>VOL MULTI EN COURS (${curMult.toFixed(2)}×)</span>`;
         }
       } else if (crashSync.status === 'crashed') {
-        btn.disabled = true;
-        btn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-rose-950/80 border border-rose-500/50 text-rose-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
-        btn.innerHTML = `<span>💥</span> <span>CRASH À ${crashSync.crashPoint.toFixed(2)}×</span>`;
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (launchBtn) launchBtn.classList.add('hidden');
+        actionBtn.disabled = true;
+        actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-rose-950/80 border border-rose-500/50 text-rose-300 opacity-80 cursor-not-allowed flex items-center justify-center gap-2';
+        actionBtn.innerHTML = `<span>💥</span> <span>CRASH À ${crashSync.crashPoint.toFixed(2)}×</span>`;
       }
     }
 
+    // BOUTON 1 : MISER SANS LANCER / REJOINDRE LE VOL / S'ÉJECTER
     function handleCrashButton() {
-      const myKey = (state.username || 'Moi').trim();
+      const myKey = getCrashCurrentUsername();
       const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
 
-      // 1. Si en vol et joueur à bord non encaissé : Éjection immédiate
+      // 1. En vol : Éjection
       if (crashSync.status === 'flying' && myBet && !myBet.cashedOut) {
         performCrashCashout();
         return;
       }
 
-      // 2. Si vol en cours ou crash en cours : on ne peut pas miser
+      // 2. Si vol en cours ou crash
       if (crashSync.status === 'flying' || crashSync.status === 'crashed') {
         return showToast('⏳ Attends la fin du vol pour la prochaine manche !');
       }
 
-      // 3. Si en compte à rebours et joueur déjà inscrit
-      if (crashSync.status === 'countdown' && myBet) {
-        const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
-        return showToast(`🚀 Tu es déjà à bord ! Décollage dans ${secLeft}s.`);
+      // 3. En compte à rebours : rejoindre
+      if (crashSync.status === 'countdown') {
+        if (myBet) {
+          const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
+          return showToast(`🚀 Tu es déjà à bord ! Décollage dans ${secLeft}s.`);
+        }
+        placeCrashBetInternal(false);
+        return;
       }
 
-      // 4. Lecture et validation de la mise
-      const betInput = document.getElementById('crashBetInput');
-      const bet = parseInt(betInput ? betInput.value : '0') || 0;
-      if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
-      if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
-
-      // Déduction du solde du joueur
-      state.balance -= bet;
-      saveState();
-
-      const balDisplay = document.getElementById('crashUserBalanceDisplay');
-      if (balDisplay) balDisplay.textContent = fmt(state.balance);
-
-      const avatar = (state.profile && state.profile.avatar) ? state.profile.avatar : '🧑‍🚀';
-
+      // 4. En attente : Mise sans lancer
       if (crashSync.status === 'waiting') {
-        // PREMIER JOUEUR : Lance le compte à rebours de 7s pour tout le serveur
-        const now = Date.now();
-        const countdownDuration = 7000;
-        const launchTime = now + countdownDuration;
+        if (myBet) {
+          return showToast(`✅ Ta mise de ${fmt(myBet.bet)} 🪙 est déjà enregistrée. Clique sur "DÉCOLLER" pour lancer le compte à rebours !`);
+        }
+        placeCrashBetInternal(false);
+      }
+    }
 
-        // Tirage du point de crash serveur (distribution exponentielle)
-        const houseEdge = Math.max(0.01, 0.05 - (CONFIG_CASINO.CHANCE_CRASH - 50) * 0.0008);
-        const rawMultiplier = (1 - houseEdge) / (1 - Math.random());
-        const crashPoint = parseFloat(Math.min(500, Math.max(1.08, rawMultiplier)).toFixed(2));
+    // BOUTON 2 : DÉCOLLER (LANCER LE COMPTE À REBOURS DE 7S)
+    function handleCrashLaunch() {
+      if (crashSync.status === 'countdown') {
+        return showToast('⏳ Le compte à rebours est déjà en cours !');
+      }
+      if (crashSync.status === 'flying' || crashSync.status === 'crashed') {
+        return showToast('⏳ Attends la fin du vol en cours.');
+      }
 
-        crashSync.id = now;
-        crashSync.status = 'countdown';
-        crashSync.countdownStartTime = now;
-        crashSync.countdownDuration = countdownDuration;
-        crashSync.launchTime = launchTime;
-        crashSync.crashPoint = crashPoint;
-        crashSync.crashedAtTime = 0;
-        crashSync.bets = {
-          [myKey]: {
-            name: myKey,
-            bet: bet,
-            cashedOut: false,
-            cashMult: null,
-            win: 0,
-            avatar: avatar
-          }
-        };
-        crashSync.updatedAt = now;
+      const myKey = getCrashCurrentUsername();
+      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
 
-        showToast(`🚀 Mise de ${fmt(bet)} 🪙 placée ! Décollage dans 7s pour tout le serveur.`);
-        pushCrashStateToServer();
-        startCrashAnimLoop();
-        renderCrashLiveBets();
-        updateCrashActionBtnText();
-      } else if (crashSync.status === 'countdown') {
-        // JOUEUR QUI REJOINT LE VOL EN COMPTE À REBOURS
+      // Si le joueur n'a pas encore misé, on mise pour lui d'abord
+      if (!myBet) {
+        const betInput = document.getElementById('crashBetInput');
+        const bet = parseInt(betInput ? betInput.value : '0') || 0;
+        if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
+        if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
+
+        state.balance -= bet;
+        saveState();
+
+        const balDisplay = document.getElementById('crashUserBalanceDisplay');
+        if (balDisplay) balDisplay.textContent = fmt(state.balance);
+
         if (!crashSync.bets) crashSync.bets = {};
         crashSync.bets[myKey] = {
           name: myKey,
@@ -5011,20 +5090,109 @@
           cashedOut: false,
           cashMult: null,
           win: 0,
-          avatar: avatar
+          avatar: getCrashCurrentAvatar()
         };
-        crashSync.updatedAt = Date.now();
-
-        const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
-        showToast(`🚀 Tu rejoins le vol ! Décollage dans ${secLeft}s.`);
-        pushCrashStateToServer();
-        renderCrashLiveBets();
-        updateCrashActionBtnText();
       }
+
+      // Lancement du compte à rebours universel de 7s
+      const now = Date.now();
+      const countdownDuration = 7000;
+      const launchTime = now + countdownDuration;
+
+      const houseEdge = Math.max(0.01, 0.05 - (CONFIG_CASINO.CHANCE_CRASH - 50) * 0.0008);
+      const rawMultiplier = (1 - houseEdge) / (1 - Math.random());
+      const crashPoint = parseFloat(Math.min(500, Math.max(1.08, rawMultiplier)).toFixed(2));
+
+      crashSync.id = now;
+      crashSync.status = 'countdown';
+      crashSync.countdownStartTime = now;
+      crashSync.countdownDuration = countdownDuration;
+      crashSync.launchTime = launchTime;
+      crashSync.crashPoint = crashPoint;
+      crashSync.crashedAtTime = 0;
+      crashSync.updatedAt = now;
+
+      // Réinitialiser les états d'encaissement pour le nouveau vol
+      if (crashSync.bets) {
+        Object.values(crashSync.bets).forEach(b => {
+          b.cashedOut = false;
+          b.cashMult = null;
+          b.win = 0;
+        });
+      }
+
+      showToast(`🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.`);
+      pushCrashStateToServer();
+      startCrashAnimLoop();
+      renderCrashLiveBets();
+      updateCrashActionBtnText();
+    }
+
+    // BOUTON 3 : ANNULER LA MISE
+    function handleCrashCancelBet() {
+      if (crashSync.status !== 'waiting') {
+        return showToast('❌ Impossible d\'annuler une fois le compte à rebours lancé !');
+      }
+      const myKey = getCrashCurrentUsername();
+      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      if (!myBet) return;
+
+      state.balance += myBet.bet;
+      saveState();
+
+      const balDisplay = document.getElementById('crashUserBalanceDisplay');
+      if (balDisplay) balDisplay.textContent = fmt(state.balance);
+
+      delete crashSync.bets[myKey];
+      crashSync.updatedAt = Date.now();
+
+      pushCrashStateToServer();
+      renderCrashLiveBets();
+      updateCrashActionBtnText();
+      showToast(`✖ Mise de ${fmt(myBet.bet)} 🪙 annulée et remboursée.`);
+    }
+
+    function placeCrashBetInternal(startLaunchDirectly) {
+      const betInput = document.getElementById('crashBetInput');
+      const bet = parseInt(betInput ? betInput.value : '0') || 0;
+      if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
+      if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
+
+      state.balance -= bet;
+      saveState();
+
+      const balDisplay = document.getElementById('crashUserBalanceDisplay');
+      if (balDisplay) balDisplay.textContent = fmt(state.balance);
+
+      const myKey = getCrashCurrentUsername();
+      const avatar = getCrashCurrentAvatar();
+
+      if (!crashSync.bets) crashSync.bets = {};
+      crashSync.bets[myKey] = {
+        name: myKey,
+        bet: bet,
+        cashedOut: false,
+        cashMult: null,
+        win: 0,
+        avatar: avatar
+      };
+      crashSync.updatedAt = Date.now();
+
+      if (crashSync.status === 'countdown') {
+        const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
+        showToast(`🚀 Tu as rejoint le vol ! Décollage dans ${secLeft}s.`);
+      } else {
+        showToast(`💰 Mise de ${fmt(bet)} 🪙 enregistrée ! Ton blaze est prêt à bord.`);
+      }
+
+      pushCrashStateToServer();
+      renderCrashLiveBets();
+      updateCrashActionBtnText();
+      startCrashAnimLoop();
     }
 
     function performCrashCashout() {
-      const myKey = (state.username || 'Moi').trim();
+      const myKey = getCrashCurrentUsername();
       const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
       if (!myBet || myBet.cashedOut || crashSync.status !== 'flying') return;
 
@@ -5054,7 +5222,7 @@
     async function pushCrashStateToServer() {
       crashSync.updatedAt = Date.now();
       try {
-        await fetch('/api/crash', {
+        await fetch(getCrashApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(crashSync)
@@ -5075,7 +5243,7 @@
       if (isCrashSyncing) return;
       isCrashSyncing = true;
       try {
-        const res = await fetch('/api/crash', { cache: 'no-store' });
+        const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
         if (res.ok) {
           const serverState = await res.json();
           if (serverState && (serverState.updatedAt || serverState.status)) {
@@ -5094,7 +5262,7 @@
 
     function mergeCrashServerState(srv) {
       if (!srv) return;
-      const myKey = (state.username || 'Moi').trim();
+      const myKey = getCrashCurrentUsername();
       const localMyBet = crashSync.bets ? crashSync.bets[myKey] : null;
 
       // Si le serveur a une manche différente ou plus récente
@@ -5146,132 +5314,142 @@
 
     function stepCrashLoop() {
       crashAnimReqId = null;
-      const now = Date.now();
-      const multText = document.getElementById('crashMultiplierText');
-      const subText = document.getElementById('crashStatusSub');
-      const myKey = (state.username || 'Moi').trim();
-      const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
+      try {
+        const now = Date.now();
+        const multText = document.getElementById('crashMultiplierText');
+        const subText = document.getElementById('crashStatusSub');
+        const myKey = getCrashCurrentUsername();
+        const myBet = crashSync.bets ? crashSync.bets[myKey] : null;
 
-      if (crashSync.status === 'countdown') {
-        // En attente du décollage (7s)
-        if (now >= crashSync.launchTime) {
-          crashSync.status = 'flying';
-          crashSync.updatedAt = now;
-          pushCrashStateToServer();
-          if (subText) {
-            subText.textContent = '🚀 DÉCOLLAGE IMMÉDIAT !';
-            subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-sky-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-sky-200 font-scifi border border-sky-400/40 text-center';
-          }
-        } else {
-          const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - now) / 1000));
-          if (multText) multText.textContent = '1.00×';
-          if (subText) {
-            subText.textContent = `⏳ DÉCOLLAGE DANS ${secLeft}S !`;
-            subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-amber-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-amber-300 font-scifi border border-amber-400/40 text-center animate-pulse';
-          }
-          drawCrashScene(false, 1.0);
-        }
-        updateCrashActionBtnText();
-        renderCrashLiveBets();
-      } else if (crashSync.status === 'flying') {
-        // Vol en cours
-        let curMult = getCrashMultiplierAt(now);
-
-        // Retrait automatique
-        const autoInput = document.getElementById('crashAutoInput');
-        const autoVal = autoInput ? parseFloat(autoInput.value) : NaN;
-        if (myBet && !myBet.cashedOut && autoVal >= 1.1 && curMult >= autoVal && curMult < crashSync.crashPoint) {
-          performCrashCashout();
-        }
-
-        // Crash atteint !
-        if (curMult >= crashSync.crashPoint) {
-          curMult = crashSync.crashPoint;
-          crashSync.status = 'crashed';
-          crashSync.crashedAtTime = now;
-          crashSync.updatedAt = now;
-          playBoomSound();
-
-          if (!crashSync.history) crashSync.history = [];
-          crashSync.history.unshift(parseFloat(crashSync.crashPoint.toFixed(2)));
-          if (crashSync.history.length > 8) crashSync.history.pop();
-
-          if (multText) {
-            multText.textContent = `${crashSync.crashPoint.toFixed(2)}×`;
-            multText.className = 'font-scifi text-5xl md:text-7xl font-black text-rose-500 drop-shadow-[0_4px_25px_rgba(244,63,94,0.7)]';
-          }
-          if (subText) {
-            subText.textContent = `💥 EXPLOSION À ${crashSync.crashPoint.toFixed(2)}× !`;
-            subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-rose-950/90 backdrop-blur-md text-xs uppercase tracking-widest text-rose-300 font-scifi border border-rose-500/50 text-center';
-          }
-
-          drawCrashScene(true, crashSync.crashPoint);
-          renderCrashHistoryPills();
-          renderCrashLiveBets();
-          updateCrashActionBtnText();
-          pushCrashStateToServer();
-
-          if (myBet && !myBet.cashedOut) {
-            showToast(`💥 Trop tard ! La fusée a explosé à ${crashSync.crashPoint.toFixed(2)}×.`);
-          }
-        } else {
-          // Affichage normal du vol
-          if (multText) {
-            multText.textContent = `${curMult.toFixed(2)}×`;
-            multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
-          }
-          if (subText) {
-            if (myBet && !myBet.cashedOut) {
-              const curGain = Math.floor(myBet.bet * curMult);
-              subText.textContent = `GAIN ACTUEL : ${fmt(curGain)} 🪙`;
-              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-emerald-950/80 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-300 font-scifi border border-emerald-400/40 text-center';
-            } else if (myBet && myBet.cashedOut) {
-              subText.textContent = `✅ ENCAISSÉ À ${myBet.cashMult.toFixed(2)}× (+${fmt(myBet.win)} 🪙)`;
-              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-400 font-scifi border border-emerald-500/30 text-center';
-            } else {
-              subText.textContent = `👀 VOL MULTIJOUEUR EN DIRECT`;
-              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-sky-400/30 text-center';
+        if (crashSync.status === 'countdown') {
+          // En attente du décollage (7s)
+          if (now >= crashSync.launchTime) {
+            crashSync.status = 'flying';
+            crashSync.updatedAt = now;
+            pushCrashStateToServer();
+            if (subText) {
+              subText.textContent = '🚀 DÉCOLLAGE IMMÉDIAT !';
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-sky-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-sky-200 font-scifi border border-sky-400/40 text-center';
             }
+            renderCrashLiveBets();
+          } else {
+            const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - now) / 1000));
+            if (multText) multText.textContent = '1.00×';
+            if (subText) {
+              subText.textContent = `⏳ DÉCOLLAGE DANS ${secLeft}S !`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-amber-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-amber-300 font-scifi border border-amber-400/40 text-center animate-pulse';
+            }
+            drawCrashScene(false, 1.0);
           }
-          drawCrashScene(false, curMult);
           updateCrashActionBtnText();
-        }
-      } else if (crashSync.status === 'crashed') {
-        // Affichage de l'explosion pendant 4s puis réinitialisation
-        drawCrashScene(true, crashSync.crashPoint);
-        if (now - (crashSync.crashedAtTime || 0) >= 4000) {
-          crashSync.status = 'waiting';
-          crashSync.launchTime = 0;
-          crashSync.countdownStartTime = 0;
-          crashSync.crashedAtTime = 0;
-          crashSync.bets = {};
-          crashSync.updatedAt = now;
+        } else if (crashSync.status === 'flying') {
+          // Vol en cours
+          let curMult = getCrashMultiplierAt(now);
 
+          // Retrait automatique
+          const autoInput = document.getElementById('crashAutoInput');
+          const autoVal = autoInput ? parseFloat(autoInput.value) : NaN;
+          if (myBet && !myBet.cashedOut && autoVal >= 1.1 && curMult >= autoVal && curMult < crashSync.crashPoint) {
+            performCrashCashout();
+          }
+
+          // Crash atteint !
+          if (curMult >= crashSync.crashPoint) {
+            curMult = crashSync.crashPoint;
+            crashSync.status = 'crashed';
+            crashSync.crashedAtTime = now;
+            crashSync.updatedAt = now;
+            playBoomSound();
+
+            if (!crashSync.history) crashSync.history = [];
+            crashSync.history.unshift(parseFloat(crashSync.crashPoint.toFixed(2)));
+            if (crashSync.history.length > 8) crashSync.history.pop();
+
+            if (multText) {
+              multText.textContent = `${crashSync.crashPoint.toFixed(2)}×`;
+              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-rose-500 drop-shadow-[0_4px_25px_rgba(244,63,94,0.7)]';
+            }
+            if (subText) {
+              subText.textContent = `💥 EXPLOSION À ${crashSync.crashPoint.toFixed(2)}× !`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-rose-950/90 backdrop-blur-md text-xs uppercase tracking-widest text-rose-300 font-scifi border border-rose-500/50 text-center';
+            }
+
+            drawCrashScene(true, crashSync.crashPoint);
+            renderCrashHistoryPills();
+            renderCrashLiveBets();
+            updateCrashActionBtnText();
+            pushCrashStateToServer();
+
+            if (myBet && !myBet.cashedOut) {
+              showToast(`💥 Trop tard ! La fusée a explosé à ${crashSync.crashPoint.toFixed(2)}×.`);
+            }
+          } else {
+            // Affichage normal du vol
+            if (multText) {
+              multText.textContent = `${curMult.toFixed(2)}×`;
+              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
+            }
+            if (subText) {
+              if (myBet && !myBet.cashedOut) {
+                const curGain = Math.floor(myBet.bet * curMult);
+                subText.textContent = `GAIN ACTUEL : ${fmt(curGain)} 🪙`;
+                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-emerald-950/80 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-300 font-scifi border border-emerald-400/40 text-center';
+              } else if (myBet && myBet.cashedOut) {
+                subText.textContent = `✅ ENCAISSÉ À ${myBet.cashMult.toFixed(2)}× (+${fmt(myBet.win)} 🪙)`;
+                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-400 font-scifi border border-emerald-500/30 text-center';
+              } else {
+                subText.textContent = `👀 VOL MULTIJOUEUR EN DIRECT`;
+                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-sky-400/30 text-center';
+              }
+            }
+            drawCrashScene(false, curMult);
+            updateCrashActionBtnText();
+          }
+        } else if (crashSync.status === 'crashed') {
+          // Affichage de l'explosion pendant 4s puis réinitialisation
+          drawCrashScene(true, crashSync.crashPoint);
+          if (now - (crashSync.crashedAtTime || 0) >= 4000) {
+            crashSync.status = 'waiting';
+            crashSync.launchTime = 0;
+            crashSync.countdownStartTime = 0;
+            crashSync.crashedAtTime = 0;
+            crashSync.bets = {};
+            crashSync.updatedAt = now;
+
+            if (multText) {
+              multText.textContent = '1.00×';
+              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
+            }
+            if (subText) {
+              subText.textContent = "EN ATTENTE D'UNE MISE";
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center';
+            }
+
+            drawCrashScene(false, 1.0);
+            renderCrashLiveBets();
+            updateCrashActionBtnText();
+            pushCrashStateToServer();
+          }
+        } else if (crashSync.status === 'waiting') {
           if (multText) {
             multText.textContent = '1.00×';
             multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
           }
           if (subText) {
-            subText.textContent = "EN ATTENTE D'UNE MISE";
-            subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center';
+            const betsCount = crashSync.bets ? Object.keys(crashSync.bets).length : 0;
+            if (betsCount > 0) {
+              subText.textContent = `${betsCount} PARIEUR(S) PRÊT(S) AU DÉCOLLAGE`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-sky-500/20 backdrop-blur-md text-xs uppercase tracking-widest text-sky-200 font-scifi border border-sky-400/30 text-center';
+            } else {
+              subText.textContent = "EN ATTENTE D'UNE MISE";
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center';
+            }
           }
-
           drawCrashScene(false, 1.0);
-          renderCrashLiveBets();
           updateCrashActionBtnText();
-          pushCrashStateToServer();
         }
-      } else if (crashSync.status === 'waiting') {
-        if (multText) {
-          multText.textContent = '1.00×';
-          multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
-        }
-        if (subText) {
-          subText.textContent = "EN ATTENTE D'UNE MISE";
-          subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center';
-        }
-        drawCrashScene(false, 1.0);
-        updateCrashActionBtnText();
+      } catch (err) {
+        console.error('Crash step loop error', err);
       }
 
       // Maintenir la boucle si dans la salle ou si vol actif
