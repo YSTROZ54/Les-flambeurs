@@ -61,7 +61,8 @@ export default async function handler(req, res) {
               lastChestTime: body.lastChestTime || 0,
               friends: body.friends || [],
               friendBalances: body.friendBalances || {},
-              bankTransfers: body.bankTransfers || []
+              bankTransfers: body.bankTransfers || [],
+              pendingTransfers: body.pendingTransfers || []
             },
             updated_at: new Date().toISOString()
           };
