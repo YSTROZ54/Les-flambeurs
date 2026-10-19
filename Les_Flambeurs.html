@@ -4803,7 +4803,19 @@
     }
 
     function getCrashCurrentUsername() {
-      return (state.username || 'Joueur').trim();
+      if (state.username && state.username.trim().length > 0) {
+        return state.username.trim();
+      }
+      try {
+        let tag = localStorage.getItem('flambeurs_guest_tag');
+        if (!tag) {
+          tag = 'Joueur #' + Math.floor(1000 + Math.random() * 9000);
+          localStorage.setItem('flambeurs_guest_tag', tag);
+        }
+        return tag;
+      } catch (e) {
+        return 'Joueur';
+      }
     }
 
     function getCrashCurrentAvatar() {
@@ -4830,6 +4842,9 @@
       updatedAt: Date.now()
     };
 
+    // Suivi strict de la mise active du joueur local pour la manche courante
+    let myActiveCrashBet = null;
+
     let localCrash = {
       stars: Array.from({ length: 45 }, () => ({ x: Math.random() * 820, y: Math.random() * 380, r: 1 + Math.random() * 2 })),
       clouds: [
@@ -4844,14 +4859,24 @@
     };
 
     function getMyCrashBet() {
-      if (!crashSync || !crashSync.bets) return null;
+      // Si nous n'avons pas placé de mise pour cette manche précise, nous ne misons PAS.
+      if (!myActiveCrashBet || myActiveCrashBet.roundId !== crashSync.id) {
+        return null;
+      }
+      if (!crashSync || !crashSync.bets) return myActiveCrashBet;
       const myName = getCrashCurrentUsername().toLowerCase();
       for (const key of Object.keys(crashSync.bets)) {
         if (key.trim().toLowerCase() === myName) {
-          return crashSync.bets[key];
+          const sBet = crashSync.bets[key];
+          if (myActiveCrashBet.cashedOut) {
+            sBet.cashedOut = true;
+            sBet.cashMult = myActiveCrashBet.cashMult;
+            sBet.win = myActiveCrashBet.win;
+          }
+          return sBet;
         }
       }
-      return null;
+      return myActiveCrashBet;
     }
 
     function setCrashQuickBet(amount) {
@@ -5185,11 +5210,11 @@
         return showToast('⏳ Attends la fin du vol en cours.');
       }
 
-      const myKey = getCrashCurrentUsername();
+      const totalBetsCount = crashSync.bets ? Object.keys(crashSync.bets).length : 0;
       let myBet = getMyCrashBet();
 
-      // Si le joueur n'a pas encore misé, on mise pour lui d'abord avec le montant saisi
-      if (!myBet) {
+      // Si le joueur n'a pas encore misé, mais qu'il est seul et clique sur "Miser et décoller"
+      if (!myBet && totalBetsCount === 0) {
         const betInput = document.getElementById('crashBetInput');
         const bet = parseInt(betInput ? betInput.value : '0') || 0;
         if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
@@ -5201,8 +5226,9 @@
         const balDisplay = document.getElementById('crashUserBalanceDisplay');
         if (balDisplay) balDisplay.textContent = fmt(state.balance);
 
-        if (!crashSync.bets) crashSync.bets = {};
-        crashSync.bets[myKey] = {
+        const myKey = getCrashCurrentUsername();
+        myActiveCrashBet = {
+          roundId: crashSync.id,
           name: myKey,
           bet: bet,
           cashedOut: false,
@@ -5210,10 +5236,13 @@
           win: 0,
           avatar: getCrashCurrentAvatar()
         };
-        myBet = crashSync.bets[myKey];
+
+        if (!crashSync.bets) crashSync.bets = {};
+        crashSync.bets[myKey] = myActiveCrashBet;
+        myBet = myActiveCrashBet;
       }
 
-      // Lancement immédiat du compte à rebours universel de 7s
+      // Lancement du compte à rebours universel de 7s
       const now = Date.now();
       const countdownDuration = 7000;
       const launchTime = now + countdownDuration;
@@ -5223,6 +5252,9 @@
       const crashPoint = parseFloat(Math.min(500, Math.max(1.08, rawMultiplier)).toFixed(2));
 
       crashSync.id = now;
+      if (myActiveCrashBet) {
+        myActiveCrashBet.roundId = now;
+      }
       crashSync.status = 'countdown';
       crashSync.countdownStartTime = now;
       crashSync.countdownDuration = countdownDuration;
@@ -5230,15 +5262,6 @@
       crashSync.crashPoint = crashPoint;
       crashSync.crashedAtTime = 0;
       crashSync.updatedAt = now;
-
-      // Réinitialiser les états d'encaissement pour le nouveau vol
-      if (crashSync.bets) {
-        Object.values(crashSync.bets).forEach(b => {
-          b.cashedOut = false;
-          b.cashMult = null;
-          b.win = 0;
-        });
-      }
 
       // Feedback instantané local (0 lag)
       updateCrashActionBtnText();
@@ -5268,6 +5291,8 @@
 
       const balDisplay = document.getElementById('crashUserBalanceDisplay');
       if (balDisplay) balDisplay.textContent = fmt(state.balance);
+
+      myActiveCrashBet = null;
 
       const myKey = getCrashCurrentUsername().toLowerCase();
       for (const k of Object.keys(crashSync.bets)) {
@@ -5299,8 +5324,8 @@
       const myKey = getCrashCurrentUsername();
       const avatar = getCrashCurrentAvatar();
 
-      if (!crashSync.bets) crashSync.bets = {};
-      crashSync.bets[myKey] = {
+      myActiveCrashBet = {
+        roundId: crashSync.id,
         name: myKey,
         bet: bet,
         cashedOut: false,
@@ -5308,6 +5333,9 @@
         win: 0,
         avatar: avatar
       };
+
+      if (!crashSync.bets) crashSync.bets = {};
+      crashSync.bets[myKey] = myActiveCrashBet;
       crashSync.updatedAt = Date.now();
 
       if (crashSync.status === 'countdown') {
@@ -5317,7 +5345,7 @@
         showToast(`💰 Mise de ${fmt(bet)} 🪙 enregistrée ! Ton blaze est prêt à bord.`);
       }
 
-      pushCrashStateToServer({ action: 'bet', bet: crashSync.bets[myKey] });
+      pushCrashStateToServer({ action: 'bet', bet: myActiveCrashBet });
       renderCrashLiveBets();
       updateCrashActionBtnText();
       startCrashAnimLoop();
@@ -5335,6 +5363,12 @@
       myBet.cashedOut = true;
       myBet.cashMult = parseFloat(mult.toFixed(2));
       myBet.win = Math.floor(myBet.bet * myBet.cashMult);
+
+      if (myActiveCrashBet) {
+        myActiveCrashBet.cashedOut = true;
+        myActiveCrashBet.cashMult = myBet.cashMult;
+        myActiveCrashBet.win = myBet.win;
+      }
 
       state.balance += myBet.win;
       playCoinWinSound();
@@ -5455,8 +5489,8 @@
 
     function mergeCrashServerState(srv) {
       if (!srv || typeof srv !== 'object') return;
-      const myBet = getMyCrashBet();
       const now = Date.now();
+      const myKey = getCrashCurrentUsername().toLowerCase();
 
       // 1. Nouvelle manche (ID différent)
       if (srv.id && srv.id !== crashSync.id) {
@@ -5467,7 +5501,17 @@
         crashSync.launchTime = srv.launchTime || 0;
         crashSync.crashPoint = srv.crashPoint || 2.0;
         crashSync.crashedAtTime = srv.crashedAtTime || 0;
+        
+        // Nouvelle manche : si notre mise appartenait à une manche antérieure, elle est expirée !
+        if (myActiveCrashBet && myActiveCrashBet.roundId !== srv.id) {
+          myActiveCrashBet = null;
+        }
+
         crashSync.bets = srv.bets || {};
+        if (myActiveCrashBet && myActiveCrashBet.roundId === srv.id) {
+          crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
+        }
+
         if (Array.isArray(srv.history) && srv.history.length > 0) {
           crashSync.history = srv.history;
         }
@@ -5495,42 +5539,31 @@
         hasChange = true;
       }
 
-      // 3. Fusion des paris : on prend les paris du serveur SANS écraser le nôtre
-      if (srv.bets && typeof srv.bets === 'object') {
-        if (!crashSync.bets) crashSync.bets = {};
-        const oldKeys = Object.keys(crashSync.bets).sort().join(',');
-        const sKeys = Object.keys(srv.bets).sort().join(',');
-
-        if (oldKeys !== sKeys) {
-          hasChange = true;
+      // 3. Gestion des paris reçus du serveur
+      if (srv.status === 'waiting') {
+        // En attente : si notre mise ne correspond pas à cette manche, l'annuler
+        if (myActiveCrashBet && myActiveCrashBet.roundId !== crashSync.id) {
+          myActiveCrashBet = null;
         }
-
-        Object.keys(srv.bets).forEach(k => {
-          const sBet = srv.bets[k];
-          if (!sBet || !sBet.name) return;
-          const cur = crashSync.bets[k];
-          if (!cur) {
-            crashSync.bets[k] = sBet;
-            hasChange = true;
-          } else {
-            if (sBet.cashedOut && !cur.cashedOut) {
-              cur.cashedOut = true;
-              cur.cashMult = sBet.cashMult;
-              cur.win = sBet.win;
-              hasChange = true;
-            }
-          }
-        });
-
-        // Protéger l'encaissement du joueur local s'il a déjà encaissé
-        if (myBet && myBet.cashedOut) {
-          const liveMyBet = getMyCrashBet();
-          if (liveMyBet) {
-            liveMyBet.cashedOut = true;
-            liveMyBet.cashMult = myBet.cashMult;
-            liveMyBet.win = myBet.win;
+        crashSync.bets = srv.bets || {};
+        if (myActiveCrashBet && myActiveCrashBet.roundId === crashSync.id) {
+          crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
+        }
+        hasChange = true;
+      } else {
+        // En vol ou countdown : adopter les paris du serveur
+        crashSync.bets = srv.bets || {};
+        if (myActiveCrashBet && myActiveCrashBet.roundId === crashSync.id) {
+          const sBet = crashSync.bets[getCrashCurrentUsername()];
+          if (!sBet) {
+            crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
+          } else if (myActiveCrashBet.cashedOut) {
+            sBet.cashedOut = true;
+            sBet.cashMult = myActiveCrashBet.cashMult;
+            sBet.win = myActiveCrashBet.win;
           }
         }
+        hasChange = true;
       }
 
       if (Array.isArray(srv.history) && srv.history.length > 0) {
@@ -5665,6 +5698,8 @@
           // Affichage de l'explosion pendant 4s puis réinitialisation
           drawCrashScene(true, crashSync.crashPoint);
           if (now - (crashSync.crashedAtTime || 0) >= 4000) {
+            myActiveCrashBet = null;
+            crashSync.id = now;
             crashSync.status = 'waiting';
             crashSync.launchTime = 0;
             crashSync.countdownStartTime = 0;

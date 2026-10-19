@@ -178,15 +178,6 @@ export default async function handler(req, res) {
             avatar: body.bet.avatar || '🧑‍🚀'
           };
         }
-
-        // Réinitialiser les états d'encaissement de tous les parieurs à bord
-        if (current.bets) {
-          Object.values(current.bets).forEach(b => {
-            b.cashedOut = false;
-            b.cashMult = null;
-            b.win = 0;
-          });
-        }
       }
     }
     // ACTION : S'ÉJECTER ET ENCAISSER
@@ -209,8 +200,15 @@ export default async function handler(req, res) {
     }
     // FUSION D'UN ÉTAT COMPLET ENVOYÉ PAR LE CLIENT
     else if (body.status || body.bets) {
+      if (body.status === 'waiting') {
+        current.status = 'waiting';
+        current.launchTime = 0;
+        current.countdownStartTime = 0;
+        current.crashedAtTime = 0;
+        current.bets = body.bets || {};
+      }
       // Si le client lance un décollage alors que le serveur était en attente
-      if (body.status === 'countdown' && current.status === 'waiting') {
+      else if (body.status === 'countdown' && current.status === 'waiting') {
         current.id = body.id || now;
         current.status = 'countdown';
         current.countdownStartTime = body.countdownStartTime || now;

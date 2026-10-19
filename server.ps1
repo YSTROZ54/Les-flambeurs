@@ -251,11 +251,7 @@ while ($listener.IsListening) {
                                         }
                                     }
 
-                                    foreach ($k in $currentObj.bets.Keys) {
-                                        $currentObj.bets[$k].cashedOut = $false
-                                        $currentObj.bets[$k].cashMult = $null
-                                        $currentObj.bets[$k].win = 0
-                                    }
+                                    # Seules les mises placées explicitement pour ce vol sont conservées
                                 }
                             }
                             # ACTION 4: ENCAISSEMENT
@@ -273,7 +269,14 @@ while ($listener.IsListening) {
                             }
                             # FUSION ÉTAT COMPLET DU CLIENT
                             else {
-                                if ($postObj.status -eq 'countdown' -and $currentObj.status -eq 'waiting') {
+                                if ($postObj.status -eq 'waiting') {
+                                    $currentObj.status = 'waiting'
+                                    $currentObj.launchTime = 0
+                                    $currentObj.countdownStartTime = 0
+                                    $currentObj.crashedAtTime = 0
+                                    $currentObj.bets = @{}
+                                }
+                                elseif ($postObj.status -eq 'countdown' -and $currentObj.status -eq 'waiting') {
                                     $currentObj.id = if ($postObj.id) { $postObj.id } else { $now }
                                     $currentObj.status = 'countdown'
                                     $currentObj.countdownStartTime = if ($postObj.countdownStartTime) { $postObj.countdownStartTime } else { $now }
