@@ -1159,7 +1159,7 @@
   <!-- ================================================================= -->
   <!-- MODAL : MOT DE PASSE SECRET ("BATMAN") APRÈS 5 CLICS SUR LE LOGO  -->
   <!-- ================================================================= -->
-  <div id="adminPasswordModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="adminPasswordModal" class="fixed inset-0 z-[100] hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <h3 class="font-serif-title text-lg font-extrabold text-amber-300">🔒 Accès Réservé au Patron</h3>
@@ -1177,7 +1177,7 @@
   <!-- ================================================================= -->
   <!-- MODAL : MENU SECRET DU PATRON (5 CURSEURS DE CHANCE / WINRATE)    -->
   <!-- ================================================================= -->
-  <div id="adminModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto hidden">
+  <div id="adminModal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto hidden">
     <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-2xl w-full p-5 sm:p-7 space-y-5 shadow-2xl my-auto">
       
       <!-- En-tête -->
@@ -1227,23 +1227,13 @@
           <!-- Injecté dynamiquement par renderAdminAccountsList() -->
         </div>
 
-        <!-- Synchronisation Cloud Optionnelle (Firebase / REST) -->
-        <div class="pt-2 border-t border-white/10">
-          <details class="text-xs group">
-            <summary class="cursor-pointer text-stone-400 hover:text-amber-300 font-bold flex items-center justify-between select-none">
-              <span>🌐 Base de données en ligne (Pour synchroniser entre plusieurs PC / téléphones)</span>
-              <span class="text-[10px] text-amber-400 group-open:rotate-180 transition">▼</span>
-            </summary>
-            <div class="mt-2.5 p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2 text-[11px] text-stone-300">
-              <p>Par défaut, la base enregistre sur le serveur local. Pour synchroniser automatiquement tous les téléphones et PC distants sur Vercel, collez l'URL de votre base Firebase Realtime Database (ou REST API) :</p>
-              <div class="flex gap-2">
-                <input id="adminCloudDbUrlInput" type="text" placeholder="https://votre-projet-default-rtdb.firebaseio.com" class="w-full bg-black/80 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-white outline-none">
-                <button onclick="saveAdminCloudDbUrl()" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs whitespace-nowrap">
-                  Enregistrer
-                </button>
-              </div>
-            </div>
-          </details>
+        <!-- État de la Base de données Supabase Cloud -->
+        <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-stone-400">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-bold text-stone-300">Base Cloud Supabase (PostgreSQL) connectée</span>
+          </div>
+          <span class="text-[10px] text-emerald-400 font-mono-num font-bold">Synchronisation active</span>
         </div>
       </div>
 
@@ -1739,6 +1729,8 @@
           updateGlobalUI();
         }
       }
+      try { renderLeaderboard(); } catch (e) {}
+      try { renderBank(); } catch (e) {}
       return db;
     }
 
@@ -2114,7 +2106,7 @@
       logoClickTimer = setTimeout(() => {
         if (logoClicks > 0 && logoClicks < 5) switchRoom('hall');
         logoClicks = 0;
-      }, 380);
+      }, 700);
     }
 
     function openAdminPasswordModal() {
@@ -2131,12 +2123,12 @@
     function verifyAdminPassword() {
       const inp = document.getElementById('adminPasswordInput');
       const pwd = (inp ? inp.value : '').trim();
-      if (pwd === 'BATMAN') {
+      if (pwd.toUpperCase() === 'BATMAN') {
         closeAdminPasswordModal();
         openAdminModal();
         showToast('🦇 Code BATMAN validé : Menu du Patron ouvert !');
       } else {
-        showToast('❌ Mot de passe incorrect !');
+        showToast('❌ Mot de passe incorrect ! Tape BATMAN');
         if (inp) inp.value = '';
       }
     }
@@ -2179,11 +2171,6 @@
       const count = list.length;
       if (badge) badge.textContent = `${count} joueur${count > 1 ? 's' : ''}`;
       if (tabBadge) tabBadge.textContent = count;
-
-      const cloudUrlInput = document.getElementById('adminCloudDbUrlInput');
-      if (cloudUrlInput && !cloudUrlInput.value) {
-        cloudUrlInput.value = getCloudDbUrl();
-      }
 
       if (list.length === 0) {
         container.innerHTML = `
@@ -2401,21 +2388,27 @@
     }
 
     function openAdminModal() {
-      switchAdminTab('accounts');
-      syncRemoteAccounts().then(() => renderAdminAccountsList()).catch(() => {});
-      renderAdminPlayerPills();
-      document.getElementById('adminTargetInput').value = state.username || '';
-      document.getElementById('adminCrashLuck').value = CONFIG_CASINO.CHANCE_CRASH;
-      document.getElementById('lblLuckCrash').textContent = CONFIG_CASINO.CHANCE_CRASH + '%';
-      document.getElementById('adminRouletteLuck').value = CONFIG_CASINO.CHANCE_ROULETTE;
-      document.getElementById('lblLuckRoulette').textContent = CONFIG_CASINO.CHANCE_ROULETTE + '%';
-      document.getElementById('adminMinesLuck').value = CONFIG_CASINO.CHANCE_MINES;
-      document.getElementById('lblLuckMines').textContent = CONFIG_CASINO.CHANCE_MINES + '%';
-      document.getElementById('adminBjLuck').value = CONFIG_CASINO.CHANCE_BLACKJACK;
-      document.getElementById('lblLuckBj').textContent = CONFIG_CASINO.CHANCE_BLACKJACK + '%';
-      document.getElementById('adminSlotLuck').value = CONFIG_CASINO.CHANCE_MACHINE_A_SOUS;
-      document.getElementById('lblLuckSlot').textContent = CONFIG_CASINO.CHANCE_MACHINE_A_SOUS + '%';
-      document.getElementById('adminModal').classList.remove('hidden');
+      try { switchAdminTab('accounts'); } catch (e) { console.error(e); }
+      try { syncRemoteAccounts().then(() => renderAdminAccountsList()).catch(() => {}); } catch (e) {}
+      try { renderAdminPlayerPills(); } catch (e) {}
+
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+      setVal('adminTargetInput', state.username || '');
+      setVal('adminCrashLuck', CONFIG_CASINO.CHANCE_CRASH);
+      setText('lblLuckCrash', CONFIG_CASINO.CHANCE_CRASH + '%');
+      setVal('adminRouletteLuck', CONFIG_CASINO.CHANCE_ROULETTE);
+      setText('lblLuckRoulette', CONFIG_CASINO.CHANCE_ROULETTE + '%');
+      setVal('adminMinesLuck', CONFIG_CASINO.CHANCE_MINES);
+      setText('lblLuckMines', CONFIG_CASINO.CHANCE_MINES + '%');
+      setVal('adminBjLuck', CONFIG_CASINO.CHANCE_BLACKJACK);
+      setText('lblLuckBj', CONFIG_CASINO.CHANCE_BLACKJACK + '%');
+      setVal('adminSlotLuck', CONFIG_CASINO.CHANCE_MACHINE_A_SOUS);
+      setText('lblLuckSlot', CONFIG_CASINO.CHANCE_MACHINE_A_SOUS + '%');
+
+      const modal = document.getElementById('adminModal');
+      if (modal) modal.classList.remove('hidden');
     }
 
     // Auto-rafraîchissement en temps réel dès que le menu du Patron est ouvert
@@ -2699,46 +2692,77 @@
     }
 
     /* ================= CLASSEMENT ================= */
+    /* ================= CLASSEMENT GÉNÉRAL DES FLAMBEURS ================= */
     function renderLeaderboard() {
       const container = document.getElementById('leaderboardList');
       if (!container) return;
 
-      const list = [
-        { name: state.username, balance: state.balance, isMe: true },
-        ...state.friends.map(fname => ({
-          name: fname,
-          balance: state.friendBalances[fname] || 5000,
-          isMe: false
-        }))
-      ].sort((a, b) => b.balance - a.balance);
+      const db = getAccountsDB();
+      const meKey = (state.username || '').toLowerCase();
+      const playersMap = {};
 
-      if (list.length === 1) {
+      // 1. Ajouter tous les comptes de la base Supabase Cloud
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (acc && acc.username) {
+          playersMap[acc.username.toLowerCase()] = {
+            name: acc.username,
+            avatarEmoji: acc.avatarEmoji || '🎭',
+            balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 5500,
+            isMe: acc.username.toLowerCase() === meKey
+          };
+        }
+      });
+
+      // 2. Toujours s'assurer que le joueur actif est présent avec son solde actuel
+      if (state.username) {
+        playersMap[meKey] = {
+          name: state.username,
+          avatarEmoji: state.avatarEmoji || '🎭',
+          balance: state.balance ?? 5500,
+          isMe: true
+        };
+      }
+
+      // 3. Ajouter les potes locaux s'ils ne sont pas déjà inclus
+      (state.friends || []).forEach(fname => {
+        const k = fname.toLowerCase();
+        if (!playersMap[k]) {
+          playersMap[k] = {
+            name: fname,
+            avatarEmoji: '🎲',
+            balance: state.friendBalances[fname] || 5000,
+            isMe: false
+          };
+        }
+      });
+
+      const list = Object.values(playersMap).sort((a, b) => b.balance - a.balance);
+
+      if (list.length === 0) {
         container.innerHTML = `
-          <div class="py-3 px-3 flex items-center justify-between bg-amber-500/15 rounded-xl border border-amber-400/40">
-            <div class="flex items-center gap-3">
-              <span class="w-6 text-center font-bold">🥇</span>
-              <span class="font-extrabold text-amber-300">${state.username}</span>
-            </div>
-            <div class="font-mono-num text-sm font-extrabold text-amber-300 flex items-center gap-1.5">
-              <span>${fmt(state.balance)}</span> ${COIN_SVG}
-            </div>
-          </div>
-          <div class="text-center py-2.5 text-stone-400 text-xs">
-            Ajoute tes vrais potes dans <button onclick="openFriendsModal()" class="text-amber-300 font-bold underline">👥 Potes</button> pour voir leur classement ici !
+          <div class="text-center py-4 text-stone-400 text-xs font-semibold">
+            Aucun joueur dans le classement pour le moment.
           </div>
         `;
         return;
       }
 
-      document.getElementById('leaderboardList').innerHTML = list.map((p, idx) => {
+      container.innerHTML = list.map((p, idx) => {
         const rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
         return `
-          <div class="py-3 flex items-center justify-between ${p.isMe ? 'bg-amber-500/15 px-3 rounded-xl border border-amber-400/40' : ''}">
+          <div class="py-2.5 px-3 flex items-center justify-between rounded-xl transition ${p.isMe ? 'bg-amber-500/15 border border-amber-400/40 shadow-sm' : 'border-b border-white/5 hover:bg-white/5'}">
             <div class="flex items-center gap-3">
-              <span class="w-6 text-center font-bold">${rank}</span>
-              <span class="font-extrabold ${p.isMe ? 'text-amber-300' : 'text-white'}">${p.name}</span>
+              <span class="w-6 text-center font-extrabold text-sm">${rank}</span>
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-base">
+                ${p.avatarEmoji || '🎭'}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold ${p.isMe ? 'text-amber-300' : 'text-stone-200'} text-xs sm:text-sm">${p.name}</span>
+                ${p.isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-400/30">Moi</span>' : ''}
+              </div>
             </div>
-            <div class="font-mono-num text-sm font-extrabold text-amber-300 flex items-center gap-1.5">
+            <div class="font-mono-num text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1">
               <span>${fmt(p.balance)}</span> ${COIN_SVG}
             </div>
           </div>
@@ -2954,10 +2978,17 @@
     function renderBank() {
       const pillsBox = document.getElementById('bankFriendsListPills');
       if (pillsBox) {
-        if (!state.friends || state.friends.length === 0) {
-          pillsBox.innerHTML = '<span class="text-stone-400 text-xs italic">Aucun joueur dans tes potes. Tape un blase ci-dessous ou ajoute-en dans le menu Potes !</span>';
+        const db = getAccountsDB();
+        const meKey = (state.username || '').toLowerCase();
+        const dbPlayers = Object.keys(db)
+          .map(k => db[k]?.username)
+          .filter(u => u && u.toLowerCase() !== meKey);
+        const combined = Array.from(new Set([...dbPlayers, ...(state.friends || [])]));
+
+        if (combined.length === 0) {
+          pillsBox.innerHTML = '<span class="text-stone-400 text-xs italic">Aucun autre joueur inscrit. Tape un pseudo ci-dessous !</span>';
         } else {
-          pillsBox.innerHTML = state.friends.map(f => `
+          pillsBox.innerHTML = combined.map(f => `
             <button onclick="selectBankFriend('${f.replace(/'/g, "\\'")}')" class="pill-choice">${f}</button>
           `).join('');
         }
@@ -2978,6 +3009,16 @@
 
       state.balance -= amount;
       state.friendBalances[recipient] = (state.friendBalances[recipient] || 5000) + amount;
+
+      // Si le destinataire est un joueur de la base de données Cloud, on met à jour son compte
+      const db = getAccountsDB();
+      const recKey = recipient.toLowerCase();
+      if (db[recKey]) {
+        db[recKey].balance = (db[recKey].balance || 5500) + amount;
+        saveAccountsDB(db);
+        pushRemoteAccount(db[recKey]);
+      }
+
       state.bankTransfers.unshift({ from: state.username, to: recipient, amount, note });
       state.bankTransfers = state.bankTransfers.slice(0, 8);
 
