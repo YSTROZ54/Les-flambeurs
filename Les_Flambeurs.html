@@ -144,8 +144,8 @@
         </div>
 
         <button onclick="openProfileModal()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/15 rounded-full px-2.5 py-1.5 transition">
-          <div id="topAvatar" class="w-6 h-6 rounded-full bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center">A</div>
-          <span id="topUsername" class="text-xs font-bold text-white max-w-[80px] truncate">Alex</span>
+          <div id="topAvatar" class="w-6 h-6 rounded-full bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center">Y</div>
+          <span id="topUsername" class="text-xs font-bold text-white max-w-[80px] truncate">YSTROZ</span>
         </button>
       </div>
     </div>
@@ -195,10 +195,10 @@
           <div class="lg:col-span-4 bg-black/75 border border-white/15 rounded-2xl p-4 space-y-3.5">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
-                <div id="hallAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-black font-black text-base flex items-center justify-center">A</div>
+                <div id="hallAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-black font-black text-base flex items-center justify-center">Y</div>
                 <div>
                   <div class="flex items-center gap-1.5">
-                    <span id="hallUsername" class="font-extrabold text-white text-sm">Alex</span>
+                    <span id="hallUsername" class="font-extrabold text-white text-sm">YSTROZ</span>
                     <button onclick="openProfileModal()" class="text-[11px] text-amber-400 hover:underline">✏️</button>
                   </div>
                   <p class="text-xs text-stone-400"><span id="hallBalanceInline" class="text-amber-300 font-mono-num font-bold">5 500</span> <span class="coin-slot"></span></p>
@@ -514,9 +514,9 @@
               <div class="md:col-span-6">
                 <div class="rounded-2xl bg-black/85 border-2 border-amber-400/50 p-3 flex items-center justify-between gap-2 shadow-2xl">
                   <div class="flex items-center gap-2.5 min-w-0">
-                    <div id="pokerHeroAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-black font-black text-base flex items-center justify-center flex-shrink-0">A</div>
+                    <div id="pokerHeroAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-black font-black text-base flex items-center justify-center flex-shrink-0">Y</div>
                     <div class="min-w-0">
-                      <div id="pokerHeroName" class="font-extrabold text-white text-sm truncate">Alex</div>
+                      <div id="pokerHeroName" class="font-extrabold text-white text-sm truncate">YSTROZ</div>
                       <div class="text-xs text-amber-300 font-mono-num font-bold"><span id="pokerHeroStack">5 500</span> <span class="coin-slot"></span></div>
                       <div id="pokerHeroBetBadge" class="text-[11px] text-stone-400">Mise : 0</div>
                     </div>
@@ -1179,6 +1179,27 @@
           <div id="bankHistoryList" class="space-y-2.5 text-xs"></div>
         </div>
       </div>
+
+      <!-- Service d'État Civil du Casino : Changer / Supprimer son Pseudo (50 000 €) -->
+      <div class="rounded-2xl p-5 sm:p-6 bg-stone-950/90 border border-amber-500/40 shadow-xl space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-2xl flex-shrink-0">
+              🔀
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-serif-title text-base sm:text-lg font-bold text-amber-200">État Civil du Club • Changer ou Supprimer ton Pseudo</h3>
+                <span class="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 font-extrabold text-[11px]">Tarif : 50 000 €</span>
+              </div>
+              <p class="text-xs text-stone-300">Tu veux repartir à zéro ou changer d'identité ? Efface ou remplace ton blase directement auprès de la banque (gratuit pour le Patron).</p>
+            </div>
+          </div>
+          <button onclick="resetOrDeletePseudo()" class="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-black font-extrabold text-xs shadow-lg transition transform active:scale-95">
+            ⚡ Changer / Supprimer mon Pseudo (50 000 €)
+          </button>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -1270,7 +1291,7 @@
         <div id="adminActivePlayersPills" class="flex flex-wrap gap-1.5">
           <button onclick="setAdminTarget(state.username)" class="pill-choice active">Moi</button>
         </div>
-        <input id="adminTargetInput" type="text" value="Alex" placeholder="Nom du joueur actif..." class="w-full bg-stone-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-bold">
+        <input id="adminTargetInput" type="text" value="YSTROZ" placeholder="Nom du joueur actif..." class="w-full bg-stone-900 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-bold">
         <div class="flex gap-2">
           <input id="adminAmountInput" type="number" value="10000" placeholder="Montant à ajouter..." class="w-full bg-stone-900 border border-amber-400/50 rounded-xl px-3 py-2 font-mono-num text-sm text-amber-300 font-bold">
           <button onclick="adminGiveMoney()" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs whitespace-nowrap">
@@ -1489,6 +1510,18 @@
           <label class="block text-xs font-bold text-stone-400 mb-1">Nouveau mot de passe :</label>
           <input id="profilePassInput" type="password" placeholder="Laisser vide pour ne pas changer" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-white font-bold text-sm">
         </div>
+      </div>
+
+      <!-- Service d'État Civil : Supprimer ou Changer son Pseudo (50 000 €) -->
+      <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-amber-300">Changer / Supprimer ton Pseudo</span>
+          <span class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-black text-[10px]">50 000 €</span>
+        </div>
+        <p class="text-[11px] text-stone-300 leading-snug">Changer ou supprimer ton pseudo coûte 50 000 € prélevés sur ton solde de joueur (gratuit pour le Patron).</p>
+        <button type="button" onclick="resetOrDeletePseudo()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-black font-extrabold text-xs hover:brightness-110 transition shadow transform active:scale-95">
+          ⚡ Changer / Supprimer mon Pseudo (50 000 €)
+        </button>
       </div>
 
       <button onclick="document.getElementById('profileModal').classList.add('hidden'); switchRoom('shop');" class="w-full py-2.5 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-200 font-extrabold text-xs hover:bg-purple-500/30 transition">
@@ -1782,10 +1815,49 @@
       bankTransfers: [],
       pendingTransfers: [],
       pendingFriendRequests: [],
-      pendingGameInvites: []
+      pendingGameInvites: [],
+      currentTable: {},
+      activeRoomPartners: {}
     };
 
     let state = { ...DEFAULT_USER_STATE };
+
+    const STORAGE_KEY_BANNED = 'flambeurs_banned_accounts_v1';
+
+    function getBannedUsers() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_BANNED);
+        const local = raw ? JSON.parse(raw) : [];
+        const db = getAccountsDB();
+        const bossAcc = db['ystroz'] || db['alex'];
+        const remoteBanned = Array.isArray(bossAcc?.data?.bannedUsers) ? bossAcc.data.bannedUsers : (Array.isArray(bossAcc?.bannedUsers) ? bossAcc.bannedUsers : []);
+        return [...new Set([...local, ...remoteBanned].map(u => (u || '').toLowerCase().trim()).filter(Boolean))];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function isUsernameBanned(name) {
+      if (!name) return false;
+      return getBannedUsers().includes(name.toLowerCase().trim());
+    }
+
+    function addBannedUser(name) {
+      if (!name) return;
+      const clean = name.toLowerCase().trim();
+      const list = getBannedUsers();
+      if (!list.includes(clean)) list.push(clean);
+      try { localStorage.setItem(STORAGE_KEY_BANNED, JSON.stringify(list)); } catch (e) {}
+      const db = getAccountsDB();
+      const bossAcc = db['ystroz'] || db['alex'];
+      if (bossAcc) {
+        bossAcc.bannedUsers = list;
+        if (!bossAcc.data) bossAcc.data = {};
+        bossAcc.data.bannedUsers = list;
+        saveAccountsDB(db);
+        pushRemoteAccount(bossAcc);
+      }
+    }
 
     function getAccountsDB() {
       try {
@@ -1822,6 +1894,7 @@
     async function syncRemoteAccounts() {
       const db = getAccountsDB();
       let changed = false;
+      let remoteRowsCount = 0;
 
       // 1. Synchro principale avec Supabase Cloud (PostgreSQL)
       try {
@@ -1829,10 +1902,33 @@
         if (res.ok) {
           const rows = await res.json();
           if (Array.isArray(rows)) {
+            remoteRowsCount = rows.length;
+            const remoteUsernames = new Set(rows.map(r => (r.username || '').toLowerCase().trim()));
+            
+            // Si des comptes existaient localement mais ont été supprimés de Supabase, on les supprime du cache
+            if (remoteRowsCount > 0) {
+              Object.keys(db).forEach(k => {
+                if (!remoteUsernames.has(k)) {
+                  delete db[k];
+                  changed = true;
+                }
+              });
+            }
+
             rows.forEach(row => {
               if (row && row.username) {
                 const key = row.username.toLowerCase();
                 const extraData = (row.data && typeof row.data === 'object') ? row.data : {};
+                
+                if (Array.isArray(extraData.bannedUsers) && extraData.bannedUsers.length > 0) {
+                  try {
+                    const raw = localStorage.getItem(STORAGE_KEY_BANNED);
+                    const local = raw ? JSON.parse(raw) : [];
+                    const merged = [...new Set([...local, ...extraData.bannedUsers.map(x => (x || '').toLowerCase().trim())].filter(Boolean))];
+                    localStorage.setItem(STORAGE_KEY_BANNED, JSON.stringify(merged));
+                  } catch (e) {}
+                }
+
                 db[key] = {
                   ...DEFAULT_USER_STATE,
                   ...extraData,
@@ -1843,7 +1939,8 @@
                   friends: Array.isArray(extraData.friends) ? extraData.friends : [],
                   pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : [],
                   pendingFriendRequests: Array.isArray(extraData.pendingFriendRequests) ? extraData.pendingFriendRequests : [],
-                  pendingGameInvites: Array.isArray(extraData.pendingGameInvites) ? extraData.pendingGameInvites : []
+                  pendingGameInvites: Array.isArray(extraData.pendingGameInvites) ? extraData.pendingGameInvites : [],
+                  currentTable: extraData.currentTable || {}
                 };
                 changed = true;
               }
@@ -1874,50 +1971,82 @@
         saveAccountsDB(db);
       }
 
+      // 3. Déconnexion immédiate si le compte du joueur a été supprimé ou banni par l'admin
       const activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
-      if (activeUser && db[activeUser.toLowerCase()]) {
-        const myAcc = db[activeUser.toLowerCase()];
-        const oldTransfersLen = (state.pendingTransfers || []).length;
-        const oldFriendsReqLen = (state.pendingFriendRequests || []).length;
-        const oldGameInvLen = (state.pendingGameInvites || []).length;
+      if (activeUser) {
+        const meKey = activeUser.toLowerCase();
+        const isBanned = isUsernameBanned(meKey);
+        const existsInDb = Boolean(db[meKey]);
 
-        const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
-        const newFriendReqs = Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : [];
-        const newGameInvs = Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [];
-        const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
-
-        const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
-        const hasFriendReqDiff = JSON.stringify(state.pendingFriendRequests || []) !== JSON.stringify(newFriendReqs);
-        const hasGameInvDiff = JSON.stringify(state.pendingGameInvites || []) !== JSON.stringify(newGameInvs);
-        const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
-        const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
-
-        if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff) {
-          state.pendingTransfers = newTransfers;
-          state.pendingFriendRequests = newFriendReqs;
-          state.pendingGameInvites = newGameInvs;
-          state.friends = newFriends;
-          if (hasBalanceDiff) state.balance = myAcc.balance;
-          if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || newGameInvs.length > oldGameInvLen) {
-            playCoinWinSound();
-          }
+        if (isBanned || (remoteRowsCount > 0 && !existsInDb)) {
+          localStorage.removeItem(STORAGE_KEY_SESSION);
+          state = { ...DEFAULT_USER_STATE };
           updateGlobalUI();
+          document.getElementById('profileModal')?.classList.add('hidden');
+          document.getElementById('adminModal')?.classList.add('hidden');
+          openAuthModal('login');
+          showToast('⛔ Ton compte a été supprimé par l\'administration.');
+          return db;
         }
-        checkPendingNotifications();
+
+        if (existsInDb) {
+          const myAcc = db[meKey];
+          const oldTransfersLen = (state.pendingTransfers || []).length;
+          const oldFriendsReqLen = (state.pendingFriendRequests || []).length;
+          const oldGameInvLen = (state.pendingGameInvites || []).length;
+
+          const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
+          const newFriendReqs = Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : [];
+          const newGameInvs = Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [];
+          const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
+
+          const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
+          const hasFriendReqDiff = JSON.stringify(state.pendingFriendRequests || []) !== JSON.stringify(newFriendReqs);
+          const hasGameInvDiff = JSON.stringify(state.pendingGameInvites || []) !== JSON.stringify(newGameInvs);
+          const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
+          const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
+
+          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff) {
+            state.pendingTransfers = newTransfers;
+            state.pendingFriendRequests = newFriendReqs;
+            state.pendingGameInvites = newGameInvs;
+            state.friends = newFriends;
+            if (hasBalanceDiff) state.balance = myAcc.balance;
+            if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || newGameInvs.length > oldGameInvLen) {
+              playCoinWinSound();
+            }
+            updateGlobalUI();
+          }
+          checkPendingNotifications();
+        }
       }
+
+      // Synchronisation en temps réel des participants multijoueurs
+      try {
+        if (currentRoomKey === 'poker') {
+          setupPokerSeats();
+          updateLobbyUI('poker');
+        } else if (currentRoomKey === 'blackjack') {
+          renderBlackjack();
+          updateLobbyUI('bj');
+        } else if (currentRoomKey === 'cups') {
+          updateLobbyUI('cups');
+        }
+      } catch (e) {}
 
       try { renderLeaderboard(); } catch (e) {}
       try { renderBank(); } catch (e) {}
       return db;
     }
 
-    // Polling régulier en arrière-plan (toutes les 3.5 secondes) pour notification instantanée sans rechargement
+    // Polling régulier en arrière-plan (toutes les 3.5 secondes) pour notification instantanée et présence multi
     setInterval(() => {
       syncRemoteAccounts().catch(() => {});
     }, 3500);
 
     async function pushRemoteAccount(account) {
       if (!account || !account.username) return;
+      const bannedList = getBannedUsers();
       const row = {
         username: account.username,
         password: account.password || '',
@@ -1934,7 +2063,9 @@
           bankTransfers: account.bankTransfers || [],
           pendingTransfers: account.pendingTransfers || [],
           pendingFriendRequests: account.pendingFriendRequests || [],
-          pendingGameInvites: account.pendingGameInvites || []
+          pendingGameInvites: account.pendingGameInvites || [],
+          currentTable: state.currentTable || account.currentTable || {},
+          bannedUsers: bannedList
         },
         updated_at: new Date().toISOString()
       };
@@ -1967,7 +2098,14 @@
           method: 'DELETE'
         });
       } catch (e) {
-        console.warn('Erreur suppression Supabase:', e);
+        console.warn('Erreur suppression Supabase eq:', e);
+      }
+      try {
+        await supabaseFetch(`accounts?username=ilike.${encodeURIComponent(username)}`, {
+          method: 'DELETE'
+        });
+      } catch (e) {
+        console.warn('Erreur suppression Supabase ilike:', e);
       }
       try {
         await fetch(`/api/accounts?username=${encodeURIComponent(username)}`, { method: 'DELETE' });
@@ -2036,6 +2174,13 @@
 
       const db = getAccountsDB();
       const key = username.toLowerCase();
+
+      if (isUsernameBanned(key)) {
+        errBox.textContent = '⛔ Ce compte a été banni / supprimé par le Patron.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
       const acc = db[key];
 
       if (!acc) {
@@ -2087,6 +2232,12 @@
 
       if (username.length < 2) {
         errBox.textContent = '❌ Le blase doit comporter au moins 2 caractères.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (isUsernameBanned(username.toLowerCase())) {
+        errBox.textContent = '⛔ Ce blase a été banni / supprimé définitivement par le Patron.';
         errBox.classList.remove('hidden');
         return;
       }
@@ -2161,7 +2312,7 @@
           const legacyRaw = localStorage.getItem(STORAGE_KEY);
           if (legacyRaw) {
             const parsed = JSON.parse(legacyRaw);
-            const legacyName = parsed.username || 'Alex';
+            const legacyName = parsed.username || 'YSTROZ';
             db[legacyName.toLowerCase()] = {
               ...DEFAULT_USER_STATE,
               ...parsed,
@@ -2308,10 +2459,10 @@
       document.getElementById('adminPasswordModal').classList.add('hidden');
     }
 
-    /* ================= SÉCURITÉ PATRON : ACCÈS EXCLUSIF À ALEX ================= */
+    /* ================= SÉCURITÉ PATRON : ACCÈS EXCLUSIF À YSTROZ / ALEX ================= */
     function isCurrentUserAdmin() {
       const current = (state.username || '').toLowerCase().trim();
-      return current === 'alex';
+      return current === 'ystroz' || current === 'alex';
     }
 
     function verifyAdminPassword() {
@@ -2552,9 +2703,11 @@
     }
 
     async function adminDeleteAccount(username) {
-      if (!confirm(`⚠️ Es-tu sûr de vouloir supprimer définitivement le compte de « ${username} » de la base de données ?`)) {
+      if (!confirm(`⚠️ Es-tu sûr de vouloir supprimer définitivement le compte de « ${username} » de la base de données ?\nCe joueur sera déconnecté immédiatement et banni définitivement.`)) {
         return;
       }
+
+      addBannedUser(username);
 
       const db = getAccountsDB();
       const key = username.toLowerCase();
@@ -2568,7 +2721,7 @@
         renderAdminAccountsList();
         renderLeaderboard();
         renderBank();
-        showToast(`🗑️ Compte « ${username} » supprimé de la base de données.`);
+        showToast(`🗑️ Compte « ${username} » supprimé et banni définitivement !`);
       }
     }
 
@@ -3001,11 +3154,16 @@
         } catch (e) {}
       }
 
+      if (['poker', 'blackjack', 'cups'].includes(room)) {
+        updateCurrentTable(room);
+      }
+
       if (room === 'poker') {
         setupPokerSeats();
         updateLobbyUI('poker');
       }
       if (room === 'blackjack') {
+        renderBlackjack();
         updateLobbyUI('bj');
       }
       if (room === 'cups') {
@@ -3561,21 +3719,47 @@
 
       const cur = list[0];
       state.pendingGameInvites = list.slice(1);
+
+      const roomKey = cur.room;
+      const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
+
+      if (lobbies[lobbyKey]) {
+        lobbies[lobbyKey].mode = 'multi';
+        if (cur.roomCode) {
+          lobbies[lobbyKey].tableType = cur.tableType || 'private';
+          lobbies[lobbyKey].roomCode = cur.roomCode;
+        }
+      }
+
+      if (!state.activeRoomPartners) state.activeRoomPartners = {};
+      const gameKey = roomKey === 'blackjack' ? 'blackjack' : (roomKey === 'cups' ? 'cups' : 'poker');
+      if (!state.activeRoomPartners[gameKey]) state.activeRoomPartners[gameKey] = [];
+      if (!state.activeRoomPartners[gameKey].includes(cur.from)) {
+        state.activeRoomPartners[gameKey].push(cur.from);
+      }
+
+      state.currentTable = {
+        game: gameKey,
+        mode: 'multi',
+        tableType: cur.tableType || 'private',
+        roomCode: cur.roomCode || '',
+        host: cur.from,
+        user: state.username,
+        avatar: state.avatarEmoji || '🎭',
+        balance: state.balance || 5500,
+        updatedAt: Date.now()
+      };
+
       saveState();
       checkPendingNotifications();
+      pushRemoteAccount(state);
 
-      // Rejoindre directement la salle
       switchRoom(cur.room);
+      updateLobbyUI(lobbyKey);
 
-      // Si le jeu utilise un lobby (poker, blackjack, gobelets), passer en mode multi
-      if (lobbies[cur.room]) {
-        lobbies[cur.room].mode = 'multi';
-        if (cur.roomCode) {
-          lobbies[cur.room].tableType = cur.tableType || 'private';
-          lobbies[cur.room].roomCode = cur.roomCode;
-        }
-        updateLobbyUI(cur.room === 'blackjack' ? 'bj' : cur.room);
-      }
+      if (cur.room === 'poker') setupPokerSeats();
+      if (cur.room === 'blackjack') renderBlackjack();
+      if (cur.room === 'cups') updateLobbyUI('cups');
 
       playCoinWinSound();
       showToast(`🚀 Tu as rejoint la partie de ${cur.from} (${cur.gameName}) !`);
@@ -3658,14 +3842,110 @@
       if (!val) return showToast('❌ Entre le code du salon à rejoindre.');
       lobbies[game].roomCode = val;
       lobbies[game].tableType = 'private';
+      lobbies[game].mode = 'multi';
       if (inp) inp.value = '';
+      const targetRoom = game === 'bj' ? 'blackjack' : game;
+      updateCurrentTable(targetRoom);
       updateLobbyUI(game);
       if (game === 'poker') setupPokerSeats();
+      if (game === 'bj') renderBlackjack();
+      if (game === 'cups') updateLobbyUI('cups');
       showToast(`🚪 Salon privé « ${val} » rejoint !`);
+    }
+
+    function updateCurrentTable(room) {
+      if (!['poker', 'blackjack', 'cups'].includes(room)) {
+        state.currentTable = {};
+        return;
+      }
+      const lobbyKey = room === 'blackjack' ? 'bj' : room;
+      const l = lobbies[lobbyKey] || {};
+      state.currentTable = {
+        game: room,
+        mode: l.mode || 'solo',
+        tableType: l.tableType || 'public',
+        roomCode: l.roomCode || '',
+        user: state.username,
+        avatar: state.avatarEmoji || '🎭',
+        balance: state.balance || 5500,
+        updatedAt: Date.now()
+      };
+      saveState();
+      pushRemoteAccount(state);
+    }
+
+    function getTableParticipants(game) {
+      const lobbyKey = (game === 'blackjack' || game === 'bj') ? 'bj' : (game === 'cups' ? 'cups' : 'poker');
+      const l = lobbies[lobbyKey];
+      if (!l || l.mode !== 'multi') return [];
+
+      const db = getAccountsDB();
+      const me = (state.username || '').toLowerCase().trim();
+      const participants = [];
+      const seen = new Set();
+      const targetGame = (game === 'bj' ? 'blackjack' : game);
+
+      // 1. Tous les comptes distants/locaux ayant currentTable sur la même table
+      Object.values(db).forEach(acc => {
+        if (!acc || !acc.username) return;
+        const u = acc.username.toLowerCase().trim();
+        if (u === me) return;
+
+        const ct = acc.currentTable || acc.data?.currentTable;
+        if (!ct) return;
+
+        const accGame = (ct.game === 'bj' ? 'blackjack' : ct.game);
+        if (accGame !== targetGame) return;
+
+        if (l.tableType === 'private') {
+          if (ct.roomCode && ct.roomCode.toUpperCase() === l.roomCode.toUpperCase()) {
+            if (!seen.has(u)) {
+              seen.add(u);
+              participants.push({
+                username: acc.username,
+                avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
+                balance: typeof acc.balance === 'number' ? acc.balance : 5500,
+                isOnline: true
+              });
+            }
+          }
+        } else {
+          if (ct.mode === 'multi' && (ct.tableType === 'public' || !ct.tableType)) {
+            if (!seen.has(u)) {
+              seen.add(u);
+              participants.push({
+                username: acc.username,
+                avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
+                balance: typeof acc.balance === 'number' ? acc.balance : 5500,
+                isOnline: true
+              });
+            }
+          }
+        }
+      });
+
+      // 2. Partenaires invités ou ayant invité
+      const partners = (state.activeRoomPartners && state.activeRoomPartners[targetGame]) || [];
+      partners.forEach(name => {
+        const u = (name || '').toLowerCase().trim();
+        if (u && u !== me && !seen.has(u)) {
+          seen.add(u);
+          const acc = db[u];
+          participants.push({
+            username: name,
+            avatarEmoji: acc?.avatarEmoji || acc?.avatar || '👤',
+            balance: acc?.balance || state.friendBalances[name] || 5500,
+            isOnline: true
+          });
+        }
+      });
+
+      return participants;
     }
 
     function updateLobbyUI(game) {
       const l = lobbies[game];
+      if (!l) return;
       if (game === 'poker') {
         const isMulti = l.mode === 'multi';
         const soloBtn = document.getElementById('pmode-solo');
@@ -3695,11 +3975,19 @@
             : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
         }
 
+        const realParticipants = getTableParticipants('poker');
         const statusTxt = document.getElementById('pokerLobbyStatusText');
         if (statusTxt) {
-          statusTxt.innerHTML = l.tableType === 'public'
-            ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • ${l.fillWithBots ? 'Places vides complétées par des bots.' : 'Seuls les vrais joueurs assis jouent.'}</span>`
-            : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Places vides complétées par des bots.' : 'Seuls les vrais joueurs assis jouent.'}</span>`;
+          if (!isMulti) {
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Tu joues contre les bots du club.</span>`;
+          } else if (realParticipants.length > 0) {
+            const namesList = realParticipants.map(p => `<strong>${p.username}</strong>`).join(', ');
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Joueurs assis : <strong>${state.username} (Toi)</strong>, ${namesList}</span>`;
+          } else {
+            statusTxt.innerHTML = l.tableType === 'public'
+              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • ${l.fillWithBots ? 'Places libres comblées par des bots.' : 'Seuls les vrais joueurs assis jouent.'}</span>`
+              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Places libres comblées par des bots.' : 'Seuls les vrais joueurs assis jouent.'}</span>`;
+          }
         }
       } else if (game === 'bj') {
         const isMulti = l.mode === 'multi';
@@ -3730,11 +4018,18 @@
             : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
         }
 
+        const realParticipants = getTableParticipants('blackjack');
         const statusTxt = document.getElementById('bjLobbyStatusText');
         if (statusTxt) {
-          statusTxt.innerHTML = l.tableType === 'public'
-            ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`
-            : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`;
+          if (!isMulti) {
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Duel direct contre la Banque / Croupier.</span>`;
+          } else if (realParticipants.length > 0) {
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Co-joueur à la table : <strong>${realParticipants[0].username}</strong></span>`;
+          } else {
+            statusTxt.innerHTML = l.tableType === 'public'
+              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`
+              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`;
+          }
         }
 
         const coBox = document.getElementById('bjCoPlayerBox');
@@ -3768,11 +4063,24 @@
             : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
         }
 
+        const realParticipants = getTableParticipants('cups');
         const statusTxt = document.getElementById('cupsLobbyStatusText');
+        const bannerTxt = document.getElementById('cupsBanner');
+
         if (statusTxt) {
-          statusTxt.innerHTML = l.tableType === 'public'
-            ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`
-            : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`;
+          if (!isMulti) {
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Retrouve la bille d'or sous les gobelets.</span>`;
+          } else if (realParticipants.length > 0) {
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Duel en direct : <strong>${state.username} (Toi)</strong> ⚔️ <strong>${realParticipants[0].username}</strong></span>`;
+          } else {
+            statusTxt.innerHTML = l.tableType === 'public'
+              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`
+              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`;
+          }
+        }
+
+        if (bannerTxt && isMulti && realParticipants.length > 0) {
+          bannerTxt.innerHTML = `⚔️ <strong>Duel Gobelets :</strong> ${state.username} vs <strong>${realParticipants[0].username}</strong> ! Devinez où est la bille d'or !`;
         }
 
         const setupBox = document.getElementById('cupsFriendSetupBox');
@@ -3783,6 +4091,7 @@
     function setPokerGameMode(m) {
       if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
       lobbies.poker.mode = m;
+      updateCurrentTable('poker');
       updateLobbyUI('poker');
       setupPokerSeats();
       showToast(m === 'solo' ? '🤖 Poker : Mode Solo direct contre les bots' : '🌐 Poker : Salon Multijoueur activé');
@@ -3791,13 +4100,16 @@
     function setPokerTableType(t) {
       if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
       lobbies.poker.tableType = t;
+      updateCurrentTable('poker');
       updateLobbyUI('poker');
+      setupPokerSeats();
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.poker.roomCode}]`);
     }
 
     function togglePokerFillBots() {
       if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
       lobbies.poker.fillWithBots = !lobbies.poker.fillWithBots;
+      updateCurrentTable('poker');
       updateLobbyUI('poker');
       setupPokerSeats();
       showToast(lobbies.poker.fillWithBots ? '🤖 Places vides : comblées par des bots' : '🚫 Places vides : réservées aux vrais joueurs');
@@ -3840,21 +4152,21 @@
           });
         }
       } else {
-        const realPlayers = [...state.friends];
+        const realPlayers = getTableParticipants('poker');
         for (let i = 0; i < count; i++) {
           if (i < realPlayers.length) {
-            const fname = realPlayers[i];
+            const p = realPlayers[i];
             opps.push({
               id: i,
-              name: fname,
+              name: p.username,
               isFriend: true,
               isEmpty: false,
-              avatar: '👤',
-              stack: state.friendBalances[fname] || 6000,
+              avatar: p.avatarEmoji || '👤',
+              stack: p.balance || 6000,
               bet: 0,
               cards: [],
               folded: false,
-              status: 'Prêt'
+              status: '🟢 Connecté'
             });
           } else if (pLobby.fillWithBots) {
             const b = BOT_PROFILES[i % BOT_PROFILES.length];
@@ -3868,7 +4180,7 @@
               bet: 0,
               cards: [],
               folded: false,
-              status: 'Prêt'
+              status: '🤖 Bot'
             });
           } else {
             opps.push({
@@ -4776,23 +5088,27 @@
     function setBjGameMode(m) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       lobbies.bj.mode = m;
+      updateCurrentTable('blackjack');
       updateLobbyUI('bj');
-      const friendName = state.friends[0] || 'Joueur 2';
-      document.getElementById('bjOpponentTitle').textContent = m === 'multi' && !lobbies.bj.fillWithBots ? `Adversaire (${friendName})` : 'Croupier';
+      renderBlackjack();
       showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack : Salon Multijoueur activé');
     }
 
     function setBjTableType(t) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       lobbies.bj.tableType = t;
+      updateCurrentTable('blackjack');
       updateLobbyUI('bj');
+      renderBlackjack();
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.bj.roomCode}]`);
     }
 
     function toggleBjFillBots() {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       lobbies.bj.fillWithBots = !lobbies.bj.fillWithBots;
+      updateCurrentTable('blackjack');
       updateLobbyUI('bj');
+      renderBlackjack();
       showToast(lobbies.bj.fillWithBots ? '🤖 Places vides : comblées par un bot co-joueur' : '🚫 Places vides : duel direct entre vrais joueurs');
     }
 
@@ -4822,15 +5138,35 @@
           const coNameEl = document.getElementById('bjCoPlayerName');
           const coScoreEl = document.getElementById('bjCoPlayerScore');
           const coCardsEl = document.getElementById('bjCoPlayerCards');
-          const pName = lobbies.bj.fillWithBots ? 'Roxy (Bot)' : (state.friends[0] || 'Joueur 2');
-          if (coNameEl) coNameEl.textContent = pName;
+          
+          const realPlayers = getTableParticipants('blackjack');
+          let pName = 'Roxy (Bot)';
+          let pAvatar = '🦊';
+          let pStack = 6000;
+          let isReal = false;
+
+          if (realPlayers.length > 0) {
+            const p = realPlayers[0];
+            pName = p.username;
+            pAvatar = p.avatarEmoji || '👤';
+            pStack = p.balance;
+            isReal = true;
+          } else if (!lobbies.bj.fillWithBots) {
+            pName = 'En attente d\'un joueur...';
+            pAvatar = '🪑';
+            isReal = false;
+          }
+
+          if (coNameEl) {
+            coNameEl.innerHTML = `<span class="mr-1">${pAvatar}</span>${pName}${isReal ? ` <span class="text-amber-300 font-mono-num font-bold">(${fmt(pStack)} €)</span>` : ''}`;
+          }
           if (coCardsEl) {
             coCardsEl.innerHTML = bj.coPlayer.length
-              ? bj.coPlayer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1 && lobbies.bj.fillWithBots, 'blackjack')).join('')
+              ? bj.coPlayer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1 && !isReal, 'blackjack')).join('')
               : renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
           }
           if (coScoreEl) {
-            coScoreEl.textContent = hide && lobbies.bj.fillWithBots && bj.coPlayer.length ? bjScore([bj.coPlayer[0]]) : bjScore(bj.coPlayer);
+            coScoreEl.textContent = hide && !isReal && bj.coPlayer.length ? bjScore([bj.coPlayer[0]]) : bjScore(bj.coPlayer);
           }
         }
       }
@@ -4985,6 +5321,7 @@
     function setCupsGameMode(m) {
       if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.mode = m;
+      updateCurrentTable('cups');
       updateLobbyUI('cups');
       showToast(m === 'solo' ? '🤖 Gobelets : Solo direct contre le Bot' : '🌐 Gobelets : Salon Multijoueur activé');
     }
@@ -4992,6 +5329,7 @@
     function setCupsTableType(t) {
       if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.tableType = t;
+      updateCurrentTable('cups');
       updateLobbyUI('cups');
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.cups.roomCode}]`);
     }
@@ -4999,6 +5337,7 @@
     function toggleCupsFillBots() {
       if (cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
       lobbies.cups.fillWithBots = !lobbies.cups.fillWithBots;
+      updateCurrentTable('cups');
       updateLobbyUI('cups');
       showToast(lobbies.cups.fillWithBots ? '🤖 Places vides : comblées par le bot' : '🚫 Places vides : vrai duel Joueur 1 vs Joueur 2');
     }
@@ -5283,7 +5622,10 @@
         blackjack: '🃏 Blackjack'
       };
 
-      const currentLobby = lobbies[room];
+      const lobbyKey = room === 'blackjack' ? 'bj' : room;
+      const currentLobby = lobbies[lobbyKey];
+      if (currentLobby) currentLobby.mode = 'multi';
+
       let lobbyExtra = '';
       if (currentLobby && currentLobby.mode === 'multi') {
         lobbyExtra = currentLobby.tableType === 'private'
@@ -5312,17 +5654,18 @@
         await pushRemoteAccount(db[fKey]);
       }
 
-      if (room === 'poker') {
-        const emptySeat = poker.opponents.find(o => o.isEmpty);
-        if (emptySeat) {
-          emptySeat.isEmpty = false;
-          emptySeat.isFriend = true;
-          emptySeat.name = friendName;
-          emptySeat.avatar = '👥';
-          emptySeat.stack = state.friendBalances[friendName] || 5000;
-          renderPokerTable(false);
-        }
+      if (!state.activeRoomPartners) state.activeRoomPartners = {};
+      const targetGame = room === 'blackjack' ? 'blackjack' : (room === 'cups' ? 'cups' : 'poker');
+      if (!state.activeRoomPartners[targetGame]) state.activeRoomPartners[targetGame] = [];
+      if (!state.activeRoomPartners[targetGame].includes(friendName)) {
+        state.activeRoomPartners[targetGame].push(friendName);
       }
+      updateCurrentTable(targetGame);
+      updateLobbyUI(lobbyKey);
+
+      if (room === 'poker') setupPokerSeats();
+      if (room === 'blackjack') renderBlackjack();
+      if (room === 'cups') updateLobbyUI('cups');
 
       const siteUrl = window.location.origin + window.location.pathname;
       const inviteMsg = `Hey ${friendName} ! Rejoins-moi sur Les Flambeurs dans la salle ${roomNames[room] || room}${lobbyExtra} pour jouer ensemble ! 👉 ${siteUrl}`;
@@ -5373,40 +5716,143 @@
       document.getElementById('profileModal').classList.remove('hidden');
     }
 
-    function saveProfile() {
+    async function resetOrDeletePseudo() {
+      if (!state.username) return showToast('❌ Tu dois être connecté.');
+
+      const isAdmin = isCurrentUserAdmin();
+      const cost = isAdmin ? 0 : 50000;
+
+      if (!isAdmin && state.balance < cost) {
+        return showToast(`❌ Solde insuffisant ! La suppression ou le changement de pseudo coûte 50 000 € (Ton solde : ${fmt(state.balance)} €).`);
+      }
+
+      const promptMsg = isAdmin
+        ? `👑 Patron, entre ton nouveau pseudo pour remplacer « ${state.username} » (Gratuit pour le Patron) :`
+        : `⚠️ Supprimer / Changer ton pseudo coûte 50 000 €.\nEntre ton nouveau pseudo pour repartir à zéro :`;
+
+      const newName = prompt(promptMsg);
+      if (newName === null) return;
+      const cleanNew = newName.trim();
+      if (!cleanNew) return showToast('❌ Tu dois entrer un pseudo valide.');
+
+      const newKey = cleanNew.toLowerCase();
+      const oldName = state.username;
+      const oldKey = oldName.toLowerCase();
+
+      if (newKey === oldKey) return showToast('❌ C\'est déjà ton pseudo actuel !');
+
+      const db = getAccountsDB();
+      if (db[newKey]) return showToast('❌ Ce blase est déjà pris par un autre joueur.');
+      if (isUsernameBanned(newKey)) return showToast('❌ Ce blase est banni par le Patron.');
+
+      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
+      if (FAKE_TEST_PROFILES.includes(newKey)) return showToast('❌ Ce blase n\'est pas autorisé.');
+
+      const confirmMsg = isAdmin
+        ? `Confirmer le renommage de « ${oldName} » en « ${cleanNew} » ?`
+        : `Confirmer la suppression de l'ancien compte « ${oldName} » et le passage à « ${cleanNew} » pour 50 000 € ?`;
+
+      if (!confirm(confirmMsg)) return;
+
+      if (!isAdmin) {
+        state.balance -= cost;
+      }
+
+      const currentAcc = db[oldKey] || { ...state };
+      delete db[oldKey];
+      await deleteRemoteAccount(oldName);
+
+      currentAcc.username = cleanNew;
+      currentAcc.balance = state.balance;
+      db[newKey] = currentAcc;
+
+      saveAccountsDB(db);
+      state.username = cleanNew;
+      localStorage.setItem(STORAGE_KEY_SESSION, cleanNew);
+      await pushRemoteAccount(currentAcc);
+
+      saveState();
+      updateGlobalUI();
+      renderLeaderboard();
+      renderBank();
+      setupPokerSeats();
+      document.getElementById('profileModal')?.classList.add('hidden');
+
+      showToast(`🎉 Pseudo modifié en « ${cleanNew} » avec succès ! ${cost > 0 ? '(-50 000 €)' : ''}`);
+    }
+
+    async function saveProfile() {
       const v = document.getElementById('profileNameInput').value.trim();
       const newPass = document.getElementById('profilePassInput')?.value.trim();
       const oldName = state.username || '';
       const oldKey = oldName.toLowerCase();
+      const db = getAccountsDB();
+
+      // Vérification que le compte n'a pas été supprimé ou banni entre-temps
+      if (isUsernameBanned(oldKey) || !db[oldKey]) {
+        logoutPlayer();
+        return showToast('⛔ Ce compte a été supprimé ou banni par l\'administration.');
+      }
 
       if (v) {
-        const db = getAccountsDB();
         const newKey = v.toLowerCase();
-        if (newKey !== oldKey && db[newKey]) {
-          return showToast('❌ Ce blase est déjà pris par un autre joueur.');
+        if (newKey !== oldKey) {
+          if (db[newKey]) {
+            return showToast('❌ Ce blase est déjà pris par un autre joueur.');
+          }
+
+          if (isUsernameBanned(newKey)) {
+            return showToast('❌ Ce blase a été banni par le Patron.');
+          }
+
+          const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
+          if (FAKE_TEST_PROFILES.includes(newKey)) {
+            return showToast('❌ Ce blase de test n\'est pas autorisé.');
+          }
+
+          const isAdmin = isCurrentUserAdmin();
+          const cost = isAdmin ? 0 : 50000;
+
+          if (!isAdmin && state.balance < cost) {
+            return showToast(`❌ Solde insuffisant ! Changer ton pseudo coûte 50 000 € (Ton solde : ${fmt(state.balance)} €).`);
+          }
+
+          if (!isAdmin && !confirm(`⚠️ Changer ton pseudo te coûtera 50 000 €. Ton nouveau solde sera de ${fmt(state.balance - cost)} €. Continuer ?`)) {
+            return;
+          }
+
+          if (!isAdmin) {
+            state.balance -= cost;
+          }
+
+          const currentAcc = db[oldKey] || { ...state };
+          delete db[oldKey];
+          await deleteRemoteAccount(oldName);
+
+          currentAcc.username = v;
+          currentAcc.balance = state.balance;
+          if (newPass) currentAcc.password = newPass;
+
+          db[newKey] = currentAcc;
+          saveAccountsDB(db);
+
+          state.username = v;
+          if (newPass) state.password = newPass;
+          localStorage.setItem(STORAGE_KEY_SESSION, v);
+          await pushRemoteAccount(currentAcc);
+        } else if (newPass) {
+          const currentAcc = db[oldKey] || { ...state };
+          currentAcc.password = newPass;
+          db[oldKey] = currentAcc;
+          saveAccountsDB(db);
+          state.password = newPass;
+          await pushRemoteAccount(currentAcc);
         }
-
-        const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
-        if (FAKE_TEST_PROFILES.includes(newKey)) {
-          return showToast('❌ Ce blase de test n\'est pas autorisé.');
-        }
-
-        const currentAcc = db[oldKey] || { ...state };
-        delete db[oldKey];
-
-        currentAcc.username = v;
-        if (newPass) currentAcc.password = newPass;
-
-        db[newKey] = currentAcc;
-        saveAccountsDB(db);
-
-        state.username = v;
-        if (newPass) state.password = newPass;
-        localStorage.setItem(STORAGE_KEY_SESSION, v);
       }
 
       saveState();
       document.getElementById('profileModal').classList.add('hidden');
+      updateGlobalUI();
       renderLeaderboard();
       renderBank();
       setupPokerSeats();
@@ -5414,8 +5860,7 @@
     }
 
     function resetAccount() {
-      // Désactivé à la demande du créateur
-      showToast('ℹ️ Option désactivée.');
+      resetOrDeletePseudo();
     }
 
     window.addEventListener('DOMContentLoaded', () => {

@@ -64,7 +64,9 @@ export default async function handler(req, res) {
               bankTransfers: body.bankTransfers || [],
               pendingTransfers: body.pendingTransfers || [],
               pendingFriendRequests: body.pendingFriendRequests || [],
-              pendingGameInvites: body.pendingGameInvites || []
+              pendingGameInvites: body.pendingGameInvites || [],
+              bannedUsers: body.bannedUsers || [],
+              currentTable: body.currentTable || {}
             },
             updated_at: new Date().toISOString()
           };
@@ -84,10 +86,18 @@ export default async function handler(req, res) {
       if (req.method === 'DELETE') {
         const target = req.query.username;
         if (target) {
-          await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.${encodeURIComponent(target)}`, {
-            method: 'DELETE',
-            headers
-          });
+          try {
+            await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.${encodeURIComponent(target)}`, {
+              method: 'DELETE',
+              headers
+            });
+            await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=ilike.${encodeURIComponent(target)}`, {
+              method: 'DELETE',
+              headers
+            });
+          } catch (delErr) {
+            console.warn('Erreur DELETE Supabase:', delErr);
+          }
         }
         return res.status(200).json({ ok: true });
       }
