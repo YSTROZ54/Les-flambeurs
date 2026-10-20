@@ -1992,7 +1992,7 @@
     let state = { ...DEFAULT_USER_STATE };
 
     function isUserLoggedIn() {
-      return Boolean(state && state.username && state.username.trim().length > 0 && localStorage.getItem(STORAGE_KEY_SESSION));
+      return Boolean(state && state.username && state.username.trim().length > 0 && (sessionStorage.getItem('flambeurs_active_session_user') || localStorage.getItem(STORAGE_KEY_SESSION)));
     }
 
     const STORAGE_KEY_BANNED = 'flambeurs_banned_accounts_v1';
@@ -2148,13 +2148,14 @@
       }
 
       // 3. Déconnexion immédiate si le compte du joueur a été supprimé ou banni par l'admin
-      const activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
+      const activeUser = sessionStorage.getItem('flambeurs_active_session_user') || localStorage.getItem(STORAGE_KEY_SESSION);
       if (activeUser) {
         const meKey = activeUser.toLowerCase();
         const isBanned = isUsernameBanned(meKey);
         const existsInDb = Boolean(db[meKey]);
 
         if (isBanned || (remoteRowsCount > 0 && !existsInDb)) {
+          sessionStorage.removeItem('flambeurs_active_session_user');
           localStorage.removeItem(STORAGE_KEY_SESSION);
           state = { ...DEFAULT_USER_STATE };
           updateGlobalUI();
@@ -2173,27 +2174,34 @@
 
           const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
 
-          // Déduplication stricte des demandes d'amis
+          // Déduplication stricte des demandes d'amis (exclure ceux déjà amis)
+          const friendsSet = new Set((myAcc.friends || []).map(f => (f || '').toLowerCase().trim()));
           const uniqueFriendReqs = [];
           const seenFriendFroms = new Set();
           (Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : []).forEach(req => {
             if (!req || !req.from) return;
             const fk = req.from.toLowerCase().trim();
-            if (!seenFriendFroms.has(fk)) {
+            if (!friendsSet.has(fk) && !seenFriendFroms.has(fk)) {
               seenFriendFroms.add(fk);
               uniqueFriendReqs.push(req);
             }
           });
           const newFriendReqs = uniqueFriendReqs;
 
-          // Déduplication stricte des invitations de jeu pour éviter toute notification en double
+          // Déduplication absolue et expiration des invitations de jeu (TTL 2 minutes max, 1 seule notif par expéditeur)
+          const nowTs = Date.now();
           const uniqueGameInvs = [];
-          const seenInvKeys = new Set();
-          (Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : []).forEach(inv => {
-            if (!inv) return;
-            const invKey = (inv.id && !inv.id.startsWith('ginv_')) ? inv.id : `${(inv.from || '').toLowerCase().trim()}_${(inv.room || '').toLowerCase().trim()}`;
-            if (!seenInvKeys.has(invKey)) {
-              seenInvKeys.add(invKey);
+          const seenGameSenders = new Set();
+          const rawInvs = [...(Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [])]
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+          rawInvs.forEach(inv => {
+            if (!inv || !inv.from) return;
+            // Expiration automatique stricte : toute invitation de plus de 2 minutes est ignorée et purgée
+            if (inv.timestamp && (nowTs - inv.timestamp > 120000)) return;
+            const senderKey = (inv.from || '').toLowerCase().trim();
+            if (!seenGameSenders.has(senderKey)) {
+              seenGameSenders.add(senderKey);
               uniqueGameInvs.push(inv);
             }
           });
@@ -2246,7 +2254,8 @@
             state.friends = newFriends;
             if (hasBalanceDiff) state.balance = myAcc.balance;
             saveState();
-            if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || newGameInvs.length > oldGameInvLen) {
+            // Ne jouer le carillon que si une VRAIE nouvelle invitation arrive pour l'utilisateur connecté
+            if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || (newGameInvs.length > oldGameInvLen && newGameInvs.length > 0)) {
               playCoinWinSound();
             }
             updateGlobalUI();
@@ -2302,7 +2311,7 @@
           pendingTransfers: account.pendingTransfers || [],
           pendingFriendRequests: account.pendingFriendRequests || [],
           pendingGameInvites: account.pendingGameInvites || [],
-          currentTable: state.currentTable || account.currentTable || {},
+          currentTable: (account.username === state.username) ? (state.currentTable || {}) : (account.currentTable || {}),
           bannedUsers: bannedList
         },
         updated_at: new Date().toISOString()
@@ -2435,6 +2444,7 @@
       }
 
       // Connexion réussie
+      sessionStorage.setItem('flambeurs_active_session_user', acc.username);
       localStorage.setItem(STORAGE_KEY_SESSION, acc.username);
       state = {
         ...DEFAULT_USER_STATE,
@@ -2521,6 +2531,7 @@
       saveAccountsDB(db);
       pushRemoteAccount(newAcc);
 
+      sessionStorage.setItem('flambeurs_active_session_user', username);
       localStorage.setItem(STORAGE_KEY_SESSION, username);
       state = { ...newAcc };
 
@@ -2536,6 +2547,7 @@
       if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
         try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
       }
+      sessionStorage.removeItem('flambeurs_active_session_user');
       localStorage.removeItem(STORAGE_KEY_SESSION);
       document.getElementById('profileModal').classList.add('hidden');
       state = { ...DEFAULT_USER_STATE, balance: 0, username: '' };
@@ -2546,7 +2558,7 @@
 
     function loadState() {
       const db = getAccountsDB();
-      let activeUser = localStorage.getItem(STORAGE_KEY_SESSION);
+      let activeUser = sessionStorage.getItem('flambeurs_active_session_user') || localStorage.getItem(STORAGE_KEY_SESSION);
 
       // Si aucun compte dans db mais données legacy locales existantes, migration vers compte local
       if (Object.keys(db).length === 0) {
@@ -2571,6 +2583,7 @@
       }
 
       if (activeUser && db[activeUser.toLowerCase()]) {
+        sessionStorage.setItem('flambeurs_active_session_user', activeUser);
         const acc = db[activeUser.toLowerCase()];
         state = {
           ...DEFAULT_USER_STATE,
@@ -4085,15 +4098,47 @@
 
     /* ================= GESTION GLOBALE DES NOTIFICATIONS (VIREMENTS, AMIS, JEUX) ================= */
     function checkPendingNotifications() {
+      const gCard = document.getElementById('gameInviteNotification');
+      const fCard = document.getElementById('friendRequestNotification');
+      const bCard = document.getElementById('bankPendingTransferNotification');
+
       if (!isUserLoggedIn()) {
-        document.getElementById('transferNotification')?.classList.add('hidden');
-        document.getElementById('friendRequestNotification')?.classList.add('hidden');
-        document.getElementById('gameInviteNotification')?.classList.add('hidden');
+        if (gCard) gCard.classList.add('hidden');
+        if (fCard) fCard.classList.add('hidden');
+        if (bCard) bCard.classList.add('hidden');
         return;
       }
-      checkPendingTransfersNotification();
-      checkPendingFriendRequestsNotification();
-      checkPendingGameInvitesNotification();
+
+      // Nettoyer les invitations de jeu expirées (> 2 minutes)
+      const nowTs = Date.now();
+      if (Array.isArray(state.pendingGameInvites)) {
+        state.pendingGameInvites = state.pendingGameInvites.filter(inv => inv && inv.timestamp && (nowTs - inv.timestamp <= 120000));
+      }
+
+      const gList = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      const fList = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      const bList = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
+
+      // Règle d'or : UNE SEULE notification flottante active à l'écran à la fois (priorité : jeu > ami > don)
+      if (gList.length > 0) {
+        if (fCard) fCard.classList.add('hidden');
+        if (bCard) bCard.classList.add('hidden');
+        checkPendingGameInvitesNotification();
+      } else if (fList.length > 0) {
+        if (gCard) gCard.classList.add('hidden');
+        if (bCard) bCard.classList.add('hidden');
+        checkPendingFriendRequestsNotification();
+      } else if (bList.length > 0) {
+        if (gCard) gCard.classList.add('hidden');
+        if (fCard) fCard.classList.add('hidden');
+        checkPendingTransfersNotification();
+      } else {
+        if (gCard) gCard.classList.add('hidden');
+        if (fCard) fCard.classList.add('hidden');
+        if (bCard) bCard.classList.add('hidden');
+      }
+
+      try { updateNotificationsBadge(); } catch (e) {}
     }
 
     /* ================= NOTIFICATIONS DE DEMANDES D'AMI ================= */
@@ -4120,7 +4165,8 @@
 
       const cur = list[0];
       const friendName = cur.from;
-      state.pendingFriendRequests = list.slice(1);
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== friendName.toLowerCase().trim());
+      document.getElementById('friendRequestNotification')?.classList.add('hidden');
 
       // 1. Ajouter ami sur le compte local actif
       if (!Array.isArray(state.friends)) state.friends = [];
@@ -4145,6 +4191,7 @@
       }
 
       saveState();
+      await pushRemoteAccount(state);
       playCoinWinSound();
       updateGlobalUI();
       renderFriendsModalList();
@@ -4157,8 +4204,10 @@
       if (list.length === 0) return;
 
       const cur = list[0];
-      state.pendingFriendRequests = list.slice(1);
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== (cur.from || '').toLowerCase().trim());
+      document.getElementById('friendRequestNotification')?.classList.add('hidden');
       saveState();
+      await pushRemoteAccount(state);
       updateGlobalUI();
       checkPendingNotifications();
       showToast(`❌ Demande d'ami de ${cur.from} refusée.`);
@@ -4192,7 +4241,10 @@
       if (list.length === 0) return;
 
       const cur = list[0];
-      state.pendingGameInvites = list.slice(1);
+      const senderKey = (cur.from || '').toLowerCase().trim();
+      // Supprimer TOUTES les invitations provenant de cet expéditeur pour éviter tout réaffichage intempestif
+      state.pendingGameInvites = list.filter(i => (i.from || '').toLowerCase().trim() !== senderKey);
+      document.getElementById('gameInviteNotification')?.classList.add('hidden');
 
       const roomKey = cur.room;
       const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
@@ -4218,7 +4270,7 @@
         tableType: cur.tableType || 'private',
         roomCode: cur.roomCode || '',
         host: cur.from,
-        activeHider: cur.from, // L'invitant lance le premier défi, l'invité ne l'a pas
+        activeHider: cur.from,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
         balance: state.balance || 5500,
@@ -4241,8 +4293,9 @@
       }
 
       saveState();
+      await pushRemoteAccount(state);
       checkPendingNotifications();
-      pushRemoteAccount(state);
+      updateNotificationsBadge();
 
       switchRoom(cur.room);
       updateLobbyUI(lobbyKey);
@@ -4263,9 +4316,15 @@
       if (list.length === 0) return;
 
       const cur = list[0];
-      state.pendingGameInvites = list.slice(1);
+      const senderKey = (cur.from || '').toLowerCase().trim();
+      // Supprimer TOUTES les invitations de cet expéditeur et fermer la boîte immédiatement
+      state.pendingGameInvites = list.filter(i => (i.from || '').toLowerCase().trim() !== senderKey);
+      document.getElementById('gameInviteNotification')?.classList.add('hidden');
       saveState();
+      await pushRemoteAccount(state);
+      updateNotificationsBadge();
       checkPendingNotifications();
+      renderNotificationsModal();
       showToast(`❌ Invitation de ${cur.from} déclinée.`);
     }
 
@@ -8075,12 +8134,37 @@
       renderNotificationsModal();
     }
 
+    function updateNotificationsBadge() {
+      const nowTs = Date.now();
+      const validGInvs = (Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [])
+        .filter(inv => inv && inv.timestamp && (nowTs - inv.timestamp <= 120000));
+      const gInv = validGInvs.length;
+      const fReq = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests.length : 0;
+      const tReq = Array.isArray(state.pendingTransfers) ? state.pendingTransfers.length : 0;
+      const total = gInv + fReq + tReq;
+
+      const dBadge = document.getElementById('notifBadgeDesktop');
+      const mBadge = document.getElementById('notifBadgeMobile');
+
+      [dBadge, mBadge].forEach(b => {
+        if (!b) return;
+        if (total > 0) {
+          b.textContent = total > 9 ? '9+' : total;
+          b.classList.remove('hidden');
+        } else {
+          b.classList.add('hidden');
+        }
+      });
+    }
+
     function renderNotificationsModal() {
       updateNotificationsBadge();
       const container = document.getElementById('notificationsListContainer');
       if (!container) return;
 
-      const gInvs = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      const nowTs = Date.now();
+      const gInvs = (Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [])
+        .filter(inv => inv && inv.timestamp && (nowTs - inv.timestamp <= 120000));
       const fReqs = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
       const tReqs = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
 
@@ -8232,6 +8316,7 @@
       const cur = list[matchIdx];
       // Supprimer l'invitation et tous les doublons du même expéditeur
       state.pendingGameInvites = list.filter((_, idx) => idx !== matchIdx && (list[idx].from || '').toLowerCase().trim() !== (cur.from || '').toLowerCase().trim());
+      document.getElementById('gameInviteNotification')?.classList.add('hidden');
 
       const roomKey = cur.room;
       const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
@@ -8280,7 +8365,7 @@
       }
 
       saveState();
-      pushRemoteAccount(state);
+      await pushRemoteAccount(state);
       updateNotificationsBadge();
       checkPendingNotifications();
       renderNotificationsModal();
@@ -8304,8 +8389,9 @@
       const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
       const cur = list.find(i => (i.id === invIdOrFrom) || ((i.from || '').toLowerCase().trim() === String(invIdOrFrom).toLowerCase().trim()));
       state.pendingGameInvites = list.filter(i => (i.id !== invIdOrFrom) && ((i.from || '').toLowerCase().trim() !== String(invIdOrFrom).toLowerCase().trim()));
+      document.getElementById('gameInviteNotification')?.classList.add('hidden');
       saveState();
-      pushRemoteAccount(state);
+      await pushRemoteAccount(state);
       updateNotificationsBadge();
       checkPendingNotifications();
       renderNotificationsModal();
@@ -8635,8 +8721,14 @@
       const fKey = friendName.toLowerCase();
       if (db[fKey]) {
         if (!Array.isArray(db[fKey].pendingGameInvites)) db[fKey].pendingGameInvites = [];
-        // Déduplication : supprimer toute invitation déjà en attente du même expéditeur
-        db[fKey].pendingGameInvites = db[fKey].pendingGameInvites.filter(inv => (inv.from || '').toLowerCase().trim() !== (state.username || '').toLowerCase().trim());
+        const nowTs = Date.now();
+        // Déduplication absolue : supprimer toute invitation déjà en attente du même expéditeur et toute invitation expirée (> 2 min)
+        db[fKey].pendingGameInvites = db[fKey].pendingGameInvites.filter(inv => {
+          if (!inv || !inv.from) return false;
+          if ((inv.from || '').toLowerCase().trim() === (state.username || '').toLowerCase().trim()) return false;
+          if (inv.timestamp && (nowTs - inv.timestamp > 120000)) return false;
+          return true;
+        });
         db[fKey].pendingGameInvites.push(inviteObj);
         if (room === 'cups') {
           db[fKey].currentTable = db[fKey].currentTable || {};
