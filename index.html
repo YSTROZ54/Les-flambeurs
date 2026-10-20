@@ -4464,6 +4464,8 @@
       const participants = [];
       const seen = new Set();
       const targetGame = (game === 'bj' ? 'blackjack' : game);
+      const now = Date.now();
+      const PRESENCE_TIMEOUT_MS = 60000; // 60 secondes max sans activité pour être considéré en ligne
 
       // 1. Tous les comptes distants/locaux ayant currentTable sur la même table
       Object.values(db).forEach(acc => {
@@ -4477,6 +4479,10 @@
         // Si le joueur a quitté la table ou n'a pas de jeu actif
         if (ct.leftTable || !ct.game) return;
 
+        // VÉRIFICATION DE PRÉSENCE ACTIVE (Évite les comptes restés fantômes après fermeture)
+        const ctTime = typeof ct.updatedAt === 'number' ? ct.updatedAt : (acc.updated_at ? new Date(acc.updated_at).getTime() : 0);
+        if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
+
         const accGame = (ct.game === 'bj' ? 'blackjack' : ct.game);
         if (accGame !== targetGame) return;
 
@@ -4488,7 +4494,8 @@
                 username: acc.username,
                 avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
                 balance: typeof acc.balance === 'number' ? acc.balance : 5500,
-                isOnline: true
+                isOnline: true,
+                updatedAt: ctTime
               });
             }
           }
@@ -4500,7 +4507,8 @@
                 username: acc.username,
                 avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
                 balance: typeof acc.balance === 'number' ? acc.balance : 5500,
-                isOnline: true
+                isOnline: true,
+                updatedAt: ctTime
               });
             }
           }
@@ -4517,15 +4525,22 @@
           if (ct && (ct.leftTable || !ct.game || (ct.game === 'bj' ? 'blackjack' : ct.game) !== targetGame)) {
             return;
           }
+          const ctTime = ct?.updatedAt || 0;
+          if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
+
           seen.add(u);
           participants.push({
             username: name,
             avatarEmoji: acc?.avatarEmoji || acc?.avatar || '👤',
             balance: acc?.balance || state.friendBalances[name] || 5500,
-            isOnline: true
+            isOnline: true,
+            updatedAt: ctTime
           });
         }
       });
+
+      // TRIER PAR ACTIVITÉ LA PLUS RÉCENTE (Priorité absolue au joueur réel actif)
+      participants.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
       return participants;
     }
@@ -7173,6 +7188,7 @@
         if (srvTable) {
           mergeBjServerState(srvTable);
         }
+        try { updateLobbyUI('bj'); } catch (e) {}
 
         // Forfait direct signalé dans les comptes
         const db = getAccountsDB();
@@ -7810,6 +7826,21 @@
           _multiPollCounter++;
           if (_multiPollCounter % 3 === 0) {
             syncRemoteAccounts().catch(() => {});
+          }
+          // Heartbeat de présence active (toutes les 10 secondes) pour maintenir à jour la présence sur la table
+          if (_multiPollCounter % 16 === 0 && ['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+            const lKey = currentRoomKey === 'blackjack' ? 'bj' : currentRoomKey;
+            if (lobbies[lKey] && lobbies[lKey].mode === 'multi') {
+              if (!state.currentTable) state.currentTable = {};
+              state.currentTable.game = currentRoomKey;
+              state.currentTable.mode = 'multi';
+              state.currentTable.tableType = lobbies[lKey].tableType || 'public';
+              state.currentTable.roomCode = lobbies[lKey].roomCode || '';
+              state.currentTable.leftTable = false;
+              state.currentTable.updatedAt = Date.now();
+              saveState();
+              pushRemoteAccount(state);
+            }
           }
           if (currentRoomKey === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
             syncPokerMultiplayer();
