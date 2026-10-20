@@ -3471,7 +3471,6 @@
         drawCrashScene(false);
       }
       if (room === 'roulette') drawRouletteWheel();
-      try { checkBjFastSync(); } catch (e) {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -4490,15 +4489,6 @@
           }
         }
 
-        // Remise à zéro propre : retour en mode Solo, réinitialisation du salon et des partenaires
-        lobbies.poker.mode = 'solo';
-        lobbies.poker.tableType = 'public';
-        lobbies.poker.roomCode = generateRoomCode('PK');
-        if (state.activeRoomPartners && state.activeRoomPartners.poker) {
-          delete state.activeRoomPartners.poker;
-        }
-        try { updateLobbyUI('poker'); } catch (e) {}
-
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
         saveState();
         pushRemoteAccount(state);
@@ -4552,16 +4542,6 @@
             pushRemoteAccount(db[oppKey]);
           }
         }
-
-        // Remise à zéro propre : retour en mode Solo, réinitialisation du salon et des partenaires
-        lobbies.bj.mode = 'solo';
-        lobbies.bj.tableType = 'public';
-        lobbies.bj.roomCode = generateRoomCode('BJ');
-        if (state.activeRoomPartners) {
-          delete state.activeRoomPartners.blackjack;
-          delete state.activeRoomPartners.bj;
-        }
-
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
         bj.player = [];
         bj.dealer = [];
@@ -4584,7 +4564,6 @@
           dealBtn.disabled = false;
           dealBtn.textContent = '🃏 Distribuer';
         }
-        try { updateLobbyUI('bj'); } catch (e) {}
         try { renderBlackjack(); } catch (e) {}
         saveState();
         pushRemoteAccount(state);
@@ -4621,21 +4600,10 @@
             }
           }
         }
-
-        // Remise à zéro propre : retour en mode Solo, réinitialisation du salon et des partenaires
-        lobbies.cups.mode = 'solo';
-        lobbies.cups.tableType = 'public';
-        lobbies.cups.roomCode = generateRoomCode('CP');
-        if (state.activeRoomPartners && state.activeRoomPartners.cups) {
-          delete state.activeRoomPartners.cups;
-        }
-        try { updateLobbyUI('cups'); } catch (e) {}
-
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
         saveState();
         pushRemoteAccount(state);
       }
-
     }
 
     function updateCurrentTable(room) {
@@ -6912,7 +6880,6 @@
       updateLobbyUI('bj');
       renderBlackjack();
       showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack : Salon Multijoueur activé');
-      try { checkBjFastSync(); } catch (e) {}
       if (m === 'multi') {
         syncBjMultiplayer();
       }
@@ -7144,7 +7111,6 @@
         dealBtn.disabled = true;
       }
       document.getElementById('bjStatusBanner').textContent = '🃏 Distribution des cartes en direct...';
-      playCardSound();
 
       try {
         const res = await fetch(getBjApiUrl(), {
@@ -7185,14 +7151,6 @@
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
-
-      playCardSound();
-      const hitBtn = document.getElementById('bjHitBtn');
-      const standBtn = document.getElementById('bjStandBtn');
-      const doubleBtn = document.getElementById('bjDoubleBtn');
-      if (hitBtn) hitBtn.disabled = true;
-      if (standBtn) standBtn.disabled = true;
-      if (doubleBtn) doubleBtn.disabled = true;
 
       try {
         const res = await fetch(getBjApiUrl(), {
@@ -7238,14 +7196,6 @@
       saveState();
       updateGlobalUI();
 
-      playCardSound();
-      const hitBtn = document.getElementById('bjHitBtn');
-      const standBtn = document.getElementById('bjStandBtn');
-      const doubleBtn = document.getElementById('bjDoubleBtn');
-      if (hitBtn) hitBtn.disabled = true;
-      if (standBtn) standBtn.disabled = true;
-      if (doubleBtn) doubleBtn.disabled = true;
-
       try {
         const res = await fetch(getBjApiUrl(), {
           method: 'POST',
@@ -7286,14 +7236,6 @@
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
 
-      playCardSound();
-      const hitBtn = document.getElementById('bjHitBtn');
-      const standBtn = document.getElementById('bjStandBtn');
-      const doubleBtn = document.getElementById('bjDoubleBtn');
-      if (hitBtn) hitBtn.disabled = true;
-      if (standBtn) standBtn.disabled = true;
-      if (doubleBtn) doubleBtn.disabled = true;
-
       try {
         const res = await fetch(getBjApiUrl(), {
           method: 'POST',
@@ -7312,7 +7254,6 @@
         }
       } catch (e) {}
     }
-
 
     function endBj(msg, win) {
       bj.active = false;
@@ -8100,33 +8041,11 @@
       }
     }
 
-    // Boucle de synchronisation ultra-rapide (250ms) pour le Blackjack multijoueur
-    let _bjFastTimer = null;
-    function checkBjFastSync() {
-      const isMultiBj = (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi');
-      if (isMultiBj) {
-        if (!_bjFastTimer) {
-          _bjFastTimer = setInterval(() => {
-            if (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
-              syncBjMultiplayer();
-            } else {
-              clearInterval(_bjFastTimer);
-              _bjFastTimer = null;
-            }
-          }, 250);
-        }
-      } else if (_bjFastTimer) {
-        clearInterval(_bjFastTimer);
-        _bjFastTimer = null;
-      }
-    }
-
-    // Intervalle de synchronisation multijoueur (600ms) pour Poker, Blackjack et Gobelets
+    // Intervalle de synchronisation rapide multijoueur (600ms) pour Poker, Blackjack et Gobelets
     let _multiPollCounter = 0;
     if (!window._multiGameSyncTimer) {
       window._multiGameSyncTimer = setInterval(() => {
         try {
-          checkBjFastSync();
           _multiPollCounter++;
           if (_multiPollCounter % 3 === 0) {
             syncRemoteAccounts().catch(() => {});
@@ -8156,7 +8075,6 @@
         } catch (e) {}
       }, 600);
     }
-
 
     /* ================= CENTRE DE NOTIFICATIONS (INVITATIONS, AMIS, BANQUE) ================= */
     let activeNotifFilter = 'all';
@@ -8457,10 +8375,7 @@
       updateLobbyUI(lobbyKey);
 
       if (cur.room === 'poker') setupPokerSeats();
-      if (cur.room === 'blackjack') {
-        renderBlackjack();
-        syncBjMultiplayer();
-      }
+      if (cur.room === 'blackjack') renderBlackjack();
       if (cur.room === 'cups') {
         updateLobbyUI('cups');
         updateCupsSetupBoxVisibility();

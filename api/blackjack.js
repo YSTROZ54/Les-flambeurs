@@ -59,8 +59,6 @@ function calcScore(hand) {
 }
 
 let memoryTables = {};
-let lastSupabaseFetchTime = 0;
-const CACHE_TTL_MS = 600;
 
 function getDefaultTable(tableId) {
   return {
@@ -200,33 +198,19 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // 1. Récupération des tables
+  let tables = await fetchSupabaseTables();
+  if (!tables) {
+    tables = memoryTables;
+  } else {
+    memoryTables = tables;
+  }
+
   const now = Date.now();
 
   // GET
   if (req.method === 'GET') {
     const tableId = (req.query.table || req.query.tableId || 'public').toLowerCase().trim();
-
-    // 1. Servir depuis le cache mémoire ultra-rapide (< 10ms) si disponible et frais (< 600ms)
-    const isCacheCold = !memoryTables || Object.keys(memoryTables).length === 0 || !memoryTables[tableId];
-    const isCacheStale = (now - lastSupabaseFetchTime >= CACHE_TTL_MS);
-
-    if (isCacheCold || isCacheStale) {
-      const remoteTables = await fetchSupabaseTables();
-      if (remoteTables) {
-        if (!memoryTables) memoryTables = {};
-        Object.keys(remoteTables).forEach(k => {
-          const rTab = remoteTables[k];
-          const mTab = memoryTables[k];
-          // Protéger l'état mémoire local s'il a été mis à jour plus récemment
-          if (!mTab || !mTab.updatedAt || (rTab.updatedAt && rTab.updatedAt >= mTab.updatedAt)) {
-            memoryTables[k] = rTab;
-          }
-        });
-        lastSupabaseFetchTime = now;
-      }
-    }
-
-    let tables = memoryTables;
     let table = tables[tableId];
     if (!table) {
       table = getDefaultTable(tableId);
@@ -279,7 +263,7 @@ export default async function handler(req, res) {
 
     if (modified) {
       memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
+      await saveSupabaseTables(tables);
     }
 
     return res.status(200).json(table);
@@ -294,23 +278,11 @@ export default async function handler(req, res) {
     if (!body || typeof body !== 'object') body = {};
 
     const tableId = (body.tableId || 'public').toLowerCase().trim();
-    let tables = memoryTables;
-
-    // Si la table n'est pas encore en mémoire vive (cold start), charger Supabase
-    if (!tables || Object.keys(tables).length === 0 || !tables[tableId]) {
-      const remoteTables = await fetchSupabaseTables();
-      if (remoteTables) {
-        memoryTables = { ...(memoryTables || {}), ...remoteTables };
-      }
-      tables = memoryTables;
-    }
-
     let table = tables[tableId];
     if (!table) {
       table = getDefaultTable(tableId);
       tables[tableId] = table;
     }
-
 
     const action = body.action;
 
@@ -476,9 +448,7 @@ export default async function handler(req, res) {
     }
 
     memoryTables = tables;
-    lastSupabaseFetchTime = now;
-    // Sauvegarde en arrière-plan non bloquante vers Supabase pour une latence instantanée (< 20ms)
-    saveSupabaseTables(tables).catch(e => console.warn('Supabase async save warn:', e));
+    await saveSupabaseTables(tables);
 
     return res.status(200).json({ ok: true, table });
   }
