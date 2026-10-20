@@ -130,12 +130,21 @@
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
         <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Potes</button>
+        <button onclick="openNotificationsModal()" id="nav-notifications" class="relative px-2.5 py-1.5 rounded-full font-bold text-amber-300 hover:text-white bg-amber-500/15 border border-amber-400/40 flex items-center gap-1.5 transition" title="Centre de Notifications">
+          <span>🔔</span>
+          <span class="hidden 2xl:inline text-xs">Notifs</span>
+          <span id="notifBadgeDesktop" class="hidden px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
+        </button>
       </div>
 
       <!-- Solde épuré + Profil -->
       <div class="flex items-center gap-2">
         <button onclick="openFriendsModal()" class="flex xl:hidden items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Mes Potes">
           <span>👥</span> <span class="hidden sm:inline">Potes</span>
+        </button>
+        <button onclick="openNotificationsModal()" id="nav-notifications-mobile" class="relative flex xl:hidden items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Centre de Notifications">
+          <span>🔔</span>
+          <span id="notifBadgeMobile" class="hidden px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
         </button>
 
         <div class="flex items-center gap-1.5 bg-stone-900/95 border border-amber-500/40 rounded-full px-3.5 py-1.5 shadow-inner">
@@ -1502,6 +1511,52 @@
   </div>
 
   <!-- ================================================================= -->
+  <!-- MODAL : CENTRE DE NOTIFICATIONS (INVITATIONS, AMIS, BANQUE)      -->
+  <!-- ================================================================= -->
+  <div id="notificationsModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-stone-900 border-2 border-amber-500/40 rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="font-serif-title text-xl font-extrabold text-white flex items-center gap-2">
+          <span>🔔</span> <span>Notifications &amp; Demandes</span>
+        </h3>
+        <button onclick="closeNotificationsModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <p class="text-xs text-stone-300">Consulte et réponds à tes invitations de jeux, demandes d'amis et virements reçus.</p>
+
+      <!-- Onglets Filtres -->
+      <div class="flex gap-1.5 p-1 bg-black/50 rounded-2xl border border-white/10 text-xs font-bold">
+        <button id="notifTabAll" onclick="setNotifFilter('all')" class="flex-1 py-1.5 px-2 rounded-xl bg-amber-500 text-black shadow font-extrabold transition text-center">
+          Toutes (<span id="notifCountAll">0</span>)
+        </button>
+        <button id="notifTabGames" onclick="setNotifFilter('games')" class="flex-1 py-1.5 px-2 rounded-xl text-stone-300 hover:text-white transition text-center">
+          🎮 Jeux (<span id="notifCountGames">0</span>)
+        </button>
+        <button id="notifTabFriends" onclick="setNotifFilter('friends')" class="flex-1 py-1.5 px-2 rounded-xl text-stone-300 hover:text-white transition text-center">
+          👥 Amis (<span id="notifCountFriends">0</span>)
+        </button>
+        <button id="notifTabBank" onclick="setNotifFilter('bank')" class="flex-1 py-1.5 px-2 rounded-xl text-stone-300 hover:text-white transition text-center">
+          🏦 Banque (<span id="notifCountBank">0</span>)
+        </button>
+      </div>
+
+      <!-- Liste scrollable des notifications -->
+      <div id="notificationsListContainer" class="flex-1 space-y-2.5 overflow-y-auto pr-1 max-h-[50vh] min-h-[140px]">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="pt-2 border-t border-white/10 flex items-center justify-between">
+        <button onclick="clearAllDismissedNotifs()" class="text-xs text-stone-400 hover:text-rose-400 transition font-bold">
+          🗑️ Tout refuser
+        </button>
+        <button onclick="closeNotificationsModal()" class="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-stone-200 font-bold text-xs">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
   <!-- MODAL : AUTHENTIFICATION (CONNEXION & INSCRIPTION DES JOUEURS)     -->
   <!-- ================================================================= -->
   <div id="authModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
@@ -2117,8 +2172,33 @@
           const oldGameInvLen = (state.pendingGameInvites || []).length;
 
           const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
-          const newFriendReqs = Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : [];
-          const newGameInvs = Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : [];
+
+          // Déduplication stricte des demandes d'amis
+          const uniqueFriendReqs = [];
+          const seenFriendFroms = new Set();
+          (Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : []).forEach(req => {
+            if (!req || !req.from) return;
+            const fk = req.from.toLowerCase().trim();
+            if (!seenFriendFroms.has(fk)) {
+              seenFriendFroms.add(fk);
+              uniqueFriendReqs.push(req);
+            }
+          });
+          const newFriendReqs = uniqueFriendReqs;
+
+          // Déduplication stricte des invitations de jeu pour éviter toute notification en double
+          const uniqueGameInvs = [];
+          const seenInvKeys = new Set();
+          (Array.isArray(myAcc.pendingGameInvites) ? myAcc.pendingGameInvites : []).forEach(inv => {
+            if (!inv) return;
+            const invKey = (inv.id && !inv.id.startsWith('ginv_')) ? inv.id : `${(inv.from || '').toLowerCase().trim()}_${(inv.room || '').toLowerCase().trim()}`;
+            if (!seenInvKeys.has(invKey)) {
+              seenInvKeys.add(invKey);
+              uniqueGameInvs.push(inv);
+            }
+          });
+          const newGameInvs = uniqueGameInvs;
+
           const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
           const remoteBankTransfers = Array.isArray(myAcc.bankTransfers) ? myAcc.bankTransfers : [];
 
@@ -2174,6 +2254,7 @@
             renderFriendsModalList();
           }
           checkPendingNotifications();
+          try { updateNotificationsBadge(); } catch (e) {}
         }
       }
 
@@ -3237,6 +3318,7 @@
       renderShop();
       renderBuildings();
       renderBankHistory();
+      try { updateNotificationsBadge(); } catch (e) {}
     }
 
     /* ================= CLASSEMENT ================= */
@@ -4402,6 +4484,28 @@
           }
         }
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
+        bj.player = [];
+        bj.dealer = [];
+        bj.coPlayer = [];
+        bj.active = false;
+        bjSyncTable = {
+          tableId: tableId,
+          roundId: 0,
+          status: 'waiting',
+          dealer: { cards: [], score: 0, hidden: true },
+          players: {},
+          playerOrder: [],
+          turn: null,
+          forfeit: null,
+          updatedAt: Date.now()
+        };
+        const dealBtn = document.getElementById('bjDealBtn');
+        if (dealBtn) {
+          dealBtn.classList.remove('hidden');
+          dealBtn.disabled = false;
+          dealBtn.textContent = '🃏 Distribuer';
+        }
+        try { renderBlackjack(); } catch (e) {}
         saveState();
         pushRemoteAccount(state);
       }
@@ -6876,6 +6980,12 @@
         return;
       }
       if (bj.active || bj.cooldownRemaining > 0) return;
+      if (lobbies.bj && lobbies.bj.mode === 'multi') {
+        if (bjSyncTable && (bjSyncTable.status === 'playing' || bjSyncTable.status === 'dealer_turn')) {
+          showToast('🃏 Une main de Blackjack est déjà en cours !');
+          return;
+        }
+      }
       const bet = parseInt(document.getElementById('bjBetInput').value) || 0;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
 
@@ -6892,6 +7002,8 @@
         bj.coPlayer = [];
         bj.bet = bet;
 
+        const dealBtn = document.getElementById('bjDealBtn');
+        if (dealBtn) dealBtn.classList.add('hidden');
         document.getElementById('bjActionControls').classList.remove('hidden');
         document.getElementById('bjDoubleBtn').disabled = false;
         document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
@@ -6935,7 +7047,10 @@
       }
 
       const dealBtn = document.getElementById('bjDealBtn');
-      if (dealBtn) dealBtn.disabled = true;
+      if (dealBtn) {
+        dealBtn.classList.add('hidden');
+        dealBtn.disabled = true;
+      }
       document.getElementById('bjStatusBanner').textContent = '🃏 Distribution des cartes en direct...';
 
       try {
@@ -6963,10 +7078,9 @@
     }
 
     async function bjHit() {
-      if (!bj.active) return;
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        // Solo
+        if (!bj.active) return;
         bj.player.push(bj.deck.pop());
         renderBlackjack(true);
         if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
@@ -6976,7 +7090,8 @@
       // Multi
       const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
       const myKey = (state.username || '').toLowerCase().trim();
-      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey) return;
+      const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
+      if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
 
       try {
         const res = await fetch(getBjApiUrl(), {
@@ -6998,10 +7113,9 @@
     }
 
     async function bjDouble() {
-      if (!bj.active) return;
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        // Solo
+        if (!bj.active) return;
         if (bj.turn !== 'player' || state.balance < bj.bet) return;
         state.balance -= bj.bet; bj.bet *= 2; saveState(); updateGlobalUI();
         bj.player.push(bj.deck.pop());
@@ -7014,10 +7128,12 @@
       // Multi
       const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
       const myKey = (state.username || '').toLowerCase().trim();
-      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey || state.balance < bj.bet) return;
+      const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
+      const myBet = (bjSyncTable?.players?.[myKey]?.bet) || bj.bet;
+      if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey || state.balance < myBet) return;
 
-      state.balance -= bj.bet;
-      bj.bet *= 2;
+      state.balance -= myBet;
+      bj.bet = myBet * 2;
       saveState();
       updateGlobalUI();
 
@@ -7041,10 +7157,9 @@
     }
 
     async function bjStand() {
-      if (!bj.active) return;
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        // Solo
+        if (!bj.active) return;
         while (bjScore(bj.dealer) < 17) {
           bj.dealer.push(bj.deck.pop());
         }
@@ -7059,7 +7174,8 @@
       // Multi
       const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
       const myKey = (state.username || '').toLowerCase().trim();
-      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey) return;
+      const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
+      if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
 
       try {
         const res = await fetch(getBjApiUrl(), {
@@ -7098,17 +7214,22 @@
       bjSyncTable = srv;
       const myKey = (state.username || '').toLowerCase().trim();
       const myPl = srv.players ? srv.players[myKey] : null;
+      const dealBtn = document.getElementById('bjDealBtn');
+      const actionControls = document.getElementById('bjActionControls');
 
       // 1. MANCHE EN COURS
       if (srv.status === 'playing') {
-        const isMyTurn = (srv.turn === myKey);
-        const actionControls = document.getElementById('bjActionControls');
+        if (dealBtn) {
+          dealBtn.classList.add('hidden');
+          dealBtn.disabled = true;
+        }
+
+        const isMyTurn = ((srv.turn || '').toLowerCase().trim() === myKey);
         const doubleBtn = document.getElementById('bjDoubleBtn');
 
         if (myPl) {
           bj.active = true;
-          const dealBtn = document.getElementById('bjDealBtn');
-          if (dealBtn) dealBtn.disabled = true;
+          bj.bet = myPl.bet || bj.bet || 100;
 
           if (isMyTurn && myPl.status === 'playing') {
             if (actionControls) actionControls.classList.remove('hidden');
@@ -7131,14 +7252,19 @@
       }
       // 2. TOUR DU CROUPIER
       else if (srv.status === 'dealer_turn') {
+        if (dealBtn) {
+          dealBtn.classList.add('hidden');
+          dealBtn.disabled = true;
+        }
         bj.active = !!myPl;
-        document.getElementById('bjActionControls')?.classList.add('hidden');
+        if (actionControls) actionControls.classList.add('hidden');
         document.getElementById('bjStatusBanner').textContent = `🃏 Le Croupier joue sa main...`;
       }
       // 3. MANCHE TERMINÉE
       else if (srv.status === 'finished') {
         bj.active = false;
-        document.getElementById('bjActionControls')?.classList.add('hidden');
+        if (actionControls) actionControls.classList.add('hidden');
+        if (dealBtn) dealBtn.classList.add('hidden');
 
         // Attribution des gains si pas encore validés pour cette manche
         if (srv.roundId && myProcessedBjRoundId !== srv.roundId) {
@@ -7170,10 +7296,10 @@
       // 4. TABLE EN ATTENTE
       else if (srv.status === 'waiting') {
         bj.active = false;
-        document.getElementById('bjActionControls')?.classList.add('hidden');
+        if (actionControls) actionControls.classList.add('hidden');
         if (bj.cooldownRemaining <= 0) {
-          const dealBtn = document.getElementById('bjDealBtn');
           if (dealBtn) {
+            dealBtn.classList.remove('hidden');
             dealBtn.disabled = false;
             dealBtn.textContent = '🃏 Distribuer';
           }
@@ -7225,36 +7351,6 @@
 
         if (srvTable) {
           mergeBjServerState(srvTable);
-
-          // Détection automatique : si la manche est 'playing' mais que l'adversaire a quitté
-          const myKey = (state.username || '').toLowerCase().trim();
-          const myPl = srvTable.players ? srvTable.players[myKey] : null;
-          if (srvTable.status === 'playing' && srvTable.players && myPl) {
-            const oppKey = Object.keys(srvTable.players).find(k => k !== myKey);
-            if (oppKey) {
-              const activeOpponents = getTableParticipants('blackjack');
-              const oppStillPresent = activeOpponents.some(p => (p.username || '').toLowerCase().trim() === oppKey);
-              const db = getAccountsDB();
-              const oppAcc = db[oppKey];
-              const oppLeft = !oppStillPresent || (oppAcc && oppAcc.currentTable && oppAcc.currentTable.leftTable);
-
-              if (oppLeft) {
-                try {
-                  fetch(getBjApiUrl(), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      action: 'leave',
-                      tableId: tableId,
-                      username: oppKey
-                    })
-                  }).then(r => r.json()).then(d => {
-                    if (d && d.table) mergeBjServerState(d.table);
-                  }).catch(() => {});
-                } catch (e) {}
-              }
-            }
-          }
         }
         try { updateLobbyUI('bj'); } catch (e) {}
 
@@ -7921,6 +8017,449 @@
       }, 600);
     }
 
+    /* ================= CENTRE DE NOTIFICATIONS (INVITATIONS, AMIS, BANQUE) ================= */
+    let activeNotifFilter = 'all';
+
+    function updateNotificationsBadge() {
+      const gInv = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites.length : 0;
+      const fReq = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests.length : 0;
+      const tReq = Array.isArray(state.pendingTransfers) ? state.pendingTransfers.length : 0;
+      const total = gInv + fReq + tReq;
+
+      const badgeD = document.getElementById('notifBadgeDesktop');
+      const badgeM = document.getElementById('notifBadgeMobile');
+
+      if (badgeD) {
+        badgeD.textContent = total;
+        badgeD.classList.toggle('hidden', total === 0);
+      }
+      if (badgeM) {
+        badgeM.textContent = total;
+        badgeM.classList.toggle('hidden', total === 0);
+      }
+
+      const countAll = document.getElementById('notifCountAll');
+      const countGames = document.getElementById('notifCountGames');
+      const countFriends = document.getElementById('notifCountFriends');
+      const countBank = document.getElementById('notifCountBank');
+
+      if (countAll) countAll.textContent = total;
+      if (countGames) countGames.textContent = gInv;
+      if (countFriends) countFriends.textContent = fReq;
+      if (countBank) countBank.textContent = tReq;
+    }
+
+    function openNotificationsModal() {
+      renderNotificationsModal();
+      const modal = document.getElementById('notificationsModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeNotificationsModal() {
+      const modal = document.getElementById('notificationsModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function setNotifFilter(f) {
+      activeNotifFilter = f;
+      ['all', 'games', 'friends', 'bank'].forEach(tab => {
+        const btn = document.getElementById(`notifTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+        if (btn) {
+          if (tab === f) {
+            btn.className = 'flex-1 py-1.5 px-2 rounded-xl bg-amber-500 text-black shadow font-extrabold transition text-center';
+          } else {
+            btn.className = 'flex-1 py-1.5 px-2 rounded-xl text-stone-300 hover:text-white transition text-center';
+          }
+        }
+      });
+      renderNotificationsModal();
+    }
+
+    function renderNotificationsModal() {
+      updateNotificationsBadge();
+      const container = document.getElementById('notificationsListContainer');
+      if (!container) return;
+
+      const gInvs = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      const fReqs = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      const tReqs = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
+
+      let items = [];
+
+      if (activeNotifFilter === 'all' || activeNotifFilter === 'games') {
+        gInvs.forEach(inv => {
+          items.push({
+            type: 'game',
+            id: inv.id,
+            from: inv.from,
+            gameName: inv.gameName || inv.room || 'Jeu',
+            tableType: inv.tableType || 'public',
+            roomCode: inv.roomCode || '',
+            room: inv.room,
+            timestamp: inv.timestamp || Date.now()
+          });
+        });
+      }
+
+      if (activeNotifFilter === 'all' || activeNotifFilter === 'friends') {
+        fReqs.forEach(req => {
+          items.push({
+            type: 'friend',
+            id: req.id || req.from,
+            from: req.from,
+            timestamp: req.timestamp || Date.now()
+          });
+        });
+      }
+
+      if (activeNotifFilter === 'all' || activeNotifFilter === 'bank') {
+        tReqs.forEach(tx => {
+          items.push({
+            type: 'bank',
+            id: tx.id,
+            from: tx.from,
+            amount: tx.amount,
+            note: tx.note,
+            timestamp: tx.timestamp || Date.now()
+          });
+        });
+      }
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-stone-400 space-y-2">
+            <div class="text-3xl">✨</div>
+            <p class="text-sm font-bold text-stone-300">Aucune notification en attente</p>
+            <p class="text-xs text-stone-500">Toutes tes invitations de jeux, demandes d'amis et virements apparaîtront ici.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Tri plus récent en premier
+      items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      container.innerHTML = items.map(item => {
+        if (item.type === 'game') {
+          return `
+            <div class="p-3.5 bg-black/40 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition hover:border-amber-400/60">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-lg border border-amber-400/30 shrink-0">
+                  🎮
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Invitation de <strong class="text-amber-300">${item.from}</strong></span>
+                  </div>
+                  <div class="text-[11px] text-stone-400">
+                    Jeu : <span class="text-amber-200 font-bold">${item.gameName}</span> • ${item.tableType === 'private' ? `Table Privée [${item.roomCode}]` : 'Table Publique'}
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button onclick="declineGameInviteById('${item.id || item.from}')" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 text-stone-300 text-xs font-bold border border-white/10 transition">
+                  Refuser
+                </button>
+                <button onclick="acceptGameInviteById('${item.id || item.from}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-black text-xs font-black shadow transition flex items-center gap-1">
+                  <span>🚀</span> <span>Rejoindre</span>
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (item.type === 'friend') {
+          return `
+            <div class="p-3.5 bg-black/40 border border-purple-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition hover:border-purple-400/60">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-lg border border-purple-400/30 shrink-0">
+                  👥
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Demande d'ami de <strong class="text-purple-300">${item.from}</strong></span>
+                  </div>
+                  <div class="text-[11px] text-stone-400">
+                    Souhaite t'ajouter à son cercle de potes pour jouer ensemble.
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button onclick="declineFriendRequestById('${item.from}')" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 text-stone-300 text-xs font-bold border border-white/10 transition">
+                  Refuser
+                </button>
+                <button onclick="acceptFriendRequestById('${item.from}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-400 to-indigo-600 hover:brightness-110 text-white text-xs font-black shadow transition flex items-center gap-1">
+                  <span>✅</span> <span>Accepter</span>
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (item.type === 'bank') {
+          return `
+            <div class="p-3.5 bg-black/40 border border-emerald-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition hover:border-emerald-400/60">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-lg border border-emerald-400/30 shrink-0">
+                  🏦
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Don reçu de <strong class="text-emerald-300">${item.from}</strong></span>
+                    <span class="text-emerald-400 font-mono-num font-extrabold">+${fmt(item.amount)} €</span>
+                  </div>
+                  <div class="text-[11px] text-stone-400">
+                    Message : « ${item.note || 'Bon jeu !'} »
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button onclick="declineTransferById('${item.id}')" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 text-stone-300 text-xs font-bold border border-white/10 transition">
+                  Refuser
+                </button>
+                <button onclick="acceptTransferById('${item.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 hover:brightness-110 text-black text-xs font-black shadow transition flex items-center gap-1">
+                  <span>💰</span> <span>Encaisser</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }
+        return '';
+      }).join('');
+    }
+
+    async function acceptGameInviteById(invIdOrFrom) {
+      const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      const matchIdx = list.findIndex(i => (i.id === invIdOrFrom) || ((i.from || '').toLowerCase().trim() === String(invIdOrFrom).toLowerCase().trim()));
+      if (matchIdx === -1) return;
+
+      const cur = list[matchIdx];
+      // Supprimer l'invitation et tous les doublons du même expéditeur
+      state.pendingGameInvites = list.filter((_, idx) => idx !== matchIdx && (list[idx].from || '').toLowerCase().trim() !== (cur.from || '').toLowerCase().trim());
+
+      const roomKey = cur.room;
+      const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
+
+      if (lobbies[lobbyKey]) {
+        lobbies[lobbyKey].mode = 'multi';
+        if (cur.roomCode) {
+          lobbies[lobbyKey].tableType = cur.tableType || 'private';
+          lobbies[lobbyKey].roomCode = cur.roomCode;
+        }
+      }
+
+      if (!state.activeRoomPartners) state.activeRoomPartners = {};
+      const gameKey = roomKey === 'blackjack' ? 'blackjack' : (roomKey === 'cups' ? 'cups' : 'poker');
+      if (!state.activeRoomPartners[gameKey]) state.activeRoomPartners[gameKey] = [];
+      if (!state.activeRoomPartners[gameKey].includes(cur.from)) {
+        state.activeRoomPartners[gameKey].push(cur.from);
+      }
+
+      state.currentTable = {
+        game: gameKey,
+        mode: 'multi',
+        tableType: cur.tableType || 'private',
+        roomCode: cur.roomCode || '',
+        host: cur.from,
+        activeHider: cur.from,
+        user: state.username,
+        avatar: state.avatarEmoji || '🎭',
+        balance: state.balance || 5500,
+        updatedAt: Date.now()
+      };
+
+      const db = getAccountsDB();
+      const hostKey = (cur.from || '').toLowerCase().trim();
+      if (db[hostKey]) {
+        db[hostKey].currentTable = db[hostKey].currentTable || {};
+        db[hostKey].currentTable.host = cur.from;
+        db[hostKey].currentTable.activeHider = cur.from;
+        if (!db[hostKey].activeRoomPartners) db[hostKey].activeRoomPartners = {};
+        if (!db[hostKey].activeRoomPartners[gameKey]) db[hostKey].activeRoomPartners[gameKey] = [];
+        if (!db[hostKey].activeRoomPartners[gameKey].includes(state.username)) {
+          db[hostKey].activeRoomPartners[gameKey].push(state.username);
+        }
+        saveAccountsDB(db);
+        pushRemoteAccount(db[hostKey]);
+      }
+
+      saveState();
+      pushRemoteAccount(state);
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      closeNotificationsModal();
+
+      switchRoom(cur.room);
+      updateLobbyUI(lobbyKey);
+
+      if (cur.room === 'poker') setupPokerSeats();
+      if (cur.room === 'blackjack') renderBlackjack();
+      if (cur.room === 'cups') {
+        updateLobbyUI('cups');
+        updateCupsSetupBoxVisibility();
+      }
+
+      playCoinWinSound();
+      showToast(`🚀 Tu as rejoint la partie de ${cur.from} (${cur.gameName}) !`);
+    }
+
+    async function declineGameInviteById(invIdOrFrom) {
+      const list = Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [];
+      const cur = list.find(i => (i.id === invIdOrFrom) || ((i.from || '').toLowerCase().trim() === String(invIdOrFrom).toLowerCase().trim()));
+      state.pendingGameInvites = list.filter(i => (i.id !== invIdOrFrom) && ((i.from || '').toLowerCase().trim() !== String(invIdOrFrom).toLowerCase().trim()));
+      saveState();
+      pushRemoteAccount(state);
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast(`❌ Invitation de ${cur?.from || 'joueur'} refusée.`);
+    }
+
+    async function acceptFriendRequestById(senderName) {
+      const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      const cur = list.find(r => (r.from || '').toLowerCase().trim() === String(senderName).toLowerCase().trim());
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== String(senderName).toLowerCase().trim());
+
+      const friendName = cur ? cur.from : senderName;
+
+      if (!Array.isArray(state.friends)) state.friends = [];
+      if (!state.friends.some(f => f.toLowerCase() === friendName.toLowerCase())) {
+        state.friends.push(friendName);
+      }
+      if (!state.friendBalances) state.friendBalances = {};
+      if (!state.friendBalances[friendName]) state.friendBalances[friendName] = 5000;
+
+      const db = getAccountsDB();
+      const sKey = friendName.toLowerCase().trim();
+      if (db[sKey]) {
+        if (!Array.isArray(db[sKey].friends)) db[sKey].friends = [];
+        if (!db[sKey].friends.some(f => f.toLowerCase() === (state.username || '').toLowerCase())) {
+          db[sKey].friends.push(state.username);
+        }
+        if (!db[sKey].friendBalances) db[sKey].friendBalances = {};
+        if (!db[sKey].friendBalances[state.username]) db[sKey].friendBalances[state.username] = state.balance || 5500;
+        saveAccountsDB(db);
+        await pushRemoteAccount(db[sKey]);
+      }
+
+      saveState();
+      playCoinWinSound();
+      updateGlobalUI();
+      renderFriendsModalList();
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast(`🎉 Tu es maintenant ami avec ${friendName} !`);
+    }
+
+    async function declineFriendRequestById(senderName) {
+      const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== String(senderName).toLowerCase().trim());
+      saveState();
+      pushRemoteAccount(state);
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast(`❌ Demande d'ami de ${senderName} refusée.`);
+    }
+
+    async function acceptTransferById(tId) {
+      if (!isUserLoggedIn()) {
+        showToast('🔒 Connecte-toi pour recevoir ce virement !');
+        openAuthModal('login');
+        return;
+      }
+      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
+      const cur = list.find(t => t.id === tId);
+      if (!cur) return;
+      state.pendingTransfers = list.filter(t => t.id !== tId);
+
+      const amount = Number(cur.amount) || 0;
+      state.balance = (state.balance || 0) + amount;
+
+      if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
+      state.bankTransfers.unshift({
+        id: cur.id,
+        from: cur.from,
+        to: state.username,
+        amount: amount,
+        note: cur.note,
+        status: 'Accepté',
+        timestamp: cur.timestamp || Date.now()
+      });
+      state.bankTransfers = state.bankTransfers.slice(0, 15);
+
+      const db = getAccountsDB();
+      const senderKey = (cur.from || '').toLowerCase().trim();
+      if (db[senderKey]) {
+        if (!Array.isArray(db[senderKey].bankTransfers)) db[senderKey].bankTransfers = [];
+        const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
+        if (t) t.status = 'Accepté';
+        saveAccountsDB(db);
+        pushRemoteAccount(db[senderKey]);
+      }
+
+      saveState();
+      playCoinWinSound();
+      updateGlobalUI();
+      renderBankHistory();
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast(`✅ Virement de +${fmt(amount)} € encaissé !`);
+    }
+
+    async function declineTransferById(tId) {
+      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
+      const cur = list.find(t => t.id === tId);
+      if (!cur) return;
+      state.pendingTransfers = list.filter(t => t.id !== tId);
+
+      const amount = Number(cur.amount) || 0;
+      const db = getAccountsDB();
+      const senderKey = (cur.from || '').toLowerCase().trim();
+      if (db[senderKey]) {
+        db[senderKey].balance = (db[senderKey].balance || 0) + amount;
+        if (Array.isArray(db[senderKey].bankTransfers)) {
+          const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
+          if (t) t.status = 'Refusé & Remboursé';
+        }
+        saveAccountsDB(db);
+        pushRemoteAccount(db[senderKey]);
+      }
+
+      saveState();
+      updateGlobalUI();
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast(`❌ Don de ${fmt(amount)} € refusé (remboursé à ${cur.from}).`);
+    }
+
+    function clearAllDismissedNotifs() {
+      state.pendingGameInvites = [];
+      state.pendingFriendRequests = [];
+      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
+      const db = getAccountsDB();
+      list.forEach(cur => {
+        const amount = Number(cur.amount) || 0;
+        const senderKey = (cur.from || '').toLowerCase().trim();
+        if (db[senderKey]) {
+          db[senderKey].balance = (db[senderKey].balance || 0) + amount;
+          if (Array.isArray(db[senderKey].bankTransfers)) {
+            const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
+            if (t) t.status = 'Refusé & Remboursé';
+          }
+        }
+      });
+      state.pendingTransfers = [];
+      saveAccountsDB(db);
+      saveState();
+      pushRemoteAccount(state);
+      updateGlobalUI();
+      updateNotificationsBadge();
+      checkPendingNotifications();
+      renderNotificationsModal();
+      showToast('🗑️ Toutes les notifications ont été effacées.');
+    }
+
     /* ================= MODALES JOUEURS & PROFIL ================= */
     function openFriendsModal() {
       renderFriendsModalList();
@@ -8096,6 +8635,8 @@
       const fKey = friendName.toLowerCase();
       if (db[fKey]) {
         if (!Array.isArray(db[fKey].pendingGameInvites)) db[fKey].pendingGameInvites = [];
+        // Déduplication : supprimer toute invitation déjà en attente du même expéditeur
+        db[fKey].pendingGameInvites = db[fKey].pendingGameInvites.filter(inv => (inv.from || '').toLowerCase().trim() !== (state.username || '').toLowerCase().trim());
         db[fKey].pendingGameInvites.push(inviteObj);
         if (room === 'cups') {
           db[fKey].currentTable = db[fKey].currentTable || {};

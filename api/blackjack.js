@@ -80,9 +80,12 @@ async function fetchSupabaseTables() {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.__blackjack_game__`, {
+      cache: 'no-store',
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
     });
     if (res.ok) {
@@ -187,6 +190,9 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -213,8 +219,8 @@ export default async function handler(req, res) {
 
     let modified = false;
 
-    // 1. Auto-nettoyage d'une manche finie depuis plus de 7 secondes -> retour table propre en attente
-    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 7000)) {
+    // 1. Auto-nettoyage d'une manche finie depuis plus de 4 secondes -> retour table propre en attente
+    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 4000)) {
       table = getDefaultTable(tableId);
       tables[tableId] = table;
       modified = true;
@@ -282,6 +288,10 @@ export default async function handler(req, res) {
 
     // A. DISTRIBUER (DEAL)
     if (action === 'deal') {
+      if (table.status === 'playing' || table.status === 'dealer_turn') {
+        return res.status(200).json({ ok: false, error: 'Une partie est déjà en cours', table });
+      }
+
       const participants = Array.isArray(body.participants) && body.participants.length > 0
         ? body.participants
         : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: parseInt(body.bet) || 100 }];
@@ -329,7 +339,9 @@ export default async function handler(req, res) {
     else if (action === 'hit' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      if (table.status === 'playing' && table.turn === pKey && p && p.status === 'playing' && table.deck.length > 0) {
+      const curTurn = (table.turn || '').toLowerCase().trim();
+      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
+        if (!Array.isArray(table.deck) || table.deck.length === 0) table.deck = createShuffledDeck();
         const card = table.deck.pop();
         p.cards.push(card);
         p.score = calcScore(p.cards);
@@ -349,7 +361,8 @@ export default async function handler(req, res) {
     else if (action === 'stand' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      if (table.status === 'playing' && table.turn === pKey && p && p.status === 'playing') {
+      const curTurn = (table.turn || '').toLowerCase().trim();
+      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
         p.status = 'stand';
         advanceTurnOrFinish(table);
         table.updatedAt = now;
@@ -360,9 +373,11 @@ export default async function handler(req, res) {
     else if (action === 'double' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      if (table.status === 'playing' && table.turn === pKey && p && p.status === 'playing' && table.deck.length > 0) {
+      const curTurn = (table.turn || '').toLowerCase().trim();
+      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
         p.bet *= 2;
         p.double = true;
+        if (!Array.isArray(table.deck) || table.deck.length === 0) table.deck = createShuffledDeck();
         const card = table.deck.pop();
         p.cards.push(card);
         p.score = calcScore(p.cards);
@@ -395,6 +410,8 @@ export default async function handler(req, res) {
             winner: winner.username,
             pot: totalPot
           };
+          delete table.players[pKey];
+          table.playerOrder = [winnerKey];
           table.finishedAt = now;
           table.updatedAt = now;
         } else {

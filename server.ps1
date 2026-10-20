@@ -424,9 +424,17 @@ while ($listener.IsListening) {
             }
 
             if ($request.HttpMethod -eq 'POST') {
-                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
-                $body = $reader.ReadToEnd()
-                $reader.Close()
+                $body = ""
+                if ($request.ContentLength64 -gt 0) {
+                    $buf = New-Object byte[] $request.ContentLength64
+                    $offset = 0
+                    while ($offset -lt $request.ContentLength64) {
+                        $n = $request.InputStream.Read($buf, $offset, $request.ContentLength64 - $offset)
+                        if ($n -le 0) { break }
+                        $offset += $n
+                    }
+                    $body = [System.Text.Encoding]::UTF8.GetString($buf, 0, $offset)
+                }
 
                 if ($body) {
                     try {
@@ -470,6 +478,10 @@ while ($listener.IsListening) {
                                             winner = $winner.username
                                             pot = $totalPot
                                         }
+                                        if ($curTable.players.ContainsKey($pKey)) {
+                                            $curTable.players.Remove($pKey)
+                                        }
+                                        $curTable.playerOrder = @($winnerKey)
                                         $curTable.finishedAt = $now
                                         $curTable.updatedAt = $now
                                     } else {
@@ -505,6 +517,156 @@ while ($listener.IsListening) {
                                     $curTable.updatedAt = $now
                                 }
                             }
+                            # ACTION DEAL
+                            elseif ($postObj.action -eq 'deal') {
+                                $curTable = $currentTables[$tId]
+                                if ($curTable.status -ne 'playing' -and $curTable.status -ne 'dealer_turn') {
+                                    $deck = @()
+                                    $suits = @(
+                                        @{ s='♠'; color='text-slate-900'; type='suit-black' },
+                                        @{ s='♣'; color='text-slate-900'; type='suit-black' },
+                                        @{ s='♥'; color='text-red-500'; type='suit-red' },
+                                        @{ s='♦'; color='text-red-500'; type='suit-red' }
+                                    )
+                                    $ranks = @(
+                                        @{ r='2'; v=2 }, @{ r='3'; v=3 }, @{ r='4'; v=4 }, @{ r='5'; v=5 },
+                                        @{ r='6'; v=6 }, @{ r='7'; v=7 }, @{ r='8'; v=8 }, @{ r='9'; v=9 },
+                                        @{ r='10'; v=10 }, @{ r='J'; v=10 }, @{ r='Q'; v=10 }, @{ r='K'; v=10 },
+                                        @{ r='A'; v=11 }
+                                    )
+                                    foreach ($st in $suits) {
+                                        foreach ($rk in $ranks) {
+                                            $deck += @{ r=$rk.r; v=$rk.v; s=$st.s; color=$st.color; type=$st.type }
+                                        }
+                                    }
+                                    $rnd = New-Object Random
+                                    for ($i = $deck.Count - 1; $i -gt 0; $i--) {
+                                        $j = $rnd.Next($i + 1)
+                                        $tmp = $deck[$i]; $deck[$i] = $deck[$j]; $deck[$j] = $tmp
+                                    }
+
+                                    $parts = if ($postObj.participants -and $postObj.participants.Count -gt 0) { $postObj.participants } else { @(@{ username=$postObj.username; bet=$postObj.bet }) }
+                                    
+                                    $curTable.roundId = $now
+                                    $curTable.tableId = $tId
+                                    $c1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                    $c2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                    $dScore = if ($c1.r -eq 'A') { 11 } else { [int]$c1.v }
+                                    $curTable.dealer = @{ cards = @($c1, $c2); score = $dScore; hidden = $true }
+                                    $curTable.players = @{}
+                                    $curTable.playerOrder = @()
+                                    $curTable.forfeit = $null
+                                    
+                                    foreach ($p in $parts) {
+                                        $pk = [string]$p.username.ToLower().Trim()
+                                        if (-not $pk) { continue }
+                                        $pc1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                        $pc2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                        $pScore = [int]$pc1.v + [int]$pc2.v
+                                        if ($pc1.r -eq 'A' -and $pc2.r -eq 'A') { $pScore = 12 }
+                                        $isBJ = ($pScore -eq 21)
+                                        $statusVal = if ($isBJ) { 'blackjack' } else { 'playing' }
+                                        $avVal = if ($p.avatar) { $p.avatar } else { "👤" }
+
+                                        $curTable.players[$pk] = @{
+                                            username = $p.username
+                                            avatar = $avVal
+                                            bet = [int]$p.bet
+                                            cards = @($pc1, $pc2)
+                                            score = $pScore
+                                            status = $statusVal
+                                            double = $false
+                                            result = $null
+                                            payout = 0
+                                        }
+                                        $curTable.playerOrder += $pk
+                                    }
+                                    $curTable.deck = $deck
+
+                                    $nxt = $null
+                                    foreach ($k in $curTable.playerOrder) {
+                                        if ($curTable.players[$k].status -eq 'playing') { $nxt = $k; break }
+                                    }
+                                    if ($nxt) {
+                                        $curTable.turn = $nxt
+                                        $curTable.status = 'playing'
+                                    } else {
+                                        $curTable.turn = 'dealer'
+                                        $curTable.status = 'finished'
+                                        $curTable.finishedAt = $now
+                                    }
+                                    $curTable.updatedAt = $now
+                                }
+                            }
+                            # ACTION HIT
+                            elseif ($postObj.action -eq 'hit' -and $postObj.username) {
+                                $pKey = [string]$postObj.username.ToLower().Trim()
+                                $curTable = $currentTables[$tId]
+                                $cTurn = if ($curTable.turn) { [string]$curTable.turn.ToLower().Trim() } else { "" }
+                                if ($curTable.status -eq 'playing' -and $cTurn -eq $pKey -and $curTable.players.ContainsKey($pKey)) {
+                                    $p = $curTable.players[$pKey]
+                                    if ($p.status -eq 'playing') {
+                                        $deck = @($curTable.deck)
+                                        if ($deck.Count -gt 0) {
+                                            $card = $deck[-1]
+                                            $deck = $deck[0..($deck.Count - 2)]
+                                            $curTable.deck = $deck
+                                            $p.cards += @($card)
+                                            
+                                            $tot = 0; $aces = 0
+                                            foreach ($c in $p.cards) {
+                                                if ($c.r -eq 'A') { $aces++; $tot += 11 }
+                                                else { $tot += [int]$c.v }
+                                            }
+                                            while ($tot -gt 21 -and $aces -gt 0) { $tot -= 10; $aces-- }
+                                            $p.score = $tot
+
+                                            if ($tot -gt 21) {
+                                                $p.status = 'busted'
+                                            } elseif ($tot -eq 21) {
+                                                $p.status = 'stand'
+                                            }
+
+                                            if ($p.status -ne 'playing') {
+                                                $nxt = $null
+                                                foreach ($k in $curTable.playerOrder) {
+                                                    if ($curTable.players[$k].status -eq 'playing') { $nxt = $k; break }
+                                                }
+                                                if ($nxt) {
+                                                    $curTable.turn = $nxt
+                                                } else {
+                                                    $curTable.turn = 'dealer'
+                                                    $curTable.status = 'finished'
+                                                    $curTable.finishedAt = $now
+                                                }
+                                            }
+                                            $curTable.updatedAt = $now
+                                        }
+                                    }
+                                }
+                            }
+                            # ACTION STAND
+                            elseif ($postObj.action -eq 'stand' -and $postObj.username) {
+                                $pKey = [string]$postObj.username.ToLower().Trim()
+                                $curTable = $currentTables[$tId]
+                                $cTurn = if ($curTable.turn) { [string]$curTable.turn.ToLower().Trim() } else { "" }
+                                if ($curTable.status -eq 'playing' -and $cTurn -eq $pKey -and $curTable.players.ContainsKey($pKey)) {
+                                    $p = $curTable.players[$pKey]
+                                    $p.status = 'stand'
+                                    $nxt = $null
+                                    foreach ($k in $curTable.playerOrder) {
+                                        if ($curTable.players[$k].status -eq 'playing') { $nxt = $k; break }
+                                    }
+                                    if ($nxt) {
+                                        $curTable.turn = $nxt
+                                    } else {
+                                        $curTable.turn = 'dealer'
+                                        $curTable.status = 'finished'
+                                        $curTable.finishedAt = $now
+                                    }
+                                    $curTable.updatedAt = $now
+                                }
+                            }
                             elseif ($postObj.tableState) {
                                 $currentTables[$tId] = $postObj.tableState
                                 $currentTables[$tId].updatedAt = $now
@@ -515,7 +677,9 @@ while ($listener.IsListening) {
                                 $currentTables[$tId].updatedAt = $now
                             }
                         }
-                    } catch {}
+                    } catch {
+                        Write-Host "POST BJ ERROR: $_ ($($_.ScriptStackTrace))"
+                    }
                 }
 
                 try {
@@ -524,8 +688,12 @@ while ($listener.IsListening) {
                 } catch {}
             }
 
-            $tableData = $currentTables[$tableParam]
-            $outJson = $tableData | ConvertTo-Json -Depth 8
+            $respTable = if ($tId -and $currentTables.ContainsKey($tId)) { $currentTables[$tId] } else { $currentTables[$tableParam] }
+            if ($request.HttpMethod -eq 'POST') {
+                $outJson = @{ ok = $true; table = $respTable } | ConvertTo-Json -Depth 8
+            } else {
+                $outJson = $respTable | ConvertTo-Json -Depth 8
+            }
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
             $response.StatusCode = 200
             $response.ContentLength64 = $bytes.Length
