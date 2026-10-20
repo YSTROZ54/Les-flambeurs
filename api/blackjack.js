@@ -211,10 +211,52 @@ export default async function handler(req, res) {
       tables[tableId] = table;
     }
 
-    // Auto-nettoyage d'une manche finie depuis plus de 9 secondes
-    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 9000)) {
+    let modified = false;
+
+    // 1. Auto-nettoyage d'une manche finie depuis plus de 7 secondes -> retour table propre en attente
+    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 7000)) {
       table = getDefaultTable(tableId);
       tables[tableId] = table;
+      modified = true;
+    }
+
+    // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn')
+    if (table.status === 'playing' || table.status === 'dealer_turn') {
+      const timeSinceUpdate = now - (table.updatedAt || table.roundId || now);
+      if (timeSinceUpdate > 20000) {
+        const activeKeys = (table.playerOrder || Object.keys(table.players || {})).filter(k => table.players && table.players[k]);
+        const turnKey = (table.turn || '').toLowerCase().trim();
+        const otherKeys = activeKeys.filter(k => k !== turnKey);
+
+        if (otherKeys.length === 1 && table.players[turnKey]) {
+          // Le joueur dont c'était le tour n'a pas répondu sous 20s -> Forfait automatique, l'adversaire gagne la mise !
+          const winnerKey = otherKeys[0];
+          const winner = table.players[winnerKey];
+          let totalPot = 0;
+          Object.values(table.players).forEach(pl => { totalPot += (pl.bet || 0); });
+
+          winner.result = 'forfeit_win';
+          winner.payout = totalPot;
+          table.status = 'finished';
+          table.forfeit = {
+            loser: table.players[turnKey].username || turnKey,
+            winner: winner.username || winnerKey,
+            pot: totalPot
+          };
+          table.finishedAt = now;
+          table.updatedAt = now;
+          modified = true;
+        } else {
+          // Aucun adversaire ou table abandonnée depuis plus de 30s -> Fermeture et remise à zéro totale
+          table = getDefaultTable(tableId);
+          tables[tableId] = table;
+          modified = true;
+        }
+      }
+    }
+
+    if (modified) {
+      memoryTables = tables;
       await saveSupabaseTables(tables);
     }
 
@@ -331,12 +373,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // E. ABANDON / QUITTER LA TABLE PENDANT LA MAIN (FORFEIT)
+    // E. ABANDON / QUITTER LA TABLE (FORFEIT & FERMETURE DU LOBBY)
     else if (action === 'leave' && body.username) {
       const pKey = body.username.toLowerCase().trim();
-      if ((table.status === 'playing' || table.status === 'dealer_turn') && table.players && table.players[pKey]) {
-        const remainingKeys = (table.playerOrder || Object.keys(table.players)).filter(k => k !== pKey);
+      const p = table.players && table.players[pKey];
+
+      if (table.status === 'playing' || table.status === 'dealer_turn') {
+        const remainingKeys = (table.playerOrder || Object.keys(table.players || {})).filter(k => k !== pKey && table.players && table.players[k]);
         if (remainingKeys.length === 1) {
+          // La personne qui reste gagne directement la mise de celui qui est parti (pot total)
           const winnerKey = remainingKeys[0];
           const winner = table.players[winnerKey];
           let totalPot = 0;
@@ -346,13 +391,30 @@ export default async function handler(req, res) {
           winner.payout = totalPot;
           table.status = 'finished';
           table.forfeit = {
-            loser: table.players[pKey].username,
+            loser: (p && p.username) ? p.username : body.username,
             winner: winner.username,
             pot: totalPot
           };
           table.finishedAt = now;
           table.updatedAt = now;
+        } else {
+          // Si plus personne ou partie abandonnée -> le lobby se ferme et se réinitialise
+          table = getDefaultTable(tableId);
+          tables[tableId] = table;
         }
+      } else {
+        // En attente ou finie: retirer le joueur
+        if (table.players && table.players[pKey]) {
+          delete table.players[pKey];
+        }
+        table.playerOrder = (table.playerOrder || []).filter(k => k !== pKey);
+
+        // Si la deuxième personne quitte ou change de jeu -> le lobby se ferme complètement
+        if (!table.players || Object.keys(table.players).length === 0) {
+          table = getDefaultTable(tableId);
+          tables[tableId] = table;
+        }
+        table.updatedAt = now;
       }
     }
 

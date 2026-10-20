@@ -4359,28 +4359,46 @@
       // qui reste qui gagne ce qui était parié de base.
       // ==============================================================
       if (game === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
-        if (bj.active) {
-          const winPot = bj.bet * 2;
-          bj.active = false;
-          document.getElementById('bjActionControls')?.classList.add('hidden');
+        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        const wasActive = bj.active;
+        bj.active = false;
+        document.getElementById('bjActionControls')?.classList.add('hidden');
 
-          const realPlayers = getTableParticipants('blackjack');
-          if (realPlayers.length > 0) {
-            const opp = realPlayers[0];
-            const db = getAccountsDB();
-            const oppKey = (opp.username || '').toLowerCase().trim();
-            if (db[oppKey]) {
-              db[oppKey].currentTable = db[oppKey].currentTable || {};
-              db[oppKey].currentTable.bjForfeit = {
-                winner: opp.username,
-                pot: winPot,
-                loser: state.username,
-                timestamp: Date.now()
-              };
-              db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
-              saveAccountsDB(db);
-              pushRemoteAccount(db[oppKey]);
-            }
+        // Notifier immédiatement le serveur Blackjack que ce joueur quitte la table
+        try {
+          const leavePayload = JSON.stringify({
+            action: 'leave',
+            tableId: tableId,
+            username: state.username
+          });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(getBjApiUrl(), new Blob([leavePayload], { type: 'application/json' }));
+          }
+          fetch(getBjApiUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: leavePayload,
+            keepalive: true
+          }).catch(() => {});
+        } catch (e) {}
+
+        const realPlayers = getTableParticipants('blackjack');
+        if (wasActive && realPlayers.length > 0) {
+          const winPot = bj.bet * 2;
+          const opp = realPlayers[0];
+          const db = getAccountsDB();
+          const oppKey = (opp.username || '').toLowerCase().trim();
+          if (db[oppKey]) {
+            db[oppKey].currentTable = db[oppKey].currentTable || {};
+            db[oppKey].currentTable.bjForfeit = {
+              winner: opp.username,
+              pot: winPot,
+              loser: state.username,
+              timestamp: Date.now()
+            };
+            db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
+            saveAccountsDB(db);
+            pushRemoteAccount(db[oppKey]);
           }
         }
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
@@ -4465,7 +4483,7 @@
       const seen = new Set();
       const targetGame = (game === 'bj' ? 'blackjack' : game);
       const now = Date.now();
-      const PRESENCE_TIMEOUT_MS = 300000; // 5 minutes max sans activité pour être considéré en ligne
+      const PRESENCE_TIMEOUT_MS = 25000; // 25 secondes max sans activité pour être considéré en ligne
 
       // 1. Tous les comptes distants/locaux ayant currentTable sur la même table
       Object.values(db).forEach(acc => {
@@ -6691,6 +6709,9 @@
 
     function setBjGameMode(m) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
+      if (lobbies.bj.mode === 'multi' && m === 'solo') {
+        try { handlePlayerLeavingGame('blackjack'); } catch (e) {}
+      }
       lobbies.bj.mode = m;
       updateCurrentTable('blackjack');
       updateLobbyUI('bj');
@@ -6756,26 +6777,27 @@
 
       // --- RENDU MULTIJOUEUR SYNCHRONISÉ EN TEMPS RÉEL ---
       const myKey = (state.username || '').toLowerCase().trim();
-      const myPl = (bjSyncTable && bjSyncTable.players) ? bjSyncTable.players[myKey] : null;
+      const isWaiting = !bjSyncTable || bjSyncTable.status === 'waiting';
+      const myPl = (!isWaiting && bjSyncTable && bjSyncTable.players) ? bjSyncTable.players[myKey] : null;
 
       // 1. Cartes du Croupier (identiques pour tous les joueurs)
       const dealer = (bjSyncTable && bjSyncTable.dealer) ? bjSyncTable.dealer : { cards: [], score: 0, hidden: true };
       const dHidden = (dealer.hidden !== false) && (bjSyncTable.status === 'playing');
       const dealerCardsEl = document.getElementById('bjDealerCards');
       if (dealerCardsEl) {
-        dealerCardsEl.innerHTML = dealer.cards.length
+        dealerCardsEl.innerHTML = (!isWaiting && dealer.cards && dealer.cards.length)
           ? dealer.cards.map((c, i) => renderCardHTML(c, 'lg', dHidden && i === 1, 'blackjack')).join('')
-          : '';
+          : renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
       }
       const dealerScoreEl = document.getElementById('bjDealerScore');
       if (dealerScoreEl) {
-        dealerScoreEl.textContent = dHidden && dealer.cards.length ? bjScore([dealer.cards[0]]) : bjScore(dealer.cards);
+        dealerScoreEl.textContent = (!isWaiting && dHidden && dealer.cards.length) ? bjScore([dealer.cards[0]]) : (!isWaiting && dealer.cards.length ? bjScore(dealer.cards) : '0');
       }
 
       // 2. Mes Cartes ("Ta Main")
       const myCardsEl = document.getElementById('bjPlayerCards');
       const myScoreEl = document.getElementById('bjPlayerScore');
-      if (myPl && Array.isArray(myPl.cards) && myPl.cards.length > 0) {
+      if (!isWaiting && myPl && Array.isArray(myPl.cards) && myPl.cards.length > 0) {
         if (myCardsEl) myCardsEl.innerHTML = myPl.cards.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
         if (myScoreEl) myScoreEl.textContent = bjScore(myPl.cards);
       } else {
@@ -6789,12 +6811,12 @@
       const coCardsEl = document.getElementById('bjCoPlayerCards');
 
       let oppPl = null;
-      if (bjSyncTable && bjSyncTable.players) {
+      if (!isWaiting && bjSyncTable && bjSyncTable.players) {
         const otherKey = Object.keys(bjSyncTable.players).find(k => k !== myKey);
         if (otherKey) oppPl = bjSyncTable.players[otherKey];
       }
 
-      if (oppPl && Array.isArray(oppPl.cards) && oppPl.cards.length > 0) {
+      if (!isWaiting && oppPl && Array.isArray(oppPl.cards) && oppPl.cards.length > 0) {
         let statusBadge = '';
         if (oppPl.status === 'busted') statusBadge = ' <span class="text-red-400 font-bold">(Sauté)</span>';
         else if (oppPl.status === 'blackjack') statusBadge = ' <span class="text-amber-300 font-bold">(Blackjack 21!)</span>';
@@ -7079,28 +7101,37 @@
 
       // 1. MANCHE EN COURS
       if (srv.status === 'playing') {
-        bj.active = true;
-        const dealBtn = document.getElementById('bjDealBtn');
-        if (dealBtn) dealBtn.disabled = true;
-
         const isMyTurn = (srv.turn === myKey);
         const actionControls = document.getElementById('bjActionControls');
         const doubleBtn = document.getElementById('bjDoubleBtn');
 
-        if (isMyTurn && myPl && myPl.status === 'playing') {
-          if (actionControls) actionControls.classList.remove('hidden');
-          if (doubleBtn) doubleBtn.disabled = (myPl.cards.length !== 2 || state.balance < (myPl.bet || bj.bet));
-          document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
+        if (myPl) {
+          bj.active = true;
+          const dealBtn = document.getElementById('bjDealBtn');
+          if (dealBtn) dealBtn.disabled = true;
+
+          if (isMyTurn && myPl.status === 'playing') {
+            if (actionControls) actionControls.classList.remove('hidden');
+            if (doubleBtn) doubleBtn.disabled = (myPl.cards.length !== 2 || state.balance < (myPl.bet || bj.bet));
+            document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
+          } else {
+            if (actionControls) actionControls.classList.add('hidden');
+            const turnPlayer = srv.players && srv.players[srv.turn];
+            const turnName = turnPlayer ? turnPlayer.username : srv.turn;
+            document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${turnName}... En attente de son action.`;
+          }
         } else {
+          // Si le joueur n'est pas dans la manche active (spectateur ou table réinitialisée)
+          bj.active = false;
           if (actionControls) actionControls.classList.add('hidden');
           const turnPlayer = srv.players && srv.players[srv.turn];
-          const turnName = turnPlayer ? turnPlayer.username : srv.turn;
-          document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${turnName}... En attente de son action.`;
+          const turnName = turnPlayer ? turnPlayer.username : (srv.turn || 'Joueur');
+          document.getElementById('bjStatusBanner').textContent = `👥 Manche en cours (${turnName})...`;
         }
       }
       // 2. TOUR DU CROUPIER
       else if (srv.status === 'dealer_turn') {
-        bj.active = true;
+        bj.active = !!myPl;
         document.getElementById('bjActionControls')?.classList.add('hidden');
         document.getElementById('bjStatusBanner').textContent = `🃏 Le Croupier joue sa main...`;
       }
@@ -7126,8 +7157,9 @@
             } else if (myPl.result === 'push') {
               document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.payout)} €) (Prochaine main dans 7s)`;
             } else if (myPl.result === 'forfeit_win') {
-              document.getElementById('bjStatusBanner').textContent = `🏆 ${srv.forfeit ? srv.forfeit.loser : 'L\'adversaire'} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! (Prochaine main dans 7s)`;
-              showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(myPl.payout)} €) !`);
+              const loserName = srv.forfeit ? srv.forfeit.loser : 'L\'adversaire';
+              document.getElementById('bjStatusBanner').textContent = `🏆 ${loserName} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! (Prochaine main dans 7s)`;
+              showToast(`🏆 ${loserName} a quitté le jeu ! Tu remportes la mise (+${fmt(myPl.payout)} €) !`);
             } else {
               document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (Prochaine main dans 7s)`;
             }
@@ -7137,6 +7169,7 @@
       }
       // 4. TABLE EN ATTENTE
       else if (srv.status === 'waiting') {
+        bj.active = false;
         document.getElementById('bjActionControls')?.classList.add('hidden');
         if (bj.cooldownRemaining <= 0) {
           const dealBtn = document.getElementById('bjDealBtn');
@@ -7144,7 +7177,12 @@
             dealBtn.disabled = false;
             dealBtn.textContent = '🃏 Distribuer';
           }
-          document.getElementById('bjStatusBanner').textContent = 'Choisis ta mise et clique sur Distribuer pour lancer la main.';
+          const realPlayers = getTableParticipants('blackjack');
+          if (realPlayers.length > 0) {
+            document.getElementById('bjStatusBanner').textContent = `Adversaire connecté (${realPlayers[0].username}). Clique sur Distribuer pour lancer la main.`;
+          } else {
+            document.getElementById('bjStatusBanner').textContent = 'Choisis ta mise et clique sur Distribuer pour lancer la main.';
+          }
         }
       }
 
@@ -7187,6 +7225,36 @@
 
         if (srvTable) {
           mergeBjServerState(srvTable);
+
+          // Détection automatique : si la manche est 'playing' mais que l'adversaire a quitté
+          const myKey = (state.username || '').toLowerCase().trim();
+          const myPl = srvTable.players ? srvTable.players[myKey] : null;
+          if (srvTable.status === 'playing' && srvTable.players && myPl) {
+            const oppKey = Object.keys(srvTable.players).find(k => k !== myKey);
+            if (oppKey) {
+              const activeOpponents = getTableParticipants('blackjack');
+              const oppStillPresent = activeOpponents.some(p => (p.username || '').toLowerCase().trim() === oppKey);
+              const db = getAccountsDB();
+              const oppAcc = db[oppKey];
+              const oppLeft = !oppStillPresent || (oppAcc && oppAcc.currentTable && oppAcc.currentTable.leftTable);
+
+              if (oppLeft) {
+                try {
+                  fetch(getBjApiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'leave',
+                      tableId: tableId,
+                      username: oppKey
+                    })
+                  }).then(r => r.json()).then(d => {
+                    if (d && d.table) mergeBjServerState(d.table);
+                  }).catch(() => {});
+                } catch (e) {}
+              }
+            }
+          }
         }
         try { updateLobbyUI('bj'); } catch (e) {}
 

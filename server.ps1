@@ -363,6 +363,66 @@ while ($listener.IsListening) {
                 }
             }
 
+            $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+
+            # 1. Nettoyage automatique des manches finies depuis plus de 7s
+            if ($currentTables[$tableParam].status -eq 'finished' -and $currentTables[$tableParam].finishedAt -and ($now - $currentTables[$tableParam].finishedAt -gt 7000)) {
+                $currentTables[$tableParam] = @{
+                    tableId = $tableParam
+                    roundId = 0
+                    status = "waiting"
+                    dealer = @{ cards = @(); score = 0; hidden = $true }
+                    players = @{}
+                    playerOrder = @()
+                    turn = $null
+                    forfeit = $null
+                    updatedAt = $now
+                }
+            }
+            # 2. Nettoyage / forfait automatique des parties abandonnées en cours (> 20s)
+            elseif ($currentTables[$tableParam].status -eq 'playing' -or $currentTables[$tableParam].status -eq 'dealer_turn') {
+                $timeSinceUpdate = $now - (if ($currentTables[$tableParam].updatedAt) { $currentTables[$tableParam].updatedAt } else { $now })
+                if ($timeSinceUpdate -gt 20000) {
+                    $activeKeys = @()
+                    if ($currentTables[$tableParam].players) {
+                        $activeKeys = @($currentTables[$tableParam].players.Keys)
+                    }
+                    $tKey = if ($currentTables[$tableParam].turn) { [string]$currentTables[$tableParam].turn.ToLower().Trim() } else { "" }
+                    $otherKeys = @($activeKeys | Where-Object { $_.ToLower().Trim() -ne $tKey })
+
+                    if ($otherKeys.Length -eq 1 -and $currentTables[$tableParam].players.ContainsKey($tKey)) {
+                        $wKey = $otherKeys[0]
+                        $winner = $currentTables[$tableParam].players[$wKey]
+                        $totalPot = 0
+                        foreach ($pk in $currentTables[$tableParam].players.Keys) {
+                            $totalPot += [int]$currentTables[$tableParam].players[$pk].bet
+                        }
+                        $winner.result = "forfeit_win"
+                        $winner.payout = $totalPot
+                        $currentTables[$tableParam].status = "finished"
+                        $currentTables[$tableParam].forfeit = @{
+                            loser = $currentTables[$tableParam].players[$tKey].username
+                            winner = $winner.username
+                            pot = $totalPot
+                        }
+                        $currentTables[$tableParam].finishedAt = $now
+                        $currentTables[$tableParam].updatedAt = $now
+                    } else {
+                        $currentTables[$tableParam] = @{
+                            tableId = $tableParam
+                            roundId = 0
+                            status = "waiting"
+                            dealer = @{ cards = @(); score = 0; hidden = $true }
+                            players = @{}
+                            playerOrder = @()
+                            turn = $null
+                            forfeit = $null
+                            updatedAt = $now
+                        }
+                    }
+                }
+            }
+
             if ($request.HttpMethod -eq 'POST') {
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
                 $body = $reader.ReadToEnd()
@@ -383,18 +443,77 @@ while ($listener.IsListening) {
                                     playerOrder = @()
                                     turn = $null
                                     forfeit = $null
-                                    updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                                    updatedAt = $now
                                 }
                             }
 
-                            if ($postObj.tableState) {
+                            if ($postObj.action -eq 'leave' -and $postObj.username) {
+                                $pKey = [string]$postObj.username.ToLower().Trim()
+                                $curTable = $currentTables[$tId]
+                                if ($curTable.status -eq 'playing' -or $curTable.status -eq 'dealer_turn') {
+                                    $remKeys = @()
+                                    if ($curTable.players) {
+                                        $remKeys = @($curTable.players.Keys | Where-Object { $_.ToLower().Trim() -ne $pKey })
+                                    }
+                                    if ($remKeys.Length -eq 1) {
+                                        $winnerKey = $remKeys[0]
+                                        $winner = $curTable.players[$winnerKey]
+                                        $totalPot = 0
+                                        foreach ($pk in $curTable.players.Keys) {
+                                            $totalPot += [int]$curTable.players[$pk].bet
+                                        }
+                                        $winner.result = 'forfeit_win'
+                                        $winner.payout = $totalPot
+                                        $curTable.status = 'finished'
+                                        $curTable.forfeit = @{
+                                            loser = if ($curTable.players.ContainsKey($pKey)) { $curTable.players[$pKey].username } else { $postObj.username }
+                                            winner = $winner.username
+                                            pot = $totalPot
+                                        }
+                                        $curTable.finishedAt = $now
+                                        $curTable.updatedAt = $now
+                                    } else {
+                                        $currentTables[$tId] = @{
+                                            tableId = $tId
+                                            roundId = 0
+                                            status = "waiting"
+                                            dealer = @{ cards = @(); score = 0; hidden = $true }
+                                            players = @{}
+                                            playerOrder = @()
+                                            turn = $null
+                                            forfeit = $null
+                                            updatedAt = $now
+                                        }
+                                    }
+                                } else {
+                                    if ($curTable.players -and $curTable.players.ContainsKey($pKey)) {
+                                        $curTable.players.Remove($pKey)
+                                    }
+                                    if ($curTable.players.Count -eq 0) {
+                                        $currentTables[$tId] = @{
+                                            tableId = $tId
+                                            roundId = 0
+                                            status = "waiting"
+                                            dealer = @{ cards = @(); score = 0; hidden = $true }
+                                            players = @{}
+                                            playerOrder = @()
+                                            turn = $null
+                                            forfeit = $null
+                                            updatedAt = $now
+                                        }
+                                    }
+                                    $curTable.updatedAt = $now
+                                }
+                            }
+                            elseif ($postObj.tableState) {
                                 $currentTables[$tId] = $postObj.tableState
+                                $currentTables[$tId].updatedAt = $now
                             } else {
                                 foreach ($k in $postObj.Keys) {
                                     $currentTables[$tId][$k] = $postObj[$k]
                                 }
+                                $currentTables[$tId].updatedAt = $now
                             }
-                            $currentTables[$tId].updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                         }
                     } catch {}
                 }
