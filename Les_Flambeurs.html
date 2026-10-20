@@ -1064,47 +1064,10 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10 text-xs">
-            <button onclick="setCupsGameMode('solo')" id="cupsmode-solo" class="pill-choice active">🤖 Solo vs Bot</button>
-            <button onclick="setCupsGameMode('multi')" id="cupsmode-multi" class="pill-choice">🌐 Lobby Multi</button>
-          </div>
+          <span class="px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-400/30 text-orange-300 text-xs font-bold flex items-center gap-1.5">
+            <span>🤖</span> <span>Solo vs Bot (Roxy)</span>
+          </span>
           <button onclick="openRulesModal('cups')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">❓ Comment jouer</button>
-        </div>
-      </div>
-
-      <!-- LOBBY MULTI GOBELETS -->
-      <div id="cupsLobbyBanner" class="hidden lobby-panel p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="font-serif-title font-extrabold text-orange-300 text-sm flex items-center gap-1.5">
-              <span>🥤 Salon Gobelets Multi</span>
-            </span>
-            <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10 text-xs">
-              <button onclick="setCupsTableType('public')" id="cupstype-public" class="pill-choice active">🌍 Table Publique</button>
-              <button onclick="setCupsTableType('private')" id="cupstype-private" class="pill-choice">🔒 Table Privée</button>
-            </div>
-            <div id="cupsPrivateCodeBox" class="hidden flex flex-wrap items-center gap-1.5 bg-black/80 border border-orange-400/40 px-3 py-1.5 rounded-xl text-xs">
-              <span class="text-stone-400 font-bold">Code :</span>
-              <span id="cupsRoomCodeDisplay" class="room-code-tag text-amber-300 font-bold">CUP-772</span>
-              <button onclick="copyRoomCode('cups')" title="Copier le code" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-amber-200 font-bold">📋 Copier</button>
-              <button onclick="regenerateRoomCode('cups')" title="Générer un nouveau code" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-stone-200">🎲 Nouveau</button>
-              <input id="cupsJoinCodeInput" type="text" placeholder="Entrer code..." class="w-24 bg-stone-900 border border-white/20 rounded px-2 py-0.5 text-xs font-mono-num text-white uppercase ml-1 focus:outline-none">
-              <button onclick="joinRoomByCode('cups')" class="px-2.5 py-0.5 bg-orange-400 hover:bg-orange-300 text-black font-extrabold rounded text-xs">Rejoindre</button>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 text-xs">
-            <button onclick="openFriendsModal()" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-purple-500 to-indigo-600 hover:brightness-110 text-white text-xs flex items-center gap-1.5 shadow transition">
-              <span>👥</span> <span>Inviter un ami</span>
-            </button>
-            <span class="text-stone-300 font-semibold">Combler les places vides :</span>
-            <button onclick="toggleCupsFillBots()" id="cupsFillBotsBtn" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition">
-              🤖 Bots : OUI
-            </button>
-          </div>
-        </div>
-        <div id="cupsLobbyStatusText" class="text-[11px] text-stone-400 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Table Publique connectée • Le bot comblera automatiquement si aucun 2e joueur n'est présent.</span>
         </div>
       </div>
 
@@ -1125,16 +1088,7 @@
             </div>
           </div>
 
-          <!-- Indicateur de tour Multijoueur (Duel) -->
-          <div id="cupsTurnInfoBox" class="hidden p-3 rounded-xl bg-orange-950/40 border border-orange-400/40 text-xs flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span id="cupsTurnDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span id="cupsTurnStatusText" class="font-bold text-orange-200">À toi de cacher la bille (1er défi)</span>
-            </div>
-            <span id="cupsTurnBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono-num font-bold border border-emerald-400/30">Ton tour</span>
-          </div>
-
-          <!-- Choix de qui cache la bille (Solo uniquement) -->
+          <!-- Choix de qui cache la bille (Solo vs Bot) -->
           <div id="cupsHiderChoiceContainer" class="space-y-1.5">
             <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Qui cache la bille d'or ?</label>
             <div class="grid grid-cols-2 gap-2">
@@ -1147,7 +1101,7 @@
             </div>
           </div>
 
-          <!-- Panneau secret pour cacher la bille (actif quand c'est mon tour) -->
+          <!-- Panneau secret pour cacher la bille (actif quand c'est moi qui cache) -->
           <div id="cupsFriendSetupBox" class="p-3.5 rounded-xl bg-orange-950/40 border border-orange-400/40 space-y-3">
             <div id="cupsSetupTitle" class="text-xs font-extrabold text-orange-200">🕵️ Où caches-tu la bille ? :</div>
             <div class="space-y-2 text-xs">
@@ -1168,13 +1122,6 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- Panneau d'attente (quand c'est le tour de l'adversaire de cacher) -->
-          <div id="cupsWaitingBox" class="hidden p-4 rounded-xl bg-stone-900/60 border border-white/10 text-center space-y-2">
-            <div class="text-2xl animate-bounce">⏳</div>
-            <div id="cupsWaitingText" class="text-xs font-bold text-stone-300">En attente que ton adversaire prépare son défi...</div>
-            <div class="text-[11px] text-stone-500">Dès qu'il lance le mélange, les gobelets s'animeront et tu pourras deviner !</div>
           </div>
 
           <button id="cupsStartBtn" onclick="startCupsGame()" class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer">
@@ -2277,7 +2224,6 @@
           updateLobbyUI('bj');
         } else if (currentRoomKey === 'cups') {
           updateLobbyUI('cups');
-          syncCupsMultiplayer();
         }
       } catch (e) {}
 
@@ -2544,7 +2490,7 @@
     }
 
     function logoutPlayer() {
-      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+      if (['poker', 'blackjack'].includes(currentRoomKey)) {
         try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
       }
       sessionStorage.removeItem('flambeurs_active_session_user');
@@ -3420,7 +3366,7 @@
       const prevRoom = currentRoomKey;
 
       if (prevRoom && prevRoom !== room) {
-        if (['poker', 'blackjack', 'cups'].includes(prevRoom)) {
+        if (['poker', 'blackjack'].includes(prevRoom)) {
           try { handlePlayerLeavingGame(prevRoom); } catch (e) {}
         }
       }
@@ -3535,7 +3481,7 @@
         title: '🥤 Comment jouer aux Gobelets ?',
         html: `
           <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille au départ et suis le gobelet des yeux pendant le mélange !</p>
-          <p>👥 <strong>Modes de jeu :</strong> Mode <strong>Solo direct contre le Bot</strong> ou <strong>Lobby Multi</strong> (Table Publique ou Privée par code). Comble avec un bot ou affronte tes potes !</p>
+          <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre Roxy (le Bot)</strong>. Tu peux deviner où le bot cache la bille, ou bien cacher toi-même la bille et défier le bot de la retrouver !</p>
         `
       },
       buildings: {
@@ -4257,8 +4203,7 @@
         }
       }
 
-      if (!state.activeRoomPartners) state.activeRoomPartners = {};
-      const gameKey = roomKey === 'blackjack' ? 'blackjack' : (roomKey === 'cups' ? 'cups' : 'poker');
+      const gameKey = roomKey === 'blackjack' ? 'blackjack' : 'poker';
       if (!state.activeRoomPartners[gameKey]) state.activeRoomPartners[gameKey] = [];
       if (!state.activeRoomPartners[gameKey].includes(cur.from)) {
         state.activeRoomPartners[gameKey].push(cur.from);
@@ -4270,7 +4215,6 @@
         tableType: cur.tableType || 'private',
         roomCode: cur.roomCode || '',
         host: cur.from,
-        activeHider: cur.from,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
         balance: state.balance || 5500,
@@ -4282,7 +4226,6 @@
       if (db[hostKey]) {
         db[hostKey].currentTable = db[hostKey].currentTable || {};
         db[hostKey].currentTable.host = cur.from;
-        db[hostKey].currentTable.activeHider = cur.from;
         if (!db[hostKey].activeRoomPartners) db[hostKey].activeRoomPartners = {};
         if (!db[hostKey].activeRoomPartners[gameKey]) db[hostKey].activeRoomPartners[gameKey] = [];
         if (!db[hostKey].activeRoomPartners[gameKey].includes(state.username)) {
@@ -4302,10 +4245,6 @@
 
       if (cur.room === 'poker') setupPokerSeats();
       if (cur.room === 'blackjack') renderBlackjack();
-      if (cur.room === 'cups') {
-        updateLobbyUI('cups');
-        updateCupsSetupBoxVisibility();
-      }
 
       playCoinWinSound();
       showToast(`🚀 Tu as rejoint la partie de ${cur.from} (${cur.gameName}) !`);
@@ -4412,7 +4351,7 @@
     const lobbies = {
       poker: { mode: 'solo', tableType: 'public', roomCode: 'POK-842', fillWithBots: true },
       bj: { mode: 'solo', tableType: 'public', roomCode: 'BJ-319', fillWithBots: true },
-      cups: { mode: 'solo', tableType: 'public', roomCode: 'CUP-772', fillWithBots: true }
+      cups: { mode: 'solo' }
     };
 
     function generateRoomCode(prefix) {
@@ -4420,7 +4359,8 @@
     }
 
     function copyRoomCode(game) {
-      const code = lobbies[game].roomCode;
+      const code = lobbies[game]?.roomCode;
+      if (!code) return;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(code).catch(() => {});
       }
@@ -4428,7 +4368,8 @@
     }
 
     function regenerateRoomCode(game) {
-      const prefix = game === 'poker' ? 'POK' : game === 'bj' ? 'BJ' : 'CUP';
+      const prefix = game === 'poker' ? 'POK' : 'BJ';
+      if (!lobbies[game]) return;
       lobbies[game].roomCode = generateRoomCode(prefix);
       updateLobbyUI(game);
       showToast(`🎲 Nouveau salon généré : ${lobbies[game].roomCode}`);
@@ -4438,6 +4379,7 @@
       const inp = document.getElementById(`${game}JoinCodeInput`);
       const val = (inp?.value || '').trim().toUpperCase();
       if (!val) return showToast('❌ Entre le code du salon à rejoindre.');
+      if (!lobbies[game]) return;
       lobbies[game].roomCode = val;
       lobbies[game].tableType = 'private';
       lobbies[game].mode = 'multi';
@@ -4447,7 +4389,6 @@
       updateLobbyUI(game);
       if (game === 'poker') setupPokerSeats();
       if (game === 'bj') renderBlackjack();
-      if (game === 'cups') updateLobbyUI('cups');
       showToast(`🚪 Salon privé « ${val} » rejoint !`);
     }
 
@@ -4568,46 +4509,10 @@
         saveState();
         pushRemoteAccount(state);
       }
-
-      // ==============================================================
-      // 3. GOBELETS MULTIJOUEUR
-      // Exactement pareil pour le jeu gobelets : celui qui reste gagne
-      // ce qui était parié de base.
-      // ==============================================================
-      if (game === 'cups' && lobbies.cups && lobbies.cups.mode === 'multi') {
-        const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
-        if (isRoundRunning) {
-          const winPot = Math.floor(cupsGame.bet * cupsGame.mult);
-          cupsGame.isShuffling = false;
-          cupsGame.canPick = false;
-
-          const realPlayers = getTableParticipants('cups');
-          if (realPlayers.length > 0) {
-            const opp = realPlayers[0];
-            const db = getAccountsDB();
-            const oppKey = (opp.username || '').toLowerCase().trim();
-            if (db[oppKey]) {
-              db[oppKey].currentTable = db[oppKey].currentTable || {};
-              db[oppKey].currentTable.cupsForfeit = {
-                winner: opp.username,
-                pot: winPot,
-                loser: state.username,
-                timestamp: Date.now()
-              };
-              db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
-              saveAccountsDB(db);
-              pushRemoteAccount(db[oppKey]);
-            }
-          }
-        }
-        state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
-        saveState();
-        pushRemoteAccount(state);
-      }
     }
 
     function updateCurrentTable(room) {
-      if (!['poker', 'blackjack', 'cups'].includes(room)) {
+      if (!['poker', 'blackjack'].includes(room)) {
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
         saveState();
         pushRemoteAccount(state);
@@ -4628,15 +4533,13 @@
         balance: state.balance || 5500,
         updatedAt: Date.now()
       };
-      if (room === 'cups' && l.mode === 'multi' && !state.currentTable.activeHider) {
-        state.currentTable.activeHider = state.currentTable.host || state.username;
-      }
       saveState();
       pushRemoteAccount(state);
     }
 
     function getTableParticipants(game) {
-      const lobbyKey = (game === 'blackjack' || game === 'bj') ? 'bj' : (game === 'cups' ? 'cups' : 'poker');
+      if (game === 'cups') return [];
+      const lobbyKey = (game === 'blackjack' || game === 'bj') ? 'bj' : 'poker';
       const l = lobbies[lobbyKey];
       if (!l || l.mode !== 'multi') return [];
 
@@ -4818,54 +4721,6 @@
         const coBox = document.getElementById('bjCoPlayerBox');
         if (coBox) coBox.classList.toggle('hidden', !isMulti);
       } else if (game === 'cups') {
-        const isMulti = l.mode === 'multi';
-        const soloBtn = document.getElementById('cupsmode-solo');
-        const multiBtn = document.getElementById('cupsmode-multi');
-        if (soloBtn) soloBtn.classList.toggle('active', !isMulti);
-        if (multiBtn) multiBtn.classList.toggle('active', isMulti);
-
-        const banner = document.getElementById('cupsLobbyBanner');
-        if (banner) banner.classList.toggle('hidden', !isMulti);
-
-        const pubBtn = document.getElementById('cupstype-public');
-        const privBtn = document.getElementById('cupstype-private');
-        if (pubBtn) pubBtn.classList.toggle('active', l.tableType === 'public');
-        if (privBtn) privBtn.classList.toggle('active', l.tableType === 'private');
-
-        const codeBox = document.getElementById('cupsPrivateCodeBox');
-        if (codeBox) codeBox.classList.toggle('hidden', l.tableType !== 'private');
-
-        const codeDisplay = document.getElementById('cupsRoomCodeDisplay');
-        if (codeDisplay) codeDisplay.textContent = l.roomCode;
-
-        const fillBtn = document.getElementById('cupsFillBotsBtn');
-        if (fillBtn) {
-          fillBtn.textContent = l.fillWithBots ? '🤖 Bots : OUI' : '🚫 Bots : NON';
-          fillBtn.className = l.fillWithBots
-            ? 'px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition'
-            : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
-        }
-
-        const realParticipants = getTableParticipants('cups');
-        const statusTxt = document.getElementById('cupsLobbyStatusText');
-        const bannerTxt = document.getElementById('cupsBanner');
-
-        if (statusTxt) {
-          if (!isMulti) {
-            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Retrouve la bille d'or sous les gobelets.</span>`;
-          } else if (realParticipants.length > 0) {
-            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Duel en direct : <strong>${state.username} (Toi)</strong> ⚔️ <strong>${realParticipants[0].username}</strong></span>`;
-          } else {
-            statusTxt.innerHTML = l.tableType === 'public'
-              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`
-              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Comblé par un bot si aucun joueur.' : 'Duel direct Joueur 1 vs Joueur 2.'}</span>`;
-          }
-        }
-
-        if (bannerTxt && isMulti && realParticipants.length > 0) {
-          bannerTxt.innerHTML = `⚔️ <strong>Duel Gobelets :</strong> ${state.username} vs <strong>${realParticipants[0].username}</strong> ! Devinez où est la bille d'or !`;
-        }
-
         updateCupsSetupBoxVisibility();
       }
     }
@@ -7453,7 +7308,6 @@
     };
 
     function setCupsHider(h) {
-      if (lobbies.cups && lobbies.cups.mode === 'multi') return;
       if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord la manche de gobelets en cours !');
       cupsGame.hider = h;
       const meBtn = document.getElementById('chider-me');
@@ -7464,140 +7318,35 @@
     }
 
     function updateCupsSetupBoxVisibility() {
-      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
-      const participants = getTableParticipants('cups');
-      const oppName = (isMulti && participants.length > 0) ? participants[0].username : (lobbies.cups && lobbies.cups.fillWithBots ? 'Roxy (Bot)' : 'Collègue');
-
-      const hiderChoiceContainer = document.getElementById('cupsHiderChoiceContainer');
-      const turnInfoBox = document.getElementById('cupsTurnInfoBox');
-      const turnDot = document.getElementById('cupsTurnDot');
-      const turnStatusText = document.getElementById('cupsTurnStatusText');
-      const turnBadge = document.getElementById('cupsTurnBadge');
       const setupBox = document.getElementById('cupsFriendSetupBox');
-      const waitingBox = document.getElementById('cupsWaitingBox');
-      const waitingText = document.getElementById('cupsWaitingText');
       const startBtn = document.getElementById('cupsStartBtn');
       const setupTitle = document.getElementById('cupsSetupTitle');
       const oppLbl = document.getElementById('cupsHiderOpponentLabel');
 
-      if (oppLbl) oppLbl.textContent = isMulti ? `👥 ${oppName}` : `🤖 Roxy (Bot)`;
+      if (oppLbl) oppLbl.textContent = '🤖 Roxy (Bot)';
 
-      if (isMulti) {
-        // En Multijoueur : Masquer le sélecteur solo "Moi / Bot" et afficher la barre de tour
-        if (hiderChoiceContainer) hiderChoiceContainer.classList.add('hidden');
-        if (turnInfoBox) turnInfoBox.classList.remove('hidden');
-
-        // Déterminer qui a le panneau pour cacher
-        if (!state.currentTable) state.currentTable = {};
-        if (!state.currentTable.activeHider) {
-          state.currentTable.activeHider = state.currentTable.host || state.username;
-        }
-
-        const activeHider = state.currentTable.activeHider;
-        const isMyTurnToHide = (activeHider.toLowerCase().trim() === (state.username || '').toLowerCase().trim());
-        cupsGame.hider = isMyTurnToHide ? 'me' : 'opponent';
-
-        if (isMyTurnToHide) {
-          // 1. C'EST MON TOUR DE CACHER LA BILLE (J'AI LE PANNEL)
-          if (turnDot) {
-            turnDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
-          }
-          if (turnStatusText) {
-            turnStatusText.textContent = `🕵️ À toi de cacher la bille face à ${oppName} !`;
-          }
-          if (turnBadge) {
-            turnBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono-num font-bold border border-emerald-400/30';
-            turnBadge.textContent = 'Ton tour';
-          }
-
-          if (setupBox) setupBox.classList.remove('hidden');
-          if (waitingBox) waitingBox.classList.add('hidden');
-          if (setupTitle) setupTitle.textContent = `🕵️ Choisis où tu caches la bille (${state.username}) :`;
-
-          if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.textContent = `🥤 Lancer le défi à ${oppName}`;
-            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
-          }
-        } else {
-          // 2. CE N'EST PAS À MOI DE CACHER (JE SUIS DEVINEUR, PAS DE PANNEL)
-          if (turnDot) {
-            turnDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
-          }
-          if (turnStatusText) {
-            turnStatusText.textContent = `⏳ Au tour de ${activeHider} de préparer son défi...`;
-          }
-          if (turnBadge) {
-            turnBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono-num font-bold border border-amber-400/30';
-            turnBadge.textContent = 'Tour adverse';
-          }
-
-          if (setupBox) setupBox.classList.add('hidden');
-          if (waitingBox) waitingBox.classList.remove('hidden');
-          if (waitingText) waitingText.textContent = `En attente que ${activeHider} prépare et lance son défi...`;
-
-          if (startBtn) {
-            startBtn.disabled = true;
-            startBtn.textContent = `⏳ En attente du défi de ${activeHider}...`;
-            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-stone-800 border border-orange-500/30 text-stone-400 opacity-80 cursor-not-allowed';
-          }
+      if (cupsGame.hider === 'me') {
+        if (setupBox) setupBox.classList.remove('hidden');
+        if (setupTitle) setupTitle.textContent = `🕵️ Choisis où tu caches la bille (${state.username || 'Moi'}) :`;
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.textContent = '🥤 Cacher & Faire deviner le Bot';
+          startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
         }
       } else {
-        // En Solo : afficher le choix "Moi / Bot", masquer la barre de tour et la boîte d'attente
-        if (hiderChoiceContainer) hiderChoiceContainer.classList.remove('hidden');
-        if (turnInfoBox) turnInfoBox.classList.add('hidden');
-        if (waitingBox) waitingBox.classList.add('hidden');
-
-        if (cupsGame.hider === 'me') {
-          if (setupBox) setupBox.classList.remove('hidden');
-          if (setupTitle) setupTitle.textContent = `🕵️ Choisis où tu caches la bille (${state.username || 'Moi'}) :`;
-          if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.textContent = '🥤 Cacher & Faire deviner le Bot';
-            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
-          }
-        } else {
-          if (setupBox) setupBox.classList.add('hidden');
-          if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.textContent = '🥤 Mélanger les Gobelets (Devine la bille)';
-            startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
-          }
+        if (setupBox) setupBox.classList.add('hidden');
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.textContent = '🥤 Mélanger les Gobelets (Devine la bille)';
+          startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
         }
       }
     }
 
-    function setCupsGameMode(m) {
-      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
-      lobbies.cups.mode = m;
-      updateCurrentTable('cups');
-      updateLobbyUI('cups');
-      updateCupsSetupBoxVisibility();
-      showToast(m === 'solo' ? '🤖 Gobelets : Solo direct contre le Bot' : '🌐 Gobelets : Salon Multijoueur activé');
-    }
-
-    function setCupsTableType(t) {
-      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
-      lobbies.cups.tableType = t;
-      updateCurrentTable('cups');
-      updateLobbyUI('cups');
-      updateCupsSetupBoxVisibility();
-      showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.cups.roomCode}]`);
-    }
-
-    function toggleCupsFillBots() {
-      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord le tour de Gobelets en cours !');
-      lobbies.cups.fillWithBots = !lobbies.cups.fillWithBots;
-      updateCurrentTable('cups');
-      updateLobbyUI('cups');
-      updateCupsSetupBoxVisibility();
-      showToast(lobbies.cups.fillWithBots ? '🤖 Places vides : comblées par le bot' : '🚫 Places vides : vrai duel Joueur 1 vs Joueur 2');
-    }
-
-    function setCupsMode(m) {
-      if (m === 'bot') setCupsGameMode('solo');
-      else setCupsGameMode('multi');
-    }
+    function setCupsGameMode(m) {}
+    function setCupsTableType(t) {}
+    function toggleCupsFillBots() {}
+    function setCupsMode(m) {}
 
     function setCupsSpeed(s) {
       cupsGame.speed = s;
@@ -7644,16 +7393,8 @@
       cupsGame.bet = bet;
       cupsGame.positions = [0, 1, 2];
 
-      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
-      const participants = getTableParticipants('cups');
-      const oppName = (isMulti && participants.length > 0) ? participants[0].username : 'Roxy (Bot)';
-
-      // 1. SI JE SUIS CELUI QUI CACHE LA BILLE
+      // 1. SI JE SUIS CELUI QUI CACHE LA BILLE (FACE AU BOT ROXY)
       if (cupsGame.hider === 'me') {
-        if (isMulti && state.currentTable?.activeHider && state.currentTable.activeHider.toLowerCase().trim() !== (state.username || '').toLowerCase().trim()) {
-          return showToast('⏳ Ce n\'est pas encore ton tour de cacher la bille !');
-        }
-
         state.balance -= bet;
         saveState();
         updateGlobalUI();
@@ -7674,85 +7415,36 @@
           setTimeout(() => {
             if (ball) ball.style.opacity = '0';
 
-            if (isMulti) {
-              // Lancement du round multi partagé
-              const roundId = 'cr_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-              const roundObj = {
-                id: roundId,
-                hider: state.username,
-                guesser: oppName,
-                startPos: startPos,
-                endPos: targetEndPos,
-                speed: speedMode,
-                bet: bet,
-                mult: cupsGame.mult,
-                status: 'shuffling',
-                pickedCup: null,
-                winner: null,
-                activeHider: state.username,
-                timestamp: Date.now()
-              };
-              cupsGame.activeRoundId = roundId;
-              state.currentTable = {
-                ...(state.currentTable || {}),
-                game: 'cups',
-                mode: 'multi',
-                activeHider: state.username,
-                cupsRound: roundObj
-              };
-              saveState();
-              pushRemoteAccount(state);
+            // Mode Solo : Le bot Roxy essaie de deviner
+            runCupsShuffle(speedMode, targetEndPos, true, () => {
+              cupsGame.isShuffling = false;
+              document.getElementById('cupsBanner').textContent = '🤖 Roxy (Bot) analyse les gobelets pour deviner...';
+              setTimeout(() => {
+                // Roxy fait un choix (33% de chance de trouver le bon)
+                const botPick = Math.random() < 0.33 ? targetEndPos : Math.floor(Math.random() * 3);
+                const pickedEl = document.getElementById(`cupSlot${botPick}`);
+                const ballEl = document.getElementById(`cupSlot${cupsGame.ballCupId}`);
+                if (pickedEl) pickedEl.classList.add('lifted');
+                if (ballEl) ballEl.classList.add('lifted');
+                if (ball) ball.style.opacity = '1';
 
-              // Transmettre aussi directement à l'adversaire
-              const db = getAccountsDB();
-              const oppKey = oppName.toLowerCase().trim();
-              if (db[oppKey]) {
-                db[oppKey].currentTable = db[oppKey].currentTable || {};
-                db[oppKey].currentTable.game = 'cups';
-                db[oppKey].currentTable.mode = 'multi';
-                db[oppKey].currentTable.activeHider = state.username;
-                db[oppKey].currentTable.cupsRound = roundObj;
-                saveAccountsDB(db);
-                pushRemoteAccount(db[oppKey]);
-              }
-
-              runCupsShuffle(speedMode, targetEndPos, true, () => {
-                cupsGame.isShuffling = false;
-                cupsGame.canPick = false; // Le cacheur ne devine pas !
-                document.getElementById('cupsBanner').textContent = `⏳ Défi envoyé à ${oppName} ! En attente qu'il choisisse son gobelet...`;
-              });
-            } else {
-              // Mode Solo : Le bot Roxy essaie de deviner
-              runCupsShuffle(speedMode, targetEndPos, true, () => {
-                cupsGame.isShuffling = false;
-                document.getElementById('cupsBanner').textContent = '🤖 Roxy (Bot) analyse les gobelets pour deviner...';
-                setTimeout(() => {
-                  // Roxy fait un choix (33% de chance de trouver le bon)
-                  const botPick = Math.random() < 0.33 ? targetEndPos : Math.floor(Math.random() * 3);
-                  const pickedEl = document.getElementById(`cupSlot${botPick}`);
-                  const ballEl = document.getElementById(`cupSlot${cupsGame.ballCupId}`);
-                  if (pickedEl) pickedEl.classList.add('lifted');
-                  if (ballEl) ballEl.classList.add('lifted');
-                  if (ball) ball.style.opacity = '1';
-
-                  if (botPick === cupsGame.ballCupId) {
-                    document.getElementById('cupsBanner').textContent = `🤖 Roxy a trouvé ta bille sous le gobelet ${botPick === 0 ? 'Gauche' : botPick === 1 ? 'Milieu' : 'Droite'} ! Tu perds ta mise.`;
-                  } else {
-                    const win = Math.floor(bet * cupsGame.mult);
-                    state.balance += win;
-                    playCoinWinSound();
-                    saveState();
-                    updateGlobalUI();
-                    document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes +${fmt(win)} pièces !`;
-                    showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
-                  }
-                }, 1400);
-              });
-            }
+                if (botPick === cupsGame.ballCupId) {
+                  document.getElementById('cupsBanner').textContent = `🤖 Roxy a trouvé ta bille sous le gobelet ${botPick === 0 ? 'Gauche' : botPick === 1 ? 'Milieu' : 'Droite'} ! Tu perds ta mise.`;
+                } else {
+                  const win = Math.floor(bet * cupsGame.mult);
+                  state.balance += win;
+                  playCoinWinSound();
+                  saveState();
+                  updateGlobalUI();
+                  document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes +${fmt(win)} pièces !`;
+                  showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+                }
+              }, 1400);
+            });
           }, 350);
         }, 1000);
       } else {
-        // 2. SI L'ADVERSAIRE CACHE LA BILLE (EN SOLO : LE BOT CACHE)
+        // 2. SI LE BOT ROXY CACHE LA BILLE (JE DEVINE)
         state.balance -= bet;
         saveState();
         updateGlobalUI();
@@ -7766,7 +7458,7 @@
         const ball = document.getElementById('cupGoldenBall');
         if (ball) ball.style.opacity = '1';
         [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
-        document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet se trouve la bille...';
+        document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet Roxy cache la bille...';
 
         setTimeout(() => {
           [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
@@ -7827,221 +7519,23 @@
       document.getElementById(`cupSlot${clickedCupId}`)?.classList.add('lifted');
       document.getElementById(`cupSlot${cupsGame.ballCupId}`)?.classList.add('lifted');
 
-      const isMulti = lobbies.cups && lobbies.cups.mode === 'multi';
       const isCorrect = (clickedCupId === cupsGame.ballCupId);
-
-      if (isMulti) {
-        // En multijoueur : valider le tour et faire tourner la main (chacun son tour)
-        const participants = getTableParticipants('cups');
-        const hiderName = participants.length > 0 ? participants[0].username : 'Collègue';
-        const pot = Math.floor(cupsGame.bet * cupsGame.mult);
-
-        if (isCorrect) {
-          state.balance += pot;
-          playCoinWinSound();
-          saveState();
-          updateGlobalUI();
-          document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! Tu as trouvé la bille de ${hiderName} : +${fmt(pot)} pièces !`;
-          showToast(`🥤 Gobelets Duel : +${fmt(pot)} pièces !`);
-        } else {
-          document.getElementById('cupsBanner').textContent = `❌ Raté ! ${hiderName} a bien caché sa bille (elle était sous le gobelet ${cupsGame.ballCupId === 0 ? 'Gauche' : cupsGame.ballCupId === 1 ? 'Milieu' : 'Droite'}).`;
-        }
-
-        // ALTERNANCE DU TOUR : Le devineur devient le prochain cacheur !
-        const nextHider = state.username;
-
-        if (state.currentTable && state.currentTable.cupsRound) {
-          state.currentTable.cupsRound.status = 'finished';
-          state.currentTable.cupsRound.pickedCup = clickedCupId;
-          state.currentTable.cupsRound.winner = isCorrect ? state.username : hiderName;
-          state.currentTable.activeHider = nextHider;
-          saveState();
-          pushRemoteAccount(state);
-
-          const db = getAccountsDB();
-          const oppKey = hiderName.toLowerCase().trim();
-          if (db[oppKey]) {
-            db[oppKey].currentTable = db[oppKey].currentTable || {};
-            db[oppKey].currentTable.cupsRound = state.currentTable.cupsRound;
-            db[oppKey].currentTable.activeHider = nextHider;
-            // Si le cacheur a gagné le duel, il récupère le pot
-            if (!isCorrect) {
-              db[oppKey].balance = (db[oppKey].balance || 0) + pot;
-            }
-            saveAccountsDB(db);
-            pushRemoteAccount(db[oppKey]);
-          }
-        }
-
-        // Après 2.5 secondes de visualisation du résultat : basculer le pannel au joueur qui vient de deviner
-        setTimeout(() => {
-          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
-          const b = document.getElementById('cupGoldenBall');
-          if (b) b.style.opacity = '0';
-          updateCupsSetupBoxVisibility();
-          document.getElementById('cupsBanner').textContent = `🔄 C'est maintenant à ton tour de cacher la bille et lancer le défi à ${hiderName} !`;
-        }, 2500);
+      if (isCorrect) {
+        const win = Math.floor(cupsGame.bet * cupsGame.mult);
+        state.balance += win;
+        playCoinWinSound();
+        saveState();
+        updateGlobalUI();
+        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces !`;
+        showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
       } else {
-        // Mode Solo classique
-        if (isCorrect) {
-          const win = Math.floor(cupsGame.bet * cupsGame.mult);
-          state.balance += win;
-          playCoinWinSound();
-          saveState();
-          updateGlobalUI();
-          document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces !`;
-          showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
-        } else {
-          document.getElementById('cupsBanner').textContent = '❌ Raté ! La bille était sous un autre gobelet.';
-        }
+        document.getElementById('cupsBanner').textContent = '❌ Raté ! La bille était sous un autre gobelet.';
       }
     }
 
-    /* ================= SYNCHRONISATION MULTIJOUEUR GOBELETS EN TEMPS RÉEL ================= */
-    function syncCupsMultiplayer() {
-      if (!lobbies.cups || lobbies.cups.mode !== 'multi') return;
+    function syncCupsMultiplayer() {}
 
-      const db = getAccountsDB();
-      const myKey = (state.username || '').toLowerCase().trim();
-      const myAcc = db[myKey];
-
-      // A. Forfait direct signalé par l'adversaire
-      if (myAcc && myAcc.currentTable && myAcc.currentTable.cupsForfeit) {
-        const cf = myAcc.currentTable.cupsForfeit;
-        if (cf.winner && cf.winner.toLowerCase().trim() === myKey) {
-          const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
-          if (isRoundRunning) {
-            const win = cf.pot || Math.floor(cupsGame.bet * cupsGame.mult);
-            state.balance += win;
-            playCoinWinSound();
-            cupsGame.isShuffling = false;
-            cupsGame.canPick = false;
-            if (state.currentTable?.cupsRound) state.currentTable.cupsRound.status = 'finished';
-            delete myAcc.currentTable.cupsForfeit;
-            saveAccountsDB(db);
-            pushRemoteAccount(myAcc);
-            saveState();
-            updateGlobalUI();
-            document.getElementById('cupsBanner').textContent = `🏆 ${cf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(win)} 🪙) !`;
-            showToast(`🏆 Victoire par forfait aux Gobelets (+${fmt(win)} €) !`);
-            updateCupsSetupBoxVisibility();
-            return;
-          }
-        }
-      }
-
-      const participants = getTableParticipants('cups');
-      const isRoundRunning = (cupsGame.isShuffling || cupsGame.canPick || (state.currentTable?.cupsRound && state.currentTable.cupsRound.status === 'shuffling'));
-
-      // B. Si aucun adversaire à la table alors qu'une manche était en cours
-      if (participants.length === 0) {
-        if (isRoundRunning) {
-          const win = Math.floor(cupsGame.bet * cupsGame.mult);
-          state.balance += win;
-          playCoinWinSound();
-          cupsGame.isShuffling = false;
-          cupsGame.canPick = false;
-          if (state.currentTable?.cupsRound) state.currentTable.cupsRound.status = 'finished';
-          saveState();
-          updateGlobalUI();
-          document.getElementById('cupsBanner').textContent = `🏆 Ton adversaire a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(win)} 🪙) !`;
-          showToast(`🏆 Victoire par forfait aux Gobelets (+${fmt(win)} €) !`);
-          updateCupsSetupBoxVisibility();
-        }
-        return;
-      }
-
-      const opp = participants[0];
-      const oppKey = opp.username.toLowerCase().trim();
-      const oppAcc = db[oppKey];
-      const oppCt = oppAcc?.currentTable;
-
-      // Synchroniser activeHider si non défini ou mis à jour par l'adversaire
-      if (oppCt && oppCt.activeHider && (!state.currentTable?.activeHider || (!cupsGame.isShuffling && !cupsGame.canPick && state.currentTable.activeHider !== oppCt.activeHider))) {
-        if (!state.currentTable) state.currentTable = {};
-        state.currentTable.activeHider = oppCt.activeHider;
-        updateCupsSetupBoxVisibility();
-      }
-
-      const round = state.currentTable?.cupsRound || oppCt?.cupsRound;
-      if (!round || !round.id) return;
-
-      // 1. Détection d'une manche lancée par l'adversaire où je suis le devineur
-      if (round.status === 'shuffling' && round.guesser && round.guesser.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
-        if (cupsGame.activeRoundId !== round.id && !cupsGame.isShuffling) {
-          cupsGame.activeRoundId = round.id;
-          cupsGame.ballCupId = round.startPos;
-          cupsGame.bet = round.bet;
-          cupsGame.mult = round.mult;
-          cupsGame.positions = [0, 1, 2];
-          cupsGame.isShuffling = true;
-
-          // Déduire la mise côté devineur
-          state.balance = Math.max(0, state.balance - round.bet);
-          saveState();
-          updateGlobalUI();
-
-          updateCupVisualPositions();
-          const ball = document.getElementById('cupGoldenBall');
-          if (ball) ball.style.opacity = '1';
-          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === round.startPos));
-          document.getElementById('cupsBanner').textContent = `👀 ${round.hider} a caché la bille sous le gobelet ${round.startPos === 0 ? 'Gauche' : round.startPos === 1 ? 'Milieu' : 'Droite'}...`;
-
-          setTimeout(() => {
-            [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
-            setTimeout(() => {
-              if (ball) ball.style.opacity = '0';
-              document.getElementById('cupsBanner').textContent = `🌀 ${round.hider} mélange les gobelets... Regarde bien !`;
-              runCupsShuffle(round.speed, round.endPos, true, () => {
-                cupsGame.isShuffling = false;
-                cupsGame.canPick = true; // Le devineur peut cliquer !
-                document.getElementById('cupsBanner').textContent = `👇 ${round.hider} a fini de mélanger ! Clique sur le gobelet qui cache la bille !`;
-              });
-            }, 350);
-          }, 1000);
-        }
-      }
-
-      // 2. Détection de la fin de manche où j'étais le cacheur
-      if (round.status === 'finished' && round.hider && round.hider.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
-        if (cupsGame.lastFinishedRoundId !== round.id) {
-          cupsGame.lastFinishedRoundId = round.id;
-          const ball = document.getElementById('cupGoldenBall');
-          updateCupVisualPositions();
-          if (ball) ball.style.opacity = '1';
-
-          if (round.pickedCup !== null) {
-            document.getElementById(`cupSlot${round.pickedCup}`)?.classList.add('lifted');
-          }
-          document.getElementById(`cupSlot${round.endPos}`)?.classList.add('lifted');
-
-          if (round.winner === state.username) {
-            playCoinWinSound();
-            document.getElementById('cupsBanner').textContent = `🎉 ${round.guesser} a choisi le mauvais gobelet (${round.pickedCup === 0 ? 'Gauche' : round.pickedCup === 1 ? 'Milieu' : 'Droite'}) ! Tu gagnes le duel et récupères le pot !`;
-            showToast(`🥤 Duel Gobelets remporté face à ${round.guesser} !`);
-          } else {
-            document.getElementById('cupsBanner').textContent = `❌ ${round.guesser} a trouvé ta bille cachée sous le gobelet ${round.endPos === 0 ? 'Gauche' : round.endPos === 1 ? 'Milieu' : 'Droite'} !`;
-          }
-
-          // Le tour passe maintenant à l'adversaire (le devineur)
-          if (!state.currentTable) state.currentTable = {};
-          state.currentTable.activeHider = round.guesser;
-          saveState();
-          updateGlobalUI();
-
-          // Après 2.5 secondes de résultat : réinitialiser l'affichage et basculer en attente
-          setTimeout(() => {
-            [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
-            const b = document.getElementById('cupGoldenBall');
-            if (b) b.style.opacity = '0';
-            updateCupsSetupBoxVisibility();
-            document.getElementById('cupsBanner').textContent = `⏳ Au tour de ${round.guesser} de cacher la bille et lancer son défi...`;
-          }, 2500);
-        }
-      }
-    }
-
-    // Intervalle de synchronisation rapide multijoueur (600ms) pour Poker, Blackjack et Gobelets
+    // Intervalle de synchronisation rapide multijoueur (600ms) pour Poker et Blackjack
     let _multiPollCounter = 0;
     if (!window._multiGameSyncTimer) {
       window._multiGameSyncTimer = setInterval(() => {
@@ -8051,7 +7545,7 @@
             syncRemoteAccounts().catch(() => {});
           }
           // Heartbeat de présence active (toutes les 10 secondes) pour maintenir à jour la présence sur la table
-          if (_multiPollCounter % 16 === 0 && ['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+          if (_multiPollCounter % 16 === 0 && ['poker', 'blackjack'].includes(currentRoomKey)) {
             const lKey = currentRoomKey === 'blackjack' ? 'bj' : currentRoomKey;
             if (lobbies[lKey] && lobbies[lKey].mode === 'multi') {
               if (!state.currentTable) state.currentTable = {};
@@ -8069,8 +7563,6 @@
             syncPokerMultiplayer();
           } else if (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
             syncBjMultiplayer();
-          } else if (currentRoomKey === 'cups' && lobbies.cups && lobbies.cups.mode === 'multi') {
-            syncCupsMultiplayer();
           }
         } catch (e) {}
       }, 600);
@@ -8330,7 +7822,7 @@
       }
 
       if (!state.activeRoomPartners) state.activeRoomPartners = {};
-      const gameKey = roomKey === 'blackjack' ? 'blackjack' : (roomKey === 'cups' ? 'cups' : 'poker');
+      const gameKey = roomKey === 'blackjack' ? 'blackjack' : 'poker';
       if (!state.activeRoomPartners[gameKey]) state.activeRoomPartners[gameKey] = [];
       if (!state.activeRoomPartners[gameKey].includes(cur.from)) {
         state.activeRoomPartners[gameKey].push(cur.from);
@@ -8342,7 +7834,6 @@
         tableType: cur.tableType || 'private',
         roomCode: cur.roomCode || '',
         host: cur.from,
-        activeHider: cur.from,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
         balance: state.balance || 5500,
@@ -8354,7 +7845,6 @@
       if (db[hostKey]) {
         db[hostKey].currentTable = db[hostKey].currentTable || {};
         db[hostKey].currentTable.host = cur.from;
-        db[hostKey].currentTable.activeHider = cur.from;
         if (!db[hostKey].activeRoomPartners) db[hostKey].activeRoomPartners = {};
         if (!db[hostKey].activeRoomPartners[gameKey]) db[hostKey].activeRoomPartners[gameKey] = [];
         if (!db[hostKey].activeRoomPartners[gameKey].includes(state.username)) {
@@ -8376,10 +7866,6 @@
 
       if (cur.room === 'poker') setupPokerSeats();
       if (cur.room === 'blackjack') renderBlackjack();
-      if (cur.room === 'cups') {
-        updateLobbyUI('cups');
-        updateCupsSetupBoxVisibility();
-      }
 
       playCoinWinSound();
       showToast(`🚀 Tu as rejoint la partie de ${cur.from} (${cur.gameName}) !`);
@@ -8678,17 +8164,12 @@
 
     async function inviteFriendToPlay(friendName) {
       let room = currentRoomKey;
-      if (!['poker', 'crash', 'cups', 'roulette', 'slots', 'mines', 'blackjack'].includes(room)) {
+      if (!['poker', 'blackjack'].includes(room)) {
         room = 'poker';
       }
 
       const roomNames = {
         poker: '♠️ Poker',
-        crash: '🚀 Fusée Crash',
-        cups: '🥤 Les Gobelets',
-        roulette: '🎡 Roulette',
-        slots: '🎰 Machine à Sous',
-        mines: '🔐 Chambre Forte',
         blackjack: '🃏 Blackjack'
       };
 
@@ -8713,7 +8194,6 @@
         tableType: currentLobby?.tableType || 'public',
         roomCode: currentLobby?.roomCode || '',
         host: state.username,
-        activeHider: state.username,
         timestamp: Date.now()
       };
 
@@ -8730,48 +8210,21 @@
           return true;
         });
         db[fKey].pendingGameInvites.push(inviteObj);
-        if (room === 'cups') {
-          db[fKey].currentTable = db[fKey].currentTable || {};
-          db[fKey].currentTable.host = state.username;
-          db[fKey].currentTable.activeHider = state.username;
-        }
         saveAccountsDB(db);
         await pushRemoteAccount(db[fKey]);
       }
 
       if (!state.activeRoomPartners) state.activeRoomPartners = {};
-      const targetGame = room === 'blackjack' ? 'blackjack' : (room === 'cups' ? 'cups' : 'poker');
+      const targetGame = room === 'blackjack' ? 'blackjack' : 'poker';
       if (!state.activeRoomPartners[targetGame]) state.activeRoomPartners[targetGame] = [];
       if (!state.activeRoomPartners[targetGame].includes(friendName)) {
         state.activeRoomPartners[targetGame].push(friendName);
       }
-      if (room === 'cups') {
-        state.currentTable = {
-          ...(state.currentTable || {}),
-          game: 'cups',
-          mode: 'multi',
-          tableType: currentLobby?.tableType || 'public',
-          roomCode: currentLobby?.roomCode || '',
-          host: state.username,
-          activeHider: state.username,
-          user: state.username,
-          avatar: state.avatarEmoji || '🎭',
-          balance: state.balance || 5500,
-          updatedAt: Date.now()
-        };
-        saveState();
-        pushRemoteAccount(state);
-      } else {
-        updateCurrentTable(targetGame);
-      }
+      updateCurrentTable(targetGame);
       updateLobbyUI(lobbyKey);
 
       if (room === 'poker') setupPokerSeats();
       if (room === 'blackjack') renderBlackjack();
-      if (room === 'cups') {
-        updateLobbyUI('cups');
-        updateCupsSetupBoxVisibility();
-      }
 
       const siteUrl = window.location.origin + window.location.pathname;
       const inviteMsg = `Hey ${friendName} ! Rejoins-moi sur Les Flambeurs dans la salle ${roomNames[room] || room}${lobbyExtra} pour jouer ensemble ! 👉 ${siteUrl}`;
@@ -9073,13 +8526,13 @@
     });
 
     window.addEventListener('beforeunload', () => {
-      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+      if (['poker', 'blackjack'].includes(currentRoomKey)) {
         try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
       }
     });
 
     window.addEventListener('pagehide', () => {
-      if (['poker', 'blackjack', 'cups'].includes(currentRoomKey)) {
+      if (['poker', 'blackjack'].includes(currentRoomKey)) {
         try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
       }
     });
