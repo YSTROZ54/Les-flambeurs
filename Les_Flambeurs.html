@@ -4465,7 +4465,7 @@
       const seen = new Set();
       const targetGame = (game === 'bj' ? 'blackjack' : game);
       const now = Date.now();
-      const PRESENCE_TIMEOUT_MS = 60000; // 60 secondes max sans activité pour être considéré en ligne
+      const PRESENCE_TIMEOUT_MS = 300000; // 5 minutes max sans activité pour être considéré en ligne
 
       // 1. Tous les comptes distants/locaux ayant currentTable sur la même table
       Object.values(db).forEach(acc => {
