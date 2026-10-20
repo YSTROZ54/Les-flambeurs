@@ -126,7 +126,6 @@
         <button onclick="switchRoom('mines')" id="nav-mines" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🔐 Chambre Forte</button>
         <button onclick="switchRoom('blackjack')" id="nav-blackjack" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🃏 Blackjack</button>
         <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🥤 Gobelets</button>
-        <button onclick="switchRoom('buildings')" id="nav-buildings" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🏢 Bâtiments</button>
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
         <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Potes</button>
@@ -182,14 +181,11 @@
               Le Casino Anonyme • Monnaie 100% Virtuelle
             </p>
             <p class="text-stone-300 text-sm leading-relaxed max-w-xl">
-              Chaque jeu possède son propre univers, ses règles simples (<span class="text-amber-300 font-bold">❓ Comment jouer</span>) et ses skins personnalisables par catégories dans la <strong>Boutique</strong>. Investis dans tes <strong>3 Bâtiments</strong> ou fais un don dans <strong>La Banque du Club</strong> !
+              Chaque jeu possède son propre univers, ses règles simples (<span class="text-amber-300 font-bold">❓ Comment jouer</span>) et ses skins personnalisables par catégories dans la <strong>Boutique</strong>. Fais un don ou gère tes transferts dans <strong>La Banque du Club</strong> !
             </p>
             <div class="flex flex-wrap gap-2.5 pt-2">
               <button onclick="switchRoom('shop')" class="px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 hover:bg-amber-500/30 text-xs font-bold transition">
                 🛒 Boutique par Catégories
-              </button>
-              <button onclick="switchRoom('buildings')" class="px-4 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 hover:bg-cyan-500/30 text-xs font-bold transition">
-                🏢 Mes Bâtiments (<span id="hallHourlyIncome">0</span>/h)
               </button>
               <button onclick="switchRoom('bank')" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-bold transition">
                 🏦 Faire un don à un pote
@@ -213,11 +209,11 @@
                   <p class="text-xs text-stone-400"><span id="hallBalanceInline" class="text-amber-300 font-mono-num font-bold">5 500</span> <span class="coin-slot"></span></p>
                 </div>
               </div>
-              <span id="streakBadge" class="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 font-mono-num text-[11px] font-extrabold">🔥 Jour 1</span>
+              <span id="streakBadge" class="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 font-mono-num text-[11px] font-extrabold">🔥 Palier 1/4 (250)</span>
             </div>
 
             <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
-              <span class="text-stone-300">Bonus du jour :</span>
+              <span class="text-stone-300">Coffre (toutes les 6h) :</span>
               <span id="nextChestRewardText" class="font-mono-num font-extrabold text-amber-300">+250</span>
             </div>
 
@@ -352,23 +348,6 @@
             </div>
             <button onclick="switchRoom('cups')" class="mt-5 w-full py-2.5 rounded-xl bg-orange-400 hover:bg-orange-300 text-black font-extrabold text-xs transition">
               Jouer aux Gobelets →
-            </button>
-          </div>
-
-          <!-- 8. PATRIMOINE & BÂTIMENTS -->
-          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#13293d]/95 via-[#091520]/95 to-black border border-cyan-500/40 hover:border-cyan-400 transition flex flex-col justify-between shadow-xl">
-            <div>
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold">3 Bâtiments • Max 2 ex.</span>
-                <button onclick="openRulesModal('buildings')" class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold">❓ Comment jouer</button>
-              </div>
-              <h3 class="font-serif-title text-2xl font-extrabold text-cyan-100 mt-3">Bâtiments &amp; Immobilier</h3>
-              <p class="text-xs text-cyan-100/80 mt-2 leading-relaxed">
-                Bar clandestin, Cercle de poker privé et Night-club VIP (de 10 000 à 50 000 🪙) avec revente rapide à 80% !
-              </p>
-            </div>
-            <button onclick="switchRoom('buildings')" class="mt-5 w-full py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-extrabold text-xs transition">
-              Voir les Bâtiments →
             </button>
           </div>
 
@@ -1149,32 +1128,6 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 9 : BÂTIMENTS & IMMOBILIER (3 BÂTIMENTS, MAX 2, REVENTE)    -->
-    <!-- =============================================================== -->
-    <section id="view-buildings" class="space-y-6 hidden">
-      <div class="flex flex-wrap items-center justify-between gap-4 bg-stone-950/90 border border-cyan-500/30 rounded-2xl p-5">
-        <div class="flex items-center gap-3">
-          <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
-          <div>
-            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">🏢 Bâtiments &amp; Immobilier</h2>
-            <p class="text-xs text-cyan-300">Maximum 2 exemplaires par bâtiment • Option de revente rapide à 80% !</p>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-xs">
-            Revenu total : <strong id="buildingsTotalHourly" class="font-mono-num text-cyan-300 font-extrabold">0</strong> <span class="coin-slot"></span> / heure
-          </div>
-          <button onclick="simulateOneHourBuildings()" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition shadow-lg">
-            ⏩ Récolter 1 heure maintenant
-          </button>
-        </div>
-      </div>
-
-      <div id="buildingsGridContainer" class="grid grid-cols-1 md:grid-cols-3 gap-5"></div>
-    </section>
-
-    <!-- =============================================================== -->
     <!-- VUE 10 : BOUTIQUE PAR CATÉGORIES (PLAFOND 50 000 🪙 MAX)        -->
     <!-- =============================================================== -->
     <section id="view-shop" class="space-y-6 hidden">
@@ -1888,13 +1841,6 @@
       { id: 'av_crown', group: 'avatar', category: 'avatar', name: '👑 Couronne d\'Or', desc: 'L\'avatar prestige maximum (10 000 🪙).', price: 10000, emoji: '👑' }
     ];
 
-    /* ================= CATALOGUE DES 3 BÂTIMENTS (MAX 2 EXEMPLAIRES) ================= */
-    const BUILDINGS_CATALOG = [
-      { id: 'b_bar', name: '🥃 Bar clandestin', cost: 10000, hourly: 150, desc: 'Un speakeasy caché au sous-sol qui tourne toute la nuit.' },
-      { id: 'b_pokerroom', name: '♠️ Cercle de poker privé', cost: 20000, hourly: 500, desc: 'Des tables privées qui prélèvent une commission chaque heure.' },
-      { id: 'b_club', name: '🥂 Night-club VIP', cost: 50000, hourly: 700, desc: 'Bouteilles et tables VIP réservées aux gros flambeurs.' }
-    ];
-
     /* ================= GESTION DES COMPTES & AUTHENTIFICATION ================= */
     const STORAGE_KEY_ACCOUNTS = 'flambeurs_accounts_v2';
     const STORAGE_KEY_SESSION = 'flambeurs_active_session';
@@ -1919,8 +1865,6 @@
         slotCabinet: 'cab_classic',
         avatar: 'av_default'
       },
-      buildingsOwned: {},
-      lastBuildingTick: Date.now(),
       luckConfig: {
         crash: 50,
         roulette: 45,
@@ -2248,7 +2192,6 @@
         data: {
           equipped: account.equipped || {},
           ownedSkins: account.ownedSkins || [],
-          buildingsOwned: account.buildingsOwned || {},
           chestStreak: account.chestStreak || 1,
           lastChestTime: account.lastChestTime || 0,
           friends: account.friends || [],
@@ -2574,12 +2517,6 @@
       if (!Array.isArray(state.pendingFriendRequests)) state.pendingFriendRequests = [];
       if (!Array.isArray(state.pendingGameInvites)) state.pendingGameInvites = [];
 
-      // Synchronise les limites strictes des 3 bâtiments (max 2)
-      Object.keys(state.buildingsOwned).forEach(k => {
-        if (!BUILDINGS_CATALOG.some(b => b.id === k)) delete state.buildingsOwned[k];
-        else if (state.buildingsOwned[k] > 2) state.buildingsOwned[k] = 2;
-      });
-
       // Synchronise les curseurs du Patron
       CONFIG_CASINO.CHANCE_CRASH = state.luckConfig.crash ?? 50;
       CONFIG_CASINO.CHANCE_ROULETTE = state.luckConfig.roulette ?? 45;
@@ -2587,7 +2524,6 @@
       CONFIG_CASINO.CHANCE_BLACKJACK = state.luckConfig.blackjack ?? 50;
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = state.luckConfig.slots ?? 35;
 
-      processOfflineBuildingsIncome();
       injectCoins();
       updateGlobalUI();
       syncRemoteAccounts().catch(() => {});
@@ -2746,7 +2682,6 @@
         const key = acc.username.toLowerCase();
         const isCurrent = key === (state.username || '').toLowerCase();
         const pwd = acc.password || 'Non défini';
-        const buildingsCount = Object.keys(acc.buildingsOwned || {}).length;
 
         return `
           <div class="p-3.5 rounded-2xl bg-black/60 border border-white/10 hover:border-amber-400/40 transition space-y-2.5">
@@ -2769,7 +2704,6 @@
               </div>
               <div class="text-right">
                 <div class="font-mono-num font-black text-emerald-300 text-sm sm:text-base">${fmt(acc.balance)} €</div>
-                <div class="text-[10px] text-stone-400">${buildingsCount} bâtiment${buildingsCount > 1 ? 's' : ''}</div>
               </div>
             </div>
 
@@ -3037,164 +2971,44 @@
       showToast('⚙️ Les 5 pourcentages de chance (Winrate) ont été enregistrés !');
     }
 
-    /* ================= COFFRE DU JOUR ================= */
+    /* ================= COFFRE DU JOUR (TOUTES LES 6 HEURES) ================= */
+    const CHEST_COOLDOWN_MS = 6 * 3600 * 1000; // 6 heures
+
     function getCurrentChestReward() {
-      return 250 + (Math.max(1, state.chestStreak) - 1) * 50;
+      // Démarre à 250 pièces. Après 24h consécutives (4 claims de 6h = 24h, streak >= 5), monte à 350 pièces.
+      // Plafond strict et définitif à 350, n'augmente plus jamais même après des semaines.
+      return (state.chestStreak || 1) >= 5 ? 350 : 250;
     }
 
     function checkStreakExpiry() {
       if (!state.lastChestTime) return;
       const elapsedHours = (Date.now() - state.lastChestTime) / 3600000;
-      if (elapsedHours > 48) state.chestStreak = 1;
+      // Si inactif pendant plus de 30h, la série retombe au palier 1 (250)
+      if (elapsedHours > 30) state.chestStreak = 1;
     }
 
     function claimDailyChest() {
       if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour ouvrir le coffre quotidien et recevoir tes jetons !');
+        showToast('🔒 Tu dois être connecté pour ouvrir le coffre et recevoir tes jetons !');
         openAuthModal('login');
         return;
       }
       checkStreakExpiry();
       const now = Date.now();
-      const cooldown = 24 * 3600 * 1000 - (now - state.lastChestTime);
+      const cooldown = CHEST_COOLDOWN_MS - (now - state.lastChestTime);
       if (cooldown > 0) {
         const h = Math.floor(cooldown / 3600000);
         const m = Math.floor((cooldown % 3600000) / 60000);
-        showToast(`⏳ Coffre du Jour déjà récupéré ! Prochain dans ${h}h ${m}m.`);
+        showToast(`⏳ Coffre déjà récupéré ! Prochain disponible dans ${h}h ${m}m.`);
         return;
       }
       const reward = getCurrentChestReward();
       state.balance += reward;
       state.lastChestTime = now;
-      state.chestStreak += 1;
+      state.chestStreak = (state.chestStreak || 1) + 1;
       playCoinWinSound();
       saveState();
-      showToast(`🎁 Coffre du Jour ouvert : +${fmt(reward)} pièces !`);
-    }
-
-    /* ================= BÂTIMENTS (3 BÂTIMENTS, MAX 2, REVENTE 80%) ================= */
-    function getTotalHourlyIncome() {
-      return BUILDINGS_CATALOG.reduce((sum, b) => sum + (state.buildingsOwned[b.id] || 0) * b.hourly, 0);
-    }
-
-    function processOfflineBuildingsIncome() {
-      if (!isUserLoggedIn()) return;
-      const hourly = getTotalHourlyIncome();
-      if (hourly <= 0) {
-        state.lastBuildingTick = Date.now();
-        return;
-      }
-      const now = Date.now();
-      const hoursElapsed = (now - (state.lastBuildingTick || now)) / 3600000;
-      if (hoursElapsed >= 0.05) {
-        const earned = Math.floor(hourly * hoursElapsed);
-        if (earned > 0) {
-          state.balance += earned;
-          state.lastBuildingTick = now;
-          setTimeout(() => showToast(`🏢 Tes bâtiments t'ont rapporté +${fmt(earned)} pièces !`), 600);
-        }
-      }
-    }
-
-    function buyBuilding(id) {
-      if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour acheter des bâtiments !');
-        openAuthModal('login');
-        return;
-      }
-      const b = BUILDINGS_CATALOG.find(x => x.id === id);
-      if (!b) return;
-      const count = state.buildingsOwned[id] || 0;
-      if (count >= 2) return showToast('⚠️ Limite atteinte : maximum 2 exemplaires par bâtiment !');
-      if (state.balance < b.cost) return showToast('❌ Pas assez de pièces pour acheter ce bâtiment !');
-
-      state.balance -= b.cost;
-      state.buildingsOwned[id] = count + 1;
-      state.lastBuildingTick = Date.now();
-      playCoinWinSound();
-      saveState();
-      showToast(`🏢 Acheté : ${b.name} (${count + 1}/2) • +${fmt(b.hourly)}/h !`);
-    }
-
-    function sellBuilding(id) {
-      if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour gérer tes bâtiments !');
-        openAuthModal('login');
-        return;
-      }
-      const b = BUILDINGS_CATALOG.find(x => x.id === id);
-      if (!b) return;
-      const count = state.buildingsOwned[id] || 0;
-      if (count <= 0) return showToast('❌ Tu ne possèdes aucun exemplaire de ce bâtiment.');
-
-      const refund = Math.floor(b.cost * 0.80);
-      state.balance += refund;
-      state.buildingsOwned[id] = count - 1;
-      playCoinWinSound();
-      saveState();
-      showToast(`🤝 ${b.name} revendu pour +${fmt(refund)} pièces (80% récupérés) !`);
-    }
-
-    function simulateOneHourBuildings() {
-      if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour gérer tes bâtiments !');
-        openAuthModal('login');
-        return;
-      }
-      const hourly = getTotalHourlyIncome();
-      if (hourly <= 0) return showToast('Achète d\'abord au moins un bâtiment !');
-      state.balance += hourly;
-      playCoinWinSound();
-      saveState();
-      showToast(`🏢 +${fmt(hourly)} pièces récoltées pour 1 heure !`);
-    }
-
-    function renderBuildings() {
-      const box = document.getElementById('buildingsGridContainer');
-      if (!box) return;
-      const totalH = getTotalHourlyIncome();
-      const hEl = document.getElementById('buildingsTotalHourly');
-      if (hEl) hEl.textContent = fmt(totalH);
-      const hallH = document.getElementById('hallHourlyIncome');
-      if (hallH) hallH.textContent = fmt(totalH);
-
-      box.innerHTML = BUILDINGS_CATALOG.map(b => {
-        const count = state.buildingsOwned[b.id] || 0;
-        const refund = Math.floor(b.cost * 0.80);
-        const isMax = count >= 2;
-        return `
-          <div class="rounded-2xl p-5 bg-stone-950/90 border ${count > 0 ? 'border-cyan-400/60' : 'border-cyan-500/30'} flex flex-col justify-between space-y-4 shadow-xl">
-            <div>
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-lg font-extrabold text-white">${b.name}</span>
-                <span class="px-2.5 py-0.5 rounded-full ${isMax ? 'bg-amber-500/25 text-amber-300 border border-amber-400/40' : 'bg-cyan-500/20 text-cyan-300'} font-mono-num text-xs font-extrabold">
-                  ${count} / 2 max
-                </span>
-              </div>
-              <p class="text-xs text-stone-400 mt-1.5">${b.desc}</p>
-              <div class="mt-3 p-2.5 rounded-xl bg-black/50 border border-white/10 space-y-1 text-xs">
-                <div class="flex justify-between">
-                  <span class="text-stone-300">Prix d'achat :</span>
-                  <span class="font-mono-num font-extrabold text-amber-300">${fmt(b.cost)} 🪙</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-stone-300">Revenu passif :</span>
-                  <span class="font-mono-num font-extrabold text-emerald-400">+${fmt(b.hourly)} 🪙 / heure</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <button onclick="buyBuilding('${b.id}')" ${isMax ? 'disabled' : ''} class="w-full py-3 rounded-xl ${isMax ? 'bg-stone-800 text-stone-400 cursor-not-allowed' : 'bg-gradient-to-r from-cyan-400 to-amber-400 text-black hover:brightness-110'} font-extrabold text-xs transition">
-                ${isMax ? '✔ Limite atteinte (2/2)' : `Acheter (${fmt(b.cost)} 🪙)`}
-              </button>
-              <button onclick="sellBuilding('${b.id}')" ${count <= 0 ? 'disabled' : ''} class="w-full py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-bold text-xs disabled:opacity-30 transition">
-                💸 Revendre 1 ex. (+${fmt(refund)} 🪙 • 80%)
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      showToast(`🎁 Coffre ouvert : +${fmt(reward)} pièces !`);
     }
 
     /* ================= MISE À JOUR DE L'INTERFACE GLOBALE ================= */
@@ -3231,17 +3045,26 @@
       document.getElementById('pokerHeroAvatar').textContent = avatarText;
 
       const nextReward = getCurrentChestReward();
-      document.getElementById('streakBadge').textContent = `🔥 Jour ${state.chestStreak}`;
-      document.getElementById('nextChestRewardText').innerHTML = `+${fmt(nextReward)} ${COIN_SVG}`;
+      const streakVal = state.chestStreak || 1;
+      const streakBadgeEl = document.getElementById('streakBadge');
+      if (streakBadgeEl) {
+        streakBadgeEl.textContent = streakVal >= 5 ? '🔥 24h+ (Max 350)' : `🔥 Palier ${Math.min(streakVal, 4)}/4 (250)`;
+      }
+      const nextChestRewardText = document.getElementById('nextChestRewardText');
+      if (nextChestRewardText) {
+        nextChestRewardText.innerHTML = `+${fmt(nextReward)} ${COIN_SVG}`;
+      }
 
-      const cooldown = 24 * 3600 * 1000 - (Date.now() - state.lastChestTime);
+      const cooldown = CHEST_COOLDOWN_MS - (Date.now() - state.lastChestTime);
       const hallBtn = document.getElementById('hallChestBtn');
-      if (cooldown <= 0) {
-        hallBtn.textContent = `🎁 Ouvrir le Coffre (+${nextReward})`;
-      } else {
-        const h = Math.floor(cooldown / 3600000);
-        const m = Math.floor((cooldown % 3600000) / 60000);
-        hallBtn.textContent = `⏳ Dispo dans ${h}h ${m}m (+${nextReward})`;
+      if (hallBtn) {
+        if (cooldown <= 0) {
+          hallBtn.textContent = `🎁 Ouvrir le Coffre (+${nextReward})`;
+        } else {
+          const h = Math.floor(cooldown / 3600000);
+          const m = Math.floor((cooldown % 3600000) / 60000);
+          hallBtn.textContent = `⏳ Dispo dans ${h}h ${m}m (+${nextReward})`;
+        }
       }
 
       // Tapis de Poker
@@ -3275,7 +3098,6 @@
 
       renderLeaderboard();
       renderShop();
-      renderBuildings();
       renderBankHistory();
       try { updateNotificationsBadge(); } catch (e) {}
     }
@@ -3352,11 +3174,11 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'roulette', 'mines', 'blackjack', 'cups', 'buildings', 'shop', 'bank'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'roulette', 'mines', 'blackjack', 'cups', 'shop', 'bank'];
     const ROOM_TITLES = {
       hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       roulette: '/ Roulette', mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
-      cups: '/ Les Gobelets', buildings: '/ Bâtiments',
+      cups: '/ Les Gobelets',
       shop: '/ Boutique', bank: '/ La Banque du Club'
     };
     let currentRoomKey = 'hall';
@@ -3482,12 +3304,6 @@
         html: `
           <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille au départ et suis le gobelet des yeux pendant le mélange !</p>
           <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre Roxy (le Bot)</strong>. Tu peux deviner où le bot cache la bille, ou bien cacher toi-même la bille et défier le bot de la retrouver !</p>
-        `
-      },
-      buildings: {
-        title: '🏢 Comment fonctionnent les Bâtiments ?',
-        html: `
-          <p>🎯 <strong>Le principe :</strong> Investis dans le Bar clandestin, le Cercle de poker privé et le Night-club VIP (max 2 exemplaires chacun). Tu peux les revendre à tout moment pour récupérer 80% de leur valeur !</p>
         `
       }
     };
