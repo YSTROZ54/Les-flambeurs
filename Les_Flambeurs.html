@@ -343,7 +343,7 @@
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-orange-100 mt-3">Les Gobelets</h3>
               <p class="text-xs text-orange-100/80 mt-2 leading-relaxed">
-                3 gobelets identiques sur le tapis ! Suis la bille des yeux contre le Bot ou en Duel 1v1 avec un pote.
+                3 gobelets identiques sur le tapis ! Suis la bille des yeux en vitesse Rapide contre Roxy (Bot) pour remporter ×1.25 ta mise.
               </p>
             </div>
             <button onclick="switchRoom('cups')" class="mt-5 w-full py-2.5 rounded-xl bg-orange-400 hover:bg-orange-300 text-black font-extrabold text-xs transition">
@@ -1059,11 +1059,14 @@
           </div>
 
           <div>
-            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Vitesse du mélange</label>
-            <div class="grid grid-cols-3 gap-2 mt-1.5">
-              <button onclick="setCupsSpeed('normal')" id="cspeed-normal" class="pill-choice">Normal ×1.5</button>
-              <button onclick="setCupsSpeed('fast')" id="cspeed-fast" class="pill-choice active">Rapide ×2</button>
-              <button onclick="setCupsSpeed('insane')" id="cspeed-insane" class="pill-choice">Turbo ×2.5</button>
+            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Vitesse &amp; Multiplicateur</label>
+            <div class="mt-1.5 px-3.5 py-2.5 rounded-xl bg-orange-500/15 border border-orange-400/40 flex items-center justify-between text-xs">
+              <span class="font-extrabold text-white flex items-center gap-1.5">
+                <span>⚡</span> <span>Vitesse Rapide (Fixe)</span>
+              </span>
+              <span class="font-mono-num font-black text-amber-300 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30">
+                Gain ×1.25
+              </span>
             </div>
           </div>
 
@@ -3304,6 +3307,7 @@
         html: `
           <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille au départ et suis le gobelet des yeux pendant le mélange !</p>
           <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre Roxy (le Bot)</strong>. Tu peux deviner où le bot cache la bille, ou bien cacher toi-même la bille et défier le bot de la retrouver !</p>
+          <p>⚡ <strong>Vitesse &amp; Gains :</strong> La partie se joue exclusivement en <strong>Vitesse Rapide</strong>. Peu importe la mise engagée, une victoire rapporte exactement <strong>×1.25 ta mise</strong>.</p>
         `
       }
     };
@@ -7114,7 +7118,7 @@
       endPos: 2,
       canPick: false,
       bet: 100,
-      mult: 2.0,
+      mult: 1.25,
       positions: [0, 1, 2],
       ballCupId: 1,
       hider: 'me',
@@ -7165,8 +7169,8 @@
     function setCupsMode(m) {}
 
     function setCupsSpeed(s) {
-      cupsGame.speed = s;
-      ['normal', 'fast', 'insane'].forEach(k => document.getElementById(`cspeed-${k}`)?.classList.toggle('active', k === s));
+      cupsGame.speed = 'fast';
+      cupsGame.mult = 1.25;
     }
     function setCupsStart(n) {
       cupsGame.startPos = n;
@@ -7204,8 +7208,9 @@
       }
       if (bet > state.balance) return showToast('❌ Solde insuffisant.');
 
-      const speedMode = cupsGame.speed;
-      cupsGame.mult = speedMode === 'normal' ? 1.5 : speedMode === 'fast' ? 2.0 : 2.5;
+      const speedMode = 'fast';
+      cupsGame.speed = 'fast';
+      cupsGame.mult = 1.25; // Gain strict x1.25 peu importe la somme mise
       cupsGame.bet = bet;
       cupsGame.positions = [0, 1, 2];
 
@@ -7247,13 +7252,13 @@
                 if (botPick === cupsGame.ballCupId) {
                   document.getElementById('cupsBanner').textContent = `🤖 Roxy a trouvé ta bille sous le gobelet ${botPick === 0 ? 'Gauche' : botPick === 1 ? 'Milieu' : 'Droite'} ! Tu perds ta mise.`;
                 } else {
-                  const win = Math.floor(bet * cupsGame.mult);
+                  const win = Math.floor(bet * 1.25);
                   state.balance += win;
                   playCoinWinSound();
                   saveState();
                   updateGlobalUI();
-                  document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes +${fmt(win)} pièces !`;
-                  showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+                  document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes ×1.25 : +${fmt(win)} pièces !`;
+                  showToast(`🥤 Gobelets (Gain ×1.25) : +${fmt(win)} pièces !`);
                 }
               }, 1400);
             });
@@ -7291,8 +7296,8 @@
     }
 
     function runCupsShuffle(speedMode, targetEndPos, forceEndPos, onComplete) {
-      const steps = speedMode === 'normal' ? 7 : speedMode === 'fast' ? 10 : 14;
-      const interval = speedMode === 'normal' ? 370 : speedMode === 'fast' ? 260 : 190;
+      const steps = 10;
+      const interval = 260; // Vitesse Rapide
       let currentStep = 0;
 
       document.getElementById('cupsBanner').textContent = '🌀 Mélange en cours... Suis le gobelet des yeux !';
@@ -7337,13 +7342,13 @@
 
       const isCorrect = (clickedCupId === cupsGame.ballCupId);
       if (isCorrect) {
-        const win = Math.floor(cupsGame.bet * cupsGame.mult);
+        const win = Math.floor(cupsGame.bet * 1.25);
         state.balance += win;
         playCoinWinSound();
         saveState();
         updateGlobalUI();
-        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces !`;
-        showToast(`🥤 Gobelets : +${fmt(win)} pièces !`);
+        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces (×1.25) !`;
+        showToast(`🥤 Gobelets (Gain ×1.25) : +${fmt(win)} pièces !`);
       } else {
         document.getElementById('cupsBanner').textContent = '❌ Raté ! La bille était sous un autre gobelet.';
       }
