@@ -322,6 +322,99 @@ while ($listener.IsListening) {
             continue
         }
 
+        # ENDPOINT JEU BLACKJACK MULTIJOUEUR EN LIGNE SYNCHRONISE : /api/blackjack
+        if ($urlPath -eq '/api/blackjack') {
+            $bjFile = Join-Path $baseDir "blackjack_state.json"
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            $response.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+
+            if ($request.HttpMethod -eq 'OPTIONS') {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
+            $currentTables = @{}
+            if (Test-Path $bjFile) {
+                try {
+                    $rawContent = Get-Content -Raw -Encoding UTF8 $bjFile
+                    if ($rawContent) { $currentTables = Convert-PSObjectToHashtable ($rawContent | ConvertFrom-Json) }
+                } catch {}
+            }
+            if (-not $currentTables) { $currentTables = @{} }
+
+            $tableParam = $request.QueryString["table"]
+            if (-not $tableParam) { $tableParam = "public" }
+            $tableParam = $tableParam.ToLower().Trim()
+
+            if (-not $currentTables.ContainsKey($tableParam)) {
+                $currentTables[$tableParam] = @{
+                    tableId = $tableParam
+                    roundId = 0
+                    status = "waiting"
+                    dealer = @{ cards = @(); score = 0; hidden = $true }
+                    players = @{}
+                    playerOrder = @()
+                    turn = $null
+                    forfeit = $null
+                    updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                }
+            }
+
+            if ($request.HttpMethod -eq 'POST') {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $body = $reader.ReadToEnd()
+                $reader.Close()
+
+                if ($body) {
+                    try {
+                        $postObj = Convert-PSObjectToHashtable ($body | ConvertFrom-Json)
+                        if ($postObj) {
+                            $tId = if ($postObj.tableId) { $postObj.tableId.ToLower().Trim() } else { $tableParam }
+                            if (-not $currentTables.ContainsKey($tId)) {
+                                $currentTables[$tId] = @{
+                                    tableId = $tId
+                                    roundId = 0
+                                    status = "waiting"
+                                    dealer = @{ cards = @(); score = 0; hidden = $true }
+                                    players = @{}
+                                    playerOrder = @()
+                                    turn = $null
+                                    forfeit = $null
+                                    updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                                }
+                            }
+
+                            if ($postObj.tableState) {
+                                $currentTables[$tId] = $postObj.tableState
+                            } else {
+                                foreach ($k in $postObj.Keys) {
+                                    $currentTables[$tId][$k] = $postObj[$k]
+                                }
+                            }
+                            $currentTables[$tId].updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                        }
+                    } catch {}
+                }
+
+                try {
+                    $newJson = $currentTables | ConvertTo-Json -Depth 8
+                    Set-Content -Path $bjFile -Value $newJson -Encoding UTF8
+                } catch {}
+            }
+
+            $tableData = $currentTables[$tableParam]
+            $outJson = $tableData | ConvertTo-Json -Depth 8
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+            $response.StatusCode = 200
+            $response.ContentLength64 = $bytes.Length
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
         $relPath = $urlPath.TrimStart('/').Replace('/', [System.IO.Path]::DirectorySeparatorChar)
         $localPath = Join-Path $baseDir $relPath
 

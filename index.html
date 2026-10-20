@@ -5852,6 +5852,8 @@
     setInterval(() => {
       if (currentRoomKey === 'crash') {
         syncCrashMultiplayer();
+      } else if (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
+        syncBjMultiplayer();
       }
     }, 400);
 
@@ -6638,7 +6640,7 @@
       showToast(`💰 +${fmt(win)} pièces récupérées !`);
     }
 
-    /* ================= BLACKJACK (SOLO DIRECT VS CROUPIER & LOBBY MULTI) ================= */
+    /* ================= BLACKJACK (SOLO DIRECT VS CROUPIER & LOBBY MULTI SYNCHRONISÉ) ================= */
     let bj = {
       turn: 'player', // 'player' | 'friend'
       active: false,
@@ -6651,6 +6653,27 @@
       bet: 0
     };
 
+    let bjSyncTable = {
+      tableId: 'public',
+      roundId: 0,
+      status: 'waiting', // 'waiting', 'playing', 'dealer_turn', 'finished'
+      dealer: { cards: [], score: 0, hidden: true },
+      players: {},
+      playerOrder: [],
+      turn: null,
+      forfeit: null,
+      updatedAt: 0
+    };
+    let myProcessedBjRoundId = null;
+    let isBjSyncing = false;
+
+    function getBjApiUrl() {
+      if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+        return 'http://localhost:8080/api/blackjack';
+      }
+      return '/api/blackjack';
+    }
+
     function setBjGameMode(m) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       lobbies.bj.mode = m;
@@ -6658,6 +6681,9 @@
       updateLobbyUI('bj');
       renderBlackjack();
       showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack : Salon Multijoueur activé');
+      if (m === 'multi') {
+        syncBjMultiplayer();
+      }
     }
 
     function setBjTableType(t) {
@@ -6667,6 +6693,9 @@
       updateLobbyUI('bj');
       renderBlackjack();
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.bj.roomCode}]`);
+      if (lobbies.bj.mode === 'multi') {
+        syncBjMultiplayer();
+      }
     }
 
     function toggleBjFillBots() {
@@ -6684,73 +6713,121 @@
     }
 
     function bjScore(h) {
+      if (!Array.isArray(h)) return 0;
       let t = 0, a = 0;
-      h.forEach(c => { if (c.r === 'A') { a++; t += 11; } else if (['K','Q','J'].includes(c.r)) t += 10; else t += +c.r; });
+      h.forEach(c => {
+        if (!c) return;
+        if (c.r === 'A') { a++; t += 11; }
+        else if (['K','Q','J'].includes(c.r)) t += 10;
+        else t += +c.r;
+      });
       while (t > 21 && a > 0) { t -= 10; a--; }
       return t;
     }
 
     function renderBlackjack(hide = true) {
-      document.getElementById('bjPlayerCards').innerHTML = bj.player.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
-      document.getElementById('bjDealerCards').innerHTML = bj.dealer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1, 'blackjack')).join('');
-      document.getElementById('bjPlayerScore').textContent = bjScore(bj.player);
-      document.getElementById('bjDealerScore').textContent = hide && bj.dealer.length ? bjScore([bj.dealer[0]]) : bjScore(bj.dealer);
-
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       const coBox = document.getElementById('bjCoPlayerBox');
-      const isMulti = lobbies.bj.mode === 'multi';
-      if (coBox) {
-        coBox.classList.toggle('hidden', !isMulti);
-        if (isMulti) {
-          const coNameEl = document.getElementById('bjCoPlayerName');
-          const coScoreEl = document.getElementById('bjCoPlayerScore');
-          const coCardsEl = document.getElementById('bjCoPlayerCards');
-          
-          const realPlayers = getTableParticipants('blackjack');
-          let pName = 'Roxy (Bot)';
-          let pAvatar = '🦊';
-          let pStack = 6000;
-          let isReal = false;
+      if (coBox) coBox.classList.toggle('hidden', !isMulti);
 
-          if (realPlayers.length > 0) {
-            const p = realPlayers[0];
-            pName = p.username;
-            pAvatar = p.avatarEmoji || '👤';
-            pStack = p.balance;
-            isReal = true;
-          } else if (!lobbies.bj.fillWithBots) {
-            pName = 'En attente d\'un joueur...';
-            pAvatar = '🪑';
-            isReal = false;
-          }
+      if (!isMulti) {
+        // --- RENDU SOLO LOCAL ---
+        document.getElementById('bjPlayerCards').innerHTML = bj.player.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
+        document.getElementById('bjDealerCards').innerHTML = bj.dealer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1, 'blackjack')).join('');
+        document.getElementById('bjPlayerScore').textContent = bjScore(bj.player);
+        document.getElementById('bjDealerScore').textContent = hide && bj.dealer.length ? bjScore([bj.dealer[0]]) : bjScore(bj.dealer);
+        return;
+      }
 
-          if (coNameEl) {
-            coNameEl.innerHTML = `<span class="mr-1">${pAvatar}</span>${pName}${isReal ? ` <span class="text-amber-300 font-mono-num font-bold">(${fmt(pStack)} €)</span>` : ''}`;
-          }
-          if (coCardsEl) {
-            coCardsEl.innerHTML = bj.coPlayer.length
-              ? bj.coPlayer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1 && !isReal, 'blackjack')).join('')
-              : renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
-          }
-          if (coScoreEl) {
-            coScoreEl.textContent = hide && !isReal && bj.coPlayer.length ? bjScore([bj.coPlayer[0]]) : bjScore(bj.coPlayer);
-          }
+      // --- RENDU MULTIJOUEUR SYNCHRONISÉ EN TEMPS RÉEL ---
+      const myKey = (state.username || '').toLowerCase().trim();
+      const myPl = (bjSyncTable && bjSyncTable.players) ? bjSyncTable.players[myKey] : null;
+
+      // 1. Cartes du Croupier (identiques pour tous les joueurs)
+      const dealer = (bjSyncTable && bjSyncTable.dealer) ? bjSyncTable.dealer : { cards: [], score: 0, hidden: true };
+      const dHidden = (dealer.hidden !== false) && (bjSyncTable.status === 'playing');
+      const dealerCardsEl = document.getElementById('bjDealerCards');
+      if (dealerCardsEl) {
+        dealerCardsEl.innerHTML = dealer.cards.length
+          ? dealer.cards.map((c, i) => renderCardHTML(c, 'lg', dHidden && i === 1, 'blackjack')).join('')
+          : '';
+      }
+      const dealerScoreEl = document.getElementById('bjDealerScore');
+      if (dealerScoreEl) {
+        dealerScoreEl.textContent = dHidden && dealer.cards.length ? bjScore([dealer.cards[0]]) : bjScore(dealer.cards);
+      }
+
+      // 2. Mes Cartes ("Ta Main")
+      const myCardsEl = document.getElementById('bjPlayerCards');
+      const myScoreEl = document.getElementById('bjPlayerScore');
+      if (myPl && Array.isArray(myPl.cards) && myPl.cards.length > 0) {
+        if (myCardsEl) myCardsEl.innerHTML = myPl.cards.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
+        if (myScoreEl) myScoreEl.textContent = bjScore(myPl.cards);
+      } else {
+        if (myCardsEl) myCardsEl.innerHTML = renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
+        if (myScoreEl) myScoreEl.textContent = '0';
+      }
+
+      // 3. Cartes du Co-joueur (Autre joueur réel ou Bot)
+      const coNameEl = document.getElementById('bjCoPlayerName');
+      const coScoreEl = document.getElementById('bjCoPlayerScore');
+      const coCardsEl = document.getElementById('bjCoPlayerCards');
+
+      let oppPl = null;
+      if (bjSyncTable && bjSyncTable.players) {
+        const otherKey = Object.keys(bjSyncTable.players).find(k => k !== myKey);
+        if (otherKey) oppPl = bjSyncTable.players[otherKey];
+      }
+
+      if (oppPl && Array.isArray(oppPl.cards) && oppPl.cards.length > 0) {
+        let statusBadge = '';
+        if (oppPl.status === 'busted') statusBadge = ' <span class="text-red-400 font-bold">(Sauté)</span>';
+        else if (oppPl.status === 'blackjack') statusBadge = ' <span class="text-amber-300 font-bold">(Blackjack 21!)</span>';
+        else if (oppPl.status === 'stand') statusBadge = ' <span class="text-stone-400 font-bold">(Reste)</span>';
+
+        if (coNameEl) {
+          coNameEl.innerHTML = `<span class="mr-1">${oppPl.avatar || '👤'}</span>${oppPl.username} <span class="text-amber-300 font-mono-num font-bold">(${fmt(oppPl.bet)} €)</span>${statusBadge}`;
         }
+        if (coCardsEl) {
+          coCardsEl.innerHTML = oppPl.cards.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
+        }
+        if (coScoreEl) {
+          coScoreEl.textContent = bjScore(oppPl.cards);
+        }
+      } else {
+        const realPlayers = getTableParticipants('blackjack');
+        if (realPlayers.length > 0) {
+          const p = realPlayers[0];
+          if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">${p.avatarEmoji || '👤'}</span>${p.username} <span class="text-amber-300 font-mono-num font-bold">(${fmt(p.balance)} €)</span>`;
+        } else if (lobbies.bj.fillWithBots) {
+          if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">🦊</span>Roxy (Bot)`;
+        } else {
+          if (coNameEl) coNameEl.innerHTML = `En attente d'un joueur...`;
+        }
+        if (coCardsEl) {
+          coCardsEl.innerHTML = renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
+        }
+        if (coScoreEl) coScoreEl.textContent = '0';
       }
     }
 
     function startBlackjackCooldown() {
       bj.cooldownRemaining = CONFIG_CASINO.DELAI_ENTRE_PARTIES_SECONDES; // 7 secondes
       const btn = document.getElementById('bjDealBtn');
-      btn.disabled = true;
-      btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
+      }
       const timer = setInterval(() => {
         bj.cooldownRemaining--;
         if (bj.cooldownRemaining > 0) {
-          btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
+          if (btn) btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
         } else {
           clearInterval(timer);
-          btn.disabled = false;
-          btn.textContent = '🃏 Distribuer';
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🃏 Distribuer';
+          }
         }
       }, 1000);
     }
@@ -6764,105 +6841,206 @@
       if (bj.active || bj.cooldownRemaining > 0) return;
       const bet = parseInt(document.getElementById('bjBetInput').value) || 0;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
-      state.balance -= bet; saveState();
 
-      bj.active = true;
-      bj.turn = 'player';
-      bj.deck = createDeck();
-      bj.player = [bj.deck.pop(), bj.deck.pop()];
-      bj.dealer = [bj.deck.pop(), bj.deck.pop()];
-      const realPlayers = getTableParticipants('blackjack');
-      bj.hasRealOpponent = (lobbies.bj.mode === 'multi' && realPlayers.length > 0);
-      bj.coPlayer = lobbies.bj.mode === 'multi' ? [bj.deck.pop(), bj.deck.pop()] : [];
-      bj.bet = bet;
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      if (!isMulti) {
+        // --- MODE SOLO DIRECT VS CROUPIER IA ---
+        state.balance -= bet; saveState(); updateGlobalUI();
+        bj.active = true;
+        bj.turn = 'player';
+        bj.deck = createDeck();
+        bj.player = [bj.deck.pop(), bj.deck.pop()];
+        bj.dealer = [bj.deck.pop(), bj.deck.pop()];
+        bj.hasRealOpponent = false;
+        bj.coPlayer = [];
+        bj.bet = bet;
 
-      document.getElementById('bjActionControls').classList.remove('hidden');
-      document.getElementById('bjDoubleBtn').disabled = false;
-      document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
-      renderBlackjack(true);
-      if (bjScore(bj.player) === 21) bjStand();
+        document.getElementById('bjActionControls').classList.remove('hidden');
+        document.getElementById('bjDoubleBtn').disabled = false;
+        document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
+        renderBlackjack(true);
+        if (bjScore(bj.player) === 21) bjStand();
+        return;
+      }
+
+      // --- MODE MULTIJOUEUR SYNCHRONISÉ EN DIRECT ---
+      startBjMultiHand(bet);
     }
 
-    function bjHit() {
+    async function startBjMultiHand(bet) {
+      state.balance -= bet;
+      saveState();
+      updateGlobalUI();
+
+      bj.active = true;
+      bj.bet = bet;
+
+      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const realPlayers = getTableParticipants('blackjack');
+      
+      const participants = [
+        { username: state.username, avatar: state.avatarEmoji || '👤', bet: bet }
+      ];
+
+      if (realPlayers.length > 0) {
+        const opp = realPlayers[0];
+        participants.push({
+          username: opp.username,
+          avatar: opp.avatarEmoji || '👤',
+          bet: bet
+        });
+      } else if (lobbies.bj.fillWithBots) {
+        participants.push({
+          username: 'Roxy (Bot)',
+          avatar: '🦊',
+          bet: bet
+        });
+      }
+
+      const dealBtn = document.getElementById('bjDealBtn');
+      if (dealBtn) dealBtn.disabled = true;
+      document.getElementById('bjStatusBanner').textContent = '🃏 Distribution des cartes en direct...';
+
+      try {
+        const res = await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deal',
+            tableId: tableId,
+            username: state.username,
+            avatar: state.avatarEmoji || '👤',
+            bet: bet,
+            participants: participants
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.table) {
+            mergeBjServerState(data.table);
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur startBjMultiHand:', e);
+      }
+    }
+
+    async function bjHit() {
       if (!bj.active) return;
-      if (bj.turn === 'player') {
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      if (!isMulti) {
+        // Solo
         bj.player.push(bj.deck.pop());
         renderBlackjack(true);
         if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
-      } else {
-        // Tour du Joueur 2 en mode Duel
-        bj.coPlayer.push(bj.deck.pop());
-        renderBlackjack(false);
-        const p2Name = state.friends[0] || 'Joueur 2';
-        if (bjScore(bj.coPlayer) > 21) endBj(`🏆 ${p2Name} a dépassé 21 ! Tu gagnes +${fmt(bj.bet * 2)} 🪙 !`, bj.bet * 2);
-      }
-    }
-
-    function bjDouble() {
-      if (!bj.active || bj.turn !== 'player' || state.balance < bj.bet) return;
-      state.balance -= bj.bet; bj.bet *= 2; saveState();
-      bj.player.push(bj.deck.pop());
-      renderBlackjack(true);
-      if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
-      else bjStand();
-    }
-
-    function bjStand() {
-      if (!bj.active) return;
-      const isMulti = lobbies.bj.mode === 'multi';
-
-      // Mode Duel réel sans bot
-      if (isMulti && !lobbies.bj.fillWithBots && bj.turn === 'player') {
-        bj.turn = 'friend';
-        const friendName = state.friends[0] || 'Joueur 2';
-        document.getElementById('bjDoubleBtn').disabled = true;
-        renderBlackjack(false);
-        document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${friendName} : clique sur Tirer ou Rester pour battre ${bjScore(bj.player)} !`;
         return;
       }
 
-      // Tour du Bot Co-joueur si activé
-      if (isMulti && lobbies.bj.fillWithBots) {
-        while (bjScore(bj.coPlayer) < 17) {
-          bj.coPlayer.push(bj.deck.pop());
+      // Multi
+      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const myKey = (state.username || '').toLowerCase().trim();
+      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey) return;
+
+      try {
+        const res = await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'hit',
+            tableId: tableId,
+            username: state.username
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.table) {
+            mergeBjServerState(data.table);
+          }
         }
-      }
+      } catch (e) {}
+    }
 
-      // Tour du Croupier
-      while (bjScore(bj.dealer) < 17) {
-        bj.dealer.push(bj.deck.pop());
-      }
-      // Influence du curseur CHANCE_BLACKJACK du Patron
-      if (bjScore(bj.dealer) > bjScore(bj.player) && bjScore(bj.dealer) <= 21 && CONFIG_CASINO.CHANCE_BLACKJACK > 60 && Math.random() * 100 < (CONFIG_CASINO.CHANCE_BLACKJACK - 40)) {
-        bj.dealer.push({ r: '10', v: 10, s: '♠', color: 'text-slate-900', type: 'suit-black' });
-      }
-
-      renderBlackjack(false);
-      const p = bjScore(bj.player), d = bjScore(bj.dealer);
-
-      // Résultat du Duel Joueur 1 vs Joueur 2
-      if (isMulti && !lobbies.bj.fillWithBots) {
-        const p2 = bjScore(bj.coPlayer);
-        const p2Name = state.friends[0] || 'Joueur 2';
-        if (p > 21 && p2 > 21) endBj('💥 Les deux joueurs ont dépassé 21 ! Match nul.', bj.bet);
-        else if (p > 21) endBj(`❌ ${p2Name} gagne (${p2} vs ${p}).`, 0);
-        else if (p2 > 21 || p > p2) endBj(`🏆 Tu gagnes le duel (${p} vs ${p2}) face à ${p2Name} ! +${fmt(bj.bet * 2)} 🪙`, bj.bet * 2);
-        else if (p === p2) endBj(`🤝 Égalité parfaite (${p} à ${p}) ! Mise remboursée.`, bj.bet);
-        else endBj(`❌ ${p2Name} remporte le duel (${p2} vs ${p}).`, 0);
+    async function bjDouble() {
+      if (!bj.active) return;
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      if (!isMulti) {
+        // Solo
+        if (bj.turn !== 'player' || state.balance < bj.bet) return;
+        state.balance -= bj.bet; bj.bet *= 2; saveState(); updateGlobalUI();
+        bj.player.push(bj.deck.pop());
+        renderBlackjack(true);
+        if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
+        else bjStand();
         return;
       }
 
-      // Résultat contre le Croupier (Solo ou Multi avec Bot Co-joueur)
-      let botNotice = '';
-      if (isMulti && lobbies.bj.fillWithBots) {
-        const bScore = bjScore(bj.coPlayer);
-        const bResult = bScore > 21 ? 'a sauté' : (bScore > d || d > 21) ? 'gagne aussi' : bScore === d ? 'fait égalité' : 'perd';
-        botNotice = ` • Roxy (Bot) ${bResult} (${bScore})`;
+      // Multi
+      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const myKey = (state.username || '').toLowerCase().trim();
+      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey || state.balance < bj.bet) return;
+
+      state.balance -= bj.bet;
+      bj.bet *= 2;
+      saveState();
+      updateGlobalUI();
+
+      try {
+        const res = await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'double',
+            tableId: tableId,
+            username: state.username
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.table) {
+            mergeBjServerState(data.table);
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function bjStand() {
+      if (!bj.active) return;
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      if (!isMulti) {
+        // Solo
+        while (bjScore(bj.dealer) < 17) {
+          bj.dealer.push(bj.deck.pop());
+        }
+        renderBlackjack(false);
+        const p = bjScore(bj.player), d = bjScore(bj.dealer);
+        if (d > 21 || p > d) endBj(`🏆 Gagné (${p} vs ${d}) ! +${fmt(bj.bet * 2)} 🪙`, bj.bet * 2);
+        else if (p === d) endBj(`🤝 Égalité avec le Croupier ! Mise remboursée.`, bj.bet);
+        else endBj(`Perdu (${d} vs ${p}).`, 0);
+        return;
       }
 
-      if (d > 21 || p > d) endBj(`🏆 Gagné (${p} vs ${d}) ! +${fmt(bj.bet * 2)} 🪙${botNotice}`, bj.bet * 2);
-      else if (p === d) endBj(`🤝 Égalité avec le Croupier ! Mise remboursée.${botNotice}`, bj.bet);
-      else endBj(`Perdu (${d} vs ${p}).${botNotice}`, 0);
+      // Multi
+      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const myKey = (state.username || '').toLowerCase().trim();
+      if (bjSyncTable.status !== 'playing' || bjSyncTable.turn !== myKey) return;
+
+      try {
+        const res = await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'stand',
+            tableId: tableId,
+            username: state.username
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.table) {
+            mergeBjServerState(data.table);
+          }
+        }
+      } catch (e) {}
     }
 
     function endBj(msg, win) {
@@ -6872,41 +7050,148 @@
         playCoinWinSound();
       }
       saveState();
+      updateGlobalUI();
       document.getElementById('bjStatusBanner').textContent = `${msg} (Prochaine main dans 7s)`;
       document.getElementById('bjActionControls').classList.add('hidden');
       startBlackjackCooldown();
     }
 
-    /* ================= SYNCHRONISATION MULTIJOUEUR BLACKJACK EN TEMPS RÉEL ================= */
-    function syncBjMultiplayer() {
-      if (currentRoomKey !== 'blackjack' || !lobbies.bj || lobbies.bj.mode !== 'multi') return;
-
-      const realPlayers = getTableParticipants('blackjack');
-      const db = getAccountsDB();
+    function mergeBjServerState(srv) {
+      if (!srv || typeof srv !== 'object') return;
+      bjSyncTable = srv;
       const myKey = (state.username || '').toLowerCase().trim();
-      const myAcc = db[myKey];
+      const myPl = srv.players ? srv.players[myKey] : null;
 
-      // A. Forfait direct signalé par l'adversaire
-      if (myAcc && myAcc.currentTable && myAcc.currentTable.bjForfeit) {
-        const bjf = myAcc.currentTable.bjForfeit;
-        if (bjf.winner && bjf.winner.toLowerCase().trim() === myKey) {
-          const winAmount = bjf.pot || (bj.bet * 2);
-          delete myAcc.currentTable.bjForfeit;
-          saveAccountsDB(db);
-          pushRemoteAccount(myAcc);
-          endBj(`🏆 ${bjf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
-          showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
-          return;
+      // 1. MANCHE EN COURS
+      if (srv.status === 'playing') {
+        bj.active = true;
+        const dealBtn = document.getElementById('bjDealBtn');
+        if (dealBtn) dealBtn.disabled = true;
+
+        const isMyTurn = (srv.turn === myKey);
+        const actionControls = document.getElementById('bjActionControls');
+        const doubleBtn = document.getElementById('bjDoubleBtn');
+
+        if (isMyTurn && myPl && myPl.status === 'playing') {
+          if (actionControls) actionControls.classList.remove('hidden');
+          if (doubleBtn) doubleBtn.disabled = (myPl.cards.length !== 2 || state.balance < (myPl.bet || bj.bet));
+          document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
+        } else {
+          if (actionControls) actionControls.classList.add('hidden');
+          const turnPlayer = srv.players && srv.players[srv.turn];
+          const turnName = turnPlayer ? turnPlayer.username : srv.turn;
+          document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${turnName}... En attente de son action.`;
+        }
+      }
+      // 2. TOUR DU CROUPIER
+      else if (srv.status === 'dealer_turn') {
+        bj.active = true;
+        document.getElementById('bjActionControls')?.classList.add('hidden');
+        document.getElementById('bjStatusBanner').textContent = `🃏 Le Croupier joue sa main...`;
+      }
+      // 3. MANCHE TERMINÉE
+      else if (srv.status === 'finished') {
+        bj.active = false;
+        document.getElementById('bjActionControls')?.classList.add('hidden');
+
+        // Attribution des gains si pas encore validés pour cette manche
+        if (srv.roundId && myProcessedBjRoundId !== srv.roundId) {
+          myProcessedBjRoundId = srv.roundId;
+          if (myPl) {
+            if (myPl.payout > 0) {
+              state.balance += myPl.payout;
+              playCoinWinSound();
+              saveState();
+              updateGlobalUI();
+            }
+
+            if (myPl.result === 'win') {
+              document.getElementById('bjStatusBanner').textContent = `🏆 Tu as battu le Croupier ! (+${fmt(myPl.payout)} €) (Prochaine main dans 7s)`;
+              showToast(`🏆 Victoire au Blackjack (+${fmt(myPl.payout)} €) !`);
+            } else if (myPl.result === 'push') {
+              document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.payout)} €) (Prochaine main dans 7s)`;
+            } else if (myPl.result === 'forfeit_win') {
+              document.getElementById('bjStatusBanner').textContent = `🏆 ${srv.forfeit ? srv.forfeit.loser : 'L\'adversaire'} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! (Prochaine main dans 7s)`;
+              showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(myPl.payout)} €) !`);
+            } else {
+              document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (Prochaine main dans 7s)`;
+            }
+          }
+          startBlackjackCooldown();
+        }
+      }
+      // 4. TABLE EN ATTENTE
+      else if (srv.status === 'waiting') {
+        document.getElementById('bjActionControls')?.classList.add('hidden');
+        if (bj.cooldownRemaining <= 0) {
+          const dealBtn = document.getElementById('bjDealBtn');
+          if (dealBtn) {
+            dealBtn.disabled = false;
+            dealBtn.textContent = '🃏 Distribuer';
+          }
+          document.getElementById('bjStatusBanner').textContent = 'Choisis ta mise et clique sur Distribuer pour lancer la main.';
         }
       }
 
-      // B. Si la main est en cours et que l'adversaire a disparu des participants
-      if (bj.active && (bj.hasRealOpponent || !lobbies.bj.fillWithBots)) {
-        if (realPlayers.length === 0) {
-          const winAmount = bj.bet * 2;
-          endBj(`🏆 Ton adversaire a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
-          showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
+      renderBlackjack(srv.status === 'playing');
+    }
+
+    /* ================= SYNCHRONISATION MULTIJOUEUR BLACKJACK EN TEMPS RÉEL (< 400MS) ================= */
+    async function syncBjMultiplayer() {
+      if (currentRoomKey !== 'blackjack' || !lobbies.bj || lobbies.bj.mode !== 'multi') return;
+      if (isBjSyncing) return;
+      isBjSyncing = true;
+
+      try {
+        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        let srvTable = null;
+
+        // 1. Appel HTTP à /api/blackjack
+        try {
+          const res = await fetch(`${getBjApiUrl()}?table=${encodeURIComponent(tableId)}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && (data.status || data.players)) {
+              srvTable = data;
+            }
+          }
+        } catch (e) {}
+
+        // 2. Fallback Supabase Cloud direct
+        if (!srvTable) {
+          try {
+            const sRes = await supabaseFetch('accounts?username=eq.__blackjack_game__');
+            if (sRes.ok) {
+              const rows = await sRes.json();
+              if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.tables?.[tableId]) {
+                srvTable = rows[0].data.tables[tableId];
+              }
+            }
+          } catch (e) {}
         }
+
+        if (srvTable) {
+          mergeBjServerState(srvTable);
+        }
+
+        // Forfait direct signalé dans les comptes
+        const db = getAccountsDB();
+        const myKey = (state.username || '').toLowerCase().trim();
+        const myAcc = db[myKey];
+        if (myAcc && myAcc.currentTable && myAcc.currentTable.bjForfeit) {
+          const bjf = myAcc.currentTable.bjForfeit;
+          if (bjf.winner && bjf.winner.toLowerCase().trim() === myKey) {
+            const winAmount = bjf.pot || (bj.bet * 2);
+            delete myAcc.currentTable.bjForfeit;
+            saveAccountsDB(db);
+            pushRemoteAccount(myAcc);
+            endBj(`🏆 ${bjf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
+            showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
+          }
+        }
+      } catch (err) {
+      } finally {
+        isBjSyncing = false;
       }
     }
 
