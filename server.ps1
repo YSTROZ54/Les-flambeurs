@@ -360,6 +360,10 @@ while ($listener.IsListening) {
                     turn = $null
                     forfeit = $null
                     readyBets = @{}
+                    readyPlayers = @{}
+                    knownPlayers = @{}
+                    host = $null
+                    hasPlayedRound = $false
                     updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                 }
             }
@@ -369,6 +373,9 @@ while ($listener.IsListening) {
             # 1. Nettoyage automatique des manches finies depuis plus de 3.2s
             if ($currentTables[$tableParam].status -eq 'finished' -and $currentTables[$tableParam].finishedAt -and ($now - $currentTables[$tableParam].finishedAt -gt 3200)) {
                 $prevReadyBets = if ($currentTables[$tableParam].readyBets) { $currentTables[$tableParam].readyBets } else { @{} }
+                $prevHost = if ($currentTables[$tableParam].host) { $currentTables[$tableParam].host } else { $null }
+                $prevKnown = if ($currentTables[$tableParam].knownPlayers) { $currentTables[$tableParam].knownPlayers } else { @{} }
+                $prevReady = if ($currentTables[$tableParam].readyPlayers) { $currentTables[$tableParam].readyPlayers } else { @{} }
                 $currentTables[$tableParam] = @{
                     tableId = $tableParam
                     roundId = 0
@@ -379,6 +386,10 @@ while ($listener.IsListening) {
                     turn = $null
                     forfeit = $null
                     readyBets = $prevReadyBets
+                    readyPlayers = $prevReady
+                    knownPlayers = $prevKnown
+                    host = $prevHost
+                    hasPlayedRound = $true
                     updatedAt = $now
                 }
             }
@@ -527,12 +538,148 @@ while ($listener.IsListening) {
                                 $curTable = $currentTables[$tId]
                                 if (-not $curTable.readyBets) { $curTable.readyBets = @{} }
                                 $curTable.readyBets[$pKey] = $bVal
+                                if (-not $curTable.knownPlayers) { $curTable.knownPlayers = @{} }
+                                $curTable.knownPlayers[$pKey] = @{ username = $postObj.username; avatar = (if ($postObj.avatar) { $postObj.avatar } else { "👤" }) }
+                                if ($postObj.host -and -not $curTable.host) { $curTable.host = [string]$postObj.host.ToLower().Trim() }
+                                $curTable.updatedAt = $now
+                            }
+                            # ACTION SET_READY
+                            elseif ($postObj.action -eq 'set_ready' -and $postObj.username) {
+                                $pKey = [string]$postObj.username.ToLower().Trim()
+                                $bVal = [Math]::Max(10, [int]$postObj.bet)
+                                $curTable = $currentTables[$tId]
+                                if (-not $curTable.readyBets) { $curTable.readyBets = @{} }
+                                $curTable.readyBets[$pKey] = $bVal
+                                if (-not $curTable.knownPlayers) { $curTable.knownPlayers = @{} }
+                                $curTable.knownPlayers[$pKey] = @{ username = $postObj.username; avatar = (if ($postObj.avatar) { $postObj.avatar } else { "👤" }) }
+                                if ($postObj.host -and -not $curTable.host) { $curTable.host = [string]$postObj.host.ToLower().Trim() }
+
+                                if (-not $curTable.readyPlayers) { $curTable.readyPlayers = @{} }
+                                if ($postObj.ready -ne $false) {
+                                    $curTable.readyPlayers[$pKey] = @{
+                                        username = $postObj.username
+                                        avatar = (if ($postObj.avatar) { $postObj.avatar } else { "👤" })
+                                        bet = $bVal
+                                        ready = $true
+                                        updatedAt = $now
+                                    }
+                                } else {
+                                    if ($curTable.readyPlayers.ContainsKey($pKey)) { $curTable.readyPlayers.Remove($pKey) }
+                                }
+
+                                if ($curTable.status -ne 'playing' -and $curTable.status -ne 'dealer_turn') {
+                                    $readyKeys = @($curTable.readyPlayers.Keys | Where-Object { $curTable.readyPlayers[$_].ready })
+                                    $isMultiReady = ($readyKeys.Length -ge 2)
+                                    $isBotReady = ($readyKeys.Length -ge 1 -and ($postObj.fillWithBots -or $curTable.knownPlayers.Count -le 1))
+
+                                    if ($isMultiReady -or ($isBotReady -and $postObj.fillWithBots)) {
+                                        # Auto deal
+                                        $parts = @()
+                                        if ($isMultiReady) {
+                                            foreach ($rk in $readyKeys) {
+                                                $rp = $curTable.readyPlayers[$rk]
+                                                $parts += @{ username = $rp.username; avatar = $rp.avatar; bet = $rp.bet }
+                                            }
+                                        } else {
+                                            $rp = $curTable.readyPlayers[$readyKeys[0]]
+                                            $parts += @{ username = $rp.username; avatar = $rp.avatar; bet = $rp.bet }
+                                            $parts += @{ username = 'Roxy (Bot)'; avatar = '🦊'; bet = $rp.bet }
+                                        }
+
+                                        $deck = @()
+                                        $suits = @(
+                                            @{ s='♠'; color='text-slate-900'; type='suit-black' },
+                                            @{ s='♣'; color='text-slate-900'; type='suit-black' },
+                                            @{ s='♥'; color='text-red-500'; type='suit-red' },
+                                            @{ s='♦'; color='text-red-500'; type='suit-red' }
+                                        )
+                                        $ranks = @(
+                                            @{ r='2'; v=2 }, @{ r='3'; v=3 }, @{ r='4'; v=4 }, @{ r='5'; v=5 },
+                                            @{ r='6'; v=6 }, @{ r='7'; v=7 }, @{ r='8'; v=8 }, @{ r='9'; v=9 },
+                                            @{ r='10'; v=10 }, @{ r='J'; v=10 }, @{ r='Q'; v=10 }, @{ r='K'; v=10 },
+                                            @{ r='A'; v=11 }
+                                        )
+                                        foreach ($st in $suits) {
+                                            foreach ($rk in $ranks) {
+                                                $deck += @{ r=$rk.r; v=$rk.v; s=$st.s; color=$st.color; type=$st.type }
+                                            }
+                                        }
+                                        $rnd = New-Object Random
+                                        for ($i = $deck.Count - 1; $i -gt 0; $i--) {
+                                            $j = $rnd.Next($i + 1)
+                                            $tmp = $deck[$i]; $deck[$i] = $deck[$j]; $deck[$j] = $tmp
+                                        }
+
+                                        $curTable.roundId = $now
+                                        $curTable.tableId = $tId
+                                        $curTable.hasPlayedRound = $true
+                                        $curTable.readyPlayers = @{}
+                                        $c1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                        $c2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                        $dScore = if ($c1.r -eq 'A') { 11 } else { [int]$c1.v }
+                                        $curTable.dealer = @{ cards = @($c1, $c2); score = $dScore; hidden = $true }
+                                        $curTable.players = @{}
+                                        $curTable.playerOrder = @()
+                                        $curTable.forfeit = $null
+
+                                        foreach ($p in $parts) {
+                                            $pk = [string]$p.username.ToLower().Trim()
+                                            if (-not $pk) { continue }
+                                            $pc1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                            $pc2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                                            $pScore = [int]$pc1.v + [int]$pc2.v
+                                            if ($pc1.r -eq 'A' -and $pc2.r -eq 'A') { $pScore = 12 }
+                                            $isBJ = ($pScore -eq 21)
+                                            $statusVal = if ($isBJ) { 'blackjack' } else { 'playing' }
+                                            $avVal = if ($p.avatar) { $p.avatar } else { "👤" }
+                                            $playerBet = if ($p.bet) { [int]$p.bet } else { 100 }
+
+                                            $curTable.players[$pk] = @{
+                                                username = $p.username
+                                                avatar = $avVal
+                                                bet = $playerBet
+                                                cards = @($pc1, $pc2)
+                                                score = $pScore
+                                                status = $statusVal
+                                                double = $false
+                                                result = $null
+                                                payout = 0
+                                            }
+                                            $curTable.playerOrder += $pk
+                                        }
+                                        $curTable.deck = $deck
+
+                                        $nxt = $null
+                                        foreach ($k in $curTable.playerOrder) {
+                                            if ($curTable.players[$k].status -eq 'playing') { $nxt = $k; break }
+                                        }
+                                        if ($nxt) {
+                                            $curTable.turn = $nxt
+                                            $curTable.status = 'playing'
+                                        } else {
+                                            $curTable.turn = 'dealer'
+                                            $curTable.status = 'finished'
+                                            $curTable.finishedAt = $now
+                                        }
+                                    }
+                                }
                                 $curTable.updatedAt = $now
                             }
                             # ACTION DEAL
                             elseif ($postObj.action -eq 'deal') {
                                 $curTable = $currentTables[$tId]
-                                if ($curTable.status -ne 'playing' -and $curTable.status -ne 'dealer_turn') {
+                                $pKey = if ($postObj.username) { [string]$postObj.username.ToLower().Trim() } else { "" }
+                                if ($postObj.host -and -not $curTable.host) { $curTable.host = [string]$postObj.host.ToLower().Trim() }
+                                elseif (-not $curTable.host -and $pKey) { $curTable.host = $pKey }
+
+                                $canDeal = $true
+                                if (-not $curTable.hasPlayedRound -and $curTable.roundId -eq 0 -and $curTable.host -and $pKey -ne $curTable.host) {
+                                    $canDeal = $false
+                                }
+
+                                if ($canDeal -and $curTable.status -ne 'playing' -and $curTable.status -ne 'dealer_turn') {
+                                    $curTable.hasPlayedRound = $true
+                                    $curTable.readyPlayers = @{}
                                     $deck = @()
                                     $suits = @(
                                         @{ s='♠'; color='text-slate-900'; type='suit-black' },

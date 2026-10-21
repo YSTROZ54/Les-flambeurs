@@ -92,6 +92,10 @@ function getDefaultTable(tableId) {
     history: [],
     forfeit: null,
     readyBets: {},
+    readyPlayers: {},
+    knownPlayers: {},
+    host: null,
+    hasPlayedRound: false,
     updatedAt: Date.now()
   };
 }
@@ -204,6 +208,54 @@ function advanceTurnOrFinish(table) {
 
   table.status = 'finished';
   table.finishedAt = Date.now();
+  table.hasPlayedRound = true;
+}
+
+function startServerDeal(table, participants, now) {
+  table.roundId = now;
+  table.status = 'playing';
+  table.deck = createShuffledDeck();
+  table.dealer = {
+    cards: [table.deck.pop(), table.deck.pop()],
+    score: 0,
+    hidden: true
+  };
+  table.dealer.score = calcScore([table.dealer.cards[0]]);
+
+  table.players = {};
+  table.playerOrder = [];
+  table.forfeit = null;
+  table.readyPlayers = {};
+  table.hasPlayedRound = true;
+  if (!table.knownPlayers) table.knownPlayers = {};
+
+  participants.forEach(p => {
+    const pKey = (p.username || '').toLowerCase().trim();
+    if (!pKey) return;
+    table.knownPlayers[pKey] = { username: p.username, avatar: p.avatar || '👤' };
+    const hand = [table.deck.pop(), table.deck.pop()];
+    const sc = calcScore(hand);
+    const isBJ = sc === 21;
+
+    const recordedBet = (table.readyBets && table.readyBets[pKey]) ? table.readyBets[pKey] : null;
+    const playerBet = parseInt(p.bet) || recordedBet || 100;
+
+    table.players[pKey] = {
+      username: p.username,
+      avatar: p.avatar || '👤',
+      bet: playerBet,
+      cards: hand,
+      score: sc,
+      status: isBJ ? 'blackjack' : 'playing',
+      double: false,
+      result: null,
+      payout: 0
+    };
+    table.playerOrder.push(pKey);
+  });
+
+  advanceTurnOrFinish(table);
+  table.updatedAt = now;
 }
 
 export default async function handler(req, res) {
@@ -237,8 +289,15 @@ export default async function handler(req, res) {
     // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
       const prevBets = table.readyBets || {};
+      const prevHost = table.host || null;
+      const prevKnown = table.knownPlayers || {};
+      const prevReady = table.readyPlayers || {};
       table = getDefaultTable(tableId);
       table.readyBets = prevBets;
+      table.host = prevHost;
+      table.knownPlayers = prevKnown;
+      table.readyPlayers = prevReady;
+      table.hasPlayedRound = true;
       tables[tableId] = table;
       modified = true;
     }
@@ -309,62 +368,113 @@ export default async function handler(req, res) {
       const betVal = Math.max(10, parseInt(body.bet) || 100);
       if (!table.readyBets || typeof table.readyBets !== 'object') table.readyBets = {};
       table.readyBets[pKey] = betVal;
+      if (!table.knownPlayers) table.knownPlayers = {};
+      table.knownPlayers[pKey] = { username: body.username, avatar: body.avatar || '👤' };
+      if (body.host && !table.host) table.host = body.host.toLowerCase().trim();
       table.updatedAt = now;
       memoryTables = tables;
       return res.status(200).json({ ok: true, readyBets: table.readyBets, table });
     }
- 
+
+    // R. ÉTAT PRÊT JOUEUR & RELANCE AUTO (SET_READY)
+    if (action === 'set_ready' && body.username) {
+      const pKey = body.username.toLowerCase().trim();
+      const betVal = Math.max(10, parseInt(body.bet) || 100);
+
+      if (body.host && !table.host) {
+        table.host = body.host.toLowerCase().trim();
+      }
+
+      if (!table.readyBets) table.readyBets = {};
+      table.readyBets[pKey] = betVal;
+
+      if (!table.knownPlayers) table.knownPlayers = {};
+      table.knownPlayers[pKey] = { username: body.username, avatar: body.avatar || '👤' };
+
+      if (!table.readyPlayers) table.readyPlayers = {};
+      const isReady = body.ready !== false;
+      if (isReady) {
+        table.readyPlayers[pKey] = {
+          username: body.username,
+          avatar: body.avatar || '👤',
+          bet: betVal,
+          ready: true,
+          updatedAt: now
+        };
+      } else {
+        delete table.readyPlayers[pKey];
+      }
+
+      // Si une partie est déjà active, on ne relance pas
+      if (table.status === 'playing' || table.status === 'dealer_turn') {
+        table.updatedAt = now;
+        memoryTables = tables;
+        return res.status(200).json({ ok: true, table });
+      }
+
+      // Vérifier si les joueurs nécessaires sont prêts
+      const readyKeys = Object.keys(table.readyPlayers).filter(k => table.readyPlayers[k] && table.readyPlayers[k].ready);
+      const isMultiReady = readyKeys.length >= 2;
+      const isBotReady = readyKeys.length >= 1 && (body.fillWithBots || Object.keys(table.knownPlayers).length <= 1);
+
+      if (isMultiReady || (isBotReady && body.fillWithBots)) {
+        let participants = [];
+        if (isMultiReady) {
+          participants = readyKeys.map(k => {
+            const rp = table.readyPlayers[k];
+            return {
+              username: rp.username,
+              avatar: rp.avatar || '👤',
+              bet: rp.bet || table.readyBets[k] || 100
+            };
+          });
+        } else {
+          const rp = table.readyPlayers[readyKeys[0]];
+          participants = [
+            { username: rp.username, avatar: rp.avatar || '👤', bet: rp.bet || 100 },
+            { username: 'Roxy (Bot)', avatar: '🦊', bet: rp.bet || 100 }
+          ];
+        }
+
+        startServerDeal(table, participants, now);
+        memoryTables = tables;
+        saveSupabaseTables(tables).catch(() => {});
+        return res.status(200).json({ ok: true, started: true, table });
+      }
+
+      table.updatedAt = now;
+      memoryTables = tables;
+      return res.status(200).json({ ok: true, readyPlayers: table.readyPlayers, table });
+    }
+
     // A. DISTRIBUER (DEAL)
     if (action === 'deal') {
       if (table.status === 'playing' || table.status === 'dealer_turn') {
         return res.status(200).json({ ok: false, error: 'Une partie est déjà en cours', table });
       }
 
+      const pKey = (body.username || '').toLowerCase().trim();
+
+      // Enregistrer l'hôte si transmis ou premier joueur
+      if (body.host && !table.host) {
+        table.host = body.host.toLowerCase().trim();
+      } else if (!table.host && pKey) {
+        table.host = pKey;
+      }
+
+      // VÉRIFICATION HÔTE SUR MANCHE 1 : Seul l'hôte qui a invité peut lancer la première partie
+      if (!table.hasPlayedRound && table.roundId === 0 && table.host && pKey !== table.host) {
+        return res.status(200).json({ ok: false, error: "Seul l'hôte qui a invité peut lancer la première partie !", table });
+      }
+
       const participants = Array.isArray(body.participants) && body.participants.length > 0
         ? body.participants
         : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: parseInt(body.bet) || 100 }];
 
-      table.roundId = now;
-      table.tableId = tableId;
-      table.deck = createShuffledDeck();
-      table.dealer = {
-        cards: [table.deck.pop(), table.deck.pop()],
-        score: 0,
-        hidden: true
-      };
-      table.dealer.score = calcScore([table.dealer.cards[0]]);
-
-      table.players = {};
-      table.playerOrder = [];
-      table.forfeit = null;
-
-      participants.forEach(p => {
-        const pKey = (p.username || '').toLowerCase().trim();
-        if (!pKey) return;
-        const hand = [table.deck.pop(), table.deck.pop()];
-        const sc = calcScore(hand);
-        const isBJ = sc === 21;
-
-        // Récupérer la mise propre du joueur (soit envoyée dans participant, soit enregistrée sur readyBets)
-        const recordedBet = (table.readyBets && table.readyBets[pKey]) ? table.readyBets[pKey] : null;
-        const playerBet = parseInt(p.bet) || recordedBet || 100;
-
-        table.players[pKey] = {
-          username: p.username,
-          avatar: p.avatar || '👤',
-          bet: playerBet,
-          cards: hand,
-          score: sc,
-          status: isBJ ? 'blackjack' : 'playing',
-          double: false,
-          result: null,
-          payout: 0
-        };
-        table.playerOrder.push(pKey);
-      });
-
-      advanceTurnOrFinish(table);
-      table.updatedAt = now;
+      startServerDeal(table, participants, now);
+      memoryTables = tables;
+      saveSupabaseTables(tables).catch(() => {});
+      return res.status(200).json({ ok: true, table });
     }
 
     // B. TIRER (HIT)
