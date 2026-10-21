@@ -128,7 +128,7 @@
         <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🥤 Gobelets</button>
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
-        <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Potes</button>
+        <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Amis</button>
         <button onclick="openNotificationsModal()" id="nav-notifications" class="relative px-2.5 py-1.5 rounded-full font-bold text-amber-300 hover:text-white bg-amber-500/15 border border-amber-400/40 flex items-center gap-1.5 transition" title="Centre de Notifications">
           <span>🔔</span>
           <span class="hidden 2xl:inline text-xs">Notifs</span>
@@ -138,8 +138,8 @@
 
       <!-- Solde épuré + Profil -->
       <div class="flex items-center gap-2">
-        <button onclick="openFriendsModal()" class="flex xl:hidden items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Mes Potes">
-          <span>👥</span> <span class="hidden sm:inline">Potes</span>
+        <button onclick="openFriendsModal()" class="flex xl:hidden items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Amis">
+          <span>👥</span> <span class="hidden sm:inline">Amis</span>
         </button>
         <button onclick="openNotificationsModal()" id="nav-notifications-mobile" class="relative flex xl:hidden items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Centre de Notifications">
           <span>🔔</span>
@@ -172,7 +172,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           <div class="lg:col-span-8 space-y-3">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold">
-              🎭 Cercle Privé entre Potes &amp; Flambeurs Anonymes
+              🎭 Cercle Privé entre Amis &amp; Flambeurs Anonymes
             </div>
             <h1 class="font-serif-title text-3xl md:text-5xl font-black text-white tracking-wide">
               LES FLAMBEURS
@@ -188,10 +188,10 @@
                 🛒 Boutique par Catégories
               </button>
               <button onclick="switchRoom('bank')" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-bold transition">
-                🏦 Faire un don à un pote
+                🏦 Faire un don à un pauvre
               </button>
               <button onclick="openFriendsModal()" class="px-4 py-2.5 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-200 hover:bg-purple-500/30 text-xs font-bold transition">
-                👥 Mes Potes
+                👥 Amis
               </button>
             </div>
           </div>
@@ -236,12 +236,12 @@
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#0e2a1d]/95 via-[#091510]/95 to-black border border-emerald-500/40 hover:border-emerald-400 transition flex flex-col justify-between shadow-xl">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">Solo, Bots &amp; Entre Potes</span>
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">Solo, Bots &amp; Entre Amis</span>
                 <button onclick="openRulesModal('poker')" class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold">❓ Comment jouer</button>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-white mt-3">Poker</h3>
               <p class="text-xs text-stone-300 mt-2 leading-relaxed">
-                Table en cuir noir et tapis vert (1v1, Table de 4 ou 6 max). Tous les modes Solo vs Bots et Entre Potes sont 100% jouables !
+                Table en cuir noir et tapis vert (1v1, Table de 4 ou 6 max). Tous les modes Solo vs Bots et Entre Amis sont 100% jouables !
               </p>
             </div>
             <button onclick="switchRoom('poker')" class="mt-5 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition">
@@ -321,12 +321,12 @@
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#1f242d]/95 via-[#12151b]/95 to-black border border-amber-500/40 hover:border-amber-400 transition flex flex-col justify-between shadow-xl">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Contre IA ou Duel Pote</span>
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Contre IA ou Duel Ami</span>
                 <button onclick="openRulesModal('blackjack')" class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold">❓ Comment jouer</button>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-amber-100 mt-3">Blackjack</h3>
               <p class="text-xs text-stone-300 mt-2 leading-relaxed">
-                Approche-toi le plus possible de 21 sans dépasser face au Croupier IA ou en Duel direct 1v1 contre un pote !
+                Approche-toi le plus possible de 21 sans dépasser face au Croupier IA ou en Duel direct 1v1 contre un ami !
               </p>
             </div>
             <button onclick="switchRoom('blackjack')" class="mt-5 w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs transition">
@@ -371,7 +371,7 @@
               <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Donations &amp; Entraide</span>
               <h3 class="font-serif-title text-2xl font-extrabold text-amber-100 mt-3">La Banque du Club</h3>
               <p class="text-xs text-stone-300 mt-2 leading-relaxed">
-                Un pote n'a plus d'argent pour jouer ? Tape toi-même le montant que tu veux lui envoyer au guichet VIP.
+                Faire un don à un pauvre ou un ami qui n'a plus d'argent ? Tape toi-même le montant que tu veux lui envoyer au guichet VIP.
               </p>
             </div>
             <button onclick="switchRoom('bank')" class="mt-5 w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition">
@@ -404,7 +404,7 @@
           </button>
           <div>
             <h2 class="font-serif-title text-xl font-extrabold text-white">Poker</h2>
-            <p class="text-[11px] text-emerald-400">Table officielle • Solo, Bots &amp; Entre Potes</p>
+            <p class="text-[11px] text-emerald-400">Table officielle • Solo, Bots &amp; Entre Amis</p>
           </div>
         </div>
 
@@ -426,7 +426,7 @@
           </div>
 
           <button onclick="openFriendsModal()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold">
-            👥 Potes
+            👥 Amis
           </button>
           <button onclick="openRulesModal('poker')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 font-bold">
             ❓ Règles
@@ -935,7 +935,7 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 7 : BLACKJACK (MODE IA + MODE DUEL POTE + COOLDOWN 7S)      -->
+    <!-- VUE 7 : BLACKJACK (MODE IA + MODE DUEL AMI + COOLDOWN 7S)       -->
     <!-- =============================================================== -->
     <section id="view-blackjack" class="space-y-6 hidden">
       <div class="flex flex-wrap items-center justify-between gap-3 bg-stone-950/90 border border-amber-500/30 rounded-2xl p-4">
@@ -1156,7 +1156,7 @@
           <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
           <div>
             <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-amber-200">🏦 La Banque du Club</h2>
-            <p class="text-xs text-stone-300">Tape toi-même le montant que tu souhaites donner à un pote !</p>
+            <p class="text-xs text-stone-300">Faire un don à un pauvre ou tape toi-même le montant que tu souhaites envoyer !</p>
           </div>
         </div>
       </div>
@@ -1368,7 +1368,7 @@
     </div>
   </div>
 
-  <!-- MODAL : GÉRER LES JOUEURS & POTES DU CLUB -->
+  <!-- MODAL : GÉRER LES JOUEURS & AMIS DU CLUB -->
   <div id="friendsModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-stone-900 border-2 border-emerald-500/40 rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -1378,7 +1378,7 @@
         <button onclick="closeFriendsModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-stone-300">Ajoute tes potes en ami pour les inviter directement sur les tables de jeu (Poker, Crash, Gobelets, etc.) ou leur faire des dons.</p>
+      <p class="text-xs text-stone-300">Ajoute des joueurs en ami pour les inviter directement sur les tables de jeu (Poker, Crash, Gobelets, etc.) ou leur faire des dons.</p>
 
       <!-- Champ ajout manuel -->
       <div class="flex gap-2">
@@ -1666,7 +1666,7 @@
     </div>
 
     <div class="bg-black/50 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
-      <p class="text-xs text-stone-300">Souhaite t'ajouter à ses potes pour jouer et faire des parties multi ensemble !</p>
+      <p class="text-xs text-stone-300">Souhaite t'ajouter à ses amis pour jouer et faire des parties multi ensemble !</p>
     </div>
 
     <div class="grid grid-cols-2 gap-2 pt-1">
@@ -2672,7 +2672,7 @@
           <div class="p-6 rounded-2xl bg-black/40 border border-white/10 text-center space-y-2">
             <span class="text-3xl">📭</span>
             <p class="text-xs text-stone-400 font-bold">Aucun compte trouvé dans la base.</p>
-            <p class="text-[11px] text-stone-500">Quand tes potes ou toi créerez un compte via l'écran d'entrée, ils s'afficheront tous ici automatiquement !</p>
+            <p class="text-[11px] text-stone-500">Quand tes amis ou toi créerez un compte via l'écran d'entrée, ils s'afficheront tous ici automatiquement !</p>
           </div>
         `;
         return;
@@ -3441,7 +3441,7 @@
         }
       });
 
-      // Potes locaux
+      // Amis locaux
       (state.friends || []).forEach(f => {
         const k = f.toLowerCase();
         if (k !== meKey && !candidates[k]) {
@@ -4749,7 +4749,7 @@
 
       const activeOpps = poker.opponents.filter(o => !o.isEmpty);
       if (activeOpps.length === 0) {
-        return showToast('❌ Aucun joueur à la table. Active les bots ou invite un pote !');
+        return showToast('❌ Aucun joueur à la table. Active les bots ou invite un ami !');
       }
 
       poker.inProgress = true;
@@ -7575,7 +7575,7 @@
                     <span>Demande d'ami de <strong class="text-purple-300">${item.from}</strong></span>
                   </div>
                   <div class="text-[11px] text-stone-400">
-                    Souhaite t'ajouter à son cercle de potes pour jouer ensemble.
+                    Souhaite t'ajouter à son cercle d'amis pour jouer ensemble.
                   </div>
                 </div>
               </div>
