@@ -365,8 +365,8 @@ while ($listener.IsListening) {
 
             $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
-            # 1. Nettoyage automatique des manches finies depuis plus de 7s
-            if ($currentTables[$tableParam].status -eq 'finished' -and $currentTables[$tableParam].finishedAt -and ($now - $currentTables[$tableParam].finishedAt -gt 7000)) {
+            # 1. Nettoyage automatique des manches finies depuis plus de 3.2s
+            if ($currentTables[$tableParam].status -eq 'finished' -and $currentTables[$tableParam].finishedAt -and ($now - $currentTables[$tableParam].finishedAt -gt 3200)) {
                 $currentTables[$tableParam] = @{
                     tableId = $tableParam
                     roundId = 0

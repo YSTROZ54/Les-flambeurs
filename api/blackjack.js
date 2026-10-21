@@ -59,6 +59,25 @@ function calcScore(hand) {
 }
 
 let memoryTables = {};
+let lastSupabaseFetchTime = 0;
+const SUPABASE_CACHE_TTL = 700; // ms
+
+async function getFreshTables(force = false) {
+  const now = Date.now();
+  if (!force && memoryTables && Object.keys(memoryTables).length > 0 && (now - lastSupabaseFetchTime < SUPABASE_CACHE_TTL)) {
+    return memoryTables;
+  }
+  const remote = await fetchSupabaseTables();
+  if (remote && typeof remote === 'object') {
+    Object.keys(remote).forEach(k => {
+      if (!memoryTables[k] || (remote[k].updatedAt || 0) >= (memoryTables[k].updatedAt || 0)) {
+        memoryTables[k] = remote[k];
+      }
+    });
+    lastSupabaseFetchTime = now;
+  }
+  return memoryTables;
+}
 
 function getDefaultTable(tableId) {
   return {
@@ -198,13 +217,8 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 1. Récupération des tables
-  let tables = await fetchSupabaseTables();
-  if (!tables) {
-    tables = memoryTables;
-  } else {
-    memoryTables = tables;
-  }
+  // 1. Récupération ultra-rapide des tables (cache mémoire prioritaire)
+  let tables = await getFreshTables(false);
 
   const now = Date.now();
 
@@ -219,8 +233,8 @@ export default async function handler(req, res) {
 
     let modified = false;
 
-    // 1. Auto-nettoyage d'une manche finie depuis plus de 4 secondes -> retour table propre en attente
-    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 4000)) {
+    // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
+    if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
       table = getDefaultTable(tableId);
       tables[tableId] = table;
       modified = true;
@@ -263,7 +277,7 @@ export default async function handler(req, res) {
 
     if (modified) {
       memoryTables = tables;
-      await saveSupabaseTables(tables);
+      saveSupabaseTables(tables).catch(() => {});
     }
 
     return res.status(200).json(table);
@@ -448,7 +462,7 @@ export default async function handler(req, res) {
     }
 
     memoryTables = tables;
-    await saveSupabaseTables(tables);
+    saveSupabaseTables(tables).catch(() => {});
 
     return res.status(200).json({ ok: true, table });
   }

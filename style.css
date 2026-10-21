@@ -212,6 +212,32 @@ select {
   }
 }
 
+@keyframes bjCardDeal {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.bj-deal-anim {
+  animation: bjCardDeal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Animations de tour Blackjack */
+.bj-active-turn-me {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.3), inset 0 0 15px rgba(245, 158, 11, 0.15) !important;
+}
+.bj-active-turn-opp {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.3), inset 0 0 15px rgba(16, 185, 129, 0.15) !important;
+}
+
 /* Skins de cartes Poker & Blackjack */
 .playing-card.skin-black-gold {
   background: linear-gradient(145deg, #18181b 0%, #09090b 100%);
