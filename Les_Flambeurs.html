@@ -924,15 +924,11 @@
             <button onclick="openFriendsModal()" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-purple-500 to-indigo-600 hover:brightness-110 text-white text-xs flex items-center gap-1.5 shadow transition">
               <span>👥</span> <span>Inviter un ami</span>
             </button>
-            <span class="text-stone-300 font-semibold">Combler les places vides :</span>
-            <button onclick="toggleBjFillBots()" id="bjFillBotsBtn" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition">
-              🤖 Bots : OUI
-            </button>
           </div>
         </div>
         <div id="bjLobbyStatusText" class="text-[11px] text-stone-400 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Table Publique connectée • Un bot co-joueur prendra place à la table pour jouer face au Croupier.</span>
+          <span>Table connectée • Invite un ami pour jouer ensemble face au Croupier.</span>
         </div>
       </div>
 
@@ -3357,7 +3353,8 @@
         title: '🃏 Comment jouer au Blackjack ?',
         html: `
           <p>🎯 <strong>Le but :</strong> Approcher le plus possible de 21 sans dépasser face au croupier.</p>
-          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins le <strong>Lobby Multi</strong> (Table Publique ou Privée par code). Tu peux combler les places avec des bots co-joueurs ou jouer en duel !</p>
+          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins le <strong>Lobby Multi</strong> (Table Publique ou Privée par code secret) pour défier le Croupier en duo avec un ami invité (aucun bot en multijoueur) !</p>
+          <p>⏱️ <strong>Temps de décision :</strong> À ton tour, tu as un temps limite de <strong>30 secondes</strong> pour tirer, rester ou doubler. Prends tout ton temps entre les manches pour choisir ta mise, la partie ne se relance pas toute seule !</p>
         `
       },
       cups: {
@@ -4237,7 +4234,7 @@
     /* ================= GESTION DES LOBBIES MULTI & MODES SOLO ================= */
     const lobbies = {
       poker: { mode: 'solo', tableType: 'public', roomCode: 'POK-842', fillWithBots: true },
-      bj: { mode: 'solo', tableType: 'public', roomCode: 'BJ-319', fillWithBots: true },
+      bj: { mode: 'solo', tableType: 'public', roomCode: 'BJ-319', fillWithBots: false },
       cups: { mode: 'solo' }
     };
 
@@ -4589,14 +4586,6 @@
         const codeDisplay = document.getElementById('bjRoomCodeDisplay');
         if (codeDisplay) codeDisplay.textContent = l.roomCode;
 
-        const fillBtn = document.getElementById('bjFillBotsBtn');
-        if (fillBtn) {
-          fillBtn.textContent = l.fillWithBots ? '🤖 Bots : OUI' : '🚫 Bots : NON';
-          fillBtn.className = l.fillWithBots
-            ? 'px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition'
-            : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
-        }
-
         const realParticipants = getTableParticipants('blackjack');
         const statusTxt = document.getElementById('bjLobbyStatusText');
         if (statusTxt) {
@@ -4606,8 +4595,8 @@
             statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Co-joueur à la table : <strong>${realParticipants[0].username}</strong></span>`;
           } else {
             statusTxt.innerHTML = l.tableType === 'public'
-              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`
-              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Bot co-joueur présent à la table.' : 'Duel direct entre joueurs réels.'}</span>`;
+              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • Invite un ami pour jouer ensemble face au Croupier.</span>`
+              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • Invite un ami pour jouer ensemble face au Croupier.</span>`;
           }
         }
 
@@ -6419,13 +6408,56 @@
       }
     }
 
-    function toggleBjFillBots() {
-      if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
-      lobbies.bj.fillWithBots = !lobbies.bj.fillWithBots;
-      updateCurrentTable('blackjack');
-      updateLobbyUI('bj');
-      renderBlackjack();
-      showToast(lobbies.bj.fillWithBots ? '🤖 Places vides : comblées par un bot co-joueur' : '🚫 Places vides : duel direct entre vrais joueurs');
+    /* ================= GESTION DU TEMPS LIMITE DE TOUR BLACKJACK (30S) ================= */
+    let _bjTurnSecondsLeft = 30;
+    let _bjTurnTimerInterval = null;
+
+    function startBjTurnTimer() {
+      stopBjTurnTimer();
+      _bjTurnSecondsLeft = 30;
+      updateBjTurnTimerUI();
+
+      _bjTurnTimerInterval = setInterval(() => {
+        _bjTurnSecondsLeft--;
+        updateBjTurnTimerUI();
+
+        if (_bjTurnSecondsLeft <= 0) {
+          stopBjTurnTimer();
+          showToast('⏰ Temps de tour écoulé (30s) ! Tu restes automatiquement.');
+          bjStand();
+        }
+      }, 1000);
+    }
+
+    function stopBjTurnTimer() {
+      if (_bjTurnTimerInterval) {
+        clearInterval(_bjTurnTimerInterval);
+        _bjTurnTimerInterval = null;
+      }
+    }
+
+    function updateBjTurnTimerUI() {
+      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      const playerBadge = document.getElementById('bjPlayerTurnBadge');
+      const banner = document.getElementById('bjStatusBanner');
+
+      const isMyActiveTurn = isMulti
+        ? (bjSyncTable?.status === 'playing' && (bjSyncTable?.turn || '').toLowerCase().trim() === (state.username || '').toLowerCase().trim())
+        : (bj.active && bj.turn === 'player');
+
+      if (playerBadge && isMyActiveTurn) {
+        const isUrgent = _bjTurnSecondsLeft <= 5;
+        playerBadge.textContent = `🃏 TON TOUR (${_bjTurnSecondsLeft}s)`;
+        playerBadge.className = isUrgent
+          ? 'text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500 text-white animate-bounce shadow-lg'
+          : 'text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse';
+        playerBadge.classList.remove('hidden');
+      }
+
+      if (banner && isMyActiveTurn) {
+        const isUrgent = _bjTurnSecondsLeft <= 5;
+        banner.innerHTML = `C'est ton tour (${state.username}) <span class="px-2 py-0.5 rounded-full ${isUrgent ? 'bg-rose-500 text-white font-extrabold animate-pulse' : 'bg-emerald-500/20 text-emerald-300 font-mono-num font-bold'} ml-1.5">${_bjTurnSecondsLeft}s</span> : Tirer, Rester ou Doubler.`;
+      }
     }
 
     function setBjMode(m) {
@@ -6685,17 +6717,14 @@
             }
           }
         } else {
-          // --- MANCHE 2+ : Les deux joueurs choisissent leur mise et cliquent sur "Prêt ?" ---
+          // --- MANCHE 2+ : Les deux joueurs choisissent leur mise sans limite de temps et cliquent sur "Prêt ?" ---
           if (dealBtn) dealBtn.classList.add('hidden');
           if (readyBtn) {
             readyBtn.classList.remove('hidden');
-            readyBtn.disabled = (bj.cooldownRemaining > 0);
-            if (bj.cooldownRemaining > 0) {
-              readyBtn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
-              readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-stone-800 text-stone-400 border border-white/10 shadow cursor-not-allowed";
-            } else if (myBjReady) {
+            readyBtn.disabled = false;
+            if (myBjReady) {
               readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg transition active:scale-[0.98] animate-pulse";
-              readyBtn.textContent = "✅ Prêt ! (En attente du joueur...)";
+              readyBtn.textContent = "✅ Prêt ! (En attente de l'adversaire...)";
             } else {
               readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
               readyBtn.textContent = "👍 Prêt ?";
@@ -6744,7 +6773,7 @@
         if (myScoreEl) myScoreEl.textContent = '0';
       }
 
-      // 3. Cartes du Co-joueur (Autre joueur réel ou Bot)
+      // 3. Cartes du Co-joueur (Joueur réel invité uniquement)
       const coNameEl = document.getElementById('bjCoPlayerName');
       const coScoreEl = document.getElementById('bjCoPlayerScore');
       const coCardsEl = document.getElementById('bjCoPlayerCards');
@@ -6778,10 +6807,8 @@
           const oppKey = (p.username || '').toLowerCase().trim();
           const oppBet = (bjSyncTable?.readyBets && bjSyncTable.readyBets[oppKey]) ? bjSyncTable.readyBets[oppKey] : (p.bjBet || 100);
           if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">${p.avatarEmoji || '👤'}</span>${p.username} <span class="text-amber-300 font-mono-num font-bold">(Mise: ${fmt(oppBet)} €)</span>`;
-        } else if (lobbies.bj.fillWithBots) {
-          if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">🦊</span>Roxy (Bot)`;
         } else {
-          if (coNameEl) coNameEl.innerHTML = `En attente d'un joueur...`;
+          if (coNameEl) coNameEl.innerHTML = `En attente d'un joueur invité...`;
         }
         if (coCardsEl) {
           const emptyHtml = renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack');
@@ -6797,8 +6824,11 @@
         if (curTurn === myKey) {
           if (playerBox) { playerBox.classList.add('bj-active-turn-me'); playerBox.classList.remove('bj-active-turn-opp'); }
           if (playerBadge) {
-            playerBadge.textContent = '🃏 TON TOUR';
-            playerBadge.className = 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse';
+            const isUrgent = _bjTurnSecondsLeft <= 5;
+            playerBadge.textContent = `🃏 TON TOUR (${_bjTurnSecondsLeft}s)`;
+            playerBadge.className = isUrgent
+              ? 'text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500 text-white animate-bounce shadow-lg'
+              : 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse';
             playerBadge.classList.remove('hidden');
           }
           if (coBox) coBox.classList.remove('bj-active-turn-me', 'bj-active-turn-opp');
@@ -6810,7 +6840,7 @@
           if (playerBadge) playerBadge.classList.add('hidden');
           if (coBox) { coBox.classList.add('bj-active-turn-opp'); coBox.classList.remove('bj-active-turn-me'); }
           if (coBadge) {
-            coBadge.textContent = '👥 SON TOUR';
+            coBadge.textContent = '👥 SON TOUR (30s)';
             coBadge.className = 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-300 text-black animate-pulse';
             coBadge.classList.remove('hidden');
           }
@@ -6856,26 +6886,11 @@
       }
     }
 
-    function startBlackjackCooldown(seconds = 3) {
-      bj.cooldownRemaining = seconds;
-      const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
-      const hasPlayed = isMulti && ((bjSyncTable && (bjSyncTable.hasPlayedRound || bjSyncTable.roundId > 0)) || (myProcessedBjRoundId !== null));
-      const btn = hasPlayed ? document.getElementById('bjReadyBtn') : document.getElementById('bjDealBtn');
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
-      }
+    function startBlackjackCooldown(seconds = 0) {
+      bj.cooldownRemaining = 0;
       if (window._bjCooldownInterval) clearInterval(window._bjCooldownInterval);
-      window._bjCooldownInterval = setInterval(() => {
-        bj.cooldownRemaining--;
-        if (bj.cooldownRemaining > 0) {
-          if (btn) btn.textContent = `⏳ Prochaine main dans ${bj.cooldownRemaining}s`;
-        } else {
-          clearInterval(window._bjCooldownInterval);
-          window._bjCooldownInterval = null;
-          renderBlackjack();
-        }
-      }, 1000);
+      window._bjCooldownInterval = null;
+      renderBlackjack();
     }
 
     function startBlackjack() {
@@ -6912,9 +6927,9 @@
         document.getElementById('bjActionControls').classList.remove('hidden');
         setBjButtonsDisabled(false);
         document.getElementById('bjDoubleBtn').disabled = false;
-        document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
         playCardFlipSound();
         renderBlackjack(true);
+        startBjTurnTimer();
         if (bjScore(bj.player) === 21) bjStand();
         return;
       }
@@ -6924,6 +6939,12 @@
       if (!hasPlayed && !isBjHost()) {
         const hostName = state.currentTable?.host || bjSyncTable?.host || "l'hôte";
         showToast(`🔒 Seul ${hostName} qui a créé la partie peut lancer la première main !`);
+        return;
+      }
+
+      const realPlayers = getTableParticipants('blackjack');
+      if (realPlayers.length === 0) {
+        showToast('👥 En multijoueur, invite un ami pour jouer face au Croupier (aucun bot autorisé) !');
         return;
       }
 
@@ -6966,12 +6987,14 @@
           avatar: opp.avatarEmoji || '👤',
           bet: oppChosenBet
         });
-      } else if (lobbies.bj.fillWithBots) {
-        participants.push({
-          username: 'Roxy (Bot)',
-          avatar: '🦊',
-          bet: bet
-        });
+      } else {
+        showToast('👥 En multijoueur, tu dois inviter un ami pour commencer !');
+        state.balance += bet;
+        saveState();
+        updateGlobalUI();
+        bj.active = false;
+        renderBlackjack();
+        return;
       }
 
       const dealBtn = document.getElementById('bjDealBtn');
@@ -7034,7 +7057,15 @@
         if (!bj.active) return;
         bj.player.push(bj.deck.pop());
         renderBlackjack(true);
-        if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
+        if (bjScore(bj.player) > 21) {
+          stopBjTurnTimer();
+          endBj('💥 Tu as dépassé 21 !', 0);
+        } else if (bjScore(bj.player) === 21) {
+          stopBjTurnTimer();
+          bjStand();
+        } else {
+          startBjTurnTimer();
+        }
         return;
       }
 
@@ -7070,6 +7101,7 @@
     }
 
     async function bjDouble() {
+      stopBjTurnTimer();
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
@@ -7121,6 +7153,7 @@
     }
 
     async function bjStand() {
+      stopBjTurnTimer();
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
@@ -7173,6 +7206,7 @@
     }
 
     function endBj(msg, win) {
+      stopBjTurnTimer();
       bj.active = false;
       bj.wasInitiator = false;
       if (win > 0) {
@@ -7181,9 +7215,9 @@
       }
       saveState();
       updateGlobalUI();
-      document.getElementById('bjStatusBanner').textContent = `${msg} (Prochaine main dans 3s)`;
+      document.getElementById('bjStatusBanner').textContent = `${msg} — Change ta mise ou clique sur Distribuer pour rejouer.`;
       document.getElementById('bjActionControls').classList.add('hidden');
-      startBlackjackCooldown(3);
+      startBlackjackCooldown(0);
     }
 
     function mergeBjServerState(srv) {
@@ -7226,15 +7260,20 @@
             if (actionControls) actionControls.classList.remove('hidden');
             setBjButtonsDisabled(false);
             if (doubleBtn) doubleBtn.disabled = (myPl.cards.length !== 2 || state.balance < (myPl.bet || bj.bet));
-            document.getElementById('bjStatusBanner').textContent = `C'est ton tour (${state.username}) : Tirer, Rester ou Doubler.`;
+            if (!_bjTurnTimerInterval) {
+              startBjTurnTimer();
+            } else {
+              updateBjTurnTimerUI();
+            }
           } else {
+            stopBjTurnTimer();
             if (actionControls) actionControls.classList.add('hidden');
             const turnPlayer = srv.players && srv.players[srv.turn];
             const turnName = turnPlayer ? turnPlayer.username : srv.turn;
-            document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${turnName}... En attente de son action.`;
+            document.getElementById('bjStatusBanner').textContent = `👥 Tour de ${turnName}... En attente de son action (30s max).`;
           }
         } else {
-          // Si le joueur n'est pas dans la manche active (spectateur ou table réinitialisée)
+          stopBjTurnTimer();
           bj.active = false;
           if (actionControls) actionControls.classList.add('hidden');
           const turnPlayer = srv.players && srv.players[srv.turn];
@@ -7244,6 +7283,7 @@
       }
       // 2. TOUR DU CROUPIER
       else if (srv.status === 'dealer_turn') {
+        stopBjTurnTimer();
         if (dealBtn) {
           dealBtn.classList.add('hidden');
           dealBtn.disabled = true;
@@ -7254,6 +7294,7 @@
       }
       // 3. MANCHE TERMINÉE
       else if (srv.status === 'finished') {
+        stopBjTurnTimer();
         bj.active = false;
         bj.wasInitiator = false;
         if (actionControls) actionControls.classList.add('hidden');
@@ -7262,6 +7303,7 @@
         // Attribution des gains si pas encore validés pour cette manche
         if (srv.roundId && myProcessedBjRoundId !== srv.roundId) {
           myProcessedBjRoundId = srv.roundId;
+          myBjReady = false;
           if (myPl) {
             if (myPl.payout > 0) {
               state.balance += myPl.payout;
@@ -7272,23 +7314,24 @@
 
             if (myPl.result === 'win') {
               const profit = myPl.payout - (myPl.bet || 100);
-              document.getElementById('bjStatusBanner').textContent = `🏆 Tu as battu le Croupier ! (+${fmt(profit)} € de gain) (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `🏆 Tu as battu le Croupier ! (+${fmt(profit)} € de gain) — Prends ton temps pour ajuster ta mise, puis clique sur « Prêt ? » pour relancer.`;
               showToast(`🏆 Victoire au Blackjack (+${fmt(profit)} €) !`);
             } else if (myPl.result === 'push') {
-              document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.bet || 100)} €) (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.bet || 100)} €) — Prends ton temps pour ajuster ta mise, puis clique sur « Prêt ? » pour relancer.`;
             } else if (myPl.result === 'forfeit_win') {
               const loserName = srv.forfeit ? srv.forfeit.loser : 'L\'adversaire';
-              document.getElementById('bjStatusBanner').textContent = `🏆 ${loserName} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `🏆 ${loserName} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! — Prends ton temps pour ajuster ta mise, puis clique sur « Prêt ? » pour relancer.`;
               showToast(`🏆 ${loserName} a quitté le jeu ! Tu remportes la mise (+${fmt(myPl.payout)} €) !`);
             } else {
-              document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (-${fmt(myPl.bet || 100)} €) (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (-${fmt(myPl.bet || 100)} €) — Prends ton temps pour ajuster ta mise, puis clique sur « Prêt ? » pour relancer.`;
             }
           }
-          startBlackjackCooldown(3);
+          startBlackjackCooldown(0);
         }
       }
       // 4. TABLE EN ATTENTE
       else if (srv.status === 'waiting') {
+        stopBjTurnTimer();
         bj.active = false;
         bj.wasInitiator = false;
         if (actionControls) actionControls.classList.add('hidden');
@@ -7296,16 +7339,16 @@
           const hasPlayed = !!((srv.hasPlayedRound || (srv.roundId && srv.status !== 'waiting')) || (myProcessedBjRoundId !== null));
           const realPlayers = getTableParticipants('blackjack');
           if (hasPlayed) {
-            document.getElementById('bjStatusBanner').textContent = 'Manche terminée ! Modifie ou conserve ta mise, puis clique sur « Prêt ? » pour relancer.';
+            document.getElementById('bjStatusBanner').textContent = 'Manche terminée ! Prends ton temps pour ajuster ta mise, puis clique sur « Prêt ? » quand tu souhaites relancer.';
           } else if (realPlayers.length > 0) {
             if (isBjHost()) {
-              document.getElementById('bjStatusBanner').textContent = `Adversaire connecté (${realPlayers[0].username}). Clique sur Distribuer pour lancer la première main.`;
+              document.getElementById('bjStatusBanner').textContent = `Ami connecté (${realPlayers[0].username}). Ajuste ta mise et clique sur Distribuer pour lancer la manche.`;
             } else {
               const hostName = state.currentTable?.host || srv.host || "l'hôte";
               document.getElementById('bjStatusBanner').textContent = `En attente de ${hostName} pour distribuer la première main...`;
             }
           } else {
-            document.getElementById('bjStatusBanner').textContent = 'Choisis ta mise et clique sur Distribuer pour lancer la main.';
+            document.getElementById('bjStatusBanner').textContent = 'Invite un ami pour jouer ensemble face au Croupier (aucun bot en multi).';
           }
         }
       }

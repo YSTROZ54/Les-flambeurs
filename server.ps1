@@ -386,17 +386,17 @@ while ($listener.IsListening) {
                     turn = $null
                     forfeit = $null
                     readyBets = $prevReadyBets
-                    readyPlayers = $prevReady
+                    readyPlayers = @{}
                     knownPlayers = $prevKnown
                     host = $prevHost
                     hasPlayedRound = $true
                     updatedAt = $now
                 }
             }
-            # 2. Nettoyage / forfait automatique des parties abandonnées en cours (> 20s)
+            # 2. Nettoyage / forfait automatique des parties abandonnées en cours (> 30s limite de tour)
             elseif ($currentTables[$tableParam].status -eq 'playing' -or $currentTables[$tableParam].status -eq 'dealer_turn') {
                 $timeSinceUpdate = $now - (if ($currentTables[$tableParam].updatedAt) { $currentTables[$tableParam].updatedAt } else { $now })
-                if ($timeSinceUpdate -gt 20000) {
+                if ($timeSinceUpdate -gt 30000) {
                     $activeKeys = @()
                     if ($currentTables[$tableParam].players) {
                         $activeKeys = @($currentTables[$tableParam].players.Keys)
@@ -568,22 +568,15 @@ while ($listener.IsListening) {
                                 }
 
                                 if ($curTable.status -ne 'playing' -and $curTable.status -ne 'dealer_turn') {
-                                    $readyKeys = @($curTable.readyPlayers.Keys | Where-Object { $curTable.readyPlayers[$_].ready })
+                                    $readyKeys = @($curTable.readyPlayers.Keys | Where-Object { $curTable.readyPlayers[$_].ready -and -not $_.ToLower().Contains('bot') -and -not $_.ToLower().Contains('roxy') })
                                     $isMultiReady = ($readyKeys.Length -ge 2)
-                                    $isBotReady = ($readyKeys.Length -ge 1 -and ($postObj.fillWithBots -or $curTable.knownPlayers.Count -le 1))
 
-                                    if ($isMultiReady -or ($isBotReady -and $postObj.fillWithBots)) {
-                                        # Auto deal
+                                    if ($isMultiReady) {
+                                        # Auto deal entre vrais joueurs réels
                                         $parts = @()
-                                        if ($isMultiReady) {
-                                            foreach ($rk in $readyKeys) {
-                                                $rp = $curTable.readyPlayers[$rk]
-                                                $parts += @{ username = $rp.username; avatar = $rp.avatar; bet = $rp.bet }
-                                            }
-                                        } else {
-                                            $rp = $curTable.readyPlayers[$readyKeys[0]]
+                                        foreach ($rk in $readyKeys) {
+                                            $rp = $curTable.readyPlayers[$rk]
                                             $parts += @{ username = $rp.username; avatar = $rp.avatar; bet = $rp.bet }
-                                            $parts += @{ username = 'Roxy (Bot)'; avatar = '🦊'; bet = $rp.bet }
                                         }
 
                                         $deck = @()

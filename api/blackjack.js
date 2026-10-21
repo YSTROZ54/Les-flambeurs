@@ -286,32 +286,31 @@ export default async function handler(req, res) {
 
     let modified = false;
 
-    // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
+    // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente sans relance automatique
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
       const prevBets = table.readyBets || {};
       const prevHost = table.host || null;
       const prevKnown = table.knownPlayers || {};
-      const prevReady = table.readyPlayers || {};
       table = getDefaultTable(tableId);
       table.readyBets = prevBets;
       table.host = prevHost;
       table.knownPlayers = prevKnown;
-      table.readyPlayers = prevReady;
+      table.readyPlayers = {}; // Pas de relance automatique : chacun change sa mise et confirme
       table.hasPlayedRound = true;
       tables[tableId] = table;
       modified = true;
     }
 
-    // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn')
+    // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn') - Limite de 30s par tour
     if (table.status === 'playing' || table.status === 'dealer_turn') {
       const timeSinceUpdate = now - (table.updatedAt || table.roundId || now);
-      if (timeSinceUpdate > 20000) {
+      if (timeSinceUpdate > 30000) {
         const activeKeys = (table.playerOrder || Object.keys(table.players || {})).filter(k => table.players && table.players[k]);
         const turnKey = (table.turn || '').toLowerCase().trim();
         const otherKeys = activeKeys.filter(k => k !== turnKey);
 
         if (otherKeys.length === 1 && table.players[turnKey]) {
-          // Le joueur dont c'était le tour n'a pas répondu sous 20s -> Forfait automatique, l'adversaire gagne la mise !
+          // Le joueur dont c'était le tour n'a pas répondu sous 30s -> Forfait automatique, l'adversaire gagne la mise !
           const winnerKey = otherKeys[0];
           const winner = table.players[winnerKey];
           let totalPot = 0;
@@ -329,7 +328,7 @@ export default async function handler(req, res) {
           table.updatedAt = now;
           modified = true;
         } else {
-          // Aucun adversaire ou table abandonnée depuis plus de 30s -> Fermeture et remise à zéro totale
+          // Aucun adversaire ou table abandonnée depuis plus de 45s -> Fermeture et remise à zéro totale
           table = getDefaultTable(tableId);
           tables[tableId] = table;
           modified = true;
@@ -412,29 +411,24 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, table });
       }
 
-      // Vérifier si les joueurs nécessaires sont prêts
-      const readyKeys = Object.keys(table.readyPlayers).filter(k => table.readyPlayers[k] && table.readyPlayers[k].ready);
+      // Vérifier si les 2 vrais joueurs invités sont prêts (AUCUN BOT EN MULTI)
+      const readyKeys = Object.keys(table.readyPlayers).filter(k => {
+        const rp = table.readyPlayers[k];
+        if (!rp || !rp.ready) return false;
+        const name = (rp.username || '').toLowerCase();
+        return !name.includes('bot') && !name.includes('roxy');
+      });
       const isMultiReady = readyKeys.length >= 2;
-      const isBotReady = readyKeys.length >= 1 && (body.fillWithBots || Object.keys(table.knownPlayers).length <= 1);
 
-      if (isMultiReady || (isBotReady && body.fillWithBots)) {
-        let participants = [];
-        if (isMultiReady) {
-          participants = readyKeys.map(k => {
-            const rp = table.readyPlayers[k];
-            return {
-              username: rp.username,
-              avatar: rp.avatar || '👤',
-              bet: rp.bet || table.readyBets[k] || 100
-            };
-          });
-        } else {
-          const rp = table.readyPlayers[readyKeys[0]];
-          participants = [
-            { username: rp.username, avatar: rp.avatar || '👤', bet: rp.bet || 100 },
-            { username: 'Roxy (Bot)', avatar: '🦊', bet: rp.bet || 100 }
-          ];
-        }
+      if (isMultiReady) {
+        const participants = readyKeys.map(k => {
+          const rp = table.readyPlayers[k];
+          return {
+            username: rp.username,
+            avatar: rp.avatar || '👤',
+            bet: rp.bet || (table.readyBets && table.readyBets[k]) || 100
+          };
+        });
 
         startServerDeal(table, participants, now);
         memoryTables = tables;
@@ -467,9 +461,13 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: false, error: "Seul l'hôte qui a invité peut lancer la première partie !", table });
       }
 
-      const participants = Array.isArray(body.participants) && body.participants.length > 0
-        ? body.participants
+      let participants = Array.isArray(body.participants) && body.participants.length > 0
+        ? body.participants.filter(p => !((p.username || '').toLowerCase().includes('bot') || (p.username || '').toLowerCase().includes('roxy')))
         : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: parseInt(body.bet) || 100 }];
+
+      if (participants.length < 2) {
+        return res.status(200).json({ ok: false, error: "En multijoueur, tu ne peux jouer qu'avec une personne invitée (aucun bot autorisé) !", table });
+      }
 
       startServerDeal(table, participants, now);
       memoryTables = tables;
