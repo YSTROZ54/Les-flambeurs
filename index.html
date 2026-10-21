@@ -26,7 +26,7 @@
       <span class="doodle-icon">🦆</span>
       <span class="doodle-icon">🎰</span>
       <span class="doodle-pill text-pink-400">TAPIS ! +5 000 €</span>
-      <span class="doodle-icon">🎡</span>
+      <span class="doodle-icon">💎</span>
       <span class="doodle-icon">🥤</span>
       <span class="doodle-pill text-sky-300">CRASH ×14.80</span>
       <span class="doodle-icon">🎭</span>
@@ -38,7 +38,7 @@
       <span class="doodle-icon">🦆</span>
       <span class="doodle-icon">🎰</span>
       <span class="doodle-pill text-pink-400">TAPIS ! +5 000 €</span>
-      <span class="doodle-icon">🎡</span>
+      <span class="doodle-icon">💎</span>
       <span class="doodle-icon">🥤</span>
       <span class="doodle-pill text-sky-300">CRASH ×14.80</span>
       <span class="doodle-icon">🎭</span>
@@ -52,7 +52,7 @@
       <span class="doodle-pill text-emerald-300">CHAMBRE FORTE ×4.2</span>
       <span class="doodle-icon">🎰</span>
       <span class="doodle-icon">🧞‍♂️</span>
-      <span class="doodle-pill text-rose-400">ROUGE 25 • ×36</span>
+      <span class="doodle-pill text-rose-400">CHAMBRE FORTE ×25</span>
       <span class="doodle-icon">🃏</span>
       <span class="doodle-icon">🥃</span>
       <span class="doodle-pill text-sky-300">+10 000 €</span>
@@ -63,7 +63,7 @@
       <span class="doodle-pill text-emerald-300">CHAMBRE FORTE ×4.2</span>
       <span class="doodle-icon">🎰</span>
       <span class="doodle-icon">🧞‍♂️</span>
-      <span class="doodle-pill text-rose-400">ROUGE 25 • ×36</span>
+      <span class="doodle-pill text-rose-400">CHAMBRE FORTE ×25</span>
       <span class="doodle-icon">🃏</span>
       <span class="doodle-icon">🥃</span>
       <span class="doodle-pill text-sky-300">+10 000 €</span>
@@ -75,7 +75,7 @@
       <span class="doodle-icon">🚀</span>
       <span class="doodle-icon">💣</span>
       <span class="doodle-pill text-amber-300">LES FLAMBEURS • ×2.5</span>
-      <span class="doodle-icon">🎡</span>
+      <span class="doodle-icon">💎</span>
       <span class="doodle-icon">🃏</span>
       <span class="doodle-pill text-purple-300">🔥🔥🔥 ×500</span>
       <span class="doodle-icon">🥤</span>
@@ -85,7 +85,7 @@
       <span class="doodle-icon">🚀</span>
       <span class="doodle-icon">💣</span>
       <span class="doodle-pill text-amber-300">LES FLAMBEURS • ×2.5</span>
-      <span class="doodle-icon">🎡</span>
+      <span class="doodle-icon">💎</span>
       <span class="doodle-icon">🃏</span>
       <span class="doodle-pill text-purple-300">🔥🔥🔥 ×500</span>
       <span class="doodle-icon">🥤</span>
@@ -122,7 +122,6 @@
         <button onclick="switchRoom('poker')" id="nav-poker" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">♠️ Poker</button>
         <button onclick="switchRoom('crash')" id="nav-crash" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🚀 Crash</button>
         <button onclick="switchRoom('slots')" id="nav-slots" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🎰 Machine</button>
-        <button onclick="switchRoom('roulette')" id="nav-roulette" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🎡 Roulette</button>
         <button onclick="switchRoom('mines')" id="nav-mines" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🔐 Chambre Forte</button>
         <button onclick="switchRoom('blackjack')" id="nav-blackjack" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🃏 Blackjack</button>
         <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🥤 Gobelets</button>
@@ -280,23 +279,6 @@
             </div>
             <button onclick="switchRoom('slots')" class="mt-5 w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-black font-extrabold text-xs transition">
               Tirer le levier →
-            </button>
-          </div>
-
-          <!-- 4. ROULETTE -->
-          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#062c21]/95 via-[#041b14]/95 to-black border border-emerald-500/40 hover:border-emerald-400 transition flex flex-col justify-between shadow-xl">
-            <div>
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">Vraie Roue + Bille &amp; Tapis</span>
-                <button onclick="openRulesModal('roulette')" class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold">❓ Comment jouer</button>
-              </div>
-              <h3 class="font-serif-title text-2xl font-extrabold text-emerald-100 mt-3">Roulette</h3>
-              <p class="text-xs text-emerald-100/80 mt-2 leading-relaxed">
-                Vrai tapis de casino encadré et grande roue avec les 37 numéros visibles où la bille blanche tourne et tombe dans la case.
-              </p>
-            </div>
-            <button onclick="switchRoom('roulette')" class="mt-5 w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition">
-              Ouvrir la Roulette →
             </button>
           </div>
 
@@ -802,82 +784,6 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 5 : ROULETTE (ROUE 37 CASES + BILLE + COOLDOWN 7S)          -->
-    <!-- =============================================================== -->
-    <section id="view-roulette" class="space-y-6 hidden">
-      <div class="flex flex-wrap items-center justify-between gap-4 bg-emerald-950/90 border border-emerald-500/30 rounded-2xl p-4 backdrop-blur-xl">
-        <div class="flex items-center gap-3">
-          <button onclick="switchRoom('hall')" class="btn-home-big">
-            ← Accueil
-          </button>
-          <div>
-            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">Roulette</h2>
-            <p class="text-xs text-emerald-300">Cylindre officiel 37 cases + délai de 7s entre chaque lancer</p>
-          </div>
-        </div>
-        <button onclick="openRulesModal('roulette')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">
-          ❓ Comment jouer
-        </button>
-      </div>
-
-      <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center">
-        <div class="xl:col-span-5 flex flex-col items-center justify-center bg-stone-950/90 border border-emerald-500/30 rounded-3xl p-5 shadow-2xl">
-          <canvas id="rouletteWheelCanvas" width="380" height="380" class="w-[300px] h-[300px] sm:w-[360px] sm:h-[360px]"></canvas>
-          <div id="rouletteBanner" class="mt-3 text-center text-xs font-bold text-amber-200 bg-black/60 px-4 py-2 rounded-full border border-white/10">
-            Pose tes jetons sur le tapis puis clique sur Lancer la bille !
-          </div>
-        </div>
-
-        <div class="xl:col-span-7 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3 bg-stone-950/90 border border-white/15 rounded-2xl p-4">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-emerald-300">Valeur du jeton :</span>
-              <input id="rouletteCustomChipInput" type="number" value="25" min="5" class="w-20 bg-black/70 border border-amber-400/50 rounded-xl px-2.5 py-1.5 text-center font-mono-num text-xs font-extrabold text-amber-300 focus:outline-none">
-              <button onclick="selectRouletteChip(25)" class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-mono-num">25</button>
-              <button onclick="selectRouletteChip(100)" class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-mono-num">100</button>
-              <button onclick="selectRouletteChip(500)" class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-mono-num">500</button>
-            </div>
-            <div class="text-xs text-stone-300">
-              Total misé : <strong id="rouletteTotalBet" class="font-mono-num text-amber-300">0</strong> <span class="coin-slot"></span>
-            </div>
-            <div class="flex gap-2">
-              <button id="rouletteSpinBtn" onclick="spinRouletteWheel()" class="px-5 py-2.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-300 to-amber-500 text-black shadow-lg">
-                🎡 Lancer la bille
-              </button>
-              <button id="rouletteClearBtn" onclick="clearRouletteBets()" class="px-3.5 py-2.5 rounded-xl text-xs bg-black/50 border border-white/15 text-stone-200 font-bold">
-                Effacer
-              </button>
-            </div>
-          </div>
-
-          <div class="roulette-table-felt overflow-x-auto">
-            <div class="min-w-[540px] space-y-2">
-              <div class="grid gap-1" style="grid-template-columns: 48px repeat(12, minmax(0, 1fr)) 48px;">
-                <div onclick="placeRouletteBet('N_0', 'Numéro 0', 36)" id="rcell-N_0" class="r-cell r-green row-span-3 rounded-l-xl text-base">0</div>
-                <div id="rouletteCarpetRows" class="grid gap-1" style="grid-column: span 13 / span 13; grid-template-columns: repeat(12, minmax(0, 1fr)) 48px;"></div>
-              </div>
-
-              <div class="grid grid-cols-3 gap-1 pl-[52px] pr-[52px]">
-                <div onclick="placeRouletteBet('DOZ_1', '1re Douzaine (1-12)', 3)" id="rcell-DOZ_1" class="r-cell r-outside">1re 12</div>
-                <div onclick="placeRouletteBet('DOZ_2', '2e Douzaine (13-24)', 3)" id="rcell-DOZ_2" class="r-cell r-outside">2e 12</div>
-                <div onclick="placeRouletteBet('DOZ_3', '3e Douzaine (25-36)', 3)" id="rcell-DOZ_3" class="r-cell r-outside">3e 12</div>
-              </div>
-
-              <div class="grid grid-cols-6 gap-1 pl-[52px] pr-[52px]">
-                <div onclick="placeRouletteBet('LOW', '1 à 18', 2)" id="rcell-LOW" class="r-cell r-outside rounded-bl-lg">1 - 18</div>
-                <div onclick="placeRouletteBet('EVEN', 'Pair', 2)" id="rcell-EVEN" class="r-cell r-outside">PAIR</div>
-                <div onclick="placeRouletteBet('RED', 'Rouge', 2)" id="rcell-RED" class="r-cell r-red">♦ ROUGE</div>
-                <div onclick="placeRouletteBet('BLACK', 'Noir', 2)" id="rcell-BLACK" class="r-cell r-black">♠ NOIR</div>
-                <div onclick="placeRouletteBet('ODD', 'Impair', 2)" id="rcell-ODD" class="r-cell r-outside">IMPAIR</div>
-                <div onclick="placeRouletteBet('HIGH', '19 à 36', 2)" id="rcell-HIGH" class="r-cell r-outside rounded-br-lg">19 - 36</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =============================================================== -->
     <!-- VUE 6 : LA CHAMBRE FORTE (GRILLE 5×5 = 25 CASES)                -->
     <!-- =============================================================== -->
     <section id="view-mines" class="space-y-6 hidden">
@@ -1327,11 +1233,6 @@
         </div>
 
         <div class="space-y-1">
-          <div class="flex justify-between"><span>🎡 Roulette :</span><strong id="lblLuckRoulette" class="font-mono-num text-amber-300">45%</strong></div>
-          <input id="adminRouletteLuck" type="range" min="5" max="95" value="45" oninput="document.getElementById('lblLuckRoulette').textContent=this.value+'%'" class="w-full accent-amber-400 cursor-pointer">
-        </div>
-
-        <div class="space-y-1">
           <div class="flex justify-between"><span>🔐 Chambre Forte (Mines) :</span><strong id="lblLuckMines" class="font-mono-num text-amber-300">50%</strong></div>
           <input id="adminMinesLuck" type="range" min="5" max="95" value="50" oninput="document.getElementById('lblLuckMines').textContent=this.value+'%'" class="w-full accent-amber-400 cursor-pointer">
         </div>
@@ -1723,7 +1624,6 @@
     /* ================= CONFIGURATION & CURSEURS DU PATRON ================= */
     const CONFIG_CASINO = {
       CHANCE_CRASH: 50,
-      CHANCE_ROULETTE: 45,
       CHANCE_MINES: 50,
       CHANCE_BLACKJACK: 50,
       CHANCE_MACHINE_A_SOUS: 35,
@@ -1870,7 +1770,6 @@
       },
       luckConfig: {
         crash: 50,
-        roulette: 45,
         mines: 50,
         blackjack: 50,
         slots: 35
@@ -2522,7 +2421,6 @@
 
       // Synchronise les curseurs du Patron
       CONFIG_CASINO.CHANCE_CRASH = state.luckConfig.crash ?? 50;
-      CONFIG_CASINO.CHANCE_ROULETTE = state.luckConfig.roulette ?? 45;
       CONFIG_CASINO.CHANCE_MINES = state.luckConfig.mines ?? 50;
       CONFIG_CASINO.CHANCE_BLACKJACK = state.luckConfig.blackjack ?? 50;
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = state.luckConfig.slots ?? 35;
@@ -2893,8 +2791,6 @@
       setVal('adminTargetInput', state.username || '');
       setVal('adminCrashLuck', CONFIG_CASINO.CHANCE_CRASH);
       setText('lblLuckCrash', CONFIG_CASINO.CHANCE_CRASH + '%');
-      setVal('adminRouletteLuck', CONFIG_CASINO.CHANCE_ROULETTE);
-      setText('lblLuckRoulette', CONFIG_CASINO.CHANCE_ROULETTE + '%');
       setVal('adminMinesLuck', CONFIG_CASINO.CHANCE_MINES);
       setText('lblLuckMines', CONFIG_CASINO.CHANCE_MINES + '%');
       setVal('adminBjLuck', CONFIG_CASINO.CHANCE_BLACKJACK);
@@ -2957,21 +2853,19 @@
 
     function saveAdminConfig() {
       CONFIG_CASINO.CHANCE_CRASH = parseInt(document.getElementById('adminCrashLuck').value) || 50;
-      CONFIG_CASINO.CHANCE_ROULETTE = parseInt(document.getElementById('adminRouletteLuck').value) || 45;
       CONFIG_CASINO.CHANCE_MINES = parseInt(document.getElementById('adminMinesLuck').value) || 50;
       CONFIG_CASINO.CHANCE_BLACKJACK = parseInt(document.getElementById('adminBjLuck').value) || 50;
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = parseInt(document.getElementById('adminSlotLuck').value) || 35;
 
       state.luckConfig = {
         crash: CONFIG_CASINO.CHANCE_CRASH,
-        roulette: CONFIG_CASINO.CHANCE_ROULETTE,
         mines: CONFIG_CASINO.CHANCE_MINES,
         blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
         slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS
       };
       saveState();
       closeAdminModal();
-      showToast('⚙️ Les 5 pourcentages de chance (Winrate) ont été enregistrés !');
+      showToast('⚙️ Les 4 pourcentages de chance (Winrate) ont été enregistrés !');
     }
 
     /* ================= COFFRE DU JOUR (TOUTES LES 6 HEURES) ================= */
@@ -3177,10 +3071,10 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'roulette', 'mines', 'blackjack', 'cups', 'shop', 'bank'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'shop', 'bank'];
     const ROOM_TITLES = {
       hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
-      roulette: '/ Roulette', mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
+      mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
       shop: '/ Boutique', bank: '/ La Banque'
     };
@@ -3241,7 +3135,6 @@
         startCrashAnimLoop();
         drawCrashScene(false);
       }
-      if (room === 'roulette') drawRouletteWheel();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -3281,12 +3174,6 @@
         html: `
           <p>🎯 <strong>Le but :</strong> Aligner 2 ou 3 symboles identiques sur la ligne centrale !</p>
           <p>🔥 <strong>Nouveaux gains :</strong> 2 Cerises remboursent la moitié de ta mise (×0,5) et 3 Flammes 🔥 déclenchent le Jackpot ×500 !</p>
-        `
-      },
-      roulette: {
-        title: '🎡 Comment jouer à la Roulette ?',
-        html: `
-          <p>🎯 <strong>Le but :</strong> Deviner où la bille blanche va s'arrêter parmi les 37 numéros (×36 sur un numéro plein, ×3 sur une douzaine, ×2 sur Rouge/Noir/Pair/Impair).</p>
         `
       },
       mines: {
@@ -6136,290 +6023,6 @@
         slotSpinning = false;
       }, 2900);
     }
-
-    /* ================= ROULETTE (AVEC DÉLAI AUTOMATIQUE DE 7S) ================= */
-    const WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
-    const RED_NUMBERS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-
-    let roulette = {
-      bets: {},
-      spinning: false,
-      cooldownRemaining: 0,
-      wheelAngle: 0,
-      ballAngle: 0,
-      ballRadius: 152,
-      winningNumber: null
-    };
-
-    function initRouletteCarpet() {
-      const container = document.getElementById('rouletteCarpetRows');
-      if (!container) return;
-      const rows = [
-        [3,6,9,12,15,18,21,24,27,30,33,36],
-        [2,5,8,11,14,17,20,23,26,29,32,35],
-        [1,4,7,10,13,16,19,22,25,28,31,34]
-      ];
-      let html = '';
-      rows.forEach((rowNums, rIdx) => {
-        rowNums.forEach(n => {
-          const cls = RED_NUMBERS.includes(n) ? 'r-red' : 'r-black';
-          html += `<div onclick="placeRouletteBet('N_${n}', 'Numéro ${n}', 36)" id="rcell-N_${n}" class="r-cell ${cls}">${n}</div>`;
-        });
-        html += `<div onclick="placeRouletteBet('COL_${rIdx}', 'Colonne 2:1', 3)" id="rcell-COL_${rIdx}" class="r-cell r-outside rounded-r-lg">2:1</div>`;
-      });
-      container.innerHTML = html;
-      drawRouletteWheel();
-    }
-
-    function selectRouletteChip(val) {
-      document.getElementById('rouletteCustomChipInput').value = val;
-    }
-
-    function placeRouletteBet(key, label, mult) {
-      if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour miser à la roulette !');
-        openAuthModal('login');
-        return;
-      }
-      if (roulette.spinning || roulette.cooldownRemaining > 0) {
-        return showToast('⏳ Attends la fin du compte à rebours de 7s !');
-      }
-      const chipVal = Math.max(5, parseInt(document.getElementById('rouletteCustomChipInput').value) || 25);
-      if (state.balance < chipVal) return showToast('❌ Pas assez de pièces.');
-      state.balance -= chipVal;
-      if (!roulette.bets[key]) roulette.bets[key] = { amount: 0, label, mult };
-      roulette.bets[key].amount += chipVal;
-      saveState();
-      renderRouletteChipsOnCarpet();
-    }
-
-    function renderRouletteChipsOnCarpet() {
-      document.querySelectorAll('.r-chip-marker').forEach(el => el.remove());
-      let total = 0;
-      Object.entries(roulette.bets).forEach(([key, b]) => {
-        total += b.amount;
-        const cell = document.getElementById(`rcell-${key}`);
-        if (cell) {
-          const marker = document.createElement('div');
-          marker.className = 'r-chip-marker';
-          marker.textContent = b.amount >= 1000 ? `${(b.amount/1000).toFixed(1)}k` : b.amount;
-          cell.appendChild(marker);
-        }
-      });
-      document.getElementById('rouletteTotalBet').textContent = fmt(total);
-    }
-
-    function clearRouletteBets() {
-      if (roulette.spinning) return;
-      let refund = 0;
-      Object.values(roulette.bets).forEach(b => refund += b.amount);
-      state.balance += refund;
-      roulette.bets = {};
-      saveState();
-      renderRouletteChipsOnCarpet();
-    }
-
-    function drawRouletteWheel() {
-      const canvas = document.getElementById('rouletteWheelCanvas');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const cx = canvas.width / 2, cy = canvas.height / 2;
-      const outerR = 176, pocketR = 158, innerR = 104;
-      const slice = (Math.PI * 2) / 37;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
-      ctx.fillStyle = '#451a03';
-      ctx.fill();
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = '#f59e0b';
-      ctx.stroke();
-
-      WHEEL_ORDER.forEach((num, i) => {
-        const startA = roulette.wheelAngle + i * slice - slice / 2;
-        const endA = startA + slice;
-
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, pocketR, startA, endA);
-        ctx.closePath();
-        ctx.fillStyle = num === 0 ? '#15803d' : RED_NUMBERS.includes(num) ? '#b91c1c' : '#111827';
-        ctx.fill();
-        ctx.lineWidth = 1.2;
-        ctx.strokeStyle = '#fde68a';
-        ctx.stroke();
-
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(startA + slice / 2);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px JetBrains Mono, monospace';
-        ctx.fillText(String(num), pocketR - 18, 0);
-        ctx.restore();
-      });
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
-      ctx.fillStyle = '#0c131f';
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#f59e0b';
-      ctx.stroke();
-
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 28px Cinzel, serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(roulette.winningNumber !== null ? `N° ${roulette.winningNumber}` : 'ROULETTE', cx, cy + 10);
-
-      const bx = cx + Math.cos(roulette.ballAngle) * roulette.ballRadius;
-      const by = cy + Math.sin(roulette.ballAngle) * roulette.ballRadius;
-      ctx.beginPath();
-      ctx.arc(bx, by, 7.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 10;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    function doesNumberWinAnyRouletteBet(num) {
-      const isRed = RED_NUMBERS.includes(num);
-      const rows = [
-        [3,6,9,12,15,18,21,24,27,30,33,36],
-        [2,5,8,11,14,17,20,23,26,29,32,35],
-        [1,4,7,10,13,16,19,22,25,28,31,34]
-      ];
-      return Object.keys(roulette.bets).some(key => {
-        if (key === `N_${num}`) return true;
-        if (key === 'RED' && isRed) return true;
-        if (key === 'BLACK' && num !== 0 && !isRed) return true;
-        if (key === 'EVEN' && num !== 0 && num % 2 === 0) return true;
-        if (key === 'ODD' && num % 2 === 1) return true;
-        if (key === 'LOW' && num >= 1 && num <= 18) return true;
-        if (key === 'HIGH' && num >= 19 && num <= 36) return true;
-        if (key === 'DOZ_1' && num >= 1 && num <= 12) return true;
-        if (key === 'DOZ_2' && num >= 13 && num <= 24) return true;
-        if (key === 'DOZ_3' && num >= 25 && num <= 36) return true;
-        if (key === 'COL_0' && rows[0].includes(num)) return true;
-        if (key === 'COL_1' && rows[1].includes(num)) return true;
-        if (key === 'COL_2' && rows[2].includes(num)) return true;
-        return false;
-      });
-    }
-
-    function startRouletteCooldown() {
-      roulette.cooldownRemaining = CONFIG_CASINO.DELAI_ENTRE_PARTIES_SECONDES; // 7 secondes
-      const btn = document.getElementById('rouletteSpinBtn');
-      btn.disabled = true;
-      btn.textContent = `⏳ ${roulette.cooldownRemaining}s...`;
-      const timer = setInterval(() => {
-        roulette.cooldownRemaining--;
-        if (roulette.cooldownRemaining > 0) {
-          btn.textContent = `⏳ ${roulette.cooldownRemaining}s...`;
-        } else {
-          clearInterval(timer);
-          btn.disabled = false;
-          btn.textContent = '🎡 Lancer la bille';
-        }
-      }, 1000);
-    }
-
-    function spinRouletteWheel() {
-      if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour jouer à la roulette !');
-        openAuthModal('login');
-        return;
-      }
-      if (roulette.spinning || roulette.cooldownRemaining > 0) return;
-      if (!Object.keys(roulette.bets).length) return showToast('Pose au moins un jeton sur le tapis !');
-
-      roulette.spinning = true;
-      let winIndex = Math.floor(Math.random() * 37);
-
-      // Influence du curseur CHANCE_ROULETTE du Patron
-      if (CONFIG_CASINO.CHANCE_ROULETTE > 55 && Math.random() * 100 < CONFIG_CASINO.CHANCE_ROULETTE) {
-        const winningIndices = WHEEL_ORDER.map((n, idx) => doesNumberWinAnyRouletteBet(n) ? idx : -1).filter(i => i !== -1);
-        if (winningIndices.length) winIndex = winningIndices[Math.floor(Math.random() * winningIndices.length)];
-      }
-
-      const winNum = WHEEL_ORDER[winIndex];
-      const slice = (Math.PI * 2) / 37;
-
-      const startWheel = roulette.wheelAngle;
-      const targetWheel = startWheel + Math.PI * 6 + Math.random() * Math.PI * 2;
-      const finalPocketAngle = targetWheel + winIndex * slice;
-      const startBall = roulette.ballAngle;
-      const targetBall = finalPocketAngle - Math.PI * 10;
-
-      const startTime = performance.now();
-      const duration = 3800;
-
-      function animateWheel(now) {
-        const t = Math.min(1, (now - startTime) / duration);
-        const ease = 1 - Math.pow(1 - t, 3);
-
-        roulette.wheelAngle = startWheel + (targetWheel - startWheel) * ease;
-        roulette.ballAngle = startBall + (targetBall - startBall) * ease;
-        roulette.ballRadius = t < 0.65 ? 152 : 152 - ((t - 0.65) / 0.35) * 30;
-
-        drawRouletteWheel();
-
-        if (t < 1) {
-          requestAnimationFrame(animateWheel);
-        } else {
-          roulette.winningNumber = winNum;
-          drawRouletteWheel();
-          resolveRoulettePayouts(winNum);
-          roulette.spinning = false;
-          startRouletteCooldown();
-        }
-      }
-      requestAnimationFrame(animateWheel);
-    }
-
-    function resolveRoulettePayouts(num) {
-      let totalWin = 0;
-      const isRed = RED_NUMBERS.includes(num);
-      const rows = [
-        [3,6,9,12,15,18,21,24,27,30,33,36],
-        [2,5,8,11,14,17,20,23,26,29,32,35],
-        [1,4,7,10,13,16,19,22,25,28,31,34]
-      ];
-
-      Object.entries(roulette.bets).forEach(([key, b]) => {
-        if (key === `N_${num}`) totalWin += b.amount * 36;
-        else if (key === 'RED' && isRed) totalWin += b.amount * 2;
-        else if (key === 'BLACK' && num !== 0 && !isRed) totalWin += b.amount * 2;
-        else if (key === 'EVEN' && num !== 0 && num % 2 === 0) totalWin += b.amount * 2;
-        else if (key === 'ODD' && num % 2 === 1) totalWin += b.amount * 2;
-        else if (key === 'LOW' && num >= 1 && num <= 18) totalWin += b.amount * 2;
-        else if (key === 'HIGH' && num >= 19 && num <= 36) totalWin += b.amount * 2;
-        else if (key === 'DOZ_1' && num >= 1 && num <= 12) totalWin += b.amount * 3;
-        else if (key === 'DOZ_2' && num >= 13 && num <= 24) totalWin += b.amount * 3;
-        else if (key === 'DOZ_3' && num >= 25 && num <= 36) totalWin += b.amount * 3;
-        else if (key === 'COL_0' && rows[0].includes(num)) totalWin += b.amount * 3;
-        else if (key === 'COL_1' && rows[1].includes(num)) totalWin += b.amount * 3;
-        else if (key === 'COL_2' && rows[2].includes(num)) totalWin += b.amount * 3;
-      });
-
-      roulette.bets = {};
-      renderRouletteChipsOnCarpet();
-
-      if (totalWin > 0) {
-        state.balance += totalWin;
-        playCoinWinSound();
-        document.getElementById('rouletteBanner').textContent = `🎉 La bille tombe sur le ${num} ! Tu gagnes +${fmt(totalWin)} pièces ! (Prochain lancer dans 7s)`;
-        showToast(`🎡 Numéro ${num} : +${fmt(totalWin)} pièces !`);
-      } else {
-        document.getElementById('rouletteBanner').textContent = `La bille s'est arrêtée dans la case ${num}. (Prochain lancer dans 7s)`;
-      }
-      saveState();
-    }
-
     /* ================= LA CHAMBRE FORTE (MINES 5×5 = 25 CASES) ================= */
     let mines = { active: false, bet: 0, bombs: [], revealed: [], count: 3 };
 
@@ -8337,7 +7940,6 @@
       updateLobbyUI('poker');
       updateLobbyUI('bj');
       updateLobbyUI('cups');
-      initRouletteCarpet();
       renderMinesGrid(false);
       renderCrashHistoryPills();
       renderCrashLiveBets();
