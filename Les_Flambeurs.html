@@ -693,9 +693,19 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div class="lg:col-span-5 rounded-2xl p-5 bg-[#1b0929]/95 border border-pink-500/30 space-y-4 shadow-xl">
           <div>
-            <label class="text-xs uppercase tracking-wider text-pink-300 font-bold">Mise par coup</label>
-            <div class="mt-1.5 flex items-center bg-black/60 border border-pink-500/30 rounded-xl overflow-hidden">
-              <input id="slotBetInput" type="number" value="50" placeholder="Ex: 50" class="w-full bg-transparent px-4 py-2.5 text-white font-mono-num text-base font-bold focus:outline-none">
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-xs uppercase tracking-wider text-pink-300 font-bold">Mise par coup</label>
+              <span class="text-[11px] text-pink-400 font-semibold font-mono-num">Max : 100 000 €</span>
+            </div>
+            <div class="mt-1 flex items-center bg-black/60 border border-pink-500/30 rounded-xl overflow-hidden">
+              <input id="slotBetInput" type="number" value="50" min="1" max="100000" placeholder="Ex: 50 (Max: 100 000)" oninput="if(Number(this.value) > 100000) this.value = 100000;" class="w-full bg-transparent px-4 py-2.5 text-white font-mono-num text-base font-bold focus:outline-none">
+            </div>
+            <div class="grid grid-cols-5 gap-1.5 mt-2">
+              <button type="button" onclick="setSlotQuickBet(50)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">50</button>
+              <button type="button" onclick="setSlotQuickBet(500)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">500</button>
+              <button type="button" onclick="setSlotQuickBet(5000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">5k</button>
+              <button type="button" onclick="setSlotQuickBet(25000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">25k</button>
+              <button type="button" onclick="setSlotQuickBet(100000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-pink-500/30 hover:bg-pink-500/50 text-pink-200 border border-pink-400/50 transition">100k</button>
             </div>
           </div>
 
@@ -1809,7 +1819,8 @@
       pendingFriendRequests: [],
       pendingGameInvites: [],
       currentTable: {},
-      activeRoomPartners: {}
+      activeRoomPartners: {},
+      lastBalanceChange: 0
     };
 
     let state = { ...DEFAULT_USER_STATE };
@@ -1912,10 +1923,13 @@
               });
             }
 
+            const activeUser = sessionStorage.getItem('flambeurs_active_session_user') || localStorage.getItem(STORAGE_KEY_SESSION);
+            const meKey = (activeUser || '').toLowerCase().trim();
+
             rows.forEach(row => {
               if (row && row.username) {
                 if (row.username.startsWith('__')) return;
-                const key = row.username.toLowerCase();
+                const key = row.username.toLowerCase().trim();
                 const extraData = (row.data && typeof row.data === 'object') ? row.data : {};
                 
                 if (Array.isArray(extraData.bannedUsers) && extraData.bannedUsers.length > 0) {
@@ -1927,13 +1941,25 @@
                   } catch (e) {}
                 }
 
+                const isMe = Boolean(meKey && key === meKey);
+                const remoteTime = extraData.lastBalanceChange || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
+                const localTime = (isMe && state.lastBalanceChange) ? state.lastBalanceChange : 0;
+                const localBalanceRecent = isMe && (Date.now() - (state.lastBalanceChange || 0) < 45000);
+                const localPlaying = isMe && (Boolean(slotSpinning) || (typeof bj !== 'undefined' && Boolean(bj.active)) || (typeof rouletteSpinning !== 'undefined' && Boolean(rouletteSpinning)));
+
+                let resolvedBalance = typeof row.balance === 'number' ? row.balance : parseInt(row.balance) || 5500;
+                // Protection stricte du solde : si le joueur joue localement ou a misé/gagné récemment, le solde local prime
+                if (isMe && (localBalanceRecent || localPlaying || localTime >= remoteTime)) {
+                  resolvedBalance = state.balance;
+                }
+
                 db[key] = {
                   ...DEFAULT_USER_STATE,
                   ...extraData,
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
-                  balance: typeof row.balance === 'number' ? row.balance : parseInt(row.balance) || 5500,
+                  balance: resolvedBalance,
                   friends: Array.isArray(extraData.friends) ? extraData.friends : [],
                   pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : [],
                   pendingFriendRequests: Array.isArray(extraData.pendingFriendRequests) ? extraData.pendingFriendRequests : [],
@@ -2075,7 +2101,18 @@
             state.pendingFriendRequests = newFriendReqs;
             state.pendingGameInvites = newGameInvs;
             state.friends = newFriends;
-            if (hasBalanceDiff) state.balance = myAcc.balance;
+            if (hasBalanceDiff) {
+              const localBalanceRecent = (Date.now() - (state.lastBalanceChange || 0) < 45000);
+              const localPlaying = (Boolean(slotSpinning) || (typeof bj !== 'undefined' && Boolean(bj.active)) || (typeof rouletteSpinning !== 'undefined' && Boolean(rouletteSpinning)));
+              if (localBalanceRecent || localPlaying) {
+                // Le solde local fait autorité (gain ou mise en cours). On protège state.balance et on synchronise vers Supabase
+                myAcc.balance = state.balance;
+                db[meKey].balance = state.balance;
+                pushRemoteAccount(state).catch(() => {});
+              } else {
+                state.balance = myAcc.balance;
+              }
+            }
             saveState();
             // Ne jouer le carillon que si une VRAIE nouvelle invitation arrive pour l'utilisateur connecté
             if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || (newGameInvs.length > oldGameInvLen && newGameInvs.length > 0)) {
@@ -2116,11 +2153,13 @@
     async function pushRemoteAccount(account) {
       if (!account || !account.username) return;
       const bannedList = getBannedUsers();
+      const isMe = account.username.toLowerCase() === (state.username || '').toLowerCase();
+      const balanceToPush = isMe ? state.balance : (account.balance ?? 5500);
       const row = {
         username: account.username,
         password: account.password || '',
         avatar: account.avatarEmoji || '🎭',
-        balance: account.balance ?? 5500,
+        balance: balanceToPush,
         data: {
           equipped: account.equipped || {},
           ownedSkins: account.ownedSkins || [],
@@ -2132,8 +2171,9 @@
           pendingTransfers: account.pendingTransfers || [],
           pendingFriendRequests: account.pendingFriendRequests || [],
           pendingGameInvites: account.pendingGameInvites || [],
-          currentTable: (account.username === state.username) ? (state.currentTable || {}) : (account.currentTable || {}),
-          bannedUsers: bannedList
+          currentTable: isMe ? (state.currentTable || {}) : (account.currentTable || {}),
+          bannedUsers: bannedList,
+          lastBalanceChange: isMe ? (state.lastBalanceChange || Date.now()) : (account.data?.lastBalanceChange || account.lastBalanceChange || Date.now())
         },
         updated_at: new Date().toISOString()
       };
@@ -2467,8 +2507,15 @@
       syncRemoteAccounts().catch(() => {});
     }
 
+    let _lastSavedBalance = null;
     function saveState() {
       try {
+        if (_lastSavedBalance !== null && _lastSavedBalance !== state.balance) {
+          state.lastBalanceChange = Date.now();
+        } else if (!state.lastBalanceChange) {
+          state.lastBalanceChange = Date.now();
+        }
+        _lastSavedBalance = state.balance;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         if (state.username) {
           const db = getAccountsDB();
@@ -3211,6 +3258,7 @@
         html: `
           <p>🎯 <strong>Le but :</strong> Aligner 2 ou 3 symboles identiques sur la ligne centrale !</p>
           <p>🔥 <strong>Nouveaux gains :</strong> 2 Cerises remboursent la moitié de ta mise (×0,5) et 3 Flammes 🔥 déclenchent le Jackpot ×500 !</p>
+          <p>💰 <strong>Mise maximale :</strong> La mise maximale autorisée par coup est de <strong>100 000 €</strong>.</p>
         `
       },
       mines: {
@@ -5992,6 +6040,13 @@
     const ITEM_HEIGHT = 176;
     let slotSpinning = false;
 
+    function setSlotQuickBet(amount) {
+      const el = document.getElementById('slotBetInput');
+      if (!el) return;
+      const target = Math.min(100000, Math.max(1, amount));
+      el.value = Math.min(target, state.balance > 0 ? state.balance : target);
+    }
+
     function pullSlotLever() {
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer à la machine à sous !');
@@ -5999,12 +6054,19 @@
         return;
       }
       if (slotSpinning) return;
-      const bet = parseInt(document.getElementById('slotBetInput').value) || 0;
-      if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
+      let bet = parseInt(document.getElementById('slotBetInput').value) || 0;
+      if (bet <= 0) return showToast('❌ Mise invalide.');
+      if (bet > 100000) {
+        document.getElementById('slotBetInput').value = 100000;
+        return showToast('❌ La mise maximale sur la machine est de 100 000 € !');
+      }
+      if (bet > state.balance) return showToast('❌ Solde insuffisant pour miser ce montant.');
 
       slotSpinning = true;
       state.balance -= bet;
+      state.lastBalanceChange = Date.now();
       saveState();
+      pushRemoteAccount(state).catch(() => {});
 
       const rod = document.getElementById('slotLeverRod');
       rod.classList.add('pulled');
@@ -6057,8 +6119,10 @@
         if (mult > 0) {
           const win = Math.round(bet * mult);
           state.balance += win;
+          state.lastBalanceChange = Date.now();
           playCoinWinSound();
           saveState();
+          pushRemoteAccount(state).catch(() => {});
           banner.textContent = `🎉 GAGNÉ ! ${finals.join(' ')} → +${fmt(win)} pièces (×${String(mult).replace('.', ',')})`;
           showToast(`🎰 +${fmt(win)} pièces (×${String(mult).replace('.', ',')}) !`);
         } else {
