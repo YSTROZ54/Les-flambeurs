@@ -359,6 +359,7 @@ while ($listener.IsListening) {
                     playerOrder = @()
                     turn = $null
                     forfeit = $null
+                    readyBets = @{}
                     updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                 }
             }
@@ -367,6 +368,7 @@ while ($listener.IsListening) {
 
             # 1. Nettoyage automatique des manches finies depuis plus de 3.2s
             if ($currentTables[$tableParam].status -eq 'finished' -and $currentTables[$tableParam].finishedAt -and ($now - $currentTables[$tableParam].finishedAt -gt 3200)) {
+                $prevReadyBets = if ($currentTables[$tableParam].readyBets) { $currentTables[$tableParam].readyBets } else { @{} }
                 $currentTables[$tableParam] = @{
                     tableId = $tableParam
                     roundId = 0
@@ -376,6 +378,7 @@ while ($listener.IsListening) {
                     playerOrder = @()
                     turn = $null
                     forfeit = $null
+                    readyBets = $prevReadyBets
                     updatedAt = $now
                 }
             }
@@ -517,6 +520,15 @@ while ($listener.IsListening) {
                                     $curTable.updatedAt = $now
                                 }
                             }
+                            # ACTION SET_BET
+                            elseif ($postObj.action -eq 'set_bet' -and $postObj.username) {
+                                $pKey = [string]$postObj.username.ToLower().Trim()
+                                $bVal = [Math]::Max(10, [int]$postObj.bet)
+                                $curTable = $currentTables[$tId]
+                                if (-not $curTable.readyBets) { $curTable.readyBets = @{} }
+                                $curTable.readyBets[$pKey] = $bVal
+                                $curTable.updatedAt = $now
+                            }
                             # ACTION DEAL
                             elseif ($postObj.action -eq 'deal') {
                                 $curTable = $currentTables[$tId]
@@ -567,11 +579,13 @@ while ($listener.IsListening) {
                                         $isBJ = ($pScore -eq 21)
                                         $statusVal = if ($isBJ) { 'blackjack' } else { 'playing' }
                                         $avVal = if ($p.avatar) { $p.avatar } else { "👤" }
+                                        $recBet = if ($curTable.readyBets -and $curTable.readyBets.ContainsKey($pk)) { [int]$curTable.readyBets[$pk] } else { 100 }
+                                        $playerBet = if ($p.bet) { [int]$p.bet } else { $recBet }
 
                                         $curTable.players[$pk] = @{
                                             username = $p.username
                                             avatar = $avVal
-                                            bet = [int]$p.bet
+                                            bet = $playerBet
                                             cards = @($pc1, $pc2)
                                             score = $pScore
                                             status = $statusVal

@@ -901,7 +901,7 @@
         <div class="lg:col-span-4 rounded-2xl p-5 bg-stone-950/90 border border-amber-500/30 space-y-4">
           <div>
             <label class="text-xs uppercase tracking-wider text-amber-300 font-bold">Mise</label>
-            <input id="bjBetInput" type="number" value="100" placeholder="Ex: 100" class="mt-1.5 w-full bg-black/60 border border-amber-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num font-bold focus:outline-none">
+            <input id="bjBetInput" type="number" value="100" min="10" placeholder="Ex: 100" oninput="onBjBetChange()" onchange="onBjBetChange()" class="mt-1.5 w-full bg-black/60 border border-amber-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num font-bold focus:outline-none">
           </div>
           <button id="bjDealBtn" onclick="startBlackjack()" class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-300 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition">🃏 Distribuer</button>
           <div id="bjActionControls" class="hidden grid grid-cols-3 gap-2">
@@ -929,7 +929,7 @@
             <!-- Main Joueur (Alex) -->
             <div id="bjPlayerBox" class="text-center space-y-2 bg-black/40 p-3.5 rounded-2xl border border-white/10 transition-all duration-300">
               <div class="flex items-center justify-between px-1">
-                <span class="text-xs uppercase tracking-widest text-amber-200 font-bold">Ta Main (<span id="bjPlayerScore">0</span>)</span>
+                <span class="text-xs uppercase tracking-widest text-amber-200 font-bold">Ta Main (<span id="bjPlayerScore">0</span>)<span id="bjMyBetDisplay" class="text-amber-300 font-mono-num font-bold ml-1.5">(100 €)</span></span>
                 <span id="bjPlayerTurnBadge" class="hidden text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400 text-black animate-pulse shadow">⭐ À TON TOUR</span>
               </div>
               <div id="bjPlayerCards" class="flex flex-wrap gap-2.5 justify-center min-h-[92px]"></div>
@@ -2453,6 +2453,13 @@
       CONFIG_CASINO.CHANCE_MINES = state.luckConfig.mines ?? 50;
       CONFIG_CASINO.CHANCE_BLACKJACK = state.luckConfig.blackjack ?? 50;
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = state.luckConfig.slots ?? 35;
+
+      if (state.bjBet) {
+        const bInp = document.getElementById('bjBetInput');
+        if (bInp) bInp.value = state.bjBet;
+        const myBetDisp = document.getElementById('bjMyBetDisplay');
+        if (myBetDisp) myBetDisp.textContent = `(${fmt(state.bjBet)} €)`;
+      }
 
       injectCoins();
       updateGlobalUI();
@@ -4258,6 +4265,7 @@
       const lobbyKey = room === 'blackjack' ? 'bj' : room;
       const l = lobbies[lobbyKey] || {};
       const existing = (state.currentTable && state.currentTable.game === room) ? state.currentTable : {};
+      const currentBjBet = Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100);
       state.currentTable = {
         ...existing,
         game: room,
@@ -4268,6 +4276,7 @@
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
         balance: state.balance || 5500,
+        bjBet: (room === 'blackjack' ? currentBjBet : (existing.bjBet || 100)),
         updatedAt: Date.now()
       };
       saveState();
@@ -4315,6 +4324,7 @@
                 username: acc.username,
                 avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
                 balance: typeof acc.balance === 'number' ? acc.balance : 5500,
+                bjBet: ct.bjBet || 100,
                 isOnline: true,
                 updatedAt: ctTime
               });
@@ -4328,6 +4338,7 @@
                 username: acc.username,
                 avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
                 balance: typeof acc.balance === 'number' ? acc.balance : 5500,
+                bjBet: ct.bjBet || 100,
                 isOnline: true,
                 updatedAt: ctTime
               });
@@ -4354,6 +4365,7 @@
             username: name,
             avatarEmoji: acc?.avatarEmoji || acc?.avatar || '👤',
             balance: acc?.balance || state.friendBalances[name] || 5500,
+            bjBet: ct?.bjBet || 100,
             isOnline: true,
             updatedAt: ctTime
           });
@@ -6189,6 +6201,7 @@
       renderBlackjack();
       showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack : Salon Multijoueur activé');
       if (m === 'multi') {
+        try { onBjBetChange(); } catch (e) {}
         syncBjMultiplayer();
       }
     }
@@ -6201,6 +6214,7 @@
       renderBlackjack();
       showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.bj.roomCode}]`);
       if (lobbies.bj.mode === 'multi') {
+        try { onBjBetChange(); } catch (e) {}
         syncBjMultiplayer();
       }
     }
@@ -6232,6 +6246,44 @@
       return t;
     }
 
+    let _bjBetSyncDebounce = null;
+    function onBjBetChange() {
+      const inputEl = document.getElementById('bjBetInput');
+      if (!inputEl) return;
+      const val = Math.max(10, parseInt(inputEl.value) || 100);
+      state.bjBet = val;
+      if (!state.currentTable) state.currentTable = {};
+      state.currentTable.bjBet = val;
+      state.currentTable.updatedAt = Date.now();
+      saveState();
+
+      const myBetDisp = document.getElementById('bjMyBetDisplay');
+      if (myBetDisp) myBetDisp.textContent = `(${fmt(val)} €)`;
+
+      clearTimeout(_bjBetSyncDebounce);
+      _bjBetSyncDebounce = setTimeout(() => {
+        pushRemoteAccount(state);
+        syncBjBetToServer(val);
+      }, 200);
+    }
+
+    async function syncBjBetToServer(bet) {
+      if (!lobbies.bj || lobbies.bj.mode !== 'multi') return;
+      try {
+        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'set_bet',
+            tableId: tableId,
+            username: state.username,
+            bet: bet
+          })
+        });
+      } catch (e) {}
+    }
+
     function updateCardSlot(el, html) {
       if (!el) return;
       if (el.dataset.rawHtml !== html) {
@@ -6259,6 +6311,12 @@
         updateCardSlot(document.getElementById('bjDealerCards'), dCardsHtml);
         document.getElementById('bjPlayerScore').textContent = bjScore(bj.player);
         document.getElementById('bjDealerScore').textContent = hide && bj.dealer.length ? bjScore([bj.dealer[0]]) : bjScore(bj.dealer);
+
+        const myBetDisp = document.getElementById('bjMyBetDisplay');
+        if (myBetDisp) {
+          const myBetVal = bj.active ? (bj.bet || 100) : (Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100));
+          myBetDisp.textContent = `(${fmt(myBetVal)} €)`;
+        }
 
         if (bj.active) {
           if (bj.turn === 'player') {
@@ -6304,6 +6362,14 @@
       // 2. Mes Cartes ("Ta Main")
       const myCardsEl = document.getElementById('bjPlayerCards');
       const myScoreEl = document.getElementById('bjPlayerScore');
+      const myBetDisp = document.getElementById('bjMyBetDisplay');
+      if (myBetDisp) {
+        const myBetVal = (!isWaiting && myPl && myPl.bet)
+          ? myPl.bet
+          : (Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100));
+        myBetDisp.textContent = `(${fmt(myBetVal)} €)`;
+      }
+
       if (!isWaiting && myPl && Array.isArray(myPl.cards) && myPl.cards.length > 0) {
         if (myCardsEl) {
           const myHtml = myPl.cards.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
@@ -6349,7 +6415,9 @@
         const realPlayers = getTableParticipants('blackjack');
         if (realPlayers.length > 0) {
           const p = realPlayers[0];
-          if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">${p.avatarEmoji || '👤'}</span>${p.username} <span class="text-amber-300 font-mono-num font-bold">(${fmt(p.balance)} €)</span>`;
+          const oppKey = (p.username || '').toLowerCase().trim();
+          const oppBet = (bjSyncTable?.readyBets && bjSyncTable.readyBets[oppKey]) ? bjSyncTable.readyBets[oppKey] : (p.bjBet || 100);
+          if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">${p.avatarEmoji || '👤'}</span>${p.username} <span class="text-amber-300 font-mono-num font-bold">(Mise: ${fmt(oppBet)} €)</span>`;
         } else if (lobbies.bj.fillWithBots) {
           if (coNameEl) coNameEl.innerHTML = `<span class="mr-1">🦊</span>Roxy (Bot)`;
         } else {
@@ -6488,10 +6556,19 @@
 
       if (realPlayers.length > 0) {
         const opp = realPlayers[0];
+        const oppKey = (opp.username || '').toLowerCase().trim();
+        let oppChosenBet = (bjSyncTable?.readyBets && bjSyncTable.readyBets[oppKey]) 
+          ? bjSyncTable.readyBets[oppKey] 
+          : (opp.bjBet || 100);
+        oppChosenBet = Math.max(10, parseInt(oppChosenBet) || 100);
+        if (typeof opp.balance === 'number' && opp.balance > 0) {
+          oppChosenBet = Math.min(oppChosenBet, opp.balance);
+        }
+
         participants.push({
           username: opp.username,
           avatar: opp.avatarEmoji || '👤',
-          bet: bet
+          bet: oppChosenBet
         });
       } else if (lobbies.bj.fillWithBots) {
         participants.push({
@@ -6731,6 +6808,7 @@
             if (!bj.wasInitiator) {
               const betAmt = myPl.bet || 100;
               state.balance = Math.max(0, state.balance - betAmt);
+              bj.bet = betAmt;
               saveState();
               updateGlobalUI();
               playCardFlipSound();
@@ -6786,16 +6864,17 @@
             }
 
             if (myPl.result === 'win') {
-              document.getElementById('bjStatusBanner').textContent = `🏆 Tu as battu le Croupier ! (+${fmt(myPl.payout)} €) (Prochaine main dans 3s)`;
-              showToast(`🏆 Victoire au Blackjack (+${fmt(myPl.payout)} €) !`);
+              const profit = myPl.payout - (myPl.bet || 100);
+              document.getElementById('bjStatusBanner').textContent = `🏆 Tu as battu le Croupier ! (+${fmt(profit)} € de gain) (Prochaine main dans 3s)`;
+              showToast(`🏆 Victoire au Blackjack (+${fmt(profit)} €) !`);
             } else if (myPl.result === 'push') {
-              document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.payout)} €) (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `🤝 Égalité avec le Croupier ! Mise remboursée (${fmt(myPl.bet || 100)} €) (Prochaine main dans 3s)`;
             } else if (myPl.result === 'forfeit_win') {
               const loserName = srv.forfeit ? srv.forfeit.loser : 'L\'adversaire';
               document.getElementById('bjStatusBanner').textContent = `🏆 ${loserName} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(myPl.payout)} €) ! (Prochaine main dans 3s)`;
               showToast(`🏆 ${loserName} a quitté le jeu ! Tu remportes la mise (+${fmt(myPl.payout)} €) !`);
             } else {
-              document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (Prochaine main dans 3s)`;
+              document.getElementById('bjStatusBanner').textContent = `💥 Perdu face au Croupier (${srv.dealer.score} vs ${myPl.score}) (-${fmt(myPl.bet || 100)} €) (Prochaine main dans 3s)`;
             }
           }
           startBlackjackCooldown(3);

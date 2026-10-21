@@ -91,6 +91,7 @@ function getDefaultTable(tableId) {
     turn: null,
     history: [],
     forfeit: null,
+    readyBets: {},
     updatedAt: Date.now()
   };
 }
@@ -235,7 +236,9 @@ export default async function handler(req, res) {
 
     // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
+      const prevBets = table.readyBets || {};
       table = getDefaultTable(tableId);
+      table.readyBets = prevBets;
       tables[tableId] = table;
       modified = true;
     }
@@ -299,7 +302,18 @@ export default async function handler(req, res) {
     }
 
     const action = body.action;
-
+ 
+    // S. ENREGISTRER MA MISE (SET_BET)
+    if (action === 'set_bet' && body.username) {
+      const pKey = body.username.toLowerCase().trim();
+      const betVal = Math.max(10, parseInt(body.bet) || 100);
+      if (!table.readyBets || typeof table.readyBets !== 'object') table.readyBets = {};
+      table.readyBets[pKey] = betVal;
+      table.updatedAt = now;
+      memoryTables = tables;
+      return res.status(200).json({ ok: true, readyBets: table.readyBets, table });
+    }
+ 
     // A. DISTRIBUER (DEAL)
     if (action === 'deal') {
       if (table.status === 'playing' || table.status === 'dealer_turn') {
@@ -331,10 +345,14 @@ export default async function handler(req, res) {
         const sc = calcScore(hand);
         const isBJ = sc === 21;
 
+        // Récupérer la mise propre du joueur (soit envoyée dans participant, soit enregistrée sur readyBets)
+        const recordedBet = (table.readyBets && table.readyBets[pKey]) ? table.readyBets[pKey] : null;
+        const playerBet = parseInt(p.bet) || recordedBet || 100;
+
         table.players[pKey] = {
           username: p.username,
           avatar: p.avatar || '👤',
-          bet: parseInt(p.bet) || 100,
+          bet: playerBet,
           cards: hand,
           score: sc,
           status: isBJ ? 'blackjack' : 'playing',
