@@ -143,7 +143,7 @@ export default async function handler(req, res) {
     }
     // ACTION : ANNULER UNE MISE
     else if (body.action === 'cancel' && body.name) {
-      if (current.status === 'waiting' && current.bets) {
+      if ((current.status === 'waiting' || current.status === 'countdown') && current.bets) {
         const target = body.name.trim().toLowerCase();
         for (const k of Object.keys(current.bets)) {
           if (k.trim().toLowerCase() === target) {
@@ -157,7 +157,7 @@ export default async function handler(req, res) {
     // ACTION : DÉCOLLAGE (COMPTE À REBOURS 7S)
     else if (body.action === 'launch') {
       if (current.status === 'waiting') {
-        current.id = now;
+        current.id = body.id || now;
         current.status = 'countdown';
         current.countdownStartTime = now;
         current.countdownDuration = body.countdownDuration || 7000;

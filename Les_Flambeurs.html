@@ -3248,8 +3248,8 @@
         title: '🚀 Comment jouer à Fusée Crash (Multijoueur en Ligne) ?',
         html: `
           <p>🎯 <strong>Le but :</strong> S'éjecter et encaisser avant que la fusée n'explose en vol pour multiplier ta mise !</p>
-          <p>🌐 <strong>Vol en direct partagé :</strong> La fusée attend sur le pas de tir. Elle ne part que lorsqu'un premier joueur mise réellement.</p>
-          <p>⏱️ <strong>Compte à rebours de 7s :</strong> Dès qu'une mise est placée, le décollage dans 7 secondes commence pour tout le monde sur le serveur. Les autres joueurs peuvent rejoindre le vol pendant ces 7 secondes.</p>
+          <p>🌐 <strong>Vol en direct partagé :</strong> La fusée attend sur le pas de tir. Tu peux miser sans lancer, puis lancer le décollage quand tu es prêt.</p>
+          <p>⏱️ <strong>Compte à rebours de 7s :</strong> Dès le lancement, tu es automatiquement à bord du vol ! Tu peux aussi te retirer et te faire rembourser à tout moment avant le décollage. Les autres joueurs peuvent également monter à bord pendant ces 7 secondes.</p>
           <p>🪂 <strong>Encaissement en direct :</strong> Pendant l'ascension, encaisse quand tu veux. Si la fusée explose avant ton encaissement, la mise est perdue.</p>
         `
       },
@@ -4997,24 +4997,42 @@
     };
 
     function getMyCrashBet() {
-      // Si nous n'avons pas placé de mise pour cette manche précise, nous ne misons PAS.
-      if (!myActiveCrashBet || myActiveCrashBet.roundId !== crashSync.id) {
-        return null;
-      }
-      if (!crashSync || !crashSync.bets) return myActiveCrashBet;
       const myName = getCrashCurrentUsername().toLowerCase();
-      for (const key of Object.keys(crashSync.bets)) {
-        if (key.trim().toLowerCase() === myName) {
-          const sBet = crashSync.bets[key];
-          if (myActiveCrashBet.cashedOut) {
-            sBet.cashedOut = true;
-            sBet.cashMult = myActiveCrashBet.cashMult;
-            sBet.win = myActiveCrashBet.win;
+
+      // 1. Vérifier si un pari correspondant existe dans crashSync.bets
+      if (crashSync && crashSync.bets) {
+        for (const key of Object.keys(crashSync.bets)) {
+          if (key.trim().toLowerCase() === myName) {
+            const sBet = crashSync.bets[key];
+            if (myActiveCrashBet) {
+              if (myActiveCrashBet.cashedOut) {
+                sBet.cashedOut = true;
+                sBet.cashMult = myActiveCrashBet.cashMult;
+                sBet.win = myActiveCrashBet.win;
+              }
+              myActiveCrashBet.roundId = crashSync.id;
+            } else {
+              myActiveCrashBet = { ...sBet, roundId: crashSync.id };
+            }
+            return sBet;
           }
-          return sBet;
         }
       }
-      return myActiveCrashBet;
+
+      // 2. Si myActiveCrashBet existe localement
+      if (myActiveCrashBet) {
+        // En attente ou en compte à rebours : la mise reste toujours active pour le décollage
+        if (crashSync.status === 'waiting' || crashSync.status === 'countdown') {
+          myActiveCrashBet.roundId = crashSync.id;
+          return myActiveCrashBet;
+        }
+        // En plein vol : valide si roundId concorde
+        if (crashSync.status === 'flying' && myActiveCrashBet.roundId === crashSync.id) {
+          return myActiveCrashBet;
+        }
+      }
+
+      return null;
     }
 
     function setCrashQuickBet(amount) {
@@ -5229,7 +5247,7 @@
 
           if (cancelBtn) {
             cancelBtn.classList.remove('hidden');
-            if (cancelText) cancelText.textContent = `Annuler ma mise (${fmt(myBet.bet)} 🪙)`;
+            if (cancelText) cancelText.textContent = `Se retirer (${fmt(myBet.bet)} 🪙)`;
           }
         } else {
           actionBtn.disabled = false;
@@ -5248,15 +5266,22 @@
         }
       } else if (crashSync.status === 'countdown') {
         const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
-        if (cancelBtn) cancelBtn.classList.add('hidden');
         if (launchBtn) launchBtn.classList.add('hidden');
 
         if (myBet) {
+          // Le joueur est DÉJÀ À BORD : aucune obligation de recliquer sur rejoindre !
           actionBtn.disabled = true;
-          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-amber-500/20 border border-amber-400/40 text-amber-200 cursor-not-allowed opacity-90 flex items-center justify-center gap-2';
-          if (actionIcon) actionIcon.textContent = '⏳';
-          actionText.textContent = `VOL REJOINT ! DÉCOLLAGE DANS ${secLeft}S`;
+          actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-400/50 text-emerald-300 opacity-95 flex items-center justify-center gap-2';
+          if (actionIcon) actionIcon.textContent = '🚀';
+          actionText.textContent = `À BORD DU VOL ! DÉCOLLAGE DANS ${secLeft}S`;
+
+          // Possibilité de se retirer avant le décollage
+          if (cancelBtn) {
+            cancelBtn.classList.remove('hidden');
+            if (cancelText) cancelText.textContent = `Se retirer du vol (${fmt(myBet.bet)} 🪙)`;
+          }
         } else {
+          if (cancelBtn) cancelBtn.classList.add('hidden');
           actionBtn.disabled = false;
           actionBtn.className = 'w-full py-4 rounded-xl font-scifi font-extrabold text-sm bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:brightness-110 active:scale-[0.98] transition shadow-lg cursor-pointer animate-pulse flex items-center justify-center gap-2';
           if (actionIcon) actionIcon.textContent = isUserLoggedIn() ? '➕' : '🔒';
@@ -5384,21 +5409,23 @@
       // Synchronisation serveur & Supabase Cloud
       pushCrashStateToServer({
         action: 'launch',
+        id: now,
         countdownDuration: countdownDuration,
         crashPoint: crashPoint,
         bet: myBet
       });
     }
 
-    // BOUTON 3 : ANNULER LA MISE
+    // BOUTON 3 : ANNULER LA MISE / SE RETIRER DU VOL
     function handleCrashCancelBet() {
-      if (crashSync.status !== 'waiting') {
-        return showToast('❌ Impossible d\'annuler une fois le compte à rebours lancé !');
+      if (crashSync.status !== 'waiting' && crashSync.status !== 'countdown') {
+        return showToast('❌ Impossible de se retirer une fois le vol décollé !');
       }
       const myBet = getMyCrashBet();
       if (!myBet) return;
 
       state.balance += myBet.bet;
+      state.lastBalanceChange = Date.now();
       saveState();
 
       const balDisplay = document.getElementById('crashUserBalanceDisplay');
@@ -5407,7 +5434,7 @@
       myActiveCrashBet = null;
 
       const myKey = getCrashCurrentUsername().toLowerCase();
-      for (const k of Object.keys(crashSync.bets)) {
+      for (const k of Object.keys(crashSync.bets || {})) {
         if (k.trim().toLowerCase() === myKey) {
           delete crashSync.bets[k];
           break;
@@ -5418,7 +5445,7 @@
       pushCrashStateToServer({ action: 'cancel', name: getCrashCurrentUsername() });
       renderCrashLiveBets();
       updateCrashActionBtnText();
-      showToast(`✖ Mise de ${fmt(myBet.bet)} 🪙 annulée et remboursée.`);
+      showToast(`✖ Tu t'es retiré du vol. Mise de ${fmt(myBet.bet)} 🪙 remboursée.`);
     }
 
     function placeCrashBetInternal(startLaunchDirectly) {
@@ -5433,6 +5460,7 @@
       if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
 
       state.balance -= bet;
+      state.lastBalanceChange = Date.now();
       saveState();
 
       const balDisplay = document.getElementById('crashUserBalanceDisplay');
@@ -5607,7 +5635,19 @@
     function mergeCrashServerState(srv) {
       if (!srv || typeof srv !== 'object') return;
       const now = Date.now();
-      const myKey = getCrashCurrentUsername().toLowerCase();
+      const myName = getCrashCurrentUsername();
+      const myKey = myName.toLowerCase();
+
+      // Vérifier si le serveur détient notre mise
+      let srvHasMyBet = null;
+      if (srv.bets && typeof srv.bets === 'object') {
+        for (const k of Object.keys(srv.bets)) {
+          if (k.trim().toLowerCase() === myKey) {
+            srvHasMyBet = srv.bets[k];
+            break;
+          }
+        }
+      }
 
       // 1. Nouvelle manche (ID différent)
       if (srv.id && srv.id !== crashSync.id) {
@@ -5619,14 +5659,20 @@
         crashSync.crashPoint = srv.crashPoint || 2.0;
         crashSync.crashedAtTime = srv.crashedAtTime || 0;
         
-        // Nouvelle manche : si notre mise appartenait à une manche antérieure, elle est expirée !
-        if (myActiveCrashBet && myActiveCrashBet.roundId !== srv.id) {
+        // Préserver le pari actif pour ce vol sans forcer à re-cliquer sur rejoindre
+        if (srvHasMyBet) {
+          myActiveCrashBet = { ...(myActiveCrashBet || {}), ...srvHasMyBet, roundId: srv.id };
+        } else if (srv.status === 'countdown' || srv.status === 'waiting') {
+          if (myActiveCrashBet && !myActiveCrashBet.cashedOut) {
+            myActiveCrashBet.roundId = srv.id;
+          }
+        } else {
           myActiveCrashBet = null;
         }
 
         crashSync.bets = srv.bets || {};
-        if (myActiveCrashBet && myActiveCrashBet.roundId === srv.id) {
-          crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
+        if (myActiveCrashBet) {
+          crashSync.bets[myName] = myActiveCrashBet;
         }
 
         if (Array.isArray(srv.history) && srv.history.length > 0) {
@@ -5657,31 +5703,25 @@
       }
 
       // 3. Gestion des paris reçus du serveur
-      if (srv.status === 'waiting') {
-        // En attente : si notre mise ne correspond pas à cette manche, l'annuler
-        if (myActiveCrashBet && myActiveCrashBet.roundId !== crashSync.id) {
-          myActiveCrashBet = null;
+      if (srvHasMyBet) {
+        myActiveCrashBet = { ...(myActiveCrashBet || {}), ...srvHasMyBet, roundId: crashSync.id };
+      } else if (srv.status === 'waiting' || srv.status === 'countdown') {
+        if (myActiveCrashBet && !myActiveCrashBet.cashedOut) {
+          myActiveCrashBet.roundId = crashSync.id;
         }
-        crashSync.bets = srv.bets || {};
-        if (myActiveCrashBet && myActiveCrashBet.roundId === crashSync.id) {
-          crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
-        }
-        hasChange = true;
-      } else {
-        // En vol ou countdown : adopter les paris du serveur
-        crashSync.bets = srv.bets || {};
-        if (myActiveCrashBet && myActiveCrashBet.roundId === crashSync.id) {
-          const sBet = crashSync.bets[getCrashCurrentUsername()];
-          if (!sBet) {
-            crashSync.bets[getCrashCurrentUsername()] = myActiveCrashBet;
-          } else if (myActiveCrashBet.cashedOut) {
-            sBet.cashedOut = true;
-            sBet.cashMult = myActiveCrashBet.cashMult;
-            sBet.win = myActiveCrashBet.win;
-          }
-        }
-        hasChange = true;
       }
+
+      crashSync.bets = srv.bets || {};
+      if (myActiveCrashBet) {
+        const sBet = crashSync.bets[myName] || myActiveCrashBet;
+        if (myActiveCrashBet.cashedOut) {
+          sBet.cashedOut = true;
+          sBet.cashMult = myActiveCrashBet.cashMult;
+          sBet.win = myActiveCrashBet.win;
+        }
+        crashSync.bets[myName] = sBet;
+      }
+      hasChange = true;
 
       if (Array.isArray(srv.history) && srv.history.length > 0) {
         crashSync.history = srv.history;
