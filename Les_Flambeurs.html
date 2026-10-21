@@ -125,6 +125,10 @@
         <button onclick="switchRoom('mines')" id="nav-mines" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🔐 Chambre Forte</button>
         <button onclick="switchRoom('blackjack')" id="nav-blackjack" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🃏 Blackjack</button>
         <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🥤 Gobelets</button>
+        <button onclick="handleBlindTestClick()" id="nav-blindtest" class="px-2.5 py-1.5 rounded-full font-medium text-fuchsia-300 hover:text-white flex items-center gap-1.5 transition">
+          <span>🎵 Blind Test</span>
+          <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold">(MàJ)</span>
+        </button>
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
         <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Amis</button>
@@ -330,6 +334,31 @@
             </div>
             <button onclick="switchRoom('cups')" class="mt-5 w-full py-2.5 rounded-xl bg-orange-400 hover:bg-orange-300 text-black font-extrabold text-xs transition">
               Jouer aux Gobelets →
+            </button>
+          </div>
+
+          <!-- 8. BLIND TEST (FUTUR MISE À JOUR) -->
+          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/95 via-[#130722]/95 to-black border border-fuchsia-500/40 hover:border-fuchsia-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
+            <div class="absolute -top-10 -right-10 w-28 h-28 bg-fuchsia-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-bold flex items-center gap-1">
+                  <span>🎵</span> <span>Musique &amp; Réflexes</span>
+                </span>
+                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
+                  ( Futur mise à jour )
+                </span>
+              </div>
+              <h3 class="font-serif-title text-2xl font-extrabold text-fuchsia-100 mt-3 flex items-center gap-2">
+                <span>Blind Test</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-sans font-bold border border-fuchsia-400/30">Bientôt</span>
+              </h3>
+              <p class="text-xs text-fuchsia-100/80 mt-2 leading-relaxed">
+                Écoute les extraits musicaux, devine le titre ou l'artiste avant tes rivaux et remporte la mise en multi !
+              </p>
+            </div>
+            <button onclick="handleBlindTestClick()" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
+              <span>🎵</span> <span>Jouer au Blind Test (futur mise à jour)</span>
             </button>
           </div>
 
@@ -1054,6 +1083,51 @@
           <div class="text-center text-xs text-stone-300">
             Clique directement sur le gobelet qui cache la bille quand le mélange s'arrête.
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================== -->
+    <!-- VUE 9 : LE BLIND TEST (FUTUR MISE À JOUR)                       -->
+    <!-- =============================================================== -->
+    <section id="view-blindtest" class="space-y-6 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-stone-950/90 border border-fuchsia-500/30 rounded-2xl p-4 sm:p-5">
+        <div class="flex items-center gap-3">
+          <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">🎵 Blind Test</h2>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                ( Futur mise à jour )
+              </span>
+            </div>
+            <p class="text-xs text-fuchsia-300">Reconnais le morceau et l'artiste plus vite que tes rivaux pour rafler la cagnotte !</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openRulesModal('blindtest')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">❓ Comment jouer</button>
+        </div>
+      </div>
+
+      <div class="rounded-3xl p-8 sm:p-12 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border-2 border-fuchsia-500/40 text-center space-y-6 shadow-2xl relative overflow-hidden">
+        <div class="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-3xl bg-fuchsia-500/20 border-2 border-fuchsia-400/50 flex items-center justify-center text-5xl sm:text-6xl shadow-xl shadow-fuchsia-500/20 animate-pulse">
+          🎧
+        </div>
+        <div class="max-w-md mx-auto space-y-2">
+          <div class="inline-block text-xs uppercase tracking-widest font-extrabold px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+            ( Futur mise à jour )
+          </div>
+          <h3 class="font-serif-title text-2xl sm:text-3xl font-extrabold text-white">
+            Le Blind Test arrive bientôt !
+          </h3>
+          <p class="text-sm text-stone-300 leading-relaxed">
+            Ce jeu musical multijoueur est actuellement en cours de préparation par l'administration des Flambeurs. Il sera disponible dans une prochaine mise à jour avec des extraits audio en direct, des buzzers et des duels endiablés !
+          </p>
+        </div>
+        <div class="pt-2">
+          <button onclick="switchRoom('hall')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-xs sm:text-sm shadow-lg transition transform active:scale-95 inline-flex items-center gap-2">
+            <span>←</span> <span>Retourner au Hall des Jeux</span>
+          </button>
         </div>
       </div>
     </section>
@@ -3155,14 +3229,20 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'shop', 'bank'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'blindtest', 'shop', 'bank'];
     const ROOM_TITLES = {
       hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
+      blindtest: '/ Blind Test (futur mise à jour)',
       shop: '/ Boutique', bank: '/ La Banque'
     };
     let currentRoomKey = 'hall';
+
+    function handleBlindTestClick() {
+      showToast('🎵 Blind Test : ( futur mise à jour ) !');
+      switchRoom('blindtest');
+    }
 
     function switchRoom(room, fromHistory = false) {
       if (!ALL_ROOMS.includes(room)) room = 'hall';
@@ -3181,9 +3261,15 @@
         if (sec) sec.classList.toggle('hidden', r !== room);
         const nav = document.getElementById(`nav-${r}`);
         if (nav) {
-          nav.className = r === room
-            ? 'px-3 py-1.5 rounded-full font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40'
-            : 'px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white';
+          if (r === 'blindtest') {
+            nav.className = r === room
+              ? 'px-3 py-1.5 rounded-full font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40 flex items-center gap-1.5'
+              : 'px-2.5 py-1.5 rounded-full font-medium text-fuchsia-300 hover:text-white flex items-center gap-1.5 transition';
+          } else {
+            nav.className = r === room
+              ? 'px-3 py-1.5 rounded-full font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40'
+              : 'px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white';
+          }
         }
       });
 
@@ -3280,6 +3366,14 @@
           <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille au départ et suis le gobelet des yeux pendant le mélange !</p>
           <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre Roxy (le Bot)</strong>. Tu peux deviner où le bot cache la bille, ou bien cacher toi-même la bille et défier le bot de la retrouver !</p>
           <p>⚡ <strong>Vitesse &amp; Gains :</strong> La partie se joue exclusivement en <strong>Vitesse Rapide</strong>. Peu importe la mise engagée, une victoire rapporte exactement <strong>×1.25 ta mise</strong>.</p>
+        `
+      },
+      blindtest: {
+        title: '🎵 Comment jouer au Blind Test ?',
+        html: `
+          <p>🎯 <strong>Le but :</strong> Écouter les extraits audio en direct et trouver le titre du morceau ou l\'artiste avant tes adversaires !</p>
+          <p>⚡ <strong>Rapidité &amp; Réflexes :</strong> Plus vite tu buzzes et réponds correctement, plus tu empoches de points et de gains !</p>
+          <p>⏳ <strong>Disponibilité :</strong> Ce jeu musical est actuellement en cours de finalisation et arrive dans une <strong>futur mise à jour</strong> !</p>
         `
       }
     };
