@@ -6517,6 +6517,8 @@
           }
           isPokerSyncing = false;
           return;
+        }
+
         if (state.currentTable && !state.currentTable.leftTable) {
           state.currentTable.updatedAt = now;
         }
