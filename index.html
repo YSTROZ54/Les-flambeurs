@@ -2705,43 +2705,48 @@
       window._toastTimer = setTimeout(() => box.classList.add('hidden'), 3600);
     }
 
-    /* ================= BARRE DU HAUT QUI SE CACHE EN DESCENDANT ================= */
+    /* ================= BARRE DU HAUT QUI SE CACHE EN DESCENDANT (AVEC DÉBOUNCER rAF FLUIDE) ================= */
     let lastScrollY = window.scrollY || 0;
     let isHeaderHidden = false;
+    let headerScrollRaf = null;
 
     window.addEventListener('scroll', () => {
-      const currentY = Math.max(0, window.scrollY || 0);
-      const header = document.getElementById('smartHeader');
-      if (!header) return;
+      if (headerScrollRaf) return;
+      headerScrollRaf = requestAnimationFrame(() => {
+        headerScrollRaf = null;
+        const currentY = Math.max(0, window.scrollY || 0);
+        const header = document.getElementById('smartHeader');
+        if (!header) return;
 
-      const delta = currentY - lastScrollY;
+        const delta = currentY - lastScrollY;
 
-      // Ignorer les micro-mouvements (rebonds inertiels iOS/Android, micro-variations subpixel)
-      if (Math.abs(delta) < 8) return;
+        // Ignorer les micro-mouvements (rebonds inertiels iOS/Android, micro-variations subpixel)
+        if (Math.abs(delta) < 8) return;
 
-      // 1. Tout en haut de la page : toujours visible
-      if (currentY <= 50) {
-        if (isHeaderHidden) {
-          header.style.transform = 'translateY(0)';
-          isHeaderHidden = false;
+        // 1. Tout en haut de la page : toujours visible
+        if (currentY <= 50) {
+          if (isHeaderHidden) {
+            header.style.transform = 'translateY(0)';
+            isHeaderHidden = false;
+          }
         }
-      }
-      // 2. Défilement franc vers le bas : cacher la barre dès qu'on descend
-      else if (delta > 0 && currentY > 80) {
-        if (!isHeaderHidden) {
-          header.style.transform = 'translateY(-100%)';
-          isHeaderHidden = true;
+        // 2. Défilement franc vers le bas : cacher la barre dès qu'on descend
+        else if (delta > 0 && currentY > 80) {
+          if (!isHeaderHidden) {
+            header.style.transform = 'translateY(-100%)';
+            isHeaderHidden = true;
+          }
         }
-      }
-      // 3. Défilement volontaire vers le haut : ne réapparaît QUE lors d'un vrai geste de remontée (> 22px)
-      else if (delta < -22) {
-        if (isHeaderHidden) {
-          header.style.transform = 'translateY(0)';
-          isHeaderHidden = false;
+        // 3. Défilement volontaire vers le haut : ne réapparaît QUE lors d'un vrai geste de remontée (> 22px)
+        else if (delta < -22) {
+          if (isHeaderHidden) {
+            header.style.transform = 'translateY(0)';
+            isHeaderHidden = false;
+          }
         }
-      }
 
-      lastScrollY = currentY;
+        lastScrollY = currentY;
+      });
     }, { passive: true });
 
     /* ================= ACCÈS SECRET DU PATRON (5 CLICS + MOT DE PASSE "BATMAN") ================= */
@@ -8121,7 +8126,6 @@
       updateGlobalUI();
 
       const startPos = Math.floor(Math.random() * 3);
-      const targetEndPos = Math.floor(Math.random() * 3);
       cupsGame.ballCupId = startPos;
       cupsGame.isShuffling = true;
       updateCupVisualPositions();
@@ -8135,38 +8139,43 @@
         [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
         setTimeout(() => {
           if (ball) ball.style.opacity = '0';
-          runCupsShuffle(speedMode, targetEndPos, true, () => {
+          runCupsShuffle(speedMode, () => {
             cupsGame.isShuffling = false;
             cupsGame.canPick = true;
             document.getElementById('cupsBanner').textContent = '👇 Clique sur le gobelet qui cache la bille !';
           });
-        }, 300);
-      }, 750);
+        }, 320);
+      }, 850);
     }
 
-    function runCupsShuffle(speedMode, targetEndPos, forceEndPos, onComplete) {
-      const steps = 14;
-      const interval = 145; // Vitesse ultra-rapide et stimulante
+    function runCupsShuffle(speedMode, onComplete) {
+      const steps = 9;
+      const interval = 320; // Vitesse vive et rythmée, mais parfaitement humaine et traçable à l'œil nu
       let currentStep = 0;
+      let lastSwappedPair = '';
 
-      document.getElementById('cupsBanner').textContent = '🌀 Le ( Bot ) mélange les gobelets à toute vitesse...';
+      document.getElementById('cupsBanner').textContent = '🌀 Le ( Bot ) mélange les gobelets... Ouvre bien l\'œil !';
 
       const timer = setInterval(() => {
         currentStep++;
-        if (currentStep === steps && forceEndPos) {
-          const currentBallPos = cupsGame.positions[cupsGame.ballCupId];
-          if (currentBallPos !== targetEndPos) {
-            const otherCupId = cupsGame.positions.findIndex(p => p === targetEndPos);
-            cupsGame.positions[cupsGame.ballCupId] = targetEndPos;
-            cupsGame.positions[otherCupId] = currentBallPos;
-          }
-        } else {
-          const c1 = Math.floor(Math.random() * 3);
-          const c2 = (c1 + 1 + Math.floor(Math.random() * 2)) % 3;
-          const tmp = cupsGame.positions[c1];
-          cupsGame.positions[c1] = cupsGame.positions[c2];
-          cupsGame.positions[c2] = tmp;
-        }
+
+        // Choisir deux gobelets différents à intervertir (en évitant d'annuler immédiatement le même échange)
+        let c1, c2, pairKey;
+        let attempts = 0;
+        do {
+          c1 = Math.floor(Math.random() * 3);
+          c2 = (c1 + 1 + Math.floor(Math.random() * 2)) % 3;
+          pairKey = Math.min(c1, c2) + '-' + Math.max(c1, c2);
+          attempts++;
+        } while (pairKey === lastSwappedPair && attempts < 5);
+
+        lastSwappedPair = pairKey;
+
+        // Échange réel et visible de positions
+        const tmp = cupsGame.positions[c1];
+        cupsGame.positions[c1] = cupsGame.positions[c2];
+        cupsGame.positions[c2] = tmp;
+
         updateCupVisualPositions();
 
         if (currentStep >= steps) {

@@ -3,6 +3,11 @@
   --gold: #f59e0b;
 }
 
+html {
+  scroll-behavior: auto !important; /* Défilement natif direct à 60-144 FPS sans latence ni interpolation saccadée */
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background-color: var(--bg-dark);
@@ -10,6 +15,14 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#smartHeader {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .font-serif-title { font-family: 'Cinzel', serif; }
@@ -60,19 +73,23 @@ select {
   transform: scale(0.96);
 }
 
-/* ================= FOND ANIMÉ HORIZONTAL "LES FLAMBEURS" ================= */
+/* ================= FOND ANIMÉ HORIZONTAL "LES FLAMBEURS" (LAYER GPU INDÉPENDANT) ================= */
 .animated-bg-wrapper {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  opacity: 0.17;
+  opacity: 0.14;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   padding: 15px 0;
   background: radial-gradient(circle at 50% 30%, #111827 0%, #05070c 80%);
+  transform: translateZ(0);
+  will-change: transform;
+  contain: strict;
+  backface-visibility: hidden;
 }
 
 .marquee-row {
@@ -82,6 +99,9 @@ select {
   align-items: center;
   user-select: none;
   white-space: nowrap;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .marquee-left { animation: scrollLeft 42s linear infinite; }
@@ -395,13 +415,14 @@ select {
   width: 104px;
   height: 150px;
   transform: translateX(-50%);
-  transition: left 0.13s cubic-bezier(0.2, 0.9, 0.3, 1), transform 0.2s ease;
+  transition: left 0.28s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.25s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   z-index: 10;
+  will-change: left, transform;
 }
 .cup-slot.lifted {
   transform: translateX(-50%) translateY(-68px);
