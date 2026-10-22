@@ -626,7 +626,7 @@ select {
   z-index: 20;
 }
 
-/* Jetons de poker 3D sur le tapis */
+/* Jetons de poker 3D sur le tapis (stables, sans clignotement) */
 .poker-chip-stack {
   display: inline-flex;
   align-items: center;
@@ -636,12 +636,7 @@ select {
   background: rgba(0, 0, 0, 0.75);
   border: 1px solid rgba(245, 158, 11, 0.45);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.65);
-  animation: chipDrop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes chipDrop {
-  0% { transform: translateY(-8px) scale(0.85); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .poker-chip-token {
@@ -738,4 +733,40 @@ select {
   filter: brightness(1.15);
   box-shadow: 0 0 30px rgba(245, 158, 11, 0.85);
 }
+
+/* ================= PANNEAU DE CONTRÔLE DU VOLUME & PARAMÈTRES SON ================= */
+.sound-modal-card {
+  background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.95), 0 0 35px rgba(245, 158, 11, 0.15);
+}
+.sound-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+  outline: none;
+}
+.sound-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #d97706 80%, #78350f 100%);
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+}
+.sound-range-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #d97706 80%, #78350f 100%);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
 

@@ -206,6 +206,12 @@
           <span id="notifBadgeMobile" class="hidden px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
         </button>
 
+        <!-- Bouton Paramètres Son & Volume -->
+        <button onclick="openSoundModal()" class="flex items-center gap-1.5 bg-stone-900/95 hover:bg-stone-800 border border-white/20 rounded-full px-2.5 py-1.5 text-xs font-bold text-stone-200 transition shadow-inner" title="Réglage du Volume Sonore">
+          <span id="topSoundIcon">🔊</span>
+          <span id="topSoundVolText" class="hidden sm:inline font-mono-num text-[11px] text-amber-300">50%</span>
+        </button>
+
         <div class="flex items-center gap-1.5 bg-stone-900/95 border border-amber-500/40 rounded-full px-3.5 py-1.5 shadow-inner">
           <span class="coin-slot"></span>
           <span id="topBalance" class="font-mono-num font-extrabold text-amber-200 text-xs sm:text-sm">5 500</span>
@@ -669,10 +675,13 @@
             </button>
           </div>
 
-          <!-- Boutons rapides Tapis & Distribuer pour mobile -->
+          <!-- Boutons rapides Tapis & Distribuer / Prêt pour mobile -->
           <div class="flex items-center justify-between gap-2 pt-0.5">
             <button id="pokerMobileDealBtn" onclick="startPokerHand()" class="flex-1 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-extrabold text-xs transition">
               🃏 Distribuer les cartes
+            </button>
+            <button id="btnPokerMobileReady" onclick="sendPokerAction('ready')" class="hidden flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-black font-black text-xs shadow-lg transition active:scale-95 animate-pulse">
+              👍 JE SUIS PRÊT
             </button>
             <button id="btnPokerMobileAllIn" onclick="playerPokerAction('allin')" disabled class="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 text-white font-extrabold text-xs shadow transition active:scale-95 disabled:opacity-30">
               🔥 TAPIS
@@ -743,6 +752,9 @@
 
           <button id="pokerDealBtn" onclick="startPokerHand()" class="w-full py-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-emerald-400 to-emerald-600 text-black hover:brightness-110 transition shadow-lg">
             🃏 Distribuer les cartes
+          </button>
+          <button id="btnPokerReady" onclick="sendPokerAction('ready')" class="hidden w-full py-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-emerald-500 text-black hover:brightness-110 transition shadow-lg animate-pulse">
+            👍 JE SUIS PRÊT
           </button>
 
           <!-- Bandeau Croupier Automatique (Multijoueur) -->
@@ -1948,6 +1960,67 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- MODALE PARAMÈTRES SON & VOLUME CASINO                             -->
+  <!-- ================================================================= -->
+  <div id="soundModal" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="sound-modal-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-amber-400/30">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xl flex items-center justify-center">
+            🔊
+          </div>
+          <div>
+            <h3 class="font-serif-title font-extrabold text-base text-amber-300">Paramètres Sonores</h3>
+            <p class="text-[11px] text-stone-400">Règle le volume des bruitages du casino</p>
+          </div>
+        </div>
+        <button onclick="closeSoundModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+      </div>
+
+      <!-- Curseur de Volume Principal -->
+      <div class="bg-black/50 border border-white/10 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
+            <span id="soundModalSpeakerIcon">🔊</span> Volume Général
+          </span>
+          <span id="soundModalVolPercent" class="font-mono-num font-extrabold text-sm text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2.5 py-0.5 rounded-full">50%</span>
+        </div>
+        <input id="soundMasterRange" type="range" min="0" max="100" value="50" oninput="onSoundSliderInput(this.value)" class="sound-range-slider cursor-pointer">
+        <div class="flex justify-between items-center text-[10px] text-stone-500 font-bold">
+          <span>0% (Muet)</span>
+          <button onclick="toggleSoundMute()" id="soundModalMuteBtn" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-stone-300 text-[10px] font-bold transition">Couper le son</button>
+          <span>100%</span>
+        </div>
+      </div>
+
+      <!-- Boutons de Test Rapide des Effets -->
+      <div class="space-y-2">
+        <span class="text-[11px] uppercase tracking-wider font-extrabold text-stone-400">Tester les bruitages réalistes :</span>
+        <div class="grid grid-cols-2 gap-2 text-xs font-bold">
+          <button onclick="playPokerCardDealSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>🃏</span> <span>Donne de carte</span>
+          </button>
+          <button onclick="playSlotMachineLeverSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>🎰</span> <span>Levier & Roues</span>
+          </button>
+          <button onclick="playCupShuffleSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>🥤</span> <span>Frottement gobelet</span>
+          </button>
+          <button onclick="playCoinWinSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>🪙</span> <span>Gain pièces</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <button onclick="closeSoundModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
+          Fermer & Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- NOTIFICATION TOAST -->
   <div id="toastBox" class="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-stone-950 border-2 border-amber-400 text-amber-100 text-xs font-extrabold shadow-2xl hidden"></div>
 <script>
@@ -1962,7 +2035,7 @@
 
     const COIN_SVG = `<svg viewBox="0 0 24 24" class="flambeur-coin"><circle cx="12" cy="12" r="10.5" fill="#f59e0b" stroke="#fef08a" stroke-width="1.8" stroke-dasharray="2.5 1.5"/><circle cx="12" cy="12" r="7.5" fill="#18181b"/><text x="12" y="15.5" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="bold">♠</text></svg>`;
 
-    /* ================= BRUITAGES WEB AUDIO ================= */
+    /* ================= GESTION DU VOLUME ET BRUITAGES WEB AUDIO ================= */
     let audioCtx = null;
     function getAudioCtx() {
       if (!audioCtx) {
@@ -1973,7 +2046,66 @@
       return audioCtx;
     }
 
+    function getMasterVolume() {
+      if (typeof state.soundVolume !== 'number') state.soundVolume = 0.5;
+      return Math.max(0, Math.min(1, state.soundVolume));
+    }
+
+    function setMasterVolume(val) {
+      state.soundVolume = Math.max(0, Math.min(1, parseFloat(val) || 0));
+      saveState();
+      updateSoundUI();
+    }
+
+    function onSoundSliderInput(valPercent) {
+      const vol = Math.max(0, Math.min(100, parseInt(valPercent) || 0)) / 100;
+      setMasterVolume(vol);
+    }
+
+    function toggleSoundMute() {
+      if (getMasterVolume() > 0) {
+        state._prevVolume = getMasterVolume();
+        setMasterVolume(0);
+      } else {
+        setMasterVolume(state._prevVolume || 0.5);
+      }
+    }
+
+    function updateSoundUI() {
+      const vol = getMasterVolume();
+      const pct = Math.round(vol * 100);
+      const icon = vol === 0 ? '🔇' : vol < 0.4 ? '🔉' : '🔊';
+
+      const topIcon = document.getElementById('topSoundIcon');
+      const topTxt = document.getElementById('topSoundVolText');
+      if (topIcon) topIcon.textContent = icon;
+      if (topTxt) topTxt.textContent = `${pct}%`;
+
+      const modalIcon = document.getElementById('soundModalSpeakerIcon');
+      const modalPct = document.getElementById('soundModalVolPercent');
+      const modalSlider = document.getElementById('soundMasterRange');
+      const muteBtn = document.getElementById('soundModalMuteBtn');
+
+      if (modalIcon) modalIcon.textContent = icon;
+      if (modalPct) modalPct.textContent = `${pct}%`;
+      if (modalSlider && parseInt(modalSlider.value) !== pct) modalSlider.value = pct;
+      if (muteBtn) muteBtn.textContent = vol === 0 ? 'Activer le son' : 'Couper le son';
+    }
+
+    function openSoundModal() {
+      updateSoundUI();
+      const modal = document.getElementById('soundModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeSoundModal() {
+      const modal = document.getElementById('soundModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
     function playCoinWinSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
       try {
         const ctx = getAudioCtx();
         if (!ctx) return;
@@ -1982,7 +2114,7 @@
           const gain = ctx.createGain();
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.065);
-          gain.gain.setValueAtTime(0.14, ctx.currentTime + i * 0.065);
+          gain.gain.setValueAtTime(0.14 * vol, ctx.currentTime + i * 0.065);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.065 + 0.22);
           osc.connect(gain);
           gain.connect(ctx.destination);
@@ -1993,6 +2125,8 @@
     }
 
     function playCardFlipSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
       try {
         const ctx = getAudioCtx();
         if (!ctx) return;
@@ -2001,7 +2135,7 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(420, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.09, ctx.currentTime);
+        gain.gain.setValueAtTime(0.09 * vol, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -2010,7 +2144,150 @@
       } catch (e) {}
     }
 
+    // Bruit doux et réaliste d'une carte distribuée sur feutre (pas trop fort)
+    function playPokerCardDealSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // 1. Frottement doux (glissement de la carte)
+        const slideLen = Math.floor(ctx.sampleRate * 0.08);
+        const slideBuf = ctx.createBuffer(1, slideLen, ctx.sampleRate);
+        const slideData = slideBuf.getChannelData(0);
+        for (let i = 0; i < slideLen; i++) {
+          slideData[i] = (Math.random() * 2 - 1) * Math.sin((i / slideLen) * Math.PI);
+        }
+        const slideSrc = ctx.createBufferSource();
+        slideSrc.buffer = slideBuf;
+        const slideFilter = ctx.createBiquadFilter();
+        slideFilter.type = 'bandpass';
+        slideFilter.frequency.setValueAtTime(750, now);
+        slideFilter.Q.setValueAtTime(1.1, now);
+        const slideGain = ctx.createGain();
+        slideGain.gain.setValueAtTime(0.12 * vol, now);
+        slideGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        slideSrc.connect(slideFilter);
+        slideFilter.connect(slideGain);
+        slideGain.connect(ctx.destination);
+        slideSrc.start(now);
+
+        // 2. Pose feutrée discrète sur le tapis
+        const tapOsc = ctx.createOscillator();
+        const tapGain = ctx.createGain();
+        tapOsc.type = 'sine';
+        tapOsc.frequency.setValueAtTime(130, now + 0.03);
+        tapOsc.frequency.exponentialRampToValueAtTime(55, now + 0.11);
+        tapGain.gain.setValueAtTime(0.14 * vol, now + 0.03);
+        tapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+        tapOsc.connect(tapGain);
+        tapGain.connect(ctx.destination);
+        tapOsc.start(now + 0.03);
+        tapOsc.stop(now + 0.12);
+      } catch (e) {}
+    }
+
+    // Bruit de la machine à sous : levier mécanique tiré + cliquetis + ronronnement des rouleaux
+    function playSlotMachineLeverSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // 1. Clac et tension du levier tiré vers le bas
+        const clickOsc = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        clickOsc.type = 'triangle';
+        clickOsc.frequency.setValueAtTime(560, now);
+        clickOsc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+        clickGain.gain.setValueAtTime(0.24 * vol, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        clickOsc.connect(clickGain);
+        clickGain.connect(ctx.destination);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.09);
+
+        // 2. Cran de détente du mécanisme à ressort
+        const clackOsc = ctx.createOscillator();
+        const clackGain = ctx.createGain();
+        clackOsc.type = 'square';
+        clackOsc.frequency.setValueAtTime(310, now + 0.12);
+        clackOsc.frequency.exponentialRampToValueAtTime(80, now + 0.20);
+        clackGain.gain.setValueAtTime(0.18 * vol, now + 0.12);
+        clackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+        clackOsc.connect(clackGain);
+        clackGain.connect(ctx.destination);
+        clackOsc.start(now + 0.12);
+        clackOsc.stop(now + 0.21);
+
+        // 3. Ronronnement rythmé des 3 rouleaux mécaniques qui tournent (spin whir)
+        const spinDuration = 2.4;
+        const spinBufLen = Math.floor(ctx.sampleRate * spinDuration);
+        const spinBuf = ctx.createBuffer(1, spinBufLen, ctx.sampleRate);
+        const sData = spinBuf.getChannelData(0);
+        for (let i = 0; i < spinBufLen; i++) {
+          const t = i / ctx.sampleRate;
+          const tickMod = Math.pow(Math.sin(2 * Math.PI * 26 * t), 4);
+          const noise = (Math.random() * 2 - 1) * 0.35;
+          const tone = Math.sin(2 * Math.PI * 170 * t) * 0.25;
+          sData[i] = (noise + tone) * tickMod * (1 - Math.pow(t / spinDuration, 2.2));
+        }
+        const spinSrc = ctx.createBufferSource();
+        spinSrc.buffer = spinBuf;
+        const spinFilter = ctx.createBiquadFilter();
+        spinFilter.type = 'lowpass';
+        spinFilter.frequency.setValueAtTime(600, now + 0.22);
+        spinFilter.frequency.exponentialRampToValueAtTime(220, now + 0.22 + spinDuration);
+        const spinGain = ctx.createGain();
+        spinGain.gain.setValueAtTime(0.15 * vol, now + 0.22);
+        spinGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22 + spinDuration);
+        spinSrc.connect(spinFilter);
+        spinFilter.connect(spinGain);
+        spinGain.connect(ctx.destination);
+        spinSrc.start(now + 0.22);
+      } catch (e) {}
+    }
+
+    // Bruit de gobelet qui frotte la table (doux et feutré)
+    function playCupShuffleSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const dur = 0.26;
+        const bufLen = Math.floor(ctx.sampleRate * dur);
+        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) {
+          const t = i / ctx.sampleRate;
+          const env = Math.sin((t / dur) * Math.PI);
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(420, now);
+        filter.Q.setValueAtTime(1.6, now);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.16 * vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(now);
+      } catch (e) {}
+    }
+
     function playBoomSound() {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
       try {
         const ctx = getAudioCtx();
         if (!ctx) return;
@@ -2026,7 +2303,7 @@
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(240, ctx.currentTime);
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.38, ctx.currentTime);
+        gain.gain.setValueAtTime(0.38 * vol, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.44);
         noise.connect(filter);
         filter.connect(gain);
@@ -2131,10 +2408,12 @@
       pendingGameInvites: [],
       currentTable: {},
       activeRoomPartners: {},
-      lastBalanceChange: 0
+      lastBalanceChange: 0,
+      soundVolume: 0.5
     };
 
     let state = { ...DEFAULT_USER_STATE };
+    if (typeof state.soundVolume !== 'number') state.soundVolume = 0.5;
 
     function isUserLoggedIn() {
       return Boolean(state && state.username && state.username.trim().length > 0 && (sessionStorage.getItem('flambeurs_active_session_user') || localStorage.getItem(STORAGE_KEY_SESSION)));
@@ -2493,7 +2772,7 @@
 
       // Synchronisation en temps réel des participants multijoueurs
       try {
-        if (currentRoomKey === 'poker') {
+        if (currentRoomKey === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
           syncPokerMultiplayer();
           updateLobbyUI('poker');
         } else if (currentRoomKey === 'blackjack') {
@@ -5071,8 +5350,14 @@
         if (pubBrowser) pubBrowser.classList.toggle('hidden', !isMulti);
 
         const dealBtn = document.getElementById('pokerDealBtn');
+        const mDealBtn = document.getElementById('pokerMobileDealBtn');
+        const readyBtn = document.getElementById('btnPokerReady');
+        const mReadyBtn = document.getElementById('btnPokerMobileReady');
         const botBanner = document.getElementById('pokerDealerBotBanner');
         if (dealBtn) dealBtn.classList.toggle('hidden', isMulti);
+        if (mDealBtn) mDealBtn.classList.toggle('hidden', isMulti);
+        if (readyBtn) readyBtn.classList.toggle('hidden', !isMulti);
+        if (mReadyBtn) mReadyBtn.classList.toggle('hidden', !isMulti);
         if (botBanner) botBanner.classList.toggle('hidden', !isMulti);
 
         // Rendu des 9 tables publiques de Poker
@@ -5309,6 +5594,20 @@
     let pokerRevealedCommunityCount = 0;
     let pokerCommunityRevealTimer = null;
 
+    function updateElementHTMLIfChanged(el, newHTML) {
+      if (!el) return;
+      if (el.innerHTML !== newHTML) {
+        el.innerHTML = newHTML;
+      }
+    }
+
+    function updateElementTextIfChanged(el, newText) {
+      if (!el) return;
+      if (el.textContent !== newText) {
+        el.textContent = newText;
+      }
+    }
+
     function renderPokerChipsHTML(amount) {
       if (!amount || amount <= 0) return '';
       const isGold = amount >= 500;
@@ -5326,7 +5625,9 @@
         const card = poker.community[idx];
         const isRevealed = Boolean(card && idx < pokerRevealedCommunityCount);
         if (isRevealed) {
-          return `<div class="card-flip-reveal">${renderCardHTML(card, size === 'mobile' ? 'sm' : 'lg', false, 'poker')}</div>`;
+          const isJustRevealed = (pokerCommunityRevealTimer !== null && idx === pokerRevealedCommunityCount - 1);
+          const flipClass = isJustRevealed ? 'card-flip-reveal' : '';
+          return `<div class="${flipClass}">${renderCardHTML(card, size === 'mobile' ? 'sm' : 'lg', false, 'poker')}</div>`;
         }
         const wClass = size === 'mobile' ? 'w-[44px] h-[64px]' : 'w-[50px] h-[74px] sm:w-[62px] sm:h-[90px]';
         return `<div class="${wClass} rounded-lg border-2 border-dashed border-emerald-400/25 bg-black/40 flex items-center justify-center text-[10px] font-bold text-emerald-400/50">${l}</div>`;
@@ -5340,44 +5641,36 @@
           clearInterval(pokerCommunityRevealTimer);
           pokerCommunityRevealTimer = null;
         }
-        const pcCards = document.getElementById('pokerCommunityCards');
-        if (pcCards) pcCards.innerHTML = renderPokerCommunityCardsMarkup('lg');
-        const mCards = document.getElementById('pokerMobileCommunityCards');
-        if (mCards) mCards.innerHTML = renderPokerCommunityCardsMarkup('mobile');
+        updateElementHTMLIfChanged(document.getElementById('pokerCommunityCards'), renderPokerCommunityCardsMarkup('lg'));
+        updateElementHTMLIfChanged(document.getElementById('pokerMobileCommunityCards'), renderPokerCommunityCardsMarkup('mobile'));
         return;
       }
 
       if (pokerRevealedCommunityCount >= targetCount) {
-        const pcCards = document.getElementById('pokerCommunityCards');
-        if (pcCards) pcCards.innerHTML = renderPokerCommunityCardsMarkup('lg');
-        const mCards = document.getElementById('pokerMobileCommunityCards');
-        if (mCards) mCards.innerHTML = renderPokerCommunityCardsMarkup('mobile');
+        updateElementHTMLIfChanged(document.getElementById('pokerCommunityCards'), renderPokerCommunityCardsMarkup('lg'));
+        updateElementHTMLIfChanged(document.getElementById('pokerMobileCommunityCards'), renderPokerCommunityCardsMarkup('mobile'));
         return;
       }
 
-      // Révélation progressive carte par carte avec son de flip et suspense
+      // Révélation progressive carte par carte avec son doux de feutre et rythme réaliste (750ms)
       if (!pokerCommunityRevealTimer) {
         pokerRevealedCommunityCount++;
-        playCardFlipSound();
-        const pcCards = document.getElementById('pokerCommunityCards');
-        if (pcCards) pcCards.innerHTML = renderPokerCommunityCardsMarkup('lg');
-        const mCards = document.getElementById('pokerMobileCommunityCards');
-        if (mCards) mCards.innerHTML = renderPokerCommunityCardsMarkup('mobile');
+        playPokerCardDealSound();
+        updateElementHTMLIfChanged(document.getElementById('pokerCommunityCards'), renderPokerCommunityCardsMarkup('lg'));
+        updateElementHTMLIfChanged(document.getElementById('pokerMobileCommunityCards'), renderPokerCommunityCardsMarkup('mobile'));
 
         if (pokerRevealedCommunityCount < targetCount) {
           pokerCommunityRevealTimer = setInterval(() => {
             pokerRevealedCommunityCount++;
-            playCardFlipSound();
-            const pcc = document.getElementById('pokerCommunityCards');
-            if (pcc) pcc.innerHTML = renderPokerCommunityCardsMarkup('lg');
-            const mc = document.getElementById('pokerMobileCommunityCards');
-            if (mc) mc.innerHTML = renderPokerCommunityCardsMarkup('mobile');
+            playPokerCardDealSound();
+            updateElementHTMLIfChanged(document.getElementById('pokerCommunityCards'), renderPokerCommunityCardsMarkup('lg'));
+            updateElementHTMLIfChanged(document.getElementById('pokerMobileCommunityCards'), renderPokerCommunityCardsMarkup('mobile'));
 
             if (pokerRevealedCommunityCount >= targetCount) {
               clearInterval(pokerCommunityRevealTimer);
               pokerCommunityRevealTimer = null;
             }
-          }, 420); // 420ms d'attente par carte pour le suspense réel !
+          }, 750); // 750ms d'attente progressive pour un suspense immersif
         }
       }
     }
@@ -5423,15 +5716,16 @@
       const is1v1 = poker.opponents.length === 1;
       const pcTopSeats = document.getElementById('pokerTopSeats');
       if (pcTopSeats) {
-        pcTopSeats.innerHTML = poker.opponents.slice(0, 3).map(o => {
+        const topHtml = poker.opponents.slice(0, 3).map(o => {
           const colClass = is1v1 ? 'sm:col-start-2' : '';
           return `<div class="flex justify-center ${colClass}">${seatHTML(o)}</div>`;
         }).join('');
+        updateElementHTMLIfChanged(pcTopSeats, topHtml);
       }
       const pcLeftSeat = document.getElementById('pokerLeftSeat');
-      if (pcLeftSeat) pcLeftSeat.innerHTML = poker.opponents[3] ? seatHTML(poker.opponents[3]) : '';
+      if (pcLeftSeat) updateElementHTMLIfChanged(pcLeftSeat, poker.opponents[3] ? seatHTML(poker.opponents[3]) : '');
       const pcRightSeat = document.getElementById('pokerRightSeat');
-      if (pcRightSeat) pcRightSeat.innerHTML = poker.opponents[4] ? seatHTML(poker.opponents[4]) : '';
+      if (pcRightSeat) updateElementHTMLIfChanged(pcRightSeat, poker.opponents[4] ? seatHTML(poker.opponents[4]) : '');
 
       // 2. RENDU DE L'ARC DES SIÈGES VERSION MOBILE (IDENTIQUE PHOTO)
       const mArc = document.getElementById('pokerMobileOpponentsArc');
@@ -5439,16 +5733,14 @@
         const oppCount = poker.opponents.length;
         let displayList = [];
         if (oppCount === 1) {
-          // 1v1 : adversaire au milieu
           displayList = [null, poker.opponents[0], null];
         } else if (oppCount >= 3) {
-          // Table de 4 : Viper à gauche, Le Baron au centre, Roxy à droite (comme sur la photo)
           displayList = [poker.opponents[0], poker.opponents[1] || poker.opponents[0], poker.opponents[2] || poker.opponents[1]];
         } else {
           displayList = poker.opponents;
         }
 
-        mArc.innerHTML = displayList.map(o => {
+        const arcHtml = displayList.map(o => {
           if (!o) return `<div></div>`;
           if (o.isEmpty) {
             return `
@@ -5482,62 +5774,53 @@
             </div>
           `;
         }).join('');
+        updateElementHTMLIfChanged(mArc, arcHtml);
       }
 
       // 3. CARTES COMMUNES (Révélées progressivement)
-      const pcCommunity = document.getElementById('pokerCommunityCards');
-      if (pcCommunity) pcCommunity.innerHTML = renderPokerCommunityCardsMarkup('lg');
-      const mCommunity = document.getElementById('pokerMobileCommunityCards');
-      if (mCommunity) mCommunity.innerHTML = renderPokerCommunityCardsMarkup('mobile');
+      updateElementHTMLIfChanged(document.getElementById('pokerCommunityCards'), renderPokerCommunityCardsMarkup('lg'));
+      updateElementHTMLIfChanged(document.getElementById('pokerMobileCommunityCards'), renderPokerCommunityCardsMarkup('mobile'));
 
       // 4. HERO SUR PC
       const pcHeroCards = document.getElementById('pokerHeroCards');
       if (pcHeroCards) {
-        pcHeroCards.innerHTML = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
+        const pcHeroHtml = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
           ? poker.heroCards.map(c => renderCardHTML(c, 'lg', false, 'poker')).join('')
           : renderCardHTML(null, 'lg', true, 'poker') + renderCardHTML(null, 'lg', true, 'poker');
+        updateElementHTMLIfChanged(pcHeroCards, pcHeroHtml);
       }
+      updateElementTextIfChanged(document.getElementById('pokerHeroAvatar'), state.avatarEmoji || '👑');
+      updateElementTextIfChanged(document.getElementById('pokerHeroName'), state.username || 'Joueur');
+      updateElementTextIfChanged(document.getElementById('pokerHeroStack'), fmt(state.balance));
+      updateElementTextIfChanged(document.getElementById('pokerHeroBetBadge'), `Mise : ${fmt(poker.heroBet)}`);
 
       // 5. HERO SUR MOBILE
       const mHeroCards = document.getElementById('pokerMobileHeroCards');
       if (mHeroCards) {
-        mHeroCards.innerHTML = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
+        const mHeroHtml = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
           ? poker.heroCards.map(c => renderCardHTML(c, 'sm', false, 'poker')).join('')
           : renderCardHTML(null, 'sm', true, 'poker') + renderCardHTML(null, 'sm', true, 'poker');
+        updateElementHTMLIfChanged(mHeroCards, mHeroHtml);
       }
-      const mHeroAvatar = document.getElementById('pokerMobileHeroAvatar');
-      if (mHeroAvatar) mHeroAvatar.textContent = state.avatarEmoji || '👑';
-      const mHeroName = document.getElementById('pokerMobileHeroName');
-      if (mHeroName) mHeroName.textContent = state.username || 'Joueur';
-      const mHeroStack = document.getElementById('pokerMobileHeroStack');
-      if (mHeroStack) mHeroStack.textContent = fmt(state.balance);
-      const mHeroBetBadge = document.getElementById('pokerMobileHeroBetBadge');
-      if (mHeroBetBadge) mHeroBetBadge.textContent = `Mise : ${fmt(poker.heroBet)}`;
+      updateElementTextIfChanged(document.getElementById('pokerMobileHeroAvatar'), state.avatarEmoji || '👑');
+      updateElementTextIfChanged(document.getElementById('pokerMobileHeroName'), state.username || 'Joueur');
+      updateElementTextIfChanged(document.getElementById('pokerMobileHeroStack'), fmt(state.balance));
+      updateElementTextIfChanged(document.getElementById('pokerMobileHeroBetBadge'), `Mise : ${fmt(poker.heroBet)}`);
       const mHeroChipSlot = document.getElementById('pokerMobileHeroChipSlot');
-      if (mHeroChipSlot) mHeroChipSlot.innerHTML = poker.heroBet > 0 ? renderPokerChipsHTML(poker.heroBet) : '';
+      if (mHeroChipSlot) updateElementHTMLIfChanged(mHeroChipSlot, poker.heroBet > 0 ? renderPokerChipsHTML(poker.heroBet) : '');
 
       // 6. ÉVALUATION MAIN HERO
       const bestHand = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
         ? evaluateBestHand([...poker.heroCards, ...poker.community]).name
         : 'PRÊT';
-      const pcHandRank = document.getElementById('pokerHeroHandRank');
-      if (pcHandRank) pcHandRank.textContent = bestHand;
-      const mHandRank = document.getElementById('pokerMobileHeroHandRank');
-      if (mHandRank) mHandRank.textContent = bestHand;
+      updateElementTextIfChanged(document.getElementById('pokerHeroHandRank'), bestHand);
+      updateElementTextIfChanged(document.getElementById('pokerMobileHeroHandRank'), bestHand);
 
       // 7. POT & TOUR
-      const pcPot = document.getElementById('pokerPotAmount');
-      if (pcPot) pcPot.textContent = fmt(poker.pot);
-      const mPot = document.getElementById('pokerMobilePotAmount');
-      if (mPot) mPot.textContent = fmt(poker.pot);
-
-      const pcPhase = document.getElementById('pokerPhaseLabel');
-      if (pcPhase) pcPhase.textContent = poker.phase;
-      const mPhase = document.getElementById('pokerMobilePhaseLabel');
-      if (mPhase) mPhase.textContent = poker.phase;
-
-      const pcHeroBet = document.getElementById('pokerHeroBetBadge');
-      if (pcHeroBet) pcHeroBet.textContent = `Mise : ${fmt(poker.heroBet)}`;
+      updateElementTextIfChanged(document.getElementById('pokerPotAmount'), fmt(poker.pot));
+      updateElementTextIfChanged(document.getElementById('pokerMobilePotAmount'), fmt(poker.pot));
+      updateElementTextIfChanged(document.getElementById('pokerPhaseLabel'), poker.phase);
+      updateElementTextIfChanged(document.getElementById('pokerMobilePhaseLabel'), poker.phase);
 
       // 8. SYNCHRONISATION DU SLIDER DE RELANCE MOBILE
       const mSlider = document.getElementById('pokerMobileRaiseSlider');
@@ -5609,9 +5892,9 @@
         openAuthModal('login');
         return;
       }
-      const isMulti = lobbies.poker.mode === 'multi';
+      const isMulti = lobbies.poker && lobbies.poker.mode === 'multi';
       if (isMulti) {
-        showToast('🤖 Le Croupier Automatique gère la table ! Dès que 2 joueurs sont assis, la donne démarre automatiquement.');
+        showToast('🤖 Le Croupier Automatique gère la table ! Dès que 2 joueurs sont assis et prêts, la donne démarre automatiquement.');
         return;
       }
 
@@ -5627,6 +5910,7 @@
       poker.phase = 'Pré-Flop';
       poker.deck = createDeck();
       poker.community = [];
+      updatePokerCommunityReveal(0);
       poker.pot = blind;
       poker.currentBet = blind;
       state.balance -= blind;
@@ -5648,8 +5932,13 @@
         poker.pot += blind;
         o.status = `Mise ${blind}`;
       });
-      document.getElementById('pokerTableAnnouncement').textContent = `Main lancée (${activeOpps.length + 1} joueurs). Choisis ton action !`;
+      playPokerCardDealSound();
+      const annEl = document.getElementById('pokerTableAnnouncement');
+      if (annEl) annEl.textContent = `Main lancée (${activeOpps.length + 1} joueurs). Choisis ton action !`;
+      const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+      if (mAnnEl) mAnnEl.textContent = `Main lancée (${activeOpps.length + 1} joueurs).`;
       saveState();
+      updateGlobalUI();
       renderPokerTable(false);
       setPokerBtns(true);
     }
@@ -5695,7 +5984,11 @@
         }
         saveState();
         renderPokerTable(true);
-        document.getElementById('pokerTableAnnouncement').textContent = `Tu t'es couché. ${winner && !winner.isEmpty ? winner.name : 'La table'} récupère le pot.`;
+        const foldMsg = `Tu t'es couché. ${winner && !winner.isEmpty ? winner.name : 'La table'} récupère le pot.`;
+        const annEl = document.getElementById('pokerTableAnnouncement');
+        if (annEl) annEl.textContent = foldMsg;
+        const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+        if (mAnnEl) mAnnEl.textContent = foldMsg;
         return;
       }
 
@@ -5732,13 +6025,19 @@
 
       saveState();
       if (poker.phase === 'Pré-Flop') {
-        poker.phase = 'Flop'; poker.community.push(poker.deck.pop(), poker.deck.pop(), poker.deck.pop());
+        poker.phase = 'Flop';
+        poker.community.push(poker.deck.pop(), poker.deck.pop(), poker.deck.pop());
+        updatePokerCommunityReveal(3);
         renderPokerTable(false);
       } else if (poker.phase === 'Flop') {
-        poker.phase = 'Turn'; poker.community.push(poker.deck.pop());
+        poker.phase = 'Turn';
+        poker.community.push(poker.deck.pop());
+        updatePokerCommunityReveal(4);
         renderPokerTable(false);
       } else if (poker.phase === 'Turn') {
-        poker.phase = 'River'; poker.community.push(poker.deck.pop());
+        poker.phase = 'River';
+        poker.community.push(poker.deck.pop());
+        updatePokerCommunityReveal(5);
         renderPokerTable(false);
       } else {
         poker.inProgress = false;
@@ -5754,12 +6053,20 @@
         if (winHero) {
           state.balance += poker.pot;
           playCoinWinSound();
-          document.getElementById('pokerTableAnnouncement').textContent = `🏆 Tu gagnes le pot de ${fmt(poker.pot)} avec ${heroEv.name} !`;
+          const winMsg = `🏆 Tu gagnes le pot de ${fmt(poker.pot)} avec ${heroEv.name} !`;
+          const annEl = document.getElementById('pokerTableAnnouncement');
+          if (annEl) annEl.textContent = winMsg;
+          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+          if (mAnnEl) mAnnEl.textContent = winMsg;
           showToast(`🏆 +${fmt(poker.pot)} pièces au Poker !`);
         } else if (winOpp) {
           winOpp.stack += poker.pot;
           if (winOpp.isFriend) state.friendBalances[winOpp.name] = winOpp.stack;
-          document.getElementById('pokerTableAnnouncement').textContent = `${winOpp.name} remporte le pot de ${fmt(poker.pot)} (${winOpp.status}).`;
+          const oppMsg = `${winOpp.name} remporte le pot de ${fmt(poker.pot)} (${winOpp.status}).`;
+          const annEl = document.getElementById('pokerTableAnnouncement');
+          if (annEl) annEl.textContent = oppMsg;
+          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+          if (mAnnEl) mAnnEl.textContent = oppMsg;
         }
         saveState();
         renderPokerTable(true);
@@ -5815,6 +6122,12 @@
       setTimeout(syncPokerMultiplayer, 300);
     }
 
+    function formatPokerTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
     function mergePokerServerState(srv) {
       if (!srv || typeof srv !== 'object') return;
       pokerSyncTable = srv;
@@ -5836,6 +6149,10 @@
       const mAnnEl = document.getElementById('pokerMobileAnnouncement');
       const checkCallBtn = document.getElementById('btnPokerCheckCall');
       const mCheckCallBtn = document.getElementById('btnPokerMobileCheckCall');
+      const readyBtn = document.getElementById('btnPokerReady');
+      const mReadyBtn = document.getElementById('btnPokerMobileReady');
+      const dealBtn = document.getElementById('pokerDealBtn');
+      const mDealBtn = document.getElementById('pokerMobileDealBtn');
 
       if (dealerBanner) dealerBanner.classList.remove('hidden');
       if (srv.announcement) {
@@ -5846,13 +6163,64 @@
       const now = Date.now();
       if (srv.status === 'waiting') {
         poker.inProgress = false;
-        if (dealerStatus) dealerStatus.textContent = "En attente d'un 2ème joueur...";
+        setPokerBtns(false);
+        if (dealBtn) dealBtn.classList.add('hidden');
+        if (mDealBtn) mDealBtn.classList.add('hidden');
+
+        if (myPl) {
+          if (myPl.waitingNextRound) {
+            if (readyBtn) {
+              readyBtn.classList.remove('hidden');
+              readyBtn.disabled = true;
+              readyBtn.textContent = '⏳ En attente de la prochaine manche';
+              readyBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-stone-800 text-stone-300 border border-white/10 opacity-70 cursor-not-allowed';
+            }
+            if (mReadyBtn) {
+              mReadyBtn.classList.remove('hidden');
+              mReadyBtn.disabled = true;
+              mReadyBtn.textContent = '⏳ Prochaine manche...';
+            }
+            if (dealerStatus) dealerStatus.textContent = '⏳ Tu rejoindras la table dès la prochaine donne.';
+          } else if (myPl.ready) {
+            if (readyBtn) {
+              readyBtn.classList.remove('hidden');
+              readyBtn.disabled = true;
+              readyBtn.textContent = '✔ Tu es prêt ! (En attente des autres)';
+              readyBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-emerald-600/30 text-emerald-300 border border-emerald-400/50 shadow-inner cursor-not-allowed';
+            }
+            if (mReadyBtn) {
+              mReadyBtn.classList.remove('hidden');
+              mReadyBtn.disabled = true;
+              mReadyBtn.textContent = '✔ Tu es prêt !';
+            }
+            if (dealerStatus) dealerStatus.textContent = "✔ Tu es prêt ! En attente que tous les joueurs cliquent sur Prêt...";
+          } else {
+            if (readyBtn) {
+              readyBtn.classList.remove('hidden');
+              readyBtn.disabled = false;
+              readyBtn.textContent = '👍 JE SUIS PRÊT';
+              readyBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-emerald-500 text-black hover:brightness-110 transition shadow-lg animate-pulse';
+            }
+            if (mReadyBtn) {
+              mReadyBtn.classList.remove('hidden');
+              mReadyBtn.disabled = false;
+              mReadyBtn.textContent = '👍 JE SUIS PRÊT';
+            }
+            if (dealerStatus) dealerStatus.textContent = "👉 Clique sur « JE SUIS PRÊT » pour lancer la partie !";
+          }
+        } else {
+          if (dealerStatus) dealerStatus.textContent = "Assieds-toi à la table pour jouer.";
+        }
         if (turnBadge) {
-          turnBadge.textContent = "En attente";
+          turnBadge.textContent = "Prêt ?";
           turnBadge.className = "text-[11px] font-extrabold text-stone-400";
         }
-        setPokerBtns(false);
-      } else if (srv.status === 'countdown') {
+      } else {
+        if (readyBtn) readyBtn.classList.add('hidden');
+        if (mReadyBtn) mReadyBtn.classList.add('hidden');
+      }
+
+      if (srv.status === 'countdown') {
         poker.inProgress = false;
         const sLeft = Math.max(1, Math.ceil(((srv.countdownEndsAt || now) - now) / 1000));
         if (dealerStatus) dealerStatus.textContent = `⏰ La donne commence dans ${sLeft}s...`;
@@ -5865,13 +6233,14 @@
         poker.inProgress = true;
         const isMyTurn = (srv.turn === myKey);
         const turnSecLeft = Math.max(0, Math.ceil(((srv.turnEndsAt || now) - now) / 1000));
+        const formattedTime = formatPokerTime(turnSecLeft);
         const turnPlayer = srv.players && srv.players[srv.turn];
         const turnName = turnPlayer ? turnPlayer.username : (srv.turn || 'Joueur');
 
         if (isMyTurn) {
-          if (dealerStatus) dealerStatus.textContent = `👉 À TOI DE JOUER (${turnSecLeft}s) !`;
+          if (dealerStatus) dealerStatus.textContent = `👉 À TOI DE JOUER (${formattedTime}) !`;
           if (turnBadge) {
-            turnBadge.textContent = `🟢 Ton tour (${turnSecLeft}s)`;
+            turnBadge.textContent = `🟢 Ton tour (${formattedTime})`;
             turnBadge.className = "text-[11px] font-extrabold text-emerald-400 animate-pulse";
           }
           if (myPl && !myPl.folded) {
@@ -5889,9 +6258,9 @@
             setPokerBtns(false);
           }
         } else {
-          if (dealerStatus) dealerStatus.textContent = `⏳ Tour de ${turnName} (${turnSecLeft}s)...`;
+          if (dealerStatus) dealerStatus.textContent = `⏳ Tour de ${turnName} (${formattedTime})...`;
           if (turnBadge) {
-            turnBadge.textContent = `Tour de ${turnName} (${turnSecLeft}s)`;
+            turnBadge.textContent = `Tour de ${turnName} (${formattedTime})`;
             turnBadge.className = "text-[11px] font-extrabold text-sky-400";
           }
           setPokerBtns(false);
@@ -5905,13 +6274,13 @@
             state.balance = Math.max(0, state.balance - 100);
             saveState();
             updateGlobalUI();
-            playCardFlipSound();
+            playPokerCardDealSound();
           }
         }
       } else if (srv.status === 'finished') {
         poker.inProgress = false;
         setPokerBtns(false);
-        if (dealerStatus) dealerStatus.textContent = "🏆 Manche terminée ! Prochaine donne automatique...";
+        if (dealerStatus) dealerStatus.textContent = "🏆 Manche terminée ! Prochaine donne automatique (5s)...";
         if (turnBadge) {
           turnBadge.textContent = "Showdown";
           turnBadge.className = "text-[11px] font-extrabold text-amber-300";
@@ -6006,7 +6375,7 @@
     let lastPokerSummaryFetch = 0;
 
     async function syncPokerMultiplayer() {
-      if (currentRoomKey !== 'poker' || !lobbies.poker) return;
+      if (currentRoomKey !== 'poker' || !lobbies.poker || lobbies.poker.mode !== 'multi') return;
       if (isPokerSyncing) return;
       isPokerSyncing = true;
 
@@ -7325,6 +7694,7 @@
       const rod = document.getElementById('slotLeverRod');
       rod.classList.add('pulled');
       setTimeout(() => rod.classList.remove('pulled'), 420);
+      playSlotMachineLeverSound();
 
       document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
 
@@ -9358,6 +9728,7 @@
         cupsGame.positions[c2] = tmp;
 
         updateCupVisualPositions();
+        playCupShuffleSound();
 
         if (currentStep >= steps) {
           clearInterval(timer);

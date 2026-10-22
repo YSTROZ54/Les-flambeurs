@@ -1,4 +1,4 @@
-﻿$port = 8080
+$port = 8080
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 
@@ -1010,13 +1010,13 @@ while ($listener.IsListening) {
                 foreach ($k in $counts.Keys) { $groups += @{ v = [int]$k; c = [int]$counts[$k] } }
                 $groups = @($groups | Sort-Object -Property @{Expression={$_.c}; Descending=$true}, @{Expression={$_.v}; Descending=$true})
 
-                if ($isFlush -and $isStraight) { return @{ score = (800 + $sHigh); name = 'Quinte Flush 🔥' } }
-                if ($groups[0].c -eq 4) { return @{ score = (700 + $groups[0].v); name = 'Carré 💣' } }
-                if ($groups[0].c -eq 3 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (600 + $groups[0].v); name = 'Full House 👑' } }
-                if ($isFlush) { return @{ score = (500 + $vals[0]); name = 'Couleur ♦️' } }
-                if ($isStraight) { return @{ score = (400 + $sHigh); name = 'Suite ⚡' } }
-                if ($groups[0].c -eq 3) { return @{ score = (300 + $groups[0].v); name = 'Brelan 🎯' } }
-                if ($groups[0].c -eq 2 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (200 + $groups[0].v); name = 'Double Paire ✨' } }
+                if ($isFlush -and $isStraight) { return @{ score = (800 + $sHigh); name = 'Quinte Flush' } }
+                if ($groups[0].c -eq 4) { return @{ score = (700 + $groups[0].v); name = 'Carre' } }
+                if ($groups[0].c -eq 3 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (600 + $groups[0].v); name = 'Full House' } }
+                if ($isFlush) { return @{ score = (500 + $vals[0]); name = 'Couleur' } }
+                if ($isStraight) { return @{ score = (400 + $sHigh); name = 'Suite' } }
+                if ($groups[0].c -eq 3) { return @{ score = (300 + $groups[0].v); name = 'Brelan' } }
+                if ($groups[0].c -eq 2 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (200 + $groups[0].v); name = 'Double Paire' } }
                 if ($groups[0].c -eq 2) { return @{ score = (100 + $groups[0].v); name = 'Paire' } }
                 return @{ score = $vals[0]; name = 'Carte Haute' }
             }
@@ -1107,19 +1107,34 @@ while ($listener.IsListening) {
             }
 
             # 2. Gestion WAITING -> COUNTDOWN
+            # 2. Gestion WAITING -> COUNTDOWN (Tous les joueurs assis doivent être prêts, min 2)
             $seatedCount = if ($table.players) { $table.players.Count } else { 0 }
             if ($table.status -eq 'waiting') {
-                if ($seatedCount -ge 2) {
+                $readyCount = 0
+                foreach ($pk in $table.playerOrder) {
+                    if ($table.players.ContainsKey($pk) -and $table.players[$pk].ready -eq $true) {
+                        $readyCount++
+                    }
+                }
+                if ($seatedCount -ge 2 -and $readyCount -eq $seatedCount) {
                     $table.status = 'countdown'
                     $table.countdownEndsAt = $now + 4000
-                    $table.announcement = "🤖 Croupier : $seatedCount flambeurs assis ! La donne commence dans 4s..."
+                    $table.announcement = "🤖 Croupier : Tous les joueurs sont prêts ($seatedCount joueurs) ! La donne commence dans 4s..."
                     $table.updatedAt = $now
+                } elseif ($seatedCount -ge 2) {
+                    $table.announcement = "🤖 Croupier : $readyCount/$seatedCount joueurs prêts. Clique sur `"JE SUIS PRÊT`" pour lancer !"
                 }
             }
             elseif ($table.status -eq 'countdown') {
-                if ($seatedCount -lt 2) {
+                $readyCount = 0
+                foreach ($pk in $table.playerOrder) {
+                    if ($table.players.ContainsKey($pk) -and $table.players[$pk].ready -eq $true) {
+                        $readyCount++
+                    }
+                }
+                if ($seatedCount -lt 2 -or $readyCount -lt $seatedCount) {
                     $table.status = 'waiting'
-                    $table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis..."
+                    $table.announcement = "🤖 Croupier : Un joueur n'est plus prêt ou a quitté la table."
                     $table.updatedAt = $now
                 } elseif ($now -ge [int64]$table.countdownEndsAt) {
                     # Lancement automatique de la main
@@ -1137,6 +1152,8 @@ while ($listener.IsListening) {
 
                     foreach ($pk in $pKeys) {
                         $p = $table.players[$pk]
+                        $p.waitingNextRound = $false
+                        $p.ready = $true
                         if ([int]$p.stack -lt 100) { $p.stack = 5000 }
                         $p.stack = [int]$p.stack - 100
                         $p.bet = 100
@@ -1146,19 +1163,20 @@ while ($listener.IsListening) {
                         $p.cards = @($c1, $c2)
                         $p.folded = $false
                         $p.allIn = $false
-                        $p.status = 'Blind 100 €'
+                        $p.status = 'Blind 100 EUR'
                         $p.updatedAt = $now
                     }
                     $table.deck = $deck
                     $firstTurnIdx = if ($pKeys.Count -eq 2) { [int]$table.dealerIndex } else { (([int]$table.dealerIndex + 1) % $pKeys.Count) }
                     $table.turn = $pKeys[$firstTurnIdx]
-                    $table.turnEndsAt = $now + 20000
+                    $table.turnEndsAt = $now + 120000
                     $table.status = 'preflop'
-                    $table.announcement = "🤖 Croupier : Cartes distribuées ! Au tour de $($table.players[$table.turn].username) (20s)."
+                    $turnUserName = [string]$table.players[$table.turn].username
+                    $table.announcement = "Croupier : Cartes distribuees ! Au tour de $turnUserName (2 min)."
                     $table.updatedAt = $now
                 }
             }
-            # 3. Gestion Timeout tour (20s)
+            # 3. Gestion Timeout tour (120s / 2 minutes)
             elseif (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
                 if ($table.turn -and $table.turnEndsAt -and ($now -gt [int64]$table.turnEndsAt)) {
                     $turnPk = [string]$table.turn
@@ -1184,7 +1202,7 @@ while ($listener.IsListening) {
                             $table.status = 'finished'
                             $table.finishedAt = $now
                             $table.nextRoundAt = $now + 5000
-                            $table.announcement = "🏆 $($wPlayer.username) remporte le pot de $($table.pot) € !"
+                            $table.announcement = "Vainqueur : " + $wPlayer.username + " remporte le pot de " + $table.pot + " EUR !"
                         } else {
                             # Suivant
                             $sIdx = [array]::IndexOf($table.playerOrder, $turnPk)
@@ -1197,18 +1215,19 @@ while ($listener.IsListening) {
                             }
                             if ($nextTurn) {
                                 $table.turn = $nextTurn
-                                $table.turnEndsAt = $now + 20000
-                                $table.announcement = "Au tour de $($table.players[$nextTurn].username) (20s)."
+                                $table.turnEndsAt = $now + 120000
+                                $nextUName = [string]$table.players[$nextTurn].username
+                                $table.announcement = "Au tour de $nextUName (2 min)."
                             }
                         }
                     }
                 }
             }
-            # 4. Relance automatique de la manche finie
+            # 4. Relance automatique de la manche finie (5 secondes, tous les joueurs assis participent)
             elseif ($table.status -eq 'finished') {
                 if ($table.nextRoundAt -and ($now -ge [int64]$table.nextRoundAt)) {
                     if ($seatedCount -ge 2) {
-                        # Relance donne
+                        # Relance donne automatique sans demander de recliquer sur prêt
                         $pKeys = @($table.playerOrder)
                         $deck = (& $newDeckFunc)
                         $table.roundId = $now
@@ -1223,6 +1242,8 @@ while ($listener.IsListening) {
 
                         foreach ($pk in $pKeys) {
                             $p = $table.players[$pk]
+                            $p.waitingNextRound = $false
+                            $p.ready = $true
                             if ([int]$p.stack -lt 100) { $p.stack = 5000 }
                             $p.stack = [int]$p.stack - 100
                             $p.bet = 100
@@ -1232,22 +1253,23 @@ while ($listener.IsListening) {
                             $p.cards = @($c1, $c2)
                             $p.folded = $false
                             $p.allIn = $false
-                            $p.status = 'Blind 100 €'
+                            $p.status = 'Blind 100 EUR'
                             $p.updatedAt = $now
                         }
                         $table.deck = $deck
                         $firstTurnIdx = if ($pKeys.Count -eq 2) { [int]$table.dealerIndex } else { (([int]$table.dealerIndex + 1) % $pKeys.Count) }
                         $table.turn = $pKeys[$firstTurnIdx]
-                        $table.turnEndsAt = $now + 20000
+                        $table.turnEndsAt = $now + 120000
                         $table.status = 'preflop'
-                        $table.announcement = "🤖 Croupier : Nouvelle main ! Au tour de $($table.players[$table.turn].username) (20s)."
+                        $tUser = [string]$table.players[$table.turn].username
+                        $table.announcement = "Croupier : Nouvelle main ! Au tour de $tUser (2 min)."
                         $table.updatedAt = $now
                     } else {
                         $table.status = 'waiting'
                         $table.community = @()
                         $table.pot = 0
                         $table.winner = $null
-                        $table.announcement = "🤖 Croupier : En attente d'autres joueurs..."
+                        $table.announcement = "Croupier : En attente d'autres joueurs..."
                         $table.updatedAt = $now
                     }
                 }
@@ -1263,6 +1285,7 @@ while ($listener.IsListening) {
                         if ($table.playerOrder.Count -lt [int]$table.maxSeats) {
                             $av = if ($postObj.avatar) { $postObj.avatar } else { "👤" }
                             $stk = if ($postObj.balance) { [int]$postObj.balance } else { 5500 }
+                            $isMidHand = (@('countdown', 'preflop', 'flop', 'turn', 'river') -contains $table.status)
                             $table.players[$uKey] = @{
                                 username = $clientUser
                                 avatar = $av
@@ -1270,22 +1293,28 @@ while ($listener.IsListening) {
                                 bet = 0
                                 roundBet = 0
                                 cards = @()
-                                folded = $false
+                                folded = $isMidHand
                                 allIn = $false
-                                status = 'Prêt'
+                                ready = $false
+                                waitingNextRound = $isMidHand
+                                status = if ($isMidHand) { 'Attend la prochaine main' } else { 'Assis (Non prêt)' }
                                 updatedAt = $now
                             }
                             $table.playerOrder += $uKey
-                            $table.announcement = "👤 $clientUser s'est assis à la table !"
+                            $table.announcement = if ($isMidHand) { "👤 $clientUser a rejoint la table en observateur (jouera la prochaine main) !" } else { "👤 $clientUser s'est assis à la table !" }
                             $table.updatedAt = $now
-                            if ($table.status -eq 'waiting' -and $table.playerOrder.Count -ge 2) {
-                                $table.status = 'countdown'
-                                $table.countdownEndsAt = $now + 4000
-                                $table.announcement = "🤖 Croupier : $($table.playerOrder.Count) flambeurs assis ! La donne commence dans 4s..."
-                            }
                         }
                     } else {
                         $table.players[$uKey].updatedAt = $now
+                    }
+                }
+                elseif ($act -eq 'ready' -and $uKey) {
+                    if ($table.players.ContainsKey($uKey)) {
+                        $table.players[$uKey].ready = $true
+                        $table.players[$uKey].status = 'Prêt'
+                        $table.players[$uKey].updatedAt = $now
+                        $table.announcement = "👍 $clientUser est prêt !"
+                        $table.updatedAt = $now
                     }
                 }
                 elseif ($act -eq 'leave' -and $uKey) {
@@ -1410,8 +1439,8 @@ while ($listener.IsListening) {
                                 }
                                 if ($nextTurn) {
                                     $table.turn = $nextTurn
-                                    $table.turnEndsAt = $now + 20000
-                                    $table.announcement = "Au tour de $($table.players[$nextTurn].username) (20s)."
+                                    $table.turnEndsAt = $now + 120000
+                                    $table.announcement = "Au tour de $($table.players[$nextTurn].username) (2 min)."
                                 }
                             } else {
                                 # Progression phase (preflop -> flop -> turn -> river -> showdown)
@@ -1442,7 +1471,7 @@ while ($listener.IsListening) {
                                     # Showdown !
                                     $table.status = 'finished'
                                     $table.finishedAt = $now
-                                    $table.nextRoundAt = $now + 6500
+                                    $table.nextRoundAt = $now + 5000
 
                                     $bestSc = -1
                                     $winners = @()
@@ -1479,8 +1508,8 @@ while ($listener.IsListening) {
                                         }
                                     }
                                     $table.turn = $nextTurn
-                                    $table.turnEndsAt = $now + 20000
-                                    $table.announcement = "Le Croupier avance le jeu ! Au tour de $($table.players[$nextTurn].username) (20s)."
+                                    $table.turnEndsAt = $now + 120000
+                                    $table.announcement = "Le Croupier avance le jeu ! Au tour de $($table.players[$nextTurn].username) (2 min)."
                                 }
                             }
                         }

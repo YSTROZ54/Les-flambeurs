@@ -244,8 +244,8 @@ function advancePokerPhaseOrTurn(table, now) {
     const nextTurn = getNextActiveTurnKey(table, table.turn);
     if (nextTurn) {
       table.turn = nextTurn;
-      table.turnEndsAt = now + 20000;
-      table.announcement = `Au tour de ${table.players[nextTurn].username} (20s).`;
+      table.turnEndsAt = now + 120000; // 2 minutes (120s)
+      table.announcement = `Au tour de ${table.players[nextTurn].username} (2 min).`;
       table.updatedAt = now;
       return;
     }
@@ -262,27 +262,27 @@ function advancePokerPhaseOrTurn(table, now) {
     table.status = 'flop';
     table.community.push(table.deck.pop(), table.deck.pop(), table.deck.pop());
     table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 20000;
-    table.announcement = `🃏 Flop dévoilé ! Au tour de ${table.players[table.turn]?.username || 'joueur'}.`;
+    table.turnEndsAt = now + 120000;
+    table.announcement = `🃏 Flop dévoilé ! Au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
   } else if (table.status === 'flop') {
     // Distribuer la TURN (1 carte)
     table.status = 'turn';
     table.community.push(table.deck.pop());
     table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 20000;
-    table.announcement = `⚡ Turn dévoilée ! Au tour de ${table.players[table.turn]?.username || 'joueur'}.`;
+    table.turnEndsAt = now + 120000;
+    table.announcement = `⚡ Turn dévoilée ! Au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
   } else if (table.status === 'turn') {
     // Distribuer la RIVER (1 carte)
     table.status = 'river';
     table.community.push(table.deck.pop());
     table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 20000;
-    table.announcement = `🌊 River dévoilée ! Dernier tour, au tour de ${table.players[table.turn]?.username || 'joueur'}.`;
+    table.turnEndsAt = now + 120000;
+    table.announcement = `🌊 River dévoilée ! Dernier tour, au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
   } else if (table.status === 'river') {
     // SHOWDOWN !
     table.status = 'finished';
     table.finishedAt = now;
-    table.nextRoundAt = now + 6500; // Relance automatique dans 6.5s
+    table.nextRoundAt = now + 5000; // Relance automatique dans 5 secondes
 
     let bestScore = -1;
     let winners = [];
@@ -341,8 +341,10 @@ function startDealerDeal(table, now) {
   table.lastAggressor = null;
   table.dealerIndex = (table.dealerIndex + 1) % pKeys.length;
 
-  pKeys.forEach((k, idx) => {
+  pKeys.forEach((k) => {
     const p = table.players[k];
+    p.waitingNextRound = false;
+    p.ready = true;
     if (p.stack < 100) p.stack = 5000;
     p.stack -= 100;
     p.bet = 100;
@@ -357,9 +359,9 @@ function startDealerDeal(table, now) {
   // Premier joueur à parler
   const firstTurnIdx = (pKeys.length === 2) ? table.dealerIndex : ((table.dealerIndex + 1) % pKeys.length);
   table.turn = pKeys[firstTurnIdx];
-  table.turnEndsAt = now + 20000;
+  table.turnEndsAt = now + 120000; // 2 minutes (120s)
   table.status = 'preflop';
-  table.announcement = `🤖 Croupier : Cartes distribuées ! Au tour de ${table.players[table.turn].username} (20s).`;
+  table.announcement = `🤖 Croupier : Cartes distribuées ! Au tour de ${table.players[table.turn].username} (2 min).`;
   table.updatedAt = now;
 }
 
@@ -393,22 +395,26 @@ function stepDealerBot(table, now) {
 
   const activeSeated = table.playerOrder.filter(k => Boolean(table.players[k]));
 
-  // 2. Gestion de l'état WAITING -> COUNTDOWN
+  // 2. Gestion de l'état WAITING -> COUNTDOWN (Tous les joueurs assis doivent être prêts, min 2)
   if (table.status === 'waiting') {
-    if (activeSeated.length >= 2) {
+    const readyPlayers = activeSeated.filter(k => table.players[k]?.ready === true);
+    if (activeSeated.length >= 2 && readyPlayers.length === activeSeated.length) {
       table.status = 'countdown';
       table.countdownEndsAt = now + 4000;
-      table.announcement = `🤖 Croupier : ${activeSeated.length} flambeurs assis ! La donne commence dans 4s...`;
+      table.announcement = `🤖 Croupier : Tous les joueurs sont prêts (${activeSeated.length} joueurs) ! La donne commence dans 4s...`;
       table.updatedAt = now;
       changed = true;
+    } else if (activeSeated.length >= 2) {
+      table.announcement = `🤖 Croupier : ${readyPlayers.length}/${activeSeated.length} joueurs prêts. Clique sur "JE SUIS PRÊT" pour lancer !`;
     }
   }
 
   // 3. Gestion COUNTDOWN -> PREFLOP (Lancement automatique)
   else if (table.status === 'countdown') {
-    if (activeSeated.length < 2) {
+    const readyPlayers = activeSeated.filter(k => table.players[k]?.ready === true);
+    if (activeSeated.length < 2 || readyPlayers.length < activeSeated.length) {
       table.status = 'waiting';
-      table.announcement = '🤖 Croupier : En attente d\'au moins 2 joueurs assis...';
+      table.announcement = '🤖 Croupier : Un joueur n\'est plus prêt ou a quitté la table.';
       table.updatedAt = now;
       changed = true;
     } else if (now >= (table.countdownEndsAt || 0)) {
@@ -417,7 +423,7 @@ function stepDealerBot(table, now) {
     }
   }
 
-  // 4. Gestion du temps de tour expiré (20s)
+  // 4. Gestion du temps de tour expiré (120s / 2 minutes)
   else if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
     if (table.turn && table.turnEndsAt && (now > table.turnEndsAt)) {
       const turnPlayer = table.players[table.turn];
@@ -438,10 +444,17 @@ function stepDealerBot(table, now) {
     }
   }
 
-  // 5. Gestion de la relance automatique après fin de manche
+  // 5. Gestion de la relance automatique après fin de manche (5 secondes)
   else if (table.status === 'finished') {
     if (table.nextRoundAt && now >= table.nextRoundAt) {
       if (activeSeated.length >= 2) {
+        // Relance automatique directe : pas besoin de recliquer sur prêt, tous les joueurs assis participent
+        activeSeated.forEach(k => {
+          if (table.players[k]) {
+            table.players[k].ready = true;
+            table.players[k].waitingNextRound = false;
+          }
+        });
         startDealerDeal(table, now);
       } else {
         table.status = 'waiting';
@@ -570,6 +583,7 @@ export default async function handler(req, res) {
       if (!table.players[uKey]) {
         if (table.playerOrder.length < table.maxSeats) {
           const seatIdx = table.playerOrder.length;
+          const isMidHand = ['countdown', 'preflop', 'flop', 'turn', 'river'].includes(table.status);
           table.players[uKey] = {
             username: user,
             avatar: body.avatar || '👤',
@@ -578,13 +592,17 @@ export default async function handler(req, res) {
             bet: 0,
             roundBet: 0,
             cards: [],
-            folded: false,
+            folded: isMidHand,
             allIn: false,
-            status: 'Prêt',
+            ready: false,
+            waitingNextRound: isMidHand,
+            status: isMidHand ? 'Attend la prochaine main' : 'Assis (Non prêt)',
             updatedAt: now
           };
           table.playerOrder.push(uKey);
-          table.announcement = `👤 ${user} s'est assis à la table !`;
+          table.announcement = isMidHand
+            ? `👤 ${user} a rejoint la table en observateur (jouera la prochaine main) !`
+            : `👤 ${user} s'est assis à la table !`;
           table.updatedAt = now;
           modified = true;
           stepDealerBot(table, now);
@@ -592,6 +610,19 @@ export default async function handler(req, res) {
       } else {
         table.players[uKey].updatedAt = now;
         if (body.avatar) table.players[uKey].avatar = body.avatar;
+      }
+    }
+
+    // ACTION : SE DÉCLARER PRÊT (READY)
+    else if (action === 'ready' && user) {
+      if (table.players[uKey]) {
+        table.players[uKey].ready = true;
+        table.players[uKey].status = 'Prêt';
+        table.players[uKey].updatedAt = now;
+        table.announcement = `👍 ${user} est prêt !`;
+        table.updatedAt = now;
+        modified = true;
+        stepDealerBot(table, now);
       }
     }
 
