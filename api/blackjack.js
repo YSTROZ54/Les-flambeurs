@@ -79,9 +79,36 @@ async function getFreshTables(force = false) {
   return memoryTables;
 }
 
+const PUBLIC_TABLE_IDS = ['bj_pub_1', 'bj_pub_2', 'bj_pub_3', 'bj_pub_4', 'bj_pub_5', 'public'];
+const MAX_PRIVATE_TABLES = 5;
+
+function isPrivateTableActive(tbl, now) {
+  if (!tbl) return false;
+  if (tbl.status === 'playing' || tbl.status === 'dealer_turn') return true;
+  if (now - (tbl.updatedAt || 0) > 45000) return false;
+  const activeCount = Object.keys(tbl.players || {}).length + Object.keys(tbl.readyPlayers || {}).length + Object.keys(tbl.knownPlayers || {}).length;
+  return activeCount > 0;
+}
+
+function cleanInactiveTables(tables, now) {
+  let changed = false;
+  Object.keys(tables).forEach(tId => {
+    if (PUBLIC_TABLE_IDS.includes(tId.toLowerCase())) return;
+    if (!isPrivateTableActive(tables[tId], now)) {
+      delete tables[tId];
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function getActivePrivateTablesList(tables, now) {
+  return Object.keys(tables).filter(tId => !PUBLIC_TABLE_IDS.includes(tId.toLowerCase()) && isPrivateTableActive(tables[tId], now));
+}
+
 function getDefaultTable(tableId) {
   return {
-    tableId: tableId || 'public',
+    tableId: tableId || 'bj_pub_1',
     roundId: 0,
     status: 'waiting', // 'waiting', 'playing', 'dealer_turn', 'finished'
     deck: [],
@@ -277,14 +304,53 @@ export default async function handler(req, res) {
 
   // GET
   if (req.method === 'GET') {
-    const tableId = (req.query.table || req.query.tableId || 'public').toLowerCase().trim();
+    let modified = cleanInactiveTables(tables, now);
+
+    // Endpoint list_tables
+    if (req.query.action === 'list_tables' || req.query.list === 'true') {
+      const activePrivate = getActivePrivateTablesList(tables, now);
+      const publicSummaries = [1, 2, 3, 4, 5].map(num => {
+        const pId = `bj_pub_${num}`;
+        const tbl = tables[pId] || getDefaultTable(pId);
+        const playerKeys = Object.keys(tbl.players || {});
+        const knownKeys = Object.keys(tbl.knownPlayers || {});
+        const activeKeys = Array.from(new Set([...playerKeys, ...knownKeys]));
+        const players = activeKeys.map(k => {
+          const p = tbl.players?.[k] || tbl.knownPlayers?.[k] || {};
+          return { username: p.username || k, avatar: p.avatar || '👤' };
+        });
+        return {
+          tableId: pId,
+          status: tbl.status,
+          playerCount: Math.min(2, players.length),
+          isFull: players.length >= 2,
+          players: players.slice(0, 2)
+        };
+      });
+
+      if (modified) {
+        memoryTables = tables;
+        saveSupabaseTables(tables).catch(() => {});
+      }
+
+      return res.status(200).json({
+        ok: true,
+        publicTables: publicSummaries,
+        activePrivateCount: activePrivate.length,
+        activePrivateTables: activePrivate,
+        maxPrivateTables: MAX_PRIVATE_TABLES
+      });
+    }
+
+    let rawTableId = (req.query.table || req.query.tableId || 'bj_pub_1').toLowerCase().trim();
+    if (rawTableId === 'public') rawTableId = 'bj_pub_1';
+    const tableId = rawTableId;
+
     let table = tables[tableId];
     if (!table) {
       table = getDefaultTable(tableId);
       tables[tableId] = table;
     }
-
-    let modified = false;
 
     // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente sans relance automatique
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
@@ -352,7 +418,62 @@ export default async function handler(req, res) {
     }
     if (!body || typeof body !== 'object') body = {};
 
-    const tableId = (body.tableId || 'public').toLowerCase().trim();
+    let modified = cleanInactiveTables(tables, now);
+
+    // Endpoint list_tables en POST
+    if (body.action === 'list_tables') {
+      const activePrivate = getActivePrivateTablesList(tables, now);
+      const publicSummaries = [1, 2, 3, 4, 5].map(num => {
+        const pId = `bj_pub_${num}`;
+        const tbl = tables[pId] || getDefaultTable(pId);
+        const playerKeys = Object.keys(tbl.players || {});
+        const knownKeys = Object.keys(tbl.knownPlayers || {});
+        const activeKeys = Array.from(new Set([...playerKeys, ...knownKeys]));
+        const players = activeKeys.map(k => {
+          const p = tbl.players?.[k] || tbl.knownPlayers?.[k] || {};
+          return { username: p.username || k, avatar: p.avatar || '👤' };
+        });
+        return {
+          tableId: pId,
+          status: tbl.status,
+          playerCount: Math.min(2, players.length),
+          isFull: players.length >= 2,
+          players: players.slice(0, 2)
+        };
+      });
+
+      if (modified) {
+        memoryTables = tables;
+        saveSupabaseTables(tables).catch(() => {});
+      }
+
+      return res.status(200).json({
+        ok: true,
+        publicTables: publicSummaries,
+        activePrivateCount: activePrivate.length,
+        activePrivateTables: activePrivate,
+        maxPrivateTables: MAX_PRIVATE_TABLES
+      });
+    }
+
+    let rawTableId = (body.tableId || 'bj_pub_1').toLowerCase().trim();
+    if (rawTableId === 'public') rawTableId = 'bj_pub_1';
+    const tableId = rawTableId;
+
+    // CONTRÔLE DE LIMITE : Maximum 5 tables privées actives autorisées
+    if (!PUBLIC_TABLE_IDS.includes(tableId)) {
+      const activePrivate = getActivePrivateTablesList(tables, now);
+      const isAlreadyActive = tables[tableId] && isPrivateTableActive(tables[tableId], now);
+      if (!isAlreadyActive && activePrivate.length >= MAX_PRIVATE_TABLES && !activePrivate.includes(tableId)) {
+        return res.status(200).json({
+          ok: false,
+          error: "Limite atteinte : Seules 5 tables privées peuvent être créées simultanément. Rejoins une table existante ou attends qu'une table se libère !",
+          activePrivateCount: activePrivate.length,
+          maxPrivate: MAX_PRIVATE_TABLES
+        });
+      }
+    }
+
     let table = tables[tableId];
     if (!table) {
       table = getDefaultTable(tableId);
@@ -456,9 +577,11 @@ export default async function handler(req, res) {
         table.host = pKey;
       }
 
-      // VÉRIFICATION HÔTE SUR MANCHE 1 : Seul l'hôte qui a invité peut lancer la première partie
-      if (!table.hasPlayedRound && table.roundId === 0 && table.host && pKey !== table.host) {
-        return res.status(200).json({ ok: false, error: "Seul l'hôte qui a invité peut lancer la première partie !", table });
+      // VÉRIFICATION HÔTE SUR MANCHE 1 : En table privée uniquement, seul l'hôte qui a créé peut lancer
+      if (!PUBLIC_TABLE_IDS.includes(tableId)) {
+        if (!table.hasPlayedRound && table.roundId === 0 && table.host && pKey !== table.host) {
+          return res.status(200).json({ ok: false, error: "Seul l'hôte qui a créé la table privée peut lancer la première partie !", table });
+        }
       }
 
       let participants = Array.isArray(body.participants) && body.participants.length > 0

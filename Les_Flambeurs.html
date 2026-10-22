@@ -901,14 +901,14 @@
       </div>
 
       <!-- LOBBY MULTI BLACKJACK -->
-      <div id="bjLobbyBanner" class="hidden lobby-panel p-4 space-y-3">
+      <div id="bjLobbyBanner" class="hidden lobby-panel p-4 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-serif-title font-extrabold text-amber-300 text-sm flex items-center gap-1.5">
-              <span>🃏 Salon Blackjack Multi</span>
+              <span>🃏 Salons Blackjack Multi</span>
             </span>
             <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10 text-xs">
-              <button onclick="setBjTableType('public')" id="bjtype-public" class="pill-choice active">🌍 Table Publique</button>
+              <button onclick="setBjTableType('public')" id="bjtype-public" class="pill-choice active">🌍 Tables Publiques (5)</button>
               <button onclick="setBjTableType('private')" id="bjtype-private" class="pill-choice">🔒 Table Privée</button>
             </div>
             <div id="bjPrivateCodeBox" class="hidden flex flex-wrap items-center gap-1.5 bg-black/80 border border-amber-400/40 px-3 py-1.5 rounded-xl text-xs">
@@ -921,14 +921,57 @@
             </div>
           </div>
           <div class="flex items-center gap-2 text-xs">
+            <span id="bjPrivateLimitBadge" class="hidden px-2.5 py-1 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-300 font-bold text-[11px]">
+              🔒 Tables privées actives : <strong id="bjPrivateCountText">0</strong> / 5
+            </span>
             <button onclick="openFriendsModal()" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-purple-500 to-indigo-600 hover:brightness-110 text-white text-xs flex items-center gap-1.5 shadow transition">
               <span>👥</span> <span>Inviter un ami</span>
             </button>
           </div>
         </div>
+
+        <!-- NAVIGATEUR DES 5 TABLES PUBLIQUES -->
+        <div id="bjPublicTablesBrowser" class="space-y-2.5 pt-2 border-t border-white/10">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-300 font-bold text-sm">🏛️ Les 5 Salons Publics</span>
+              <span class="text-[11px] text-stone-400">• Accès libre sans invitation. Choisis une table libre pour t'asseoir :</span>
+            </div>
+            <button onclick="renderBjPublicTablesBrowser()" title="Actualiser la liste" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 text-[11px] flex items-center gap-1 transition">
+              🔄 <span>Actualiser</span>
+            </button>
+          </div>
+          <!-- Grille des 5 Tables Publiques -->
+          <div id="bjPublicTablesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <!-- Dynamiquement généré par renderBjPublicTablesBrowser() -->
+          </div>
+        </div>
+
         <div id="bjLobbyStatusText" class="text-[11px] text-stone-400 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Table connectée • Invite un ami pour jouer ensemble face au Croupier.</span>
+          <span>Table connectée • Choisis ta table ou invite un ami pour jouer ensemble face au Croupier.</span>
+        </div>
+      </div>
+
+      <!-- BANDEAU DE LA TABLE ACTUELLEMENT REJOINTE -->
+      <div id="bjCurrentTableBanner" class="hidden flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-stone-950/90 border border-amber-500/40 text-xs shadow-xl backdrop-blur-xl">
+        <div class="flex items-center gap-3">
+          <span id="bjCurrentTableIcon" class="text-2xl p-2 rounded-xl bg-amber-500/10 border border-amber-400/30">🎰</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="bjCurrentTableName" class="font-serif-title font-extrabold text-amber-300 text-sm">Table #1 • Le Bellagio</span>
+              <span id="bjCurrentTableTypeBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Table Publique</span>
+            </div>
+            <div id="bjCurrentTableOccupants" class="text-[11px] text-stone-300">👥 1 / 2 Joueur assis • En attente d'un adversaire (libre d'accès)</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="scrollToBjBrowser()" id="bjChangeTableBtn" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 transition flex items-center gap-1.5">
+            <span>📋</span> <span>Changer de salon</span>
+          </button>
+          <button onclick="leaveBjCurrentTable()" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 transition flex items-center gap-1.5">
+            <span>🚪</span> <span>Quitter la table</span>
+          </button>
         </div>
       </div>
 
@@ -3353,8 +3396,8 @@
         title: '🃏 Comment jouer au Blackjack ?',
         html: `
           <p>🎯 <strong>Le but :</strong> Approcher le plus possible de 21 sans dépasser face au croupier.</p>
-          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins le <strong>Lobby Multi</strong> (Table Publique ou Privée par code secret) pour défier le Croupier en duo avec un ami invité (aucun bot en multijoueur) !</p>
-          <p>⏱️ <strong>Temps de décision :</strong> À ton tour, tu as un temps limite de <strong>30 secondes</strong> pour tirer, rester ou doubler. Prends tout ton temps entre les manches pour choisir ta mise, la partie ne se relance pas toute seule !</p>
+          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins les <strong>5 Salons Publics</strong> pour jouer librement avec d\'autres joueurs sans invitation (tu peux voir qui est déjà assis avant d\'entrer !). Tu peux aussi créer une <strong>Table Privée</strong> (limite de 5 tables privées actives simultanées) avec code d\'accès !</p>
+          <p>⏱️ <strong>Temps de décision :</strong> À ton tour, tu as un temps limite de <strong>30 secondes</strong> pour tirer, rester ou doubler. Prends tout ton temps entre les manches pour choisir ta mise, la partie ne se relance jamais toute seule !</p>
         `
       },
       cups: {
@@ -4232,9 +4275,17 @@
     };
 
     /* ================= GESTION DES LOBBIES MULTI & MODES SOLO ================= */
+    const BJ_PUBLIC_TABLES = [
+      { id: 'bj_pub_1', num: 1, name: 'Table #1 • Le Bellagio', icon: '🎰', subtitle: 'Salon classique • Mises 10 € - 5 000 €' },
+      { id: 'bj_pub_2', num: 2, name: 'Table #2 • Le Monte-Carlo', icon: '💎', subtitle: 'Salon diamant • Mises 10 € - 5 000 €' },
+      { id: 'bj_pub_3', num: 3, name: 'Table #3 • Le Caesars', icon: '🏛️', subtitle: 'Arène impériale • Mises 10 € - 5 000 €' },
+      { id: 'bj_pub_4', num: 4, name: 'Table #4 • Le Venetian', icon: '🎭', subtitle: 'Lumières dorées • Mises 10 € - 5 000 €' },
+      { id: 'bj_pub_5', num: 5, name: 'Table #5 • Le Flamingo', icon: '🦩', subtitle: 'Néon rétro • Mises 10 € - 5 000 €' }
+    ];
+
     const lobbies = {
       poker: { mode: 'solo', tableType: 'public', roomCode: 'POK-842', fillWithBots: true },
-      bj: { mode: 'solo', tableType: 'public', roomCode: 'BJ-319', fillWithBots: false },
+      bj: { mode: 'solo', tableType: 'public', publicTableId: 'bj_pub_1', roomCode: 'BJ-319', fillWithBots: false },
       cups: { mode: 'solo' }
     };
 
@@ -4251,7 +4302,39 @@
       showToast(`📋 Code « ${code} » copié !`);
     }
 
+    function getBjActivePrivateTables() {
+      const db = getAccountsDB();
+      const now = Date.now();
+      const PRESENCE_TIMEOUT_MS = 25000;
+      const privateRooms = new Set();
+
+      Object.values(db).forEach(acc => {
+        if (!acc || !acc.username) return;
+        const ct = acc.currentTable || acc.data?.currentTable;
+        if (!ct || ct.leftTable) return;
+        const accGame = (ct.game === 'bj' ? 'blackjack' : ct.game);
+        if (accGame !== 'blackjack' || ct.mode !== 'multi' || ct.tableType !== 'private') return;
+        const ctTime = typeof ct.updatedAt === 'number' ? ct.updatedAt : (acc.updated_at ? new Date(acc.updated_at).getTime() : 0);
+        if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
+        if (ct.roomCode) {
+          privateRooms.add(ct.roomCode.toUpperCase().trim());
+        }
+      });
+
+      if (lobbies.bj?.mode === 'multi' && lobbies.bj?.tableType === 'private' && lobbies.bj?.roomCode && !state.currentTable?.leftTable) {
+        privateRooms.add(lobbies.bj.roomCode.toUpperCase().trim());
+      }
+
+      return Array.from(privateRooms);
+    }
+
     function regenerateRoomCode(game) {
+      if (game === 'bj') {
+        const activePrivates = getBjActivePrivateTables();
+        if (activePrivates.length >= 5) {
+          return showToast('🚫 Limite atteinte : 5 tables privées sont déjà actives actuellement. Rejoins une table existante avec son code !');
+        }
+      }
       const prefix = game === 'poker' ? 'POK' : 'BJ';
       if (!lobbies[game]) return;
       lobbies[game].roomCode = generateRoomCode(prefix);
@@ -4264,6 +4347,15 @@
       const val = (inp?.value || '').trim().toUpperCase();
       if (!val) return showToast('❌ Entre le code du salon à rejoindre.');
       if (!lobbies[game]) return;
+
+      if (game === 'bj') {
+        const activePrivates = getBjActivePrivateTables();
+        const alreadyExists = activePrivates.some(c => c.toUpperCase() === val);
+        if (!alreadyExists && activePrivates.length >= 5) {
+          return showToast('🚫 Limite atteinte : Impossible de créer une 6ème table privée (max 5 actives). Rejoins un salon privé existant !');
+        }
+      }
+
       lobbies[game].roomCode = val;
       lobbies[game].tableType = 'private';
       lobbies[game].mode = 'multi';
@@ -4272,7 +4364,12 @@
       updateCurrentTable(targetRoom);
       updateLobbyUI(game);
       if (game === 'poker') setupPokerSeats();
-      if (game === 'bj') renderBlackjack();
+      if (game === 'bj') {
+        bjSyncTable = null;
+        myBjReady = false;
+        renderBlackjack();
+        syncBjMultiplayer();
+      }
       showToast(`🚪 Salon privé « ${val} » rejoint !`);
     }
 
@@ -4325,7 +4422,7 @@
       // qui reste qui gagne ce qui était parié de base.
       // ==============================================================
       if (game === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
-        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        const tableId = getBjCurrentTableId();
         const wasActive = bj.active;
         bj.active = false;
         document.getElementById('bjActionControls')?.classList.add('hidden');
@@ -4412,6 +4509,7 @@
         leftTable: false,
         mode: l.mode || 'solo',
         tableType: l.tableType || 'public',
+        publicTableId: l.publicTableId || 'bj_pub_1',
         roomCode: l.roomCode || '',
         host: existing.host || state.currentTable?.host || null,
         user: state.username,
@@ -4473,16 +4571,20 @@
           }
         } else {
           if (ct.mode === 'multi' && (ct.tableType === 'public' || !ct.tableType)) {
-            if (!seen.has(u)) {
-              seen.add(u);
-              participants.push({
-                username: acc.username,
-                avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
-                balance: typeof acc.balance === 'number' ? acc.balance : 5500,
-                bjBet: ct.bjBet || 100,
-                isOnline: true,
-                updatedAt: ctTime
-              });
+            const myPubId = (l.publicTableId || 'bj_pub_1').toLowerCase().trim();
+            const theirPubId = (ct.publicTableId || 'bj_pub_1').toLowerCase().trim();
+            if (targetGame !== 'blackjack' || myPubId === theirPubId) {
+              if (!seen.has(u)) {
+                seen.add(u);
+                participants.push({
+                  username: acc.username,
+                  avatarEmoji: acc.avatarEmoji || acc.avatar || '👤',
+                  balance: typeof acc.balance === 'number' ? acc.balance : 5500,
+                  bjBet: ct.bjBet || 100,
+                  isOnline: true,
+                  updatedAt: ctTime
+                });
+              }
             }
           }
         }
@@ -4500,6 +4602,16 @@
           }
           const ctTime = ct?.updatedAt || 0;
           if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
+
+          if (targetGame === 'blackjack') {
+            if (l.tableType === 'public') {
+              const myPubId = (l.publicTableId || 'bj_pub_1').toLowerCase().trim();
+              const theirPubId = (ct?.publicTableId || 'bj_pub_1').toLowerCase().trim();
+              if (myPubId !== theirPubId) return;
+            } else if (l.tableType === 'private') {
+              if ((ct?.roomCode || '').toUpperCase() !== (l.roomCode || '').toUpperCase()) return;
+            }
+          }
 
           seen.add(u);
           participants.push({
@@ -4567,6 +4679,7 @@
         }
       } else if (game === 'bj') {
         const isMulti = l.mode === 'multi';
+        const isPublic = l.tableType === 'public';
         const soloBtn = document.getElementById('bjmode-solo');
         const multiBtn = document.getElementById('bjmode-multi');
         if (soloBtn) soloBtn.classList.toggle('active', !isMulti);
@@ -4577,14 +4690,70 @@
 
         const pubBtn = document.getElementById('bjtype-public');
         const privBtn = document.getElementById('bjtype-private');
-        if (pubBtn) pubBtn.classList.toggle('active', l.tableType === 'public');
-        if (privBtn) privBtn.classList.toggle('active', l.tableType === 'private');
+        if (pubBtn) pubBtn.classList.toggle('active', isPublic);
+        if (privBtn) privBtn.classList.toggle('active', !isPublic);
+
+        const pubBrowser = document.getElementById('bjPublicTablesBrowser');
+        if (pubBrowser) pubBrowser.classList.toggle('hidden', !isMulti || !isPublic);
 
         const codeBox = document.getElementById('bjPrivateCodeBox');
-        if (codeBox) codeBox.classList.toggle('hidden', l.tableType !== 'private');
+        if (codeBox) codeBox.classList.toggle('hidden', !isMulti || isPublic);
+
+        const privBadge = document.getElementById('bjPrivateLimitBadge');
+        if (privBadge) {
+          privBadge.classList.toggle('hidden', !isMulti || isPublic);
+          const countText = document.getElementById('bjPrivateCountText');
+          if (countText) countText.textContent = getBjActivePrivateTables().length;
+        }
 
         const codeDisplay = document.getElementById('bjRoomCodeDisplay');
         if (codeDisplay) codeDisplay.textContent = l.roomCode;
+
+        // Rendu en direct des 5 tables publiques
+        if (isMulti && isPublic) {
+          renderBjPublicTablesBrowser();
+        }
+
+        // Bandeau de la table actuellement rejointe
+        const curTableBanner = document.getElementById('bjCurrentTableBanner');
+        if (curTableBanner) {
+          const isSeated = isMulti && !state.currentTable?.leftTable;
+          curTableBanner.classList.toggle('hidden', !isSeated);
+          if (isSeated) {
+            const iconEl = document.getElementById('bjCurrentTableIcon');
+            const nameEl = document.getElementById('bjCurrentTableName');
+            const typeBadgeEl = document.getElementById('bjCurrentTableTypeBadge');
+            const occEl = document.getElementById('bjCurrentTableOccupants');
+            const realParticipants = getTableParticipants('blackjack');
+
+            if (isPublic) {
+              const curPub = BJ_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'bj_pub_1')) || BJ_PUBLIC_TABLES[0];
+              if (iconEl) iconEl.textContent = curPub.icon;
+              if (nameEl) nameEl.textContent = curPub.name;
+              if (typeBadgeEl) {
+                typeBadgeEl.textContent = 'Table Publique';
+                typeBadgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+              }
+              if (occEl) {
+                occEl.innerHTML = realParticipants.length > 0
+                  ? `👥 <strong>2 / 2 Joueurs à la table :</strong> ${state.username} &amp; <strong>${realParticipants[0].username}</strong>`
+                  : `👥 <strong>1 / 2 Joueur assis (Toi) :</strong> En attente qu'un second joueur rejoigne cette table (accès libre).`;
+              }
+            } else {
+              if (iconEl) iconEl.textContent = '🔒';
+              if (nameEl) nameEl.textContent = `Table Privée [${l.roomCode}]`;
+              if (typeBadgeEl) {
+                typeBadgeEl.textContent = 'Table Privée';
+                typeBadgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30';
+              }
+              if (occEl) {
+                occEl.innerHTML = realParticipants.length > 0
+                  ? `👥 <strong>2 / 2 Joueurs :</strong> ${state.username} &amp; <strong>${realParticipants[0].username}</strong>`
+                  : `🔒 Code : <strong>${l.roomCode}</strong> • En attente de ton invité...`;
+              }
+            }
+          }
+        }
 
         const realParticipants = getTableParticipants('blackjack');
         const statusTxt = document.getElementById('bjLobbyStatusText');
@@ -4592,11 +4761,11 @@
           if (!isMulti) {
             statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Duel direct contre la Banque / Croupier.</span>`;
           } else if (realParticipants.length > 0) {
-            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${l.tableType === 'public' ? 'Publique' : 'Privée [' + l.roomCode + ']'} • Co-joueur à la table : <strong>${realParticipants[0].username}</strong></span>`;
+            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table ${isPublic ? (BJ_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'bj_pub_1'))?.name || 'Publique') : 'Privée [' + l.roomCode + ']'} • Co-joueur : <strong>${realParticipants[0].username}</strong></span>`;
           } else {
-            statusTxt.innerHTML = l.tableType === 'public'
-              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Publique connectée • Invite un ami pour jouer ensemble face au Croupier.</span>`
-              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • Invite un ami pour jouer ensemble face au Croupier.</span>`;
+            statusTxt.innerHTML = isPublic
+              ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Salons Publics • Choisis une table libre ci-dessus pour t'asseoir (accès libre sans invitation).</span>`
+              : `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • Partage ton code avec un ami pour jouer ensemble.</span>`;
           }
         }
 
@@ -6379,6 +6548,10 @@
       return '/api/blackjack';
     }
 
+    function getBjCurrentTableId() {
+      return (lobbies.bj?.tableType === 'private' ? (lobbies.bj.roomCode || 'BJ-319') : (lobbies.bj?.publicTableId || 'bj_pub_1')).toLowerCase().trim();
+    }
+
     function setBjGameMode(m) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       if (lobbies.bj.mode === 'multi' && m === 'solo') {
@@ -6395,13 +6568,249 @@
       }
     }
 
+    function getBjTableOccupants(targetTableId) {
+      const normTarget = (targetTableId || 'bj_pub_1').toLowerCase().trim();
+      const db = getAccountsDB();
+      const now = Date.now();
+      const PRESENCE_TIMEOUT_MS = 25000;
+      const occupants = [];
+      const seen = new Set();
+      const me = (state.username || '').toLowerCase().trim();
+
+      // 1. Joueur courant
+      if (lobbies.bj && lobbies.bj.mode === 'multi') {
+        const isPublic = (lobbies.bj.tableType === 'public');
+        const myCurrentTableId = isPublic ? (lobbies.bj.publicTableId || 'bj_pub_1').toLowerCase().trim() : (lobbies.bj.roomCode || '').toLowerCase().trim();
+        const isLeft = state.currentTable?.leftTable === true;
+        if (!isLeft && myCurrentTableId === normTarget && me) {
+          seen.add(me);
+          occupants.push({
+            username: state.username,
+            avatar: state.avatarEmoji || '👤',
+            isMe: true,
+            updatedAt: now
+          });
+        }
+      }
+
+      // 2. Autres comptes dans la DB
+      Object.values(db).forEach(acc => {
+        if (!acc || !acc.username) return;
+        const u = acc.username.toLowerCase().trim();
+        if (seen.has(u)) return;
+
+        const ct = acc.currentTable || acc.data?.currentTable;
+        if (!ct || ct.leftTable) return;
+
+        const accGame = (ct.game === 'bj' ? 'blackjack' : ct.game);
+        if (accGame !== 'blackjack' || ct.mode !== 'multi') return;
+
+        const ctTime = typeof ct.updatedAt === 'number' ? ct.updatedAt : (acc.updated_at ? new Date(acc.updated_at).getTime() : 0);
+        if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
+
+        const ctTableId = (ct.tableType === 'private' ? (ct.roomCode || '') : (ct.publicTableId || 'bj_pub_1')).toLowerCase().trim();
+        if (ctTableId === normTarget) {
+          seen.add(u);
+          occupants.push({
+            username: acc.username,
+            avatar: acc.avatarEmoji || acc.avatar || '👤',
+            isMe: (u === me),
+            updatedAt: ctTime
+          });
+        }
+      });
+
+      return {
+        tableId: normTarget,
+        players: occupants,
+        count: Math.min(2, occupants.length),
+        isFull: occupants.length >= 2,
+        isUserHere: occupants.some(p => p.isMe)
+      };
+    }
+
+    function renderBjPublicTablesBrowser() {
+      const grid = document.getElementById('bjPublicTablesGrid');
+      if (!grid) return;
+
+      const isMulti = lobbies.bj?.mode === 'multi';
+      const isPublic = lobbies.bj?.tableType === 'public';
+      if (!isMulti || !isPublic) return;
+
+      const currentPubId = (lobbies.bj.publicTableId || 'bj_pub_1').toLowerCase().trim();
+      const isSeated = !state.currentTable?.leftTable;
+
+      grid.innerHTML = BJ_PUBLIC_TABLES.map(t => {
+        const occ = getBjTableOccupants(t.id);
+        const isCurrent = isSeated && (currentPubId === t.id.toLowerCase());
+        const isFull = occ.isFull;
+
+        // Badge Statut
+        let statusBadge = '';
+        if (occ.count === 0) {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">🟢 0/2 Libre</span>`;
+        } else if (occ.count === 1) {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse">🟡 1/2 Libre</span>`;
+        } else {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/40">🔴 2/2 Pleine</span>`;
+        }
+
+        // Sièges
+        const p1 = occ.players[0] || null;
+        const p2 = occ.players[1] || null;
+
+        const seat1Html = p1
+          ? `<div class="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-xs truncate">
+               <span class="text-sm">${p1.avatar || '👤'}</span>
+               <span class="font-bold text-stone-200 truncate">${p1.username}${p1.isMe ? ' (Toi)' : ''}</span>
+             </div>`
+          : `<div class="flex items-center justify-center gap-1 bg-white/[0.02] border border-dashed border-white/15 rounded-xl px-2 py-1 text-[11px] text-stone-500 italic">
+               <span>➕ Place libre</span>
+             </div>`;
+
+        const seat2Html = p2
+          ? `<div class="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-xs truncate">
+               <span class="text-sm">${p2.avatar || '👤'}</span>
+               <span class="font-bold text-stone-200 truncate">${p2.username}${p2.isMe ? ' (Toi)' : ''}</span>
+             </div>`
+          : `<div class="flex items-center justify-center gap-1 bg-white/[0.02] border border-dashed border-white/15 rounded-xl px-2 py-1 text-[11px] text-stone-500 italic">
+               <span>➕ Place libre</span>
+             </div>`;
+
+        // Bouton d'action
+        let actionBtn = '';
+        if (isCurrent) {
+          actionBtn = `
+            <div class="flex items-center gap-1.5 w-full">
+              <div class="flex-1 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-center font-black text-xs shadow-sm">
+                ✓ Tu es assis ici
+              </div>
+              <button onclick="leaveBjCurrentTable()" title="Quitter cette table" class="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-300 text-xs font-bold transition">
+                🚪
+              </button>
+            </div>
+          `;
+        } else if (isFull) {
+          actionBtn = `
+            <button disabled class="w-full py-2 rounded-xl bg-stone-900 border border-white/5 text-stone-500 text-xs font-bold cursor-not-allowed">
+              🚫 Table Pleine (2/2)
+            </button>
+          `;
+        } else {
+          actionBtn = `
+            <button onclick="joinBjPublicTable('${t.id}')" class="w-full py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold text-xs shadow-md transition active:scale-95">
+              👉 S'asseoir à la table
+            </button>
+          `;
+        }
+
+        const cardBorder = isCurrent
+          ? 'border-amber-400/80 bg-amber-500/10 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/50'
+          : 'border-white/10 bg-black/50 hover:border-amber-500/30';
+
+        return `
+          <div class="rounded-2xl p-3 border ${cardBorder} flex flex-col justify-between gap-2.5 transition backdrop-blur-md">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <span class="font-serif-title font-extrabold text-xs text-white truncate flex items-center gap-1">
+                  <span>${t.icon}</span> <span class="truncate">${t.name}</span>
+                </span>
+                ${statusBadge}
+              </div>
+              <p class="text-[10px] text-stone-400 mb-2 truncate">${t.subtitle}</p>
+              <div class="space-y-1">
+                ${seat1Html}
+                ${seat2Html}
+              </div>
+            </div>
+            <div>
+              ${actionBtn}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function joinBjPublicTable(targetTableId) {
+      if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
+      const occ = getBjTableOccupants(targetTableId);
+      const me = (state.username || '').toLowerCase().trim();
+      const isAlreadyIn = occ.players.some(p => p.username.toLowerCase().trim() === me);
+
+      if (!isAlreadyIn && occ.isFull) {
+        return showToast('🚫 Cette table est déjà complète (2/2 joueurs). Choisis un autre salon libre !');
+      }
+
+      lobbies.bj.mode = 'multi';
+      lobbies.bj.tableType = 'public';
+      lobbies.bj.publicTableId = targetTableId;
+
+      bjSyncTable = null;
+      myBjReady = false;
+      myProcessedBjRoundId = null;
+
+      updateCurrentTable('blackjack');
+      updateLobbyUI('bj');
+      renderBlackjack();
+
+      const tableObj = BJ_PUBLIC_TABLES.find(t => t.id === targetTableId);
+      showToast(`🎰 Tu t'es assis à la ${tableObj?.name || 'table'} !`);
+      syncBjMultiplayer();
+
+      const betEl = document.getElementById('bjBetInput');
+      if (betEl) betEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    async function leaveBjCurrentTable() {
+      if (bj.active) {
+        if (!confirm('Une partie est en cours. Si tu quittes maintenant, la partie sera déclarée forfait et l\'adversaire remportera la mise. Confirmer ?')) {
+          return;
+        }
+      }
+
+      const tableId = getBjCurrentTableId();
+
+      try {
+        await fetch(getBjApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'leave',
+            tableId: tableId,
+            username: state.username
+          })
+        });
+      } catch (e) {}
+
+      if (state.currentTable) {
+        state.currentTable.leftTable = true;
+        state.currentTable.updatedAt = Date.now();
+        saveState();
+        pushRemoteAccount(state);
+      }
+
+      bj.active = false;
+      bjSyncTable = null;
+      myBjReady = false;
+      stopBjTurnTimer();
+
+      updateLobbyUI('bj');
+      renderBlackjack();
+      showToast('🚪 Tu as quitté la table.');
+    }
+
+    function scrollToBjBrowser() {
+      const el = document.getElementById('bjPublicTablesBrowser') || document.getElementById('bjLobbyBanner');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     function setBjTableType(t) {
       if (bj.active) return showToast('Termine d\'abord la main de Blackjack en cours !');
       lobbies.bj.tableType = t;
       updateCurrentTable('blackjack');
       updateLobbyUI('bj');
       renderBlackjack();
-      showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.bj.roomCode}]`);
+      showToast(t === 'public' ? '🌍 Salons Publics Blackjack (5 tables disponibles)' : `🔒 Table Privée [${lobbies.bj.roomCode}]`);
       if (lobbies.bj.mode === 'multi') {
         try { onBjBetChange(); } catch (e) {}
         syncBjMultiplayer();
@@ -6505,7 +6914,7 @@
     async function syncBjBetToServer(bet) {
       if (!lobbies.bj || lobbies.bj.mode !== 'multi') return;
       try {
-        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        const tableId = getBjCurrentTableId();
         await fetch(getBjApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -6571,7 +6980,7 @@
         }
       }
 
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       try {
         const res = await fetch(getBjApiUrl(), {
           method: 'POST',
@@ -6583,8 +6992,7 @@
             avatar: state.avatarEmoji || '👤',
             bet: betVal,
             ready: myBjReady,
-            host: state.currentTable?.host || bjSyncTable?.host,
-            fillWithBots: !!lobbies.bj.fillWithBots
+            host: state.currentTable?.host || bjSyncTable?.host
           })
         });
         if (res.ok) {
@@ -6602,7 +7010,7 @@
 
     async function syncBjReadyBet(bet) {
       if (!lobbies.bj || lobbies.bj.mode !== 'multi' || !myBjReady) return;
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       try {
         await fetch(getBjApiUrl(), {
           method: 'POST',
@@ -6614,8 +7022,7 @@
             avatar: state.avatarEmoji || '👤',
             bet: bet,
             ready: true,
-            host: state.currentTable?.host || bjSyncTable?.host,
-            fillWithBots: !!lobbies.bj.fillWithBots
+            host: state.currentTable?.host || bjSyncTable?.host
           })
         });
       } catch (e) {}
@@ -6934,17 +7341,22 @@
         return;
       }
 
-      // --- VÉRIFICATION HÔTE SUR MANCHE 1 ---
+      // --- VÉRIFICATION HÔTE SUR MANCHE 1 : Uniquement en table privée ---
       const hasPlayed = !!((bjSyncTable && (bjSyncTable.hasPlayedRound || (bjSyncTable.roundId && bjSyncTable.status !== 'waiting'))) || (myProcessedBjRoundId !== null));
-      if (!hasPlayed && !isBjHost()) {
+      if (!hasPlayed && !isBjHost() && lobbies.bj.tableType === 'private') {
         const hostName = state.currentTable?.host || bjSyncTable?.host || "l'hôte";
-        showToast(`🔒 Seul ${hostName} qui a créé la partie peut lancer la première main !`);
+        showToast(`🔒 Seul ${hostName} qui a créé la table privée peut lancer la première main !`);
         return;
       }
 
       const realPlayers = getTableParticipants('blackjack');
       if (realPlayers.length === 0) {
-        showToast('👥 En multijoueur, invite un ami pour jouer face au Croupier (aucun bot autorisé) !');
+        if (lobbies.bj.tableType === 'public') {
+          const curPub = BJ_PUBLIC_TABLES.find(t => t.id === (lobbies.bj.publicTableId || 'bj_pub_1'));
+          showToast(`⏳ Tu es assis à ${curPub?.name || 'la table'}. Attends qu'un second joueur te rejoigne (accès libre) !`);
+        } else {
+          showToast('👥 En table privée, invite un ami pour jouer face au Croupier !');
+        }
         return;
       }
 
@@ -6964,7 +7376,7 @@
       bj.wasInitiator = true;
       playCardFlipSound();
 
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       const realPlayers = getTableParticipants('blackjack');
       
       const participants = [
@@ -6988,7 +7400,7 @@
           bet: oppChosenBet
         });
       } else {
-        showToast('👥 En multijoueur, tu dois inviter un ami pour commencer !');
+        showToast('👥 En multijoueur, attends un co-joueur ou invite un ami !');
         state.balance += bet;
         saveState();
         updateGlobalUI();
@@ -7070,7 +7482,7 @@
       }
 
       // Multi
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
@@ -7116,7 +7528,7 @@
       }
 
       // Multi
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       const myBet = (bjSyncTable?.players?.[myKey]?.bet) || bj.bet;
@@ -7170,7 +7582,7 @@
       }
 
       // Multi
-      const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+      const tableId = getBjCurrentTableId();
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
@@ -7363,7 +7775,7 @@
       isBjSyncing = true;
 
       try {
-        const tableId = (lobbies.bj.tableType === 'private' ? lobbies.bj.roomCode : 'public').toLowerCase().trim();
+        const tableId = getBjCurrentTableId();
         let srvTable = null;
 
         // 1. Appel HTTP à /api/blackjack

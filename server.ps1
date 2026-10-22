@@ -345,9 +345,35 @@ while ($listener.IsListening) {
             }
             if (-not $currentTables) { $currentTables = @{} }
 
+            $actionParam = $request.QueryString["action"]
+            if ($actionParam -eq 'list_tables' -or $request.QueryString["list"] -eq 'true') {
+                $publicList = @()
+                foreach ($num in 1..5) {
+                    $pId = "bj_pub_$num"
+                    $tbl = if ($currentTables.ContainsKey($pId)) { $currentTables[$pId] } else { @{ tableId = $pId; status = "waiting"; players = @{}; knownPlayers = @{} } }
+                    $pArr = @()
+                    if ($tbl.players) { foreach ($k in $tbl.players.Keys) { $pArr += @{ username = $tbl.players[$k].username; avatar = $tbl.players[$k].avatar } } }
+                    elseif ($tbl.knownPlayers) { foreach ($k in $tbl.knownPlayers.Keys) { $pArr += @{ username = $tbl.knownPlayers[$k].username; avatar = $tbl.knownPlayers[$k].avatar } } }
+                    $publicList += @{
+                        tableId = $pId
+                        status = if ($tbl.status) { $tbl.status } else { "waiting" }
+                        playerCount = [Math]::Min(2, $pArr.Length)
+                        isFull = ($pArr.Length -ge 2)
+                        players = $pArr
+                    }
+                }
+                $privList = @($currentTables.Keys | Where-Object { $_ -notmatch '^bj_pub_[1-5]$' -and $_ -ne 'public' })
+                $jsonOut = @{ ok = $true; publicTables = $publicList; activePrivateCount = $privList.Length; maxPrivateTables = 5 } | ConvertTo-Json -Depth 5
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonOut)
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.OutputStream.Close()
+                continue
+            }
+
             $tableParam = $request.QueryString["table"]
-            if (-not $tableParam) { $tableParam = "public" }
+            if (-not $tableParam) { $tableParam = "bj_pub_1" }
             $tableParam = $tableParam.ToLower().Trim()
+            if ($tableParam -eq "public") { $tableParam = "bj_pub_1" }
 
             if (-not $currentTables.ContainsKey($tableParam)) {
                 $currentTables[$tableParam] = @{
@@ -454,7 +480,32 @@ while ($listener.IsListening) {
                     try {
                         $postObj = Convert-PSObjectToHashtable ($body | ConvertFrom-Json)
                         if ($postObj) {
+                            if ($postObj.action -eq 'list_tables') {
+                                $publicList = @()
+                                foreach ($num in 1..5) {
+                                    $pId = "bj_pub_$num"
+                                    $tbl = if ($currentTables.ContainsKey($pId)) { $currentTables[$pId] } else { @{ tableId = $pId; status = "waiting"; players = @{}; knownPlayers = @{} } }
+                                    $pArr = @()
+                                    if ($tbl.players) { foreach ($k in $tbl.players.Keys) { $pArr += @{ username = $tbl.players[$k].username; avatar = $tbl.players[$k].avatar } } }
+                                    elseif ($tbl.knownPlayers) { foreach ($k in $tbl.knownPlayers.Keys) { $pArr += @{ username = $tbl.knownPlayers[$k].username; avatar = $tbl.knownPlayers[$k].avatar } } }
+                                    $publicList += @{
+                                        tableId = $pId
+                                        status = if ($tbl.status) { $tbl.status } else { "waiting" }
+                                        playerCount = [Math]::Min(2, $pArr.Length)
+                                        isFull = ($pArr.Length -ge 2)
+                                        players = $pArr
+                                    }
+                                }
+                                $privList = @($currentTables.Keys | Where-Object { $_ -notmatch '^bj_pub_[1-5]$' -and $_ -ne 'public' })
+                                $jsonOut = @{ ok = $true; publicTables = $publicList; activePrivateCount = $privList.Length; maxPrivateTables = 5 } | ConvertTo-Json -Depth 5
+                                $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonOut)
+                                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                                $response.OutputStream.Close()
+                                continue
+                            }
+
                             $tId = if ($postObj.tableId) { $postObj.tableId.ToLower().Trim() } else { $tableParam }
+                            if ($tId -eq 'public') { $tId = 'bj_pub_1' }
                             if (-not $currentTables.ContainsKey($tId)) {
                                 $currentTables[$tId] = @{
                                     tableId = $tId
