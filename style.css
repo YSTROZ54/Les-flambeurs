@@ -94,26 +94,56 @@ select {
 
 .marquee-row {
   display: flex;
-  width: max-content;
-  gap: 3.5rem;
-  align-items: center;
+  width: 100%;
+  overflow: hidden;
   user-select: none;
   white-space: nowrap;
-  transform: translateZ(0);
+  contain: layout paint;
+}
+
+.marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3.5rem;
+  padding-right: 3.5rem;
   will-change: transform;
   backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
-.marquee-left { animation: scrollLeft 42s linear infinite; }
-.marquee-right { animation: scrollRight 46s linear infinite; }
-
-@keyframes scrollLeft {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+.marquee-track-left {
+  animation: seamlessMarqueeLeft 65s linear infinite;
 }
-@keyframes scrollRight {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
+
+.marquee-track-right {
+  animation: seamlessMarqueeRight 70s linear infinite;
+}
+
+.marquee-track-left-slow {
+  animation: seamlessMarqueeLeft 80s linear infinite;
+}
+
+.marquee-track-right-slow {
+  animation: seamlessMarqueeRight 85s linear infinite;
+}
+
+@keyframes seamlessMarqueeLeft {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes seamlessMarqueeRight {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .doodle-pill {
