@@ -59,6 +59,8 @@ export default async function handler(req, res) {
               buildingsOwned: body.buildingsOwned || {},
               chestStreak: body.chestStreak || 1,
               lastChestTime: body.lastChestTime || 0,
+              cupsStreak: typeof body.cupsStreak === 'number' ? body.cupsStreak : (typeof body.data?.cupsStreak === 'number' ? body.data.cupsStreak : 0),
+              cupsBestStreak: typeof body.cupsBestStreak === 'number' ? body.cupsBestStreak : (typeof body.data?.cupsBestStreak === 'number' ? body.data.cupsBestStreak : 0),
               friends: body.friends || [],
               friendBalances: body.friendBalances || {},
               bankTransfers: body.bankTransfers || [],

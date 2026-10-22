@@ -411,7 +411,7 @@ while ($listener.IsListening) {
                     turn = $null
                     forfeit = $null
                     readyBets = $prevReadyBets
-                    readyPlayers = @{}
+                    readyPlayers = $prevReady
                     knownPlayers = $prevKnown
                     host = $prevHost
                     hasPlayedRound = $true
@@ -1082,12 +1082,12 @@ while ($listener.IsListening) {
             }
 
             # BOT CROUPIER : Cycle automatique
-            # 1. Nettoyer les joueurs inactifs (> 20s sans ping)
+            # 1. Nettoyer les joueurs inactifs (> 180s / 3 minutes sans ping)
             $orderKeys = @($table.playerOrder)
             foreach ($pk in $orderKeys) {
                 if ($table.players -and $table.players.ContainsKey($pk)) {
                     $p = $table.players[$pk]
-                    if ($p.updatedAt -and ($now - [int64]$p.updatedAt -gt 20000)) {
+                    if ($p.updatedAt -and ($now - [int64]$p.updatedAt -gt 180000)) {
                         if (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
                             $p.folded = $true
                             $p.status = 'A quitté'

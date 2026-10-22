@@ -31,5 +31,38 @@
                                        ],
                          "winner":  null,
                          "actionCount":  0
-                     }
+                     },
+    "poker_1v1_1":  {
+                        "currentBet":  100,
+                        "turnEndsAt":  0,
+                        "roundId":  0,
+                        "name":  "Table 1 â€¢ Duel des As",
+                        "countdownEndsAt":  1792686337765,
+                        "announcement":  "ðŸ¤– Croupier : En attente d\u0027au moins 2 joueurs assis...",
+                        "tableId":  "poker_1v1_1",
+                        "actionCount":  0,
+                        "deck":  [
+
+                                 ],
+                        "playerOrder":  [
+
+                                        ],
+                        "maxSeats":  2,
+                        "blind":  100,
+                        "pot":  0,
+                        "players":  {
+
+                                    },
+                        "dealerIndex":  0,
+                        "updatedAt":  1792686333765,
+                        "status":  "waiting",
+                        "finishedAt":  0,
+                        "nextRoundAt":  0,
+                        "turn":  null,
+                        "community":  [
+
+                                      ],
+                        "winner":  null,
+                        "lastAggressor":  null
+                    }
 }

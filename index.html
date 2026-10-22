@@ -2189,7 +2189,7 @@
       } catch (e) {}
     }
 
-    // Bruit de la machine à sous : levier mécanique tiré + cliquetis + ronronnement des rouleaux
+    // Bruit de la machine à sous : levier lourd métallique, cliquetis mécanique rotatif et clac franc
     function playSlotMachineLeverSound() {
       const vol = getMasterVolume();
       if (vol <= 0) return;
@@ -2198,57 +2198,126 @@
         if (!ctx) return;
         const now = ctx.currentTime;
 
-        // 1. Clac et tension du levier tiré vers le bas
-        const clickOsc = ctx.createOscillator();
-        const clickGain = ctx.createGain();
-        clickOsc.type = 'triangle';
-        clickOsc.frequency.setValueAtTime(560, now);
-        clickOsc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
-        clickGain.gain.setValueAtTime(0.24 * vol, now);
-        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-        clickOsc.connect(clickGain);
-        clickGain.connect(ctx.destination);
-        clickOsc.start(now);
-        clickOsc.stop(now + 0.09);
+        // 1. Déclenchement lourd du levier : impact mécanique sourd (heavy iron lever arm)
+        const punchOsc = ctx.createOscillator();
+        const punchGain = ctx.createGain();
+        punchOsc.type = 'sine';
+        punchOsc.frequency.setValueAtTime(110, now);
+        punchOsc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+        punchGain.gain.setValueAtTime(0.35 * vol, now);
+        punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        punchOsc.connect(punchGain);
+        punchGain.connect(ctx.destination);
+        punchOsc.start(now);
+        punchOsc.stop(now + 0.13);
 
-        // 2. Cran de détente du mécanisme à ressort
-        const clackOsc = ctx.createOscillator();
-        const clackGain = ctx.createGain();
-        clackOsc.type = 'square';
-        clackOsc.frequency.setValueAtTime(310, now + 0.12);
-        clackOsc.frequency.exponentialRampToValueAtTime(80, now + 0.20);
-        clackGain.gain.setValueAtTime(0.18 * vol, now + 0.12);
-        clackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
-        clackOsc.connect(clackGain);
-        clackGain.connect(ctx.destination);
-        clackOsc.start(now + 0.12);
-        clackOsc.stop(now + 0.21);
+        // 2. Cliquetis de crémaillère mécanique (3 micro-clics métalliques nets)
+        [0.02, 0.06, 0.10].forEach(delay => {
+          const t = now + delay;
+          const clickOsc = ctx.createOscillator();
+          const clickGain = ctx.createGain();
+          clickOsc.type = 'triangle';
+          clickOsc.frequency.setValueAtTime(2400, t);
+          clickOsc.frequency.exponentialRampToValueAtTime(400, t + 0.025);
+          clickGain.gain.setValueAtTime(0.22 * vol, t);
+          clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+          clickOsc.connect(clickGain);
+          clickGain.connect(ctx.destination);
+          clickOsc.start(t);
+          clickOsc.stop(t + 0.03);
+        });
 
-        // 3. Ronronnement rythmé des 3 rouleaux mécaniques qui tournent (spin whir)
-        const spinDuration = 2.4;
+        // 3. Libération du ressort lourd à déclic (CLAC métallique à t = 0.14s)
+        const snapOsc = ctx.createOscillator();
+        const snapGain = ctx.createGain();
+        snapOsc.type = 'sawtooth';
+        snapOsc.frequency.setValueAtTime(950, now + 0.14);
+        snapOsc.frequency.exponentialRampToValueAtTime(120, now + 0.22);
+        snapGain.gain.setValueAtTime(0.28 * vol, now + 0.14);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        snapOsc.connect(snapGain);
+        snapGain.connect(ctx.destination);
+        snapOsc.start(now + 0.14);
+        snapOsc.stop(now + 0.23);
+
+        // 4. Entraînement rotatif des rouleaux (ronronnement régulier et cliquetis rapide de rotation)
+        const spinDuration = 2.8;
         const spinBufLen = Math.floor(ctx.sampleRate * spinDuration);
         const spinBuf = ctx.createBuffer(1, spinBufLen, ctx.sampleRate);
         const sData = spinBuf.getChannelData(0);
         for (let i = 0; i < spinBufLen; i++) {
           const t = i / ctx.sampleRate;
-          const tickMod = Math.pow(Math.sin(2 * Math.PI * 26 * t), 4);
-          const noise = (Math.random() * 2 - 1) * 0.35;
-          const tone = Math.sin(2 * Math.PI * 170 * t) * 0.25;
-          sData[i] = (noise + tone) * tickMod * (1 - Math.pow(t / spinDuration, 2.2));
+          // Cliquetis rythmique qui ralentit légèrement
+          const rate = 32 - (t / spinDuration) * 14;
+          const tickMod = Math.pow(Math.sin(2 * Math.PI * rate * t), 12);
+          const noise = (Math.random() * 2 - 1) * 0.45;
+          const mechWhir = Math.sin(2 * Math.PI * 130 * t) * 0.20;
+          sData[i] = (noise * 0.8 + mechWhir) * tickMod * (1 - Math.pow(t / spinDuration, 1.8));
         }
         const spinSrc = ctx.createBufferSource();
         spinSrc.buffer = spinBuf;
         const spinFilter = ctx.createBiquadFilter();
-        spinFilter.type = 'lowpass';
-        spinFilter.frequency.setValueAtTime(600, now + 0.22);
-        spinFilter.frequency.exponentialRampToValueAtTime(220, now + 0.22 + spinDuration);
+        spinFilter.type = 'bandpass';
+        spinFilter.frequency.setValueAtTime(1400, now + 0.20);
+        spinFilter.Q.setValueAtTime(1.8, now + 0.20);
         const spinGain = ctx.createGain();
-        spinGain.gain.setValueAtTime(0.15 * vol, now + 0.22);
-        spinGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22 + spinDuration);
+        spinGain.gain.setValueAtTime(0.26 * vol, now + 0.20);
+        spinGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20 + spinDuration);
         spinSrc.connect(spinFilter);
         spinFilter.connect(spinGain);
         spinGain.connect(ctx.destination);
-        spinSrc.start(now + 0.22);
+        spinSrc.start(now + 0.20);
+      } catch (e) {}
+    }
+
+    // Arrêt franc et percutant d'un rouleau (clac mécanique métallique + carillon de casino)
+    function playSlotReelStopSound(reelIdx = 0) {
+      const vol = getMasterVolume();
+      if (vol <= 0) return;
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // 1. Choc mécanique du verrou qui bloque le rouleau (thump)
+        const lockOsc = ctx.createOscillator();
+        const lockGain = ctx.createGain();
+        lockOsc.type = 'triangle';
+        lockOsc.frequency.setValueAtTime(160, now);
+        lockOsc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+        lockGain.gain.setValueAtTime(0.40 * vol, now);
+        lockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        lockOsc.connect(lockGain);
+        lockGain.connect(ctx.destination);
+        lockOsc.start(now);
+        lockOsc.stop(now + 0.09);
+
+        // 2. Clac sec de la gâchette en acier
+        const clackOsc = ctx.createOscillator();
+        const clackGain = ctx.createGain();
+        clackOsc.type = 'sawtooth';
+        clackOsc.frequency.setValueAtTime(2200, now);
+        clackOsc.frequency.exponentialRampToValueAtTime(320, now + 0.04);
+        clackGain.gain.setValueAtTime(0.32 * vol, now);
+        clackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        clackOsc.connect(clackGain);
+        clackGain.connect(ctx.destination);
+        clackOsc.start(now);
+        clackOsc.stop(now + 0.05);
+
+        // 3. Petite cloche cristalline de casino (Do, Mi, Sol progressif)
+        const bellNotes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        const bellFreq = bellNotes[Math.min(2, Math.max(0, reelIdx))];
+        const bellOsc = ctx.createOscillator();
+        const bellGain = ctx.createGain();
+        bellOsc.type = 'sine';
+        bellOsc.frequency.setValueAtTime(bellFreq, now);
+        bellGain.gain.setValueAtTime(0.18 * vol, now);
+        bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        bellOsc.connect(bellGain);
+        bellGain.connect(ctx.destination);
+        bellOsc.start(now);
+        bellOsc.stop(now + 0.36);
       } catch (e) {}
     }
 
@@ -2577,11 +2646,24 @@
                   resolvedBalance = state.balance;
                 }
 
+                const remoteCupsStreak = typeof extraData.cupsStreak === 'number' ? extraData.cupsStreak : (typeof row.cupsStreak === 'number' ? row.cupsStreak : 0);
+                const remoteCupsBest = typeof extraData.cupsBestStreak === 'number' ? extraData.cupsBestStreak : (typeof row.cupsBestStreak === 'number' ? row.cupsBestStreak : 0);
+                const existingAcc = db[key] || {};
+
+                let myResolvedStreak = Math.max(existingAcc.cupsStreak || 0, remoteCupsStreak);
+                let myResolvedBest = Math.max(existingAcc.cupsBestStreak || 0, remoteCupsBest);
+                if (isMe) {
+                  state.cupsStreak = Math.max(state.cupsStreak || 0, myResolvedStreak);
+                  state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, myResolvedBest, state.cupsStreak || 0);
+                  myResolvedStreak = state.cupsStreak;
+                  myResolvedBest = state.cupsBestStreak;
+                }
+
                 db[key] = {
                   ...DEFAULT_USER_STATE,
                   ...extraData,
-                  cupsStreak: extraData.cupsStreak || 0,
-                  cupsBestStreak: extraData.cupsBestStreak || 0,
+                  cupsStreak: myResolvedStreak,
+                  cupsBestStreak: myResolvedBest,
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
@@ -2613,8 +2695,22 @@
           if (data && typeof data === 'object') {
             Object.keys(data).forEach(k => {
               if (k.startsWith('__')) return;
-              if (data[k] && data[k].username && !db[k]) {
-                db[k] = { ...(db[k] || {}), ...data[k] };
+              const remoteAcc = data[k];
+              if (remoteAcc && remoteAcc.username) {
+                const isMe = (state.username || '').toLowerCase().trim() === k.toLowerCase().trim();
+                const existing = db[k] || {};
+                const rBest = Math.max(existing.cupsBestStreak || 0, remoteAcc.cupsBestStreak || 0, remoteAcc.data?.cupsBestStreak || 0);
+                const rStreak = Math.max(existing.cupsStreak || 0, remoteAcc.cupsStreak || 0, remoteAcc.data?.cupsStreak || 0);
+                if (isMe) {
+                  state.cupsStreak = Math.max(state.cupsStreak || 0, rStreak);
+                  state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, rBest, state.cupsStreak || 0);
+                }
+                db[k] = {
+                  ...existing,
+                  ...remoteAcc,
+                  cupsStreak: isMe ? state.cupsStreak : rStreak,
+                  cupsBestStreak: isMe ? state.cupsBestStreak : rBest
+                };
                 changed = true;
               }
             });
@@ -2780,6 +2876,7 @@
           updateLobbyUI('bj');
         } else if (currentRoomKey === 'cups') {
           updateLobbyUI('cups');
+          renderCupsLeaderboard();
         }
       } catch (e) {}
 
@@ -2837,10 +2934,15 @@
 
       // Sauvegarde serveur local si actif avec keepalive pour persister même à la fermeture
       try {
+        const localPayload = {
+          ...account,
+          cupsStreak: isMe ? (state.cupsStreak || 0) : (account.cupsStreak || account.data?.cupsStreak || 0),
+          cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0)
+        };
         await fetch('/api/accounts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(account),
+          body: JSON.stringify(localPayload),
           keepalive: true
         });
       } catch (e) {}
@@ -3092,11 +3194,24 @@
       if (activeUser && db[activeUser.toLowerCase()]) {
         sessionStorage.setItem('flambeurs_active_session_user', activeUser);
         const acc = db[activeUser.toLowerCase()];
+        let loadedCupsStreak = acc.cupsStreak || 0;
+        let loadedCupsBest = acc.cupsBestStreak || 0;
+        try {
+          const rawLocal = localStorage.getItem(STORAGE_KEY);
+          if (rawLocal) {
+            const parsed = JSON.parse(rawLocal);
+            if (parsed && (parsed.username || '').toLowerCase() === activeUser.toLowerCase()) {
+              loadedCupsStreak = Math.max(loadedCupsStreak, parsed.cupsStreak || 0);
+              loadedCupsBest = Math.max(loadedCupsBest, parsed.cupsBestStreak || 0, loadedCupsStreak);
+            }
+          }
+        } catch (e) {}
+
         state = {
           ...DEFAULT_USER_STATE,
           ...acc,
-          cupsStreak: acc.cupsStreak || 0,
-          cupsBestStreak: acc.cupsBestStreak || 0,
+          cupsStreak: loadedCupsStreak,
+          cupsBestStreak: loadedCupsBest,
           equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
           luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
         };
@@ -5215,7 +5330,7 @@
       const seen = new Set();
       const targetGame = (game === 'bj' ? 'blackjack' : game);
       const now = Date.now();
-      const PRESENCE_TIMEOUT_MS = 25000; // 25 secondes max sans activité pour être considéré en ligne
+      const PRESENCE_TIMEOUT_MS = 180000; // 180 secondes (3 min) pour laisser le temps de jouer sereinement sans fausse déconnexion
 
       // 1. Tous les comptes distants/locaux ayant currentTable sur la même table
       Object.values(db).forEach(acc => {
@@ -5356,8 +5471,10 @@
         const botBanner = document.getElementById('pokerDealerBotBanner');
         if (dealBtn) dealBtn.classList.toggle('hidden', isMulti);
         if (mDealBtn) mDealBtn.classList.toggle('hidden', isMulti);
-        if (readyBtn) readyBtn.classList.toggle('hidden', !isMulti);
-        if (mReadyBtn) mReadyBtn.classList.toggle('hidden', !isMulti);
+        if (!isMulti) {
+          if (readyBtn) readyBtn.classList.add('hidden');
+          if (mReadyBtn) mReadyBtn.classList.add('hidden');
+        }
         if (botBanner) botBanner.classList.toggle('hidden', !isMulti);
 
         // Rendu des 9 tables publiques de Poker
@@ -6400,6 +6517,8 @@
           }
           isPokerSyncing = false;
           return;
+        if (state.currentTable && !state.currentTable.leftTable) {
+          state.currentTable.updatedAt = now;
         }
 
         let srvTable = null;
@@ -7728,6 +7847,7 @@
         const duration = 1.0 + reelIdx * 0.9;
         strip.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.18, 1)`;
         strip.style.transform = `translateY(-${(count - 1) * ITEM_HEIGHT}px)`;
+        setTimeout(() => playSlotReelStopSound(reelIdx), Math.round(duration * 1000));
       });
 
       setTimeout(() => {
@@ -8865,35 +8985,26 @@
         if (dealBtn) dealBtn.classList.add('hidden');
         if (readyBtn) readyBtn.classList.add('hidden');
       } else {
-        if (!hasPlayed) {
-          // --- MANCHE 1 : Seul l'hôte qui a invité peut distribuer ---
-          if (readyBtn) readyBtn.classList.add('hidden');
-          if (dealBtn) {
-            dealBtn.classList.remove('hidden');
-            if (isBjHost()) {
-              dealBtn.disabled = (bj.cooldownRemaining > 0);
-              dealBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-300 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
-              dealBtn.textContent = '🃏 Distribuer';
-            } else {
-              const hostName = state.currentTable?.host || bjSyncTable?.host || "l'hôte";
-              dealBtn.disabled = true;
-              dealBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-stone-800 text-stone-400 border border-white/10 shadow cursor-not-allowed transition";
-              dealBtn.innerHTML = `<span>⏳ En attente de ${hostName} pour lancer...</span>`;
-            }
+        // Phase d'attente ou fin de manche : les joueurs peuvent cliquer sur "Prêt ?" à tout moment
+        if (readyBtn) {
+          readyBtn.classList.remove('hidden');
+          readyBtn.disabled = false;
+          if (myBjReady) {
+            readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg transition active:scale-[0.98] animate-pulse";
+            readyBtn.textContent = "✅ Prêt ! (En attente du joueur...)";
+          } else {
+            readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
+            readyBtn.textContent = "👍 Prêt ?";
           }
-        } else {
-          // --- MANCHE 2+ : Les deux joueurs choisissent leur mise sans limite de temps et cliquent sur "Prêt ?" ---
-          if (dealBtn) dealBtn.classList.add('hidden');
-          if (readyBtn) {
-            readyBtn.classList.remove('hidden');
-            readyBtn.disabled = false;
-            if (myBjReady) {
-              readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg transition active:scale-[0.98] animate-pulse";
-              readyBtn.textContent = "✅ Prêt ! (En attente de l'adversaire...)";
-            } else {
-              readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
-              readyBtn.textContent = "👍 Prêt ?";
-            }
+        }
+        if (dealBtn) {
+          if (isBjHost() && !myBjReady) {
+            dealBtn.classList.remove('hidden');
+            dealBtn.disabled = (bj.cooldownRemaining > 0);
+            dealBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-300 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
+            dealBtn.textContent = '🃏 Distribuer';
+          } else {
+            dealBtn.classList.add('hidden');
           }
         }
       }
@@ -9025,28 +9136,27 @@
         if (dealerBox) dealerBox.classList.remove('bj-active-turn-me', 'bj-active-turn-opp');
         if (dealerBadge) dealerBadge.classList.add('hidden');
 
-        if (hasPlayed) {
-          // Badges d'état "Prêt ?"
-          if (playerBadge) {
-            playerBadge.textContent = myBjReady ? '✅ PRÊT !' : '⏳ CHOISIS TA MISE';
-            playerBadge.className = myBjReady
-              ? 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse'
-              : 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/80 text-black';
-            playerBadge.classList.remove('hidden');
-          }
-          if (coBadge) {
-            const realPlayers = getTableParticipants('blackjack');
-            const oppKey = (oppPl?.username || (realPlayers.length > 0 ? realPlayers[0].username : '')).toLowerCase().trim();
-            const oppIsReady = !!(bjSyncTable?.readyPlayers && bjSyncTable.readyPlayers[oppKey]?.ready);
-            coBadge.textContent = oppIsReady ? '✅ PRÊT !' : '⏳ CHOISIT SA MISE...';
-            coBadge.className = oppIsReady
-              ? 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse'
-              : 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/80 text-black';
-            coBadge.classList.remove('hidden');
-          }
-        } else {
-          if (playerBadge) playerBadge.classList.add('hidden');
-          if (coBadge) coBadge.classList.add('hidden');
+        // Badges d'état "Prêt ?"
+        const otherKey = Object.keys(bjSyncTable?.readyPlayers || {}).find(k => k !== myKey)
+          || Object.keys(bjSyncTable?.players || {}).find(k => k !== myKey)
+          || Object.keys(bjSyncTable?.knownPlayers || {}).find(k => k !== myKey);
+
+        if (playerBadge) {
+          playerBadge.textContent = myBjReady ? '✅ PRÊT !' : '⏳ CHOISIS TA MISE';
+          playerBadge.className = myBjReady
+            ? 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse'
+            : 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/80 text-black';
+          playerBadge.classList.remove('hidden');
+        }
+        if (coBadge && otherKey) {
+          const oppIsReady = Boolean(bjSyncTable?.readyPlayers && bjSyncTable.readyPlayers[otherKey]?.ready);
+          coBadge.textContent = oppIsReady ? '✅ PRÊT !' : '⏳ CHOISIT SA MISE...';
+          coBadge.className = oppIsReady
+            ? 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-black animate-pulse'
+            : 'text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/80 text-black';
+          coBadge.classList.remove('hidden');
+        } else if (coBadge) {
+          coBadge.classList.add('hidden');
         }
       }
     }
@@ -9527,6 +9637,12 @@
         }
       }
 
+      if (srv.status === 'playing' || srv.status === 'dealer_turn') {
+        myBjReady = false;
+      } else if (srv.readyPlayers && srv.readyPlayers[myKey]) {
+        myBjReady = Boolean(srv.readyPlayers[myKey].ready);
+      }
+
       renderBlackjack(srv.status === 'playing');
     }
 
@@ -9542,6 +9658,11 @@
           isBjSyncing = false;
           return;
         }
+
+        if (state.currentTable && !state.currentTable.leftTable) {
+          state.currentTable.updatedAt = Date.now();
+        }
+
         let srvTable = null;
 
         // 1. Appel HTTP à /api/blackjack
@@ -9778,11 +9899,17 @@
     function updateCupsAccountStreak() {
       const db = getAccountsDB();
       const meKey = (state.username || '').toLowerCase().trim();
-      if (meKey && db[meKey]) {
+      if (meKey) {
+        if (!db[meKey]) {
+          db[meKey] = { ...DEFAULT_USER_STATE, ...state };
+        }
         db[meKey].cupsStreak = state.cupsStreak || 0;
         db[meKey].cupsBestStreak = state.cupsBestStreak || 0;
         saveAccountsDB(db);
-        pushRemoteAccount(db[meKey]);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {}
+        pushRemoteAccount(db[meKey]).catch(() => {});
       }
     }
 

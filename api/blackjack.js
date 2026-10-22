@@ -334,19 +334,39 @@ export default async function handler(req, res) {
       tables[tableId] = table;
     }
 
-    // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente sans relance automatique
+    // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
       const prevBets = table.readyBets || {};
       const prevHost = table.host || null;
       const prevKnown = table.knownPlayers || {};
+      const prevReady = table.readyPlayers || {};
       table = getDefaultTable(tableId);
       table.readyBets = prevBets;
       table.host = prevHost;
       table.knownPlayers = prevKnown;
-      table.readyPlayers = {}; // Pas de relance automatique : chacun change sa mise et confirme
+      table.readyPlayers = prevReady; // Préserver les joueurs déjà prêts
       table.hasPlayedRound = true;
       tables[tableId] = table;
       modified = true;
+
+      // Si les 2 joueurs sont déjà prêts, relancer la manche immédiatement
+      const readyKeys = Object.keys(table.readyPlayers).filter(k => {
+        const rp = table.readyPlayers[k];
+        if (!rp || !rp.ready) return false;
+        const name = (rp.username || '').toLowerCase();
+        return !name.includes('bot') && !name.includes('roxy');
+      });
+      if (readyKeys.length >= 2) {
+        const participants = readyKeys.map(k => {
+          const rp = table.readyPlayers[k];
+          return {
+            username: rp.username,
+            avatar: rp.avatar || '👤',
+            bet: rp.bet || (table.readyBets && table.readyBets[k]) || 100
+          };
+        });
+        startServerDeal(table, participants, now);
+      }
     }
 
     // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn') - Limite de 30s par tour

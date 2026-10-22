@@ -369,11 +369,11 @@ function startDealerDeal(table, now) {
 function stepDealerBot(table, now) {
   let changed = false;
 
-  // 1. Nettoyer les joueurs inactifs (> 20s sans ping)
+  // 1. Nettoyer les joueurs réellement déconnectés (> 180s / 3 minutes sans heartbeat)
   const order = table.playerOrder || [];
   order.forEach(k => {
     const p = table.players[k];
-    if (p && p.updatedAt && (now - p.updatedAt > 20000)) {
+    if (p && p.updatedAt && (now - p.updatedAt > 180000)) {
       if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
         p.folded = true;
         p.status = 'A quitté';
