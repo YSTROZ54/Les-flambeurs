@@ -294,7 +294,6 @@ export default async function handler(req, res) {
 
     // Endpoint list_tables
     if (req.query.action === 'list_tables' || req.query.list === 'true') {
-      const activePrivate = getActivePrivateTablesList(tables, now);
       const publicSummaries = [1, 2, 3, 4, 5].map(num => {
         const pId = `bj_pub_${num}`;
         const tbl = tables[pId] || getDefaultTable(pId);
@@ -405,7 +404,6 @@ export default async function handler(req, res) {
 
     // Endpoint list_tables en POST
     if (body.action === 'list_tables') {
-      const activePrivate = getActivePrivateTablesList(tables, now);
       const publicSummaries = [1, 2, 3, 4, 5].map(num => {
         const pId = `bj_pub_${num}`;
         const tbl = tables[pId] || getDefaultTable(pId);
