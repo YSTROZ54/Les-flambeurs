@@ -64,6 +64,7 @@ export default async function handler(req, res) {
               bankTransfers: body.bankTransfers || [],
               pendingTransfers: body.pendingTransfers || [],
               pendingFriendRequests: body.pendingFriendRequests || [],
+              outgoingFriendRequests: body.outgoingFriendRequests || [],
               pendingGameInvites: body.pendingGameInvites || [],
               bannedUsers: body.bannedUsers || [],
               currentTable: body.currentTable || {}

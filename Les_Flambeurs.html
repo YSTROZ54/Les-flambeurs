@@ -683,17 +683,13 @@
           </div>
         </div>
 
-        <!-- COLONNE CANVAS DU VOL EN DIRECT -->
-        <div class="lg:col-span-8 rounded-2xl p-3 bg-[#040817] border border-sky-500/30 relative overflow-hidden min-h-[440px] flex flex-col justify-between shadow-2xl">
-          <canvas id="crashCanvas" width="820" height="420" class="w-full h-[410px] rounded-xl"></canvas>
+        <!-- COLONNE CANVAS DU VOL EN DIRECT (EXPANSION ET HAUTEUR OPTIMISÉES SUR MOBILE & DESKTOP) -->
+        <div class="lg:col-span-8 rounded-3xl p-1.5 sm:p-3 bg-gradient-to-b from-[#020617] via-[#040d28] to-[#010410] border border-sky-500/30 relative overflow-hidden h-[460px] sm:h-[480px] md:h-[500px] flex flex-col justify-between shadow-[0_10px_50px_rgba(14,165,233,0.15)]">
+          <canvas id="crashCanvas" class="w-full h-full rounded-2xl block"></canvas>
           <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-4">
             <div id="crashMultiplierText" class="font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)] transition-colors duration-200">1.00×</div>
             <div id="crashStatusSub" class="mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center">
               PRÊT AU DÉCOLLAGE
-            </div>
-            <!-- BADGE HUD VISUEL MONTRANT LA MISE ENGAGÉE EN DIRECT -->
-            <div id="crashHudBetPill" class="mt-2 px-3 py-1 rounded-full text-xs font-mono-num font-bold bg-black/85 backdrop-blur-md text-amber-300 border border-amber-400/40 text-center shadow-lg transition-all hidden">
-              🪙 Ma mise : 0 pièce
             </div>
           </div>
         </div>
@@ -1411,6 +1407,17 @@
         <div id="friendsSuggestionsList" class="flex flex-wrap gap-1.5 pt-1"></div>
       </div>
 
+      <!-- Demandes d'amis envoyées (en attente d'acceptation) -->
+      <div id="friendsPendingContainer" class="space-y-2 pt-2 border-t border-white/10 hidden">
+        <div class="text-[11px] uppercase tracking-wider text-amber-300 font-bold flex justify-between items-center">
+          <span class="flex items-center gap-1.5">
+            <span>⏳</span> <span>Demandes envoyées en attente (<span id="friendsPendingCountBadge">0</span>)</span>
+          </span>
+          <span class="text-[10px] text-amber-200/70 lowercase font-normal">en attente</span>
+        </div>
+        <div id="friendsPendingListContainer" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+      </div>
+
       <!-- Liste de mes amis -->
       <div class="space-y-2 pt-2 border-t border-white/10">
         <div class="text-[11px] uppercase tracking-wider text-stone-400 font-bold flex justify-between">
@@ -1911,6 +1918,7 @@
       bankTransfers: [],
       pendingTransfers: [],
       pendingFriendRequests: [],
+      outgoingFriendRequests: [],
       pendingGameInvites: [],
       currentTable: {},
       activeRoomPartners: {},
@@ -2093,6 +2101,7 @@
                   friends: Array.isArray(extraData.friends) ? extraData.friends : [],
                   pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : [],
                   pendingFriendRequests: Array.isArray(extraData.pendingFriendRequests) ? extraData.pendingFriendRequests : [],
+                  outgoingFriendRequests: Array.isArray(extraData.outgoingFriendRequests) ? extraData.outgoingFriendRequests : [],
                   pendingGameInvites: Array.isArray(extraData.pendingGameInvites) ? extraData.pendingGameInvites : [],
                   currentTable: extraData.currentTable || {}
                 };
@@ -2230,15 +2239,21 @@
             });
           }
 
+          const newOutgoing = Array.isArray(myAcc.outgoingFriendRequests) ? myAcc.outgoingFriendRequests : [];
+          const confirmedFriendsSet = new Set((newFriends || []).map(f => (f || '').toLowerCase().trim()));
+          const cleanedOutgoing = newOutgoing.filter(r => r && r.to && !confirmedFriendsSet.has(r.to.toLowerCase().trim()));
+          const hasOutgoingDiff = JSON.stringify(state.outgoingFriendRequests || []) !== JSON.stringify(cleanedOutgoing);
+
           const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
           const hasFriendReqDiff = JSON.stringify(state.pendingFriendRequests || []) !== JSON.stringify(newFriendReqs);
           const hasGameInvDiff = JSON.stringify(state.pendingGameInvites || []) !== JSON.stringify(newGameInvs);
           const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
           const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
 
-          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff || btChanged) {
+          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff || hasOutgoingDiff || btChanged) {
             state.pendingTransfers = newTransfers;
             state.pendingFriendRequests = newFriendReqs;
+            state.outgoingFriendRequests = cleanedOutgoing;
             state.pendingGameInvites = newGameInvs;
             state.friends = newFriends;
             if (hasBalanceDiff) {
@@ -2312,6 +2327,7 @@
           bankTransfers: account.bankTransfers || [],
           pendingTransfers: account.pendingTransfers || [],
           pendingFriendRequests: account.pendingFriendRequests || [],
+          outgoingFriendRequests: isMe ? (state.outgoingFriendRequests || []) : (account.outgoingFriendRequests || account.data?.outgoingFriendRequests || []),
           pendingGameInvites: account.pendingGameInvites || [],
           currentTable: isMe ? (state.currentTable || {}) : (account.currentTable || {}),
           bannedUsers: bannedList,
@@ -2690,16 +2706,41 @@
     }
 
     /* ================= BARRE DU HAUT QUI SE CACHE EN DESCENDANT ================= */
-    let lastScrollY = 0;
+    let lastScrollY = window.scrollY || 0;
+    let isHeaderHidden = false;
+
     window.addEventListener('scroll', () => {
-      const currentY = window.scrollY;
+      const currentY = Math.max(0, window.scrollY || 0);
       const header = document.getElementById('smartHeader');
       if (!header) return;
-      if (currentY > lastScrollY && currentY > 90) {
-        header.style.transform = 'translateY(-100%)';
-      } else {
-        header.style.transform = 'translateY(0)';
+
+      const delta = currentY - lastScrollY;
+
+      // Ignorer les micro-mouvements (rebonds inertiels iOS/Android, micro-variations subpixel)
+      if (Math.abs(delta) < 8) return;
+
+      // 1. Tout en haut de la page : toujours visible
+      if (currentY <= 50) {
+        if (isHeaderHidden) {
+          header.style.transform = 'translateY(0)';
+          isHeaderHidden = false;
+        }
       }
+      // 2. Défilement franc vers le bas : cacher la barre dès qu'on descend
+      else if (delta > 0 && currentY > 80) {
+        if (!isHeaderHidden) {
+          header.style.transform = 'translateY(-100%)';
+          isHeaderHidden = true;
+        }
+      }
+      // 3. Défilement volontaire vers le haut : ne réapparaît QUE lors d'un vrai geste de remontée (> 22px)
+      else if (delta < -22) {
+        if (isHeaderHidden) {
+          header.style.transform = 'translateY(0)';
+          isHeaderHidden = false;
+        }
+      }
+
       lastScrollY = currentY;
     }, { passive: true });
 
@@ -4071,29 +4112,37 @@
 
       const cur = list[0];
       const friendName = cur.from;
-      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== friendName.toLowerCase().trim());
+      const fKey = friendName.toLowerCase().trim();
+      const meKey = (state.username || '').toLowerCase().trim();
+
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== fKey);
+      if (Array.isArray(state.outgoingFriendRequests)) {
+        state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== fKey);
+      }
       document.getElementById('friendRequestNotification')?.classList.add('hidden');
 
       // 1. Ajouter ami sur le compte local actif
       if (!Array.isArray(state.friends)) state.friends = [];
-      if (!state.friends.some(f => f.toLowerCase() === friendName.toLowerCase())) {
+      if (!state.friends.some(f => f.toLowerCase() === fKey)) {
         state.friends.push(friendName);
       }
       if (!state.friendBalances) state.friendBalances = {};
       if (!state.friendBalances[friendName]) state.friendBalances[friendName] = 5000;
 
-      // 2. Ajouter aussi l'ami sur le compte distant de l'expéditeur (amitié réciproque)
+      // 2. Ajouter aussi l'ami sur le compte distant de l'expéditeur (amitié bilatérale réciproque)
       const db = getAccountsDB();
-      const senderKey = friendName.toLowerCase();
-      if (db[senderKey]) {
-        if (!Array.isArray(db[senderKey].friends)) db[senderKey].friends = [];
-        if (!db[senderKey].friends.some(f => f.toLowerCase() === (state.username || '').toLowerCase())) {
-          db[senderKey].friends.push(state.username);
+      if (db[fKey]) {
+        if (!Array.isArray(db[fKey].friends)) db[fKey].friends = [];
+        if (!db[fKey].friends.some(f => f.toLowerCase() === meKey)) {
+          db[fKey].friends.push(state.username);
         }
-        if (!db[senderKey].friendBalances) db[senderKey].friendBalances = {};
-        if (!db[senderKey].friendBalances[state.username]) db[senderKey].friendBalances[state.username] = state.balance || 5500;
+        if (Array.isArray(db[fKey].outgoingFriendRequests)) {
+          db[fKey].outgoingFriendRequests = db[fKey].outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== meKey);
+        }
+        if (!db[fKey].friendBalances) db[fKey].friendBalances = {};
+        if (!db[fKey].friendBalances[state.username]) db[fKey].friendBalances[state.username] = state.balance || 5500;
         saveAccountsDB(db);
-        await pushRemoteAccount(db[senderKey]);
+        await pushRemoteAccount(db[fKey]);
       }
 
       saveState();
@@ -4110,8 +4159,21 @@
       if (list.length === 0) return;
 
       const cur = list[0];
-      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== (cur.from || '').toLowerCase().trim());
+      const fKey = (cur.from || '').toLowerCase().trim();
+      const meKey = (state.username || '').toLowerCase().trim();
+
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== fKey);
       document.getElementById('friendRequestNotification')?.classList.add('hidden');
+
+      const db = getAccountsDB();
+      if (db[fKey]) {
+        if (Array.isArray(db[fKey].outgoingFriendRequests)) {
+          db[fKey].outgoingFriendRequests = db[fKey].outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== meKey);
+        }
+        saveAccountsDB(db);
+        pushRemoteAccount(db[fKey]).catch(() => {});
+      }
+
       saveState();
       await pushRemoteAccount(state);
       updateGlobalUI();
@@ -5284,15 +5346,21 @@
     let myActiveCrashBet = null;
 
     let localCrash = {
-      stars: Array.from({ length: 45 }, () => ({ x: Math.random() * 820, y: Math.random() * 380, r: 1 + Math.random() * 2 })),
+      stars: Array.from({ length: 65 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        r: 0.8 + Math.random() * 2,
+        speed: 0.5 + Math.random() * 1.5,
+        twinkle: Math.random() * Math.PI * 2
+      })),
       clouds: [
-        { x: 140, y: 240 },
-        { x: 420, y: 170 },
-        { x: 660, y: 220 }
+        { x: 0.16, y: 0.54 },
+        { x: 0.52, y: 0.38 },
+        { x: 0.78, y: 0.48 }
       ],
       meteors: [
-        { x: 700, y: 70 },
-        { x: 380, y: 45 }
+        { x: 0.84, y: 0.16 },
+        { x: 0.46, y: 0.10 }
       ]
     };
 
@@ -5449,7 +5517,6 @@
       const banner = document.getElementById('crashActiveBetBanner');
       const valEl = document.getElementById('crashActiveBetValue');
       const statusEl = document.getElementById('crashActiveBetStatus');
-      const hudPill = document.getElementById('crashHudBetPill');
 
       const myBet = getMyCrashBet();
       if (myBet && myBet.bet > 0) {
@@ -5462,36 +5529,27 @@
 
         let statusText = '⏳ Mise prête';
         let statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30';
-        let hudText = `🪙 Ma mise : ${fmt(myBet.bet)} pièces`;
 
         if (myBet.cashedOut) {
           statusText = `✅ Encaissé (${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''})`;
           statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
-          hudText = `✅ Encaissé : +${fmt(myBet.win || 0)} 🪙 à ${myBet.cashMult ? myBet.cashMult.toFixed(2) + '×' : ''}`;
         } else if (crashSync.status === 'crashed') {
           statusText = '💥 Crashé';
           statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30';
-          hudText = `💥 Mise perdue : ${fmt(myBet.bet)} 🪙`;
         } else if (crashSync.status === 'flying') {
           const curMult = getCrashMultiplierAt(Date.now());
           const curGain = Math.floor(myBet.bet * curMult);
           statusText = `🚀 En vol (+${fmt(curGain)})`;
           statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 animate-pulse';
-          hudText = `🪙 Mise : ${fmt(myBet.bet)} 🪙 • Gain : ${fmt(curGain)} 🪙`;
         } else if (crashSync.status === 'countdown') {
           const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
           statusText = `⏳ Décollage (${secLeft}s)`;
           statusClass = 'px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 animate-pulse';
-          hudText = `🪙 Ma mise à bord : ${fmt(myBet.bet)} pièces`;
         }
 
         if (statusEl) {
           statusEl.textContent = statusText;
           statusEl.className = statusClass;
-        }
-        if (hudPill) {
-          hudPill.classList.remove('hidden');
-          hudPill.textContent = hudText;
         }
       } else {
         if (banner) {
@@ -5503,9 +5561,6 @@
         if (statusEl) {
           statusEl.textContent = 'Non misé';
           statusEl.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 text-stone-400 border border-white/10';
-        }
-        if (hudPill) {
-          hudPill.classList.add('hidden');
         }
       }
     }
@@ -6238,7 +6293,22 @@
       const canvas = document.getElementById('crashCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height;
+
+      // Détection dynamique et haute résolution (évite toute déformation/écrasement sur smartphone)
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const displayW = Math.max(280, Math.round(rect.width || 820));
+      const displayH = Math.max(340, Math.round(rect.height || 460));
+
+      if (canvas.width !== Math.round(displayW * dpr) || canvas.height !== Math.round(displayH * dpr)) {
+        canvas.width = Math.round(displayW * dpr);
+        canvas.height = Math.round(displayH * dpr);
+      }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const w = displayW;
+      const h = displayH;
       ctx.clearRect(0, 0, w, h);
 
       const currentMult = (overrideMult !== undefined)
@@ -6247,105 +6317,145 @@
 
       const alt = Math.max(0, currentMult - 1);
 
-      // Ciel dégradé selon l'altitude
+      // Ciel dégradé selon l'altitude (transition fluide vers l'espace infini)
       const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
-      if (alt < 0.8) {
-        skyGrad.addColorStop(0, '#0f172a');
-        skyGrad.addColorStop(0.5, '#1d4ed8');
+      if (alt < 0.6) {
+        // Basse altitude : crépuscule d'aérodrome avec halo d'horizon
+        skyGrad.addColorStop(0, '#0c162d');
+        skyGrad.addColorStop(0.4, '#1e3a8a');
+        skyGrad.addColorStop(0.75, '#0284c7');
         skyGrad.addColorStop(1, '#38bdf8');
-      } else if (alt < 2.2) {
-        skyGrad.addColorStop(0, '#030712');
-        skyGrad.addColorStop(0.6, '#1e1b4b');
-        skyGrad.addColorStop(1, '#1d4ed8');
+      } else if (alt < 2.0) {
+        // Haute altitude : mésosphère bleu-nuit / violet cosmique
+        skyGrad.addColorStop(0, '#020617');
+        skyGrad.addColorStop(0.45, '#0f172a');
+        skyGrad.addColorStop(0.75, '#1e1b4b');
+        skyGrad.addColorStop(1, '#1e40af');
       } else {
+        // Espace infini : cosmos profond étoilé
         skyGrad.addColorStop(0, '#02040a');
-        skyGrad.addColorStop(1, '#090d1e');
+        skyGrad.addColorStop(0.5, '#05091a');
+        skyGrad.addColorStop(1, '#090d24');
       }
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // Étoiles scintillantes
-      const starAlpha = Math.min(1, Math.max(0.15, (alt - 0.5) / 1.5));
-      ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha})`;
+      // Nébuleuse lumineuse dans l'espace
+      if (alt > 1.2) {
+        const nebAlpha = Math.min(0.35, (alt - 1.2) * 0.15);
+        const nebGrad = ctx.createRadialGradient(w * 0.7, h * 0.28, 10, w * 0.7, h * 0.28, w * 0.5);
+        nebGrad.addColorStop(0, `rgba(168, 85, 247, ${nebAlpha})`);
+        nebGrad.addColorStop(0.4, `rgba(56, 189, 248, ${nebAlpha * 0.5})`);
+        nebGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = nebGrad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Étoiles scintillantes avec parallaxe selon l'altitude
+      const starAlpha = Math.min(1, Math.max(0.2, (alt - 0.3) / 1.5));
       if (localCrash.stars) {
         localCrash.stars.forEach(s => {
-          const sy = (s.y + alt * 90) % h;
+          const sx = (s.x * w) % w;
+          const sy = ((s.y * h) + alt * 95 * s.speed) % h;
+          const tw = 0.7 + Math.sin(Date.now() / 300 + s.twinkle) * 0.3;
           ctx.beginPath();
-          ctx.arc(s.x, sy, s.r, 0, Math.PI * 2);
+          ctx.arc(sx, sy, s.r * tw, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * tw})`;
           ctx.fill();
         });
       }
 
-      // Météores à haute altitude
-      if (alt >= 1.5 && localCrash.meteors) {
-        ctx.font = '26px sans-serif';
-        localCrash.meteors.forEach((m, idx) => {
-          const mx = (m.x - alt * 120 + idx * 200 + 1600) % w;
-          const my = (m.y + alt * 75) % (h - 80);
-          ctx.fillText('☄️', mx, my);
-        });
-        ctx.font = '32px sans-serif';
-        ctx.fillText('🪐', 110, 85);
+      // Planète lointaine & Météores à haute altitude
+      if (alt >= 1.5) {
+        const planetX = Math.round(w * 0.82);
+        const planetY = Math.round(h * 0.18);
+        ctx.save();
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 15;
+        ctx.font = `${Math.round(Math.min(w, h) * 0.08) + 18}px sans-serif`;
+        ctx.fillText('🪐', planetX, planetY);
+        ctx.restore();
+
+        if (localCrash.meteors) {
+          ctx.font = '24px sans-serif';
+          localCrash.meteors.forEach((m, idx) => {
+            const mx = ((m.x * w) - alt * 130 + idx * 240 + 2000) % w;
+            const my = ((m.y * h) + alt * 80) % (h - 70);
+            ctx.fillText('☄️', mx, my);
+          });
+        }
       }
 
-      // Nuages
-      const cloudOffsetY = alt * 160;
-      if (cloudOffsetY < 320 && localCrash.clouds) {
-        ctx.font = '44px sans-serif';
+      // Nuages atmosphériques au décollage
+      const cloudOffsetY = alt * 180;
+      if (cloudOffsetY < 360 && localCrash.clouds) {
+        ctx.font = `${Math.round(Math.min(w, h) * 0.08) + 20}px sans-serif`;
         localCrash.clouds.forEach(c => {
-          const cy = c.y + cloudOffsetY;
-          if (cy < h + 40) {
-            ctx.fillText('☁️', c.x, cy);
-            ctx.fillText('☁️', c.x + 120, cy - 35);
+          const cx = (c.x * w);
+          const cy = (c.y * h) + cloudOffsetY;
+          if (cy < h + 50) {
+            ctx.fillText('☁️', cx, cy);
+            ctx.fillText('☁️', (cx + 100) % w, cy - 25);
           }
         });
       }
 
-      // Sol & pas de tir
-      const groundY = h - 55 + alt * 190;
-      if (groundY < h + 60) {
+      // Sol & Pas de tir (s'efface progressivement vers le bas au fur et à mesure de l'envol)
+      const groundY = (h - 55) + alt * 220;
+      if (groundY < h + 70) {
+        // Pelouse et piste
         ctx.fillStyle = '#15803d';
         ctx.fillRect(0, groundY, w, 80);
         ctx.fillStyle = '#166534';
-        ctx.fillRect(0, groundY + 14, w, 70);
+        ctx.fillRect(0, groundY + 12, w, 70);
+
+        // Pas de tir / Base de lancement sous la fusée
+        const padX = Math.round(w * 0.16);
         ctx.fillStyle = '#475569';
-        ctx.fillRect(45, groundY - 8, 80, 10);
+        ctx.fillRect(padX - 35, groundY - 8, 70, 10);
+
         // Tour de lancement
         ctx.fillStyle = '#64748b';
-        ctx.fillRect(50, groundY - 50, 8, 44);
-        ctx.fillRect(48, groundY - 35, 24, 4);
-        ctx.font = '24px sans-serif';
-        ctx.fillText('🌲', 210, groundY);
-        ctx.fillText('🌲', 520, groundY);
-        ctx.fillText('🏢', 680, groundY);
+        ctx.fillRect(padX - 25, groundY - 50, 7, 44);
+        ctx.fillRect(padX - 27, groundY - 34, 20, 4);
+
+        // Silhouettes d'arbres et bâtiment bien espacées selon la largeur
+        ctx.font = '22px sans-serif';
+        ctx.fillText('🌲', Math.round(w * 0.38), groundY);
+        ctx.fillText('🌲', Math.round(w * 0.65), groundY);
+        ctx.fillText('🏢', Math.round(w * 0.85), groundY);
       }
 
+      // Trajectoire de vol en arc fluide et spacieux
       const isFlying = crashSync.status === 'flying' || exploded;
-      const progress = isFlying ? Math.min(1, alt / 6) : 0;
-      const startX = 85;
-      const startY = Math.min(h - 20, groundY - 14);
-      const endX = startX + progress * (w - 180);
-      const endY = (h - 75) - Math.pow(progress, 0.85) * (h - 150);
+      const progress = isFlying ? Math.min(1, alt / 5.5) : 0;
+      const startX = Math.round(w * 0.16);
+      const startY = Math.min(h - 22, groundY - 14);
+      const endX = startX + progress * (w * 0.72);
+      const endY = (h * 0.82) - Math.pow(progress, 0.78) * (h * 0.65);
 
       // Traînée lumineuse si en vol
       if (isFlying && progress > 0.01) {
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        ctx.quadraticCurveTo(endX * 0.55, h - 55, endX, endY);
+        const cpx = startX + (endX - startX) * 0.5;
+        const cpy = Math.max(h * 0.85, (startY + endY) * 0.5 + (h * 0.15));
+        ctx.quadraticCurveTo(cpx, cpy, endX, endY);
         ctx.strokeStyle = exploded ? '#f43f5e' : '#38bdf8';
         ctx.lineWidth = 5;
         ctx.shadowColor = exploded ? '#f43f5e' : '#38bdf8';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 12;
         ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.restore();
       }
 
-      // Si compte à rebours, afficher petit effet réacteur au sol
+      // Flamme de réacteur au sol lors du décompte
       if (crashSync.status === 'countdown') {
-        const flicker = Math.sin(Date.now() / 80) * 4;
+        const flicker = Math.sin(Date.now() / 70) * 4;
         ctx.beginPath();
-        ctx.arc(startX, startY + 12, 10 + flicker, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.4)';
+        ctx.arc(startX, startY + 12, 11 + flicker, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.5)';
         ctx.fill();
       }
 
@@ -6355,14 +6465,28 @@
 
       if (exploded) {
         ctx.beginPath();
-        ctx.arc(endX, endY, 46, 0, Math.PI * 2);
+        ctx.arc(endX, endY, 48, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
         ctx.fill();
         ctx.font = '54px sans-serif';
-        ctx.fillText('💥', endX - 28, endY + 20);
+        ctx.fillText('💥', endX - 27, endY + 20);
       } else {
         const targetX = isFlying ? endX : startX;
         const targetY = isFlying ? endY : startY - 8;
+
+        // Flamme réacteur active en plein vol
+        if (isFlying) {
+          const flameSize = 10 + Math.sin(Date.now() / 40) * 4;
+          ctx.beginPath();
+          ctx.arc(targetX - 16, targetY + 12, flameSize, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.6)';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(targetX - 14, targetY + 10, flameSize * 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.8)';
+          ctx.fill();
+        }
+
         if (veh.isCarpet) {
           drawFlyingCarpetOnCanvas(ctx, targetX, targetY, performance.now());
         } else {
@@ -6370,6 +6494,8 @@
           ctx.fillText(veh.icon || '🚀', targetX - 22, targetY + 14);
         }
       }
+
+      ctx.restore();
     }
 
 
@@ -8636,23 +8762,31 @@
     async function acceptFriendRequestById(senderName) {
       const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
       const cur = list.find(r => (r.from || '').toLowerCase().trim() === String(senderName).toLowerCase().trim());
-      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== String(senderName).toLowerCase().trim());
+      const sKey = String(senderName).toLowerCase().trim();
+      const meKey = (state.username || '').toLowerCase().trim();
+
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== sKey);
+      if (Array.isArray(state.outgoingFriendRequests)) {
+        state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== sKey);
+      }
 
       const friendName = cur ? cur.from : senderName;
 
       if (!Array.isArray(state.friends)) state.friends = [];
-      if (!state.friends.some(f => f.toLowerCase() === friendName.toLowerCase())) {
+      if (!state.friends.some(f => f.toLowerCase() === sKey)) {
         state.friends.push(friendName);
       }
       if (!state.friendBalances) state.friendBalances = {};
       if (!state.friendBalances[friendName]) state.friendBalances[friendName] = 5000;
 
       const db = getAccountsDB();
-      const sKey = friendName.toLowerCase().trim();
       if (db[sKey]) {
         if (!Array.isArray(db[sKey].friends)) db[sKey].friends = [];
-        if (!db[sKey].friends.some(f => f.toLowerCase() === (state.username || '').toLowerCase())) {
+        if (!db[sKey].friends.some(f => f.toLowerCase() === meKey)) {
           db[sKey].friends.push(state.username);
+        }
+        if (Array.isArray(db[sKey].outgoingFriendRequests)) {
+          db[sKey].outgoingFriendRequests = db[sKey].outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== meKey);
         }
         if (!db[sKey].friendBalances) db[sKey].friendBalances = {};
         if (!db[sKey].friendBalances[state.username]) db[sKey].friendBalances[state.username] = state.balance || 5500;
@@ -8661,6 +8795,7 @@
       }
 
       saveState();
+      await pushRemoteAccount(state);
       playCoinWinSound();
       updateGlobalUI();
       renderFriendsModalList();
@@ -8672,9 +8807,22 @@
 
     async function declineFriendRequestById(senderName) {
       const list = Array.isArray(state.pendingFriendRequests) ? state.pendingFriendRequests : [];
-      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== String(senderName).toLowerCase().trim());
+      const sKey = String(senderName).toLowerCase().trim();
+      const meKey = (state.username || '').toLowerCase().trim();
+
+      state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== sKey);
+
+      const db = getAccountsDB();
+      if (db[sKey]) {
+        if (Array.isArray(db[sKey].outgoingFriendRequests)) {
+          db[sKey].outgoingFriendRequests = db[sKey].outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== meKey);
+        }
+        saveAccountsDB(db);
+        pushRemoteAccount(db[sKey]).catch(() => {});
+      }
+
       saveState();
-      pushRemoteAccount(state);
+      await pushRemoteAccount(state);
       updateNotificationsBadge();
       checkPendingNotifications();
       renderNotificationsModal();
@@ -8797,18 +8945,59 @@
       const badge = document.getElementById('friendsCountBadge');
       const suggBox = document.getElementById('friendsSuggestionsContainer');
       const suggList = document.getElementById('friendsSuggestionsList');
+      const pendingBox = document.getElementById('friendsPendingContainer');
+      const pendingListEl = document.getElementById('friendsPendingListContainer');
+      const pendingBadge = document.getElementById('friendsPendingCountBadge');
       if (!box) return;
 
       const friendsList = state.friends || [];
       if (badge) badge.textContent = friendsList.length;
 
-      // 1. Suggestions de joueurs inscrits sur le Casino (Cloud Supabase)
+      // 1. Demandes envoyées en attente
+      const outgoingList = (state.outgoingFriendRequests || []).filter(r => {
+        if (!r || !r.to) return false;
+        return !friendsList.some(f => f.toLowerCase() === r.to.toLowerCase());
+      });
+
+      if (pendingBox && pendingListEl) {
+        if (outgoingList.length > 0) {
+          if (pendingBadge) pendingBadge.textContent = outgoingList.length;
+          pendingListEl.innerHTML = outgoingList.map(req => {
+            const db = getAccountsDB();
+            const acc = db[req.to.toLowerCase().trim()];
+            const avatar = getAvatarDisplay(acc);
+            return `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/30">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/30 text-base flex items-center justify-center">${avatar}</div>
+                  <div>
+                    <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>${req.to}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">En attente</span>
+                    </div>
+                    <div class="text-[10px] text-stone-400">Demande d'ami envoyée</div>
+                  </div>
+                </div>
+                <button onclick="cancelOutgoingFriendRequest('${req.to.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 border border-white/10 text-stone-300 text-xs font-bold transition">
+                  ✕ Annuler
+                </button>
+              </div>
+            `;
+          }).join('');
+          pendingBox.classList.remove('hidden');
+        } else {
+          pendingBox.classList.add('hidden');
+        }
+      }
+
+      // 2. Suggestions de joueurs inscrits sur le Casino (Cloud Supabase)
       if (suggBox && suggList) {
         const db = getAccountsDB();
         const meKey = (state.username || '').toLowerCase();
         const friendKeys = friendsList.map(f => f.toLowerCase());
+        const outgoingKeys = outgoingList.map(r => r.to.toLowerCase());
         const candidates = Object.keys(db)
-          .filter(k => k !== meKey && !friendKeys.includes(k))
+          .filter(k => k !== meKey && !friendKeys.includes(k) && !outgoingKeys.includes(k))
           .map(k => db[k]);
 
         if (candidates.length > 0) {
@@ -8825,12 +9014,12 @@
         }
       }
 
-      // 2. Liste de mes amis
+      // 3. Liste de mes amis confirmés
       if (friendsList.length === 0) {
         box.innerHTML = `
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 text-stone-400 text-center text-xs space-y-1">
-            <p class="font-bold text-stone-300">Aucun ami dans ta liste pour l'instant.</p>
-            <p class="text-[11px]">Clique sur un joueur du Casino ci-dessus ou tape son pseudo pour l'ajouter et l'inviter à jouer !</p>
+            <p class="font-bold text-stone-300">Aucun ami confirmé pour l'instant.</p>
+            <p class="text-[11px]">Tape un pseudo ci-dessus pour envoyer une invitation d'ami !</p>
           </div>
         `;
         return;
@@ -8879,18 +9068,50 @@
         return showToast(`ℹ️ « ${targetName} » est déjà dans ta liste d'amis !`);
       }
 
+      if (state.outgoingFriendRequests && state.outgoingFriendRequests.some(r => (r.to || '').toLowerCase() === targetName.toLowerCase())) {
+        return showToast(`⏳ Demande d'ami déjà en attente auprès de ${targetName} !`);
+      }
+
+      // Si le joueur cible m'a déjà envoyé une demande, valider immédiatement
+      const incoming = (state.pendingFriendRequests || []).find(r => (r.from || '').toLowerCase() === targetName.toLowerCase());
+      if (incoming) {
+        await acceptFriendRequestById(targetName);
+        return;
+      }
+
       const db = getAccountsDB();
       const targetKey = targetName.toLowerCase();
-      const targetAcc = db[targetKey];
+      let targetAcc = db[targetKey];
+
+      try {
+        const res = await supabaseFetch(`accounts?username=eq.${encodeURIComponent(targetName)}`);
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows && rows[0]) {
+            const r = rows[0];
+            const extra = (r.data && typeof r.data === 'object') ? r.data : {};
+            targetAcc = {
+              ...DEFAULT_USER_STATE,
+              ...extra,
+              username: r.username,
+              password: r.password || '',
+              avatarEmoji: r.avatar || '🎭',
+              balance: typeof r.balance === 'number' ? r.balance : 5500,
+              friends: Array.isArray(extra.friends) ? extra.friends : [],
+              pendingFriendRequests: Array.isArray(extra.pendingFriendRequests) ? extra.pendingFriendRequests : []
+            };
+            db[targetKey] = targetAcc;
+          }
+        }
+      } catch (e) {}
 
       if (!targetAcc) {
         return showToast(`❌ Aucun joueur « ${targetName} » trouvé sur le casino.`);
       }
 
-      const reqs = Array.isArray(targetAcc.pendingFriendRequests) ? targetAcc.pendingFriendRequests : [];
-      if (reqs.some(r => r.from.toLowerCase() === meName.toLowerCase())) {
-        return showToast(`⏳ Demande d'ami déjà envoyée à ${targetAcc.username} !`);
-      }
+      // Nettoyer toute ancienne demande résiduelle de meName
+      if (!Array.isArray(targetAcc.pendingFriendRequests)) targetAcc.pendingFriendRequests = [];
+      targetAcc.pendingFriendRequests = targetAcc.pendingFriendRequests.filter(r => (r.from || '').toLowerCase().trim() !== meName.toLowerCase());
 
       const reqObj = {
         id: 'freq_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
@@ -8898,13 +9119,51 @@
         to: targetAcc.username,
         timestamp: Date.now()
       };
-
-      if (!Array.isArray(targetAcc.pendingFriendRequests)) targetAcc.pendingFriendRequests = [];
       targetAcc.pendingFriendRequests.push(reqObj);
       saveAccountsDB(db);
-      await pushRemoteAccount(targetAcc);
+
+      // Enregistrer dans mes demandes envoyées en attente (PAS dans state.friends !)
+      if (!Array.isArray(state.outgoingFriendRequests)) state.outgoingFriendRequests = [];
+      state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== targetKey);
+      state.outgoingFriendRequests.push({
+        to: targetAcc.username,
+        timestamp: Date.now()
+      });
+
+      saveState();
+      renderFriendsModalList();
+
+      try {
+        await Promise.all([
+          pushRemoteAccount(targetAcc),
+          pushRemoteAccount(state)
+        ]);
+      } catch (err) {
+        console.warn('Erreur push friend request:', err);
+      }
 
       showToast(`📨 Demande d'ami envoyée à ${targetAcc.username} !`);
+    }
+
+    async function cancelOutgoingFriendRequest(targetUsername) {
+      if (!targetUsername) return;
+      const targetName = targetUsername.trim();
+      const targetKey = targetName.toLowerCase();
+      const meKey = (state.username || '').toLowerCase().trim();
+
+      state.outgoingFriendRequests = (state.outgoingFriendRequests || []).filter(r => (r.to || '').toLowerCase().trim() !== targetKey);
+      const db = getAccountsDB();
+      if (db[targetKey]) {
+        if (Array.isArray(db[targetKey].pendingFriendRequests)) {
+          db[targetKey].pendingFriendRequests = db[targetKey].pendingFriendRequests.filter(r => (r.from || '').toLowerCase().trim() !== meKey);
+        }
+        saveAccountsDB(db);
+        pushRemoteAccount(db[targetKey]).catch(() => {});
+      }
+      saveState();
+      await pushRemoteAccount(state);
+      renderFriendsModalList();
+      showToast(`Demande d'ami à ${targetName} annulée.`);
     }
 
     function quickAddFriendFromDb(username) {
@@ -9005,23 +9264,101 @@
       if (name.toLowerCase() === state.username.toLowerCase()) return showToast('❌ Tu ne peux pas t\'ajouter toi-même !');
       const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
       if (FAKE_TEST_PROFILES.includes(name.toLowerCase())) return showToast('❌ Ce pseudo n\'est pas autorisé.');
-      if (state.friends.some(f => f.toLowerCase() === name.toLowerCase())) {
+      if (state.friends && state.friends.some(f => f.toLowerCase() === name.toLowerCase())) {
         return showToast('ℹ️ Ce joueur est déjà dans ta liste !');
+      }
+      if (state.outgoingFriendRequests && state.outgoingFriendRequests.some(r => (r.to || '').toLowerCase() === name.toLowerCase())) {
+        return showToast('⏳ Demande d\'ami déjà en attente auprès de ce joueur !');
       }
 
       sendFriendRequest(name);
       if (inp) inp.value = '';
     }
 
-    function removeFriend(name) {
-      state.friends = state.friends.filter(f => f !== name);
-      delete state.friendBalances[name];
+    async function removeFriend(name) {
+      if (!name) return;
+      const targetName = name.trim();
+      const targetKey = targetName.toLowerCase();
+      const meName = (state.username || '').trim();
+      const meKey = meName.toLowerCase();
+
+      // 1. Retirer de mon profil local
+      state.friends = (state.friends || []).filter(f => (f || '').toLowerCase().trim() !== targetKey);
+      if (state.friendBalances) delete state.friendBalances[targetName];
+      if (state.friendBalances) delete state.friendBalances[targetKey];
+      if (Array.isArray(state.outgoingFriendRequests)) {
+        state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== targetKey);
+      }
+      if (Array.isArray(state.pendingFriendRequests)) {
+        state.pendingFriendRequests = state.pendingFriendRequests.filter(r => (r.from || '').toLowerCase().trim() !== targetKey);
+      }
+
+      // 2. Retirer aussi de la base locale pour moi
+      const db = getAccountsDB();
+      if (db[meKey]) {
+        db[meKey].friends = (db[meKey].friends || []).filter(f => (f || '').toLowerCase().trim() !== targetKey);
+        if (db[meKey].friendBalances) delete db[meKey].friendBalances[targetName];
+        if (Array.isArray(db[meKey].outgoingFriendRequests)) {
+          db[meKey].outgoingFriendRequests = db[meKey].outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== targetKey);
+        }
+        if (Array.isArray(db[meKey].pendingFriendRequests)) {
+          db[meKey].pendingFriendRequests = db[meKey].pendingFriendRequests.filter(r => (r.from || '').toLowerCase().trim() !== targetKey);
+        }
+      }
+
+      // 3. Retirer aussi réciproquement de l'autre joueur (amitié bilatérale)
+      let targetAcc = db[targetKey];
+      try {
+        const res = await supabaseFetch(`accounts?username=eq.${encodeURIComponent(targetName)}`);
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows && rows[0]) {
+            const r = rows[0];
+            const extra = (r.data && typeof r.data === 'object') ? r.data : {};
+            targetAcc = {
+              ...DEFAULT_USER_STATE,
+              ...extra,
+              username: r.username,
+              avatarEmoji: r.avatar || '🎭',
+              balance: typeof r.balance === 'number' ? r.balance : 5500,
+              friends: Array.isArray(extra.friends) ? extra.friends : [],
+              pendingFriendRequests: Array.isArray(extra.pendingFriendRequests) ? extra.pendingFriendRequests : [],
+              outgoingFriendRequests: Array.isArray(extra.outgoingFriendRequests) ? extra.outgoingFriendRequests : []
+            };
+            db[targetKey] = targetAcc;
+          }
+        }
+      } catch (e) {}
+
+      if (targetAcc) {
+        targetAcc.friends = (targetAcc.friends || []).filter(f => (f || '').toLowerCase().trim() !== meKey);
+        if (targetAcc.friendBalances) delete targetAcc.friendBalances[meName];
+        if (targetAcc.friendBalances) delete targetAcc.friendBalances[meKey];
+        if (Array.isArray(targetAcc.pendingFriendRequests)) {
+          targetAcc.pendingFriendRequests = targetAcc.pendingFriendRequests.filter(r => (r.from || '').toLowerCase().trim() !== meKey);
+        }
+        if (Array.isArray(targetAcc.outgoingFriendRequests)) {
+          targetAcc.outgoingFriendRequests = targetAcc.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== meKey);
+        }
+      }
+
       saveState();
+      saveAccountsDB(db);
+
+      // 4. Pousser immédiatement vers Supabase pour les DEUX comptes
+      try {
+        const promises = [pushRemoteAccount(state)];
+        if (targetAcc) promises.push(pushRemoteAccount(targetAcc));
+        await Promise.all(promises);
+      } catch (err) {
+        console.warn('Erreur synchro suppression ami:', err);
+      }
+
       renderFriendsModalList();
       renderBank();
       renderLeaderboard();
       setupPokerSeats();
-      showToast(`🗑️ Joueur « ${name} » retiré.`);
+      showToast(`🗑️ Joueur « ${targetName} » retiré de tes amis.`);
     }
 
     function openProfileModal() {
