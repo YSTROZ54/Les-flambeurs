@@ -647,11 +647,31 @@
         <!-- COMMANDES MOBILES TACTILES ACCESSIBLES AU POUCE               -->
         <!-- =============================================================== -->
         <div class="space-y-2 pt-1 px-1">
-          <!-- Curseur de Relance Doré fin : — ||| — -->
-          <div class="flex items-center gap-2 px-2 py-1">
-            <span class="text-[10px] font-bold text-amber-300 font-mono-num">Min</span>
-            <input id="pokerMobileRaiseSlider" type="range" min="100" max="5000" step="50" value="250" class="poker-range-slider flex-1">
-            <span id="pokerMobileRaiseValLabel" class="text-[11px] font-extrabold text-amber-300 font-mono-num min-w-[55px] text-right">250 €</span>
+          <!-- Zone de Saisie Manuelle de la Relance sur Mobile -->
+          <div class="space-y-1.5 px-1 py-1">
+            <div class="flex items-center justify-between gap-2 bg-black/60 border border-amber-500/40 rounded-2xl px-3 py-1.5 shadow-inner">
+              <label for="pokerMobileRaiseInput" class="text-[11px] font-black text-amber-300 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                💰 Relance :
+              </label>
+              <div class="flex items-center gap-1 flex-1 justify-end">
+                <input id="pokerMobileRaiseInput" type="number" min="100" max="50000" step="50" value="250" placeholder="Montant" oninput="onPokerMobileRaiseChange(this.value)" class="w-28 bg-amber-500/10 border border-amber-500/30 rounded-xl px-2 py-1 text-white font-mono-num font-black text-sm text-right focus:outline-none focus:border-amber-400">
+                <span class="text-xs font-black text-amber-400 shrink-0">€</span>
+              </div>
+            </div>
+
+            <!-- Raccourcis tactiles pour choisir sa mise rapidement au doigt -->
+            <div class="flex items-center justify-between gap-1 text-[10px] font-extrabold text-amber-200">
+              <button type="button" onclick="onPokerMobileRaiseChange(100)" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 active:scale-95 transition">Min</button>
+              <button type="button" onclick="onPokerMobileRaiseChange(500)" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 active:scale-95 transition">500 €</button>
+              <button type="button" onclick="onPokerMobileRaiseChange(1000)" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 active:scale-95 transition">1 000 €</button>
+              <button type="button" onclick="onPokerMobileRaiseChange(5000)" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 active:scale-95 transition">5 000 €</button>
+              <button type="button" onclick="onPokerMobileRaiseChange(50000)" class="px-2 py-1 rounded-lg bg-gradient-to-r from-amber-500/30 to-amber-600/30 text-amber-300 border border-amber-400/30 active:scale-95 transition">Max 50k</button>
+            </div>
+
+            <!-- Curseur fin d'appoint -->
+            <div class="flex items-center gap-2 px-1">
+              <input id="pokerMobileRaiseSlider" type="range" min="100" max="50000" step="50" value="250" class="poker-range-slider flex-1">
+            </div>
           </div>
 
           <!-- 3 Grands Boutons Tactiles comme sur la photo -->
@@ -2591,6 +2611,26 @@
       return false;
     }
 
+    function hasFriendReqBeenNotified(req) {
+      if (!req) return true;
+      try {
+        const list = JSON.parse(sessionStorage.getItem('flambeurs_seen_freqs') || '[]');
+        const id = (req.id || ('from_' + (req.from || ''))).toLowerCase().trim();
+        return list.includes(id);
+      } catch (e) { return false; }
+    }
+    function markFriendReqNotified(req) {
+      if (!req) return;
+      try {
+        const list = JSON.parse(sessionStorage.getItem('flambeurs_seen_freqs') || '[]');
+        const id = (req.id || ('from_' + (req.from || ''))).toLowerCase().trim();
+        if (!list.includes(id)) {
+          list.push(id);
+          sessionStorage.setItem('flambeurs_seen_freqs', JSON.stringify(list.slice(-50)));
+        }
+      } catch (e) {}
+    }
+
     async function syncRemoteAccounts() {
       try { processExpiredBankDonations(); } catch (e) {}
       const db = getAccountsDB();
@@ -2705,9 +2745,17 @@
                   state.cupsStreak = Math.max(state.cupsStreak || 0, rStreak);
                   state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, rBest, state.cupsStreak || 0);
                 }
+                const mFriends = (Array.isArray(remoteAcc.friends) && remoteAcc.friends.length) ? remoteAcc.friends : (existing.friends || []);
+                const mTransfers = (Array.isArray(remoteAcc.pendingTransfers) && remoteAcc.pendingTransfers.length) ? remoteAcc.pendingTransfers : (existing.pendingTransfers || []);
+                const mFreqs = (Array.isArray(remoteAcc.pendingFriendRequests) && remoteAcc.pendingFriendRequests.length) ? remoteAcc.pendingFriendRequests : (existing.pendingFriendRequests || []);
+                const mInvs = (Array.isArray(remoteAcc.pendingGameInvites) && remoteAcc.pendingGameInvites.length) ? remoteAcc.pendingGameInvites : (existing.pendingGameInvites || []);
                 db[k] = {
                   ...existing,
                   ...remoteAcc,
+                  friends: mFriends,
+                  pendingTransfers: mTransfers,
+                  pendingFriendRequests: mFreqs,
+                  pendingGameInvites: mInvs,
                   cupsStreak: isMe ? state.cupsStreak : rStreak,
                   cupsBestStreak: isMe ? state.cupsBestStreak : rBest
                 };
@@ -2853,9 +2901,12 @@
               }
             }
             saveState();
-            // Ne jouer le carillon que si une VRAIE nouvelle invitation arrive pour l'utilisateur connecté
-            if (newTransfers.length > oldTransfersLen || newFriendReqs.length > oldFriendsReqLen || (newGameInvs.length > oldGameInvLen && newGameInvs.length > 0)) {
+            // Ne jouer le carillon qu'UNE SEULE FOIS pour une NOUVELLE invitation non encore traitée
+            const brandNewFreqs = newFriendReqs.filter(r => !hasFriendReqBeenNotified(r));
+            const brandNewInvs = newGameInvs.filter(i => !isGameInviteHandled(i));
+            if (newTransfers.length > oldTransfersLen || brandNewFreqs.length > 0 || (newGameInvs.length > oldGameInvLen && brandNewInvs.length > 0)) {
               playCoinWinSound();
+              brandNewFreqs.forEach(markFriendReqNotified);
             }
             updateGlobalUI();
             renderBankHistory();
@@ -5939,23 +5990,33 @@
       updateElementTextIfChanged(document.getElementById('pokerPhaseLabel'), poker.phase);
       updateElementTextIfChanged(document.getElementById('pokerMobilePhaseLabel'), poker.phase);
 
-      // 8. SYNCHRONISATION DU SLIDER DE RELANCE MOBILE
+      // 8. SYNCHRONISATION DU MONTANT DE RELANCE MOBILE & SLIDER
+      const mInput = document.getElementById('pokerMobileRaiseInput');
       const mSlider = document.getElementById('pokerMobileRaiseSlider');
       if (mSlider) {
-        mSlider.max = Math.max(500, state.balance || 5000);
+        mSlider.max = Math.min(50000, Math.max(500, state.balance || 5000));
         if (!mSlider._hasListener) {
           mSlider._hasListener = true;
           mSlider.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value) || 200;
-            const pcInput = document.getElementById('pokerRaiseInput');
-            if (pcInput) pcInput.value = val;
-            const lbl = document.getElementById('pokerMobileRaiseValLabel');
-            if (lbl) lbl.textContent = `${fmt(val)} €`;
-            const sub = document.getElementById('pokerMobileRaiseBtnSub');
-            if (sub) sub.textContent = `${fmt(val)} €`;
+            onPokerMobileRaiseChange(e.target.value);
           });
         }
       }
+    }
+
+    function onPokerMobileRaiseChange(val) {
+      let num = parseInt(val) || 100;
+      num = Math.max(10, Math.min(50000, num));
+      const pcInput = document.getElementById('pokerRaiseInput');
+      if (pcInput) pcInput.value = num;
+      const mInput = document.getElementById('pokerMobileRaiseInput');
+      if (mInput && document.activeElement !== mInput) mInput.value = num;
+      const mSlider = document.getElementById('pokerMobileRaiseSlider');
+      if (mSlider) mSlider.value = Math.min(50000, num);
+      const sub = document.getElementById('pokerMobileRaiseBtnSub');
+      if (sub) sub.textContent = `${fmt(num)} €`;
+      const btnSub = document.getElementById('pokerMobileRaiseValLabel');
+      if (btnSub) btnSub.textContent = `${fmt(num)} €`;
     }
 
     function evaluateBestHand(cards) {
@@ -6081,8 +6142,10 @@
             sendPokerAction('call');
           }
         } else if (act === 'raise') {
-          const raiseInp = document.getElementById('pokerRaiseInput');
-          const addRaise = Math.max(100, parseInt(raiseInp?.value) || 200);
+          const mobileInp = document.getElementById('pokerMobileRaiseInput');
+          const pcInp = document.getElementById('pokerRaiseInput');
+          const rawVal = mobileInp && mobileInp.value ? mobileInp.value : (pcInp?.value || 250);
+          const addRaise = Math.min(50000, Math.max(100, parseInt(rawVal) || 200));
           sendPokerAction('raise', addRaise);
         } else if (act === 'allin') {
           sendPokerAction('allin');
@@ -6114,12 +6177,15 @@
         const pay = Math.min(state.balance, toCall);
         state.balance -= pay; poker.heroBet += pay; poker.pot += pay;
       } else if (act === 'raise') {
-        const r = Math.max(10, parseInt(document.getElementById('pokerRaiseInput').value) || 250);
+        const mobileInp = document.getElementById('pokerMobileRaiseInput');
+        const pcInp = document.getElementById('pokerRaiseInput');
+        const rawVal = mobileInp && mobileInp.value ? mobileInp.value : (pcInp?.value || 250);
+        const r = Math.min(50000, Math.max(10, parseInt(rawVal) || 250));
         const pay = Math.min(state.balance, toCall + r);
         state.balance -= pay; poker.heroBet += pay; poker.currentBet = poker.heroBet; poker.pot += pay;
       } else if (act === 'allin') {
-        const pay = state.balance;
-        state.balance = 0; poker.heroBet += pay; poker.currentBet = Math.max(poker.currentBet, poker.heroBet); poker.pot += pay;
+        const pay = Math.min(50000, state.balance);
+        state.balance -= pay; poker.heroBet += pay; poker.currentBet = Math.max(poker.currentBet, poker.heroBet); poker.pot += pay;
       }
 
       poker.opponents.forEach(o => {
@@ -6141,6 +6207,49 @@
       });
 
       saveState();
+
+      // RÈGLE OFFICIELLE POKER : Si tapis général (héros ou tous adversaires à 0), dérouler directement toutes les cartes manquantes !
+      const activeOpps = poker.opponents.filter(o => !o.folded && !o.isEmpty);
+      const isSoloAllIn = (act === 'allin' || state.balance === 0 || activeOpps.every(o => o.stack <= 0));
+      if (isSoloAllIn) {
+        while (poker.community.length < 5 && poker.deck.length > 0) {
+          poker.community.push(poker.deck.pop());
+        }
+        updatePokerCommunityReveal(5);
+        poker.phase = 'Showdown';
+
+        poker.inProgress = false;
+        setPokerBtns(false);
+        const heroEv = evaluateBestHand([...poker.heroCards, ...poker.community]);
+        let best = heroEv.score, winHero = true, winOpp = null;
+        poker.opponents.forEach(o => {
+          if (o.folded || o.isEmpty) return;
+          const ev = evaluateBestHand([...o.cards, ...poker.community]);
+          o.status = ev.name;
+          if (ev.score > best) { best = ev.score; winHero = false; winOpp = o; }
+        });
+        if (winHero) {
+          state.balance += poker.pot;
+          playCoinWinSound();
+          const winMsg = `🔥 Tapis général ! Tu remportes le pot de ${fmt(poker.pot)} avec ${heroEv.name} !`;
+          const annEl = document.getElementById('pokerTableAnnouncement');
+          if (annEl) annEl.textContent = winMsg;
+          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+          if (mAnnEl) mAnnEl.textContent = winMsg;
+          showToast(`🏆 +${fmt(poker.pot)} pièces au Poker !`);
+        } else if (winOpp) {
+          winOpp.stack += poker.pot;
+          if (winOpp.isFriend) state.friendBalances[winOpp.name] = winOpp.stack;
+          const oppMsg = `🔥 Tapis général ! ${winOpp.name} remporte le pot de ${fmt(poker.pot)} (${winOpp.status}).`;
+          const annEl = document.getElementById('pokerTableAnnouncement');
+          if (annEl) annEl.textContent = oppMsg;
+          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
+          if (mAnnEl) mAnnEl.textContent = oppMsg;
+        }
+        saveState();
+        renderPokerTable(true);
+        return;
+      }
       if (poker.phase === 'Pré-Flop') {
         poker.phase = 'Flop';
         poker.community.push(poker.deck.pop(), poker.deck.pop(), poker.deck.pop());
@@ -8272,9 +8381,14 @@
       pushRemoteAccount(state);
 
       bj.active = false;
+      bj.player = [];
+      bj.dealer = [];
       bjSyncTable = null;
       myBjReady = false;
       stopBjTurnTimer();
+      document.getElementById('bjActionControls')?.classList.add('hidden');
+      document.getElementById('bjReadyBtn')?.classList.add('hidden');
+      document.getElementById('bjDealBtn')?.classList.add('hidden');
 
       updateLobbyUI('bj');
       renderBlackjack();
@@ -8977,17 +9091,36 @@
 
       // --- RENDU MULTIJOUEUR SYNCHRONISÉ EN TEMPS RÉEL ---
       const myKey = (state.username || '').toLowerCase().trim();
+
+      // Si le joueur n'est pas assis ou a quitté la table : désactiver les commandes et vider le tapis
+      if (!getBjCurrentTableId() || state.currentTable?.leftTable) {
+        if (dealBtn) dealBtn.classList.add('hidden');
+        if (readyBtn) readyBtn.classList.add('hidden');
+        const actionControls = document.getElementById('bjActionControls');
+        if (actionControls) actionControls.classList.add('hidden');
+        updateCardSlot(document.getElementById('bjPlayerCards'), renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack'));
+        updateCardSlot(document.getElementById('bjDealerCards'), renderCardHTML(null, 'lg', true, 'blackjack') + renderCardHTML(null, 'lg', true, 'blackjack'));
+        document.getElementById('bjPlayerScore').textContent = '0';
+        document.getElementById('bjDealerScore').textContent = '0';
+        document.getElementById('bjStatusBanner').textContent = 'Choisis une table dans le salon ci-dessus pour t\'asseoir et jouer en multijoueur.';
+        if (playerBadge) playerBadge.classList.add('hidden');
+        if (coBadge) coBadge.classList.add('hidden');
+        if (dealerBadge) dealerBadge.classList.add('hidden');
+        return;
+      }
+
       const status = bjSyncTable?.status || 'waiting';
       const isWaiting = !bjSyncTable || status === 'waiting';
       const myPl = (!isWaiting && bjSyncTable && bjSyncTable.players) ? bjSyncTable.players[myKey] : null;
       const hasPlayed = !!((bjSyncTable && (bjSyncTable.hasPlayedRound || (bjSyncTable.roundId && status !== 'waiting'))) || (myProcessedBjRoundId !== null));
 
-      // 0. GESTION DES BOUTONS DISTRIBUER / PRÊT SELON LA PHASE
+      // 0. EN MULTIJOUEUR : RETRAIT DÉFINITIF DU BOUTON DISTRIBUER, SEUL LE BOUTON PRÊT EXISTE
+      if (dealBtn) dealBtn.classList.add('hidden');
+
       if (status === 'playing' || status === 'dealer_turn') {
-        if (dealBtn) dealBtn.classList.add('hidden');
         if (readyBtn) readyBtn.classList.add('hidden');
       } else {
-        // Phase d'attente ou fin de manche : les joueurs peuvent cliquer sur "Prêt ?" à tout moment
+        // Phase d'attente ou fin de manche : les deux joueurs valident "Prêt ?"
         if (readyBtn) {
           readyBtn.classList.remove('hidden');
           readyBtn.disabled = false;
@@ -8997,16 +9130,6 @@
           } else {
             readyBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
             readyBtn.textContent = "👍 Prêt ?";
-          }
-        }
-        if (dealBtn) {
-          if (isBjHost() && !myBjReady) {
-            dealBtn.classList.remove('hidden');
-            dealBtn.disabled = (bj.cooldownRemaining > 0);
-            dealBtn.className = "w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-300 to-amber-500 text-black shadow-lg hover:brightness-110 active:scale-[0.98] transition";
-            dealBtn.textContent = '🃏 Distribuer';
-          } else {
-            dealBtn.classList.add('hidden');
           }
         }
       }
@@ -9357,6 +9480,7 @@
 
       // Multi
       const tableId = getBjCurrentTableId();
+      if (!tableId || state.currentTable?.leftTable) return;
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;
@@ -9403,6 +9527,7 @@
 
       // Multi
       const tableId = getBjCurrentTableId();
+      if (!tableId || state.currentTable?.leftTable) return;
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       const myBet = (bjSyncTable?.players?.[myKey]?.bet) || bj.bet;
@@ -9457,6 +9582,7 @@
 
       // Multi
       const tableId = getBjCurrentTableId();
+      if (!tableId || state.currentTable?.leftTable) return;
       const myKey = (state.username || '').toLowerCase().trim();
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey) return;

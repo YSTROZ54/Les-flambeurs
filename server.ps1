@@ -1,4 +1,4 @@
-$port = 8080
+﻿$port = 8080
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 
@@ -561,6 +561,9 @@ while ($listener.IsListening) {
                                         }
                                     }
                                 } else {
+                                    if ($curTable.readyPlayers -and $curTable.readyPlayers.ContainsKey($pKey)) { $curTable.readyPlayers.Remove($pKey) }
+                                    if ($curTable.readyBets -and $curTable.readyBets.ContainsKey($pKey)) { $curTable.readyBets.Remove($pKey) }
+                                    if ($curTable.knownPlayers -and $curTable.knownPlayers.ContainsKey($pKey)) { $curTable.knownPlayers.Remove($pKey) }
                                     if ($curTable.players -and $curTable.players.ContainsKey($pKey)) {
                                         $curTable.players.Remove($pKey)
                                     }
@@ -1379,7 +1382,8 @@ while ($listener.IsListening) {
                             $p.status = "Suit ($($p.roundBet))"
                             if ([int]$p.stack -le 0) { $p.allIn = $true }
                         } elseif ($act -eq 'raise') {
-                            $raiseVal = if ($postObj.amount) { [Math]::Max(100, [int]$postObj.amount) } else { 200 }
+                            $maxAllowedRaise = [Math]::Max(100, 50000 - [int]$p.roundBet)
+                            $raiseVal = if ($postObj.amount) { [Math]::Min($maxAllowedRaise, [Math]::Max(100, [int]$postObj.amount)) } else { 200 }
                             $pay = [Math]::Min([int]$p.stack, $toCall + $raiseVal)
                             $p.stack = [int]$p.stack - $pay
                             $p.bet = [int]$p.bet + $pay
@@ -1390,8 +1394,9 @@ while ($listener.IsListening) {
                             $p.status = "Relance $($table.currentBet)"
                             if ([int]$p.stack -le 0) { $p.allIn = $true }
                         } elseif ($act -eq 'allin') {
-                            $pay = [int]$p.stack
-                            $p.stack = 0
+                            $maxAllIn = [Math]::Min(50000, [int]$p.stack)
+                            $pay = $maxAllIn
+                            $p.stack = [int]$p.stack - $pay
                             $p.bet = [int]$p.bet + $pay
                             $p.roundBet = [int]$p.roundBet + $pay
                             $table.pot = [int]$table.pot + $pay
@@ -1400,7 +1405,7 @@ while ($listener.IsListening) {
                                 $table.lastAggressor = $uKey
                             }
                             $p.allIn = $true
-                            $p.status = 'Tapis ! 🔥'
+                            $p.status = 'Tapis (' + $pay + ' EUR) !'
                         }
                         $p.updatedAt = $now
                         $table.actionCount = [int]$table.actionCount + 1
@@ -1442,6 +1447,45 @@ while ($listener.IsListening) {
                                     $table.turnEndsAt = $now + 120000
                                     $table.announcement = "Au tour de $($table.players[$nextTurn].username) (2 min)."
                                 }
+                            } elseif ($nonAllIn.Count -le 1 -and $activeRemaining.Count -ge 2) {
+                                # CAS TAPIS GÉNÉRAL / SHOWDOWN AUTOMATIQUE SANS TIMER
+                                # Dérouler toutes les cartes restantes du tableau jusqu'à 5 cartes
+                                $deck = $table.deck
+                                while ($table.community.Count -lt 5 -and $deck -and $deck.Count -gt 0) {
+                                    $c = $deck[-1]
+                                    $deck = $deck[0..($deck.Count - 2)]
+                                    $table.community += $c
+                                }
+                                $table.deck = $deck
+
+                                $table.status = 'finished'
+                                $table.turn = $null
+                                $table.turnEndsAt = 0
+                                $table.finishedAt = $now
+                                $table.nextRoundAt = $now + 5000
+
+                                $bestSc = -1
+                                $winners = @()
+                                foreach ($ak in $activeRemaining) {
+                                    $pl = $table.players[$ak]
+                                    $all7 = @($pl.cards) + @($table.community)
+                                    $ev = (& $evalHandFunc $all7)
+                                    $pl.status = $ev.name
+                                    $pl.handRank = $ev.name
+                                    $pl.score = $ev.score
+                                    if ([int]$ev.score -gt $bestSc) {
+                                        $bestSc = [int]$ev.score
+                                        $winners = @($pl)
+                                    } elseif ([int]$ev.score -eq $bestSc) {
+                                        $winners += $pl
+                                    }
+                                }
+
+                                $split = [Math]::Floor([int]$table.pot / $winners.Count)
+                                foreach ($w in $winners) { $w.stack = [int]$w.stack + $split }
+                                $wNames = (@($winners | ForEach-Object { $_.username }) -join " et ")
+                                $table.winner = @{ username = $wNames; pot = $table.pot; handName = $winners[0].handRank }
+                                 $table.announcement = "Tapis general ! Cartes devoilees, " + $wNames + " remporte le pot de " + $table.pot + " EUR avec " + $winners[0].handRank + " !"
                             } else {
                                 # Progression phase (preflop -> flop -> turn -> river -> showdown)
                                 $table.actionCount = 0
@@ -1492,7 +1536,7 @@ while ($listener.IsListening) {
 
                                     $split = [Math]::Floor([int]$table.pot / $winners.Count)
                                     foreach ($w in $winners) { $w.stack = [int]$w.stack + $split }
-                                    $wNames = @($winners | ForEach-Object { $_.username }) -join ' & '
+                                $wNames = (@($winners | ForEach-Object { $_.username }) -join " et ")
                                     $table.winner = @{ username = $wNames; pot = $table.pot; handName = $winners[0].handRank }
                                     $table.announcement = "🏆 $wNames remporte le pot de $($table.pot) € avec $($winners[0].handRank) !"
                                 }

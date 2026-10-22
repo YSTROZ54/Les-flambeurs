@@ -251,7 +251,55 @@ function advancePokerPhaseOrTurn(table, now) {
     }
   }
 
-  // 3. Tour de mise bouclé -> Passer à la phase suivante
+  // 3. CAS DOUBLE TAPIS / SHOWDOWN TOUS ALL-IN : RÈGLES OFFICIELLES DU POKER
+  // Si au moins 2 joueurs sont en lice et qu'il ne reste plus qu'un seul joueur avec des jetons (ou aucun),
+  // plus aucune mise n'est possible : le croupier dévoile immédiatement toutes les cartes manquantes (Flop/Turn/River) !
+  const isAllInShowdown = (activeKeys.length >= 2) && (nonAllInActive.length <= 1);
+  if (isAllInShowdown) {
+    while (table.community.length < 5 && table.deck && table.deck.length > 0) {
+      table.community.push(table.deck.pop());
+    }
+
+    table.status = 'finished';
+    table.turn = null;
+    table.turnEndsAt = 0;
+    table.finishedAt = now;
+    table.nextRoundAt = now + 5000;
+
+    let bestScore = -1;
+    let winners = [];
+    activeKeys.forEach(k => {
+      const p = table.players[k];
+      const ev = evaluateBestHand([...p.cards, ...table.community]);
+      p.status = ev.name;
+      p.handRank = ev.name;
+      p.score = ev.score;
+      if (ev.score > bestScore) {
+        bestScore = ev.score;
+        winners = [p];
+      } else if (ev.score === bestScore) {
+        winners.push(p);
+      }
+    });
+
+    const splitPot = Math.floor(table.pot / winners.length);
+    winners.forEach(w => {
+      w.stack += splitPot;
+      w.payout = splitPot;
+    });
+
+    const wNames = winners.map(w => w.username).join(' & ');
+    table.winner = {
+      username: wNames,
+      pot: table.pot,
+      handName: winners[0]?.handRank || 'Paire'
+    };
+    table.announcement = `🔥 Tapis général ! Cartes dévoilées, ${wNames} remporte le pot (${table.pot} €) avec ${winners[0]?.handRank || 'Meilleure main'} !`;
+    table.updatedAt = now;
+    return;
+  }
+
+  // 4. Tour de mise bouclé -> Passer à la phase suivante
   table.actionCount = 0;
   table.currentBet = 0;
   table.lastAggressor = null;
@@ -690,7 +738,8 @@ export default async function handler(req, res) {
           p.lastAction = 'call';
           if (p.stack <= 0) p.allIn = true;
         } else if (action === 'raise') {
-          const addRaise = Math.max(100, parseInt(body.amount) || 200);
+          const maxAllowedRaise = Math.max(100, 50000 - (p.roundBet || 0));
+          const addRaise = Math.min(maxAllowedRaise, Math.max(100, parseInt(body.amount) || 200));
           const pay = Math.min(p.stack, toCall + addRaise);
           p.stack -= pay;
           p.bet += pay;
@@ -702,8 +751,9 @@ export default async function handler(req, res) {
           p.lastAction = 'raise';
           if (p.stack <= 0) p.allIn = true;
         } else if (action === 'allin') {
-          const pay = p.stack;
-          p.stack = 0;
+          const maxAllIn = Math.min(50000, p.stack);
+          const pay = maxAllIn;
+          p.stack -= pay;
           p.bet += pay;
           p.roundBet += pay;
           table.pot += pay;
@@ -712,7 +762,7 @@ export default async function handler(req, res) {
             table.lastAggressor = uKey;
           }
           p.allIn = true;
-          p.status = 'Tapis ! 🔥';
+          p.status = `Tapis (${pay} €) ! 🔥`;
           p.lastAction = 'allin';
         }
 

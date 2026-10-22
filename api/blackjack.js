@@ -633,6 +633,10 @@ export default async function handler(req, res) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
 
+      if (table.readyPlayers && table.readyPlayers[pKey]) delete table.readyPlayers[pKey];
+      if (table.readyBets && table.readyBets[pKey]) delete table.readyBets[pKey];
+      if (table.knownPlayers && table.knownPlayers[pKey]) delete table.knownPlayers[pKey];
+
       if (table.status === 'playing' || table.status === 'dealer_turn') {
         const remainingKeys = (table.playerOrder || Object.keys(table.players || {})).filter(k => k !== pKey && table.players && table.players[k]);
         if (remainingKeys.length === 1) {
