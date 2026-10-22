@@ -1,4 +1,4 @@
-$port = 8080
+﻿$port = 8080
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 
@@ -897,6 +897,598 @@ while ($listener.IsListening) {
             } else {
                 $outJson = $respTable | ConvertTo-Json -Depth 8
             }
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+            $response.StatusCode = 200
+            $response.ContentLength64 = $bytes.Length
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # ENDPOINT JEU POKER MULTIJOUEUR EN LIGNE SYNCHRONISE : /api/poker
+        if ($urlPath -eq '/api/poker') {
+            $pokerFile = Join-Path $baseDir "poker_state.json"
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            $response.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+
+            if ($request.HttpMethod -eq 'OPTIONS') {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
+            $currentTables = $null
+            if (Test-Path $pokerFile) {
+                try {
+                    $raw = Get-Content -Raw -Encoding UTF8 $pokerFile
+                    if ($raw) { $currentTables = Convert-PSObjectToHashtable ($raw | ConvertFrom-Json) }
+                } catch {}
+            }
+            if (-not $currentTables) { $currentTables = @{} }
+
+            $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+
+            # Configuration des 9 tables publiques
+            $pokerConfigs = @{
+                'poker_1v1_1'  = @{ id = 'poker_1v1_1';  name = 'Table 1 • Duel des As'; maxSeats = 2 }
+                'poker_1v1_2'  = @{ id = 'poker_1v1_2';  name = 'Table 2 • Heads-Up Flambeur'; maxSeats = 2 }
+                'poker_1v1_3'  = @{ id = 'poker_1v1_3';  name = 'Table 3 • Showdown VIP'; maxSeats = 2 }
+                'poker_4max_1' = @{ id = 'poker_4max_1'; name = 'Table 4 • Texas Flambeur'; maxSeats = 4 }
+                'poker_4max_2' = @{ id = 'poker_4max_2'; name = 'Table 5 • Vegas VIP Club'; maxSeats = 4 }
+                'poker_4max_3' = @{ id = 'poker_4max_3'; name = 'Table 6 • Cercle Privilège'; maxSeats = 4 }
+                'poker_6max_1' = @{ id = 'poker_6max_1'; name = 'Table 7 • 6-Max Royale'; maxSeats = 6 }
+                'poker_6max_2' = @{ id = 'poker_6max_2'; name = 'Table 8 • Grand Tournoi Cash'; maxSeats = 6 }
+                'poker_6max_3' = @{ id = 'poker_6max_3'; name = 'Table 9 • Table des Maîtres'; maxSeats = 6 }
+            }
+
+            # Helper deck
+            $newDeckFunc = {
+                $deck = @()
+                $suits = @(
+                    @{ s='♠'; color='text-slate-900'; type='suit-black' },
+                    @{ s='♣'; color='text-slate-900'; type='suit-black' },
+                    @{ s='♥'; color='text-red-500'; type='suit-red' },
+                    @{ s='♦'; color='text-red-500'; type='suit-red' }
+                )
+                $ranks = @(
+                    @{ r='2'; v=2 }, @{ r='3'; v=3 }, @{ r='4'; v=4 }, @{ r='5'; v=5 },
+                    @{ r='6'; v=6 }, @{ r='7'; v=7 }, @{ r='8'; v=8 }, @{ r='9'; v=9 },
+                    @{ r='10'; v=10 }, @{ r='J'; v=11 }, @{ r='Q'; v=12 }, @{ r='K'; v=13 },
+                    @{ r='A'; v=14 }
+                )
+                foreach ($st in $suits) {
+                    foreach ($rk in $ranks) {
+                        $deck += @{ r=$rk.r; v=$rk.v; s=$st.s; color=$st.color; type=$st.type }
+                    }
+                }
+                $rnd = New-Object Random
+                for ($i = $deck.Count - 1; $i -gt 0; $i--) {
+                    $j = $rnd.Next($i + 1)
+                    $tmp = $deck[$i]; $deck[$i] = $deck[$j]; $deck[$j] = $tmp
+                }
+                return ,$deck
+            }
+
+            # Helper évaluateur de main Texas Hold'em
+            $evalHandFunc = {
+                param($cards)
+                if (-not $cards -or $cards.Count -lt 2) { return @{ score = 0; name = 'Carte Haute' } }
+                $counts = @{}
+                $suits = @{}
+                $vals = @()
+                foreach ($c in $cards) {
+                    $v = [int]$c.v
+                    $s = [string]$c.s
+                    if ($counts.ContainsKey($v)) { $counts[$v] = $counts[$v] + 1 } else { $counts[$v] = 1 }
+                    if ($suits.ContainsKey($s)) { $suits[$s] = $suits[$s] + 1 } else { $suits[$s] = 1 }
+                    $vals += $v
+                }
+                $vals = @($vals | Sort-Object -Descending)
+                $isFlush = $false
+                foreach ($stKey in $suits.Keys) { if ($suits[$stKey] -ge 5) { $isFlush = $true; break } }
+
+                $uniq = @($vals | Select-Object -Unique)
+                $isStraight = $false
+                $sHigh = 0
+                if ($uniq.Count -ge 5) {
+                    for ($i = 0; $i -le $uniq.Count - 5; $i++) {
+                        if (($uniq[$i] - $uniq[$i + 4]) -eq 4) {
+                            $isStraight = $true
+                            $sHigh = $uniq[$i]
+                            break
+                        }
+                    }
+                }
+                if (-not $isStraight -and ($uniq -contains 14) -and ($uniq -contains 2) -and ($uniq -contains 3) -and ($uniq -contains 4) -and ($uniq -contains 5)) {
+                    $isStraight = $true
+                    $sHigh = 5
+                }
+
+                $groups = @()
+                foreach ($k in $counts.Keys) { $groups += @{ v = [int]$k; c = [int]$counts[$k] } }
+                $groups = @($groups | Sort-Object -Property @{Expression={$_.c}; Descending=$true}, @{Expression={$_.v}; Descending=$true})
+
+                if ($isFlush -and $isStraight) { return @{ score = (800 + $sHigh); name = 'Quinte Flush 🔥' } }
+                if ($groups[0].c -eq 4) { return @{ score = (700 + $groups[0].v); name = 'Carré 💣' } }
+                if ($groups[0].c -eq 3 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (600 + $groups[0].v); name = 'Full House 👑' } }
+                if ($isFlush) { return @{ score = (500 + $vals[0]); name = 'Couleur ♦️' } }
+                if ($isStraight) { return @{ score = (400 + $sHigh); name = 'Suite ⚡' } }
+                if ($groups[0].c -eq 3) { return @{ score = (300 + $groups[0].v); name = 'Brelan 🎯' } }
+                if ($groups[0].c -eq 2 -and $groups.Count -gt 1 -and $groups[1].c -ge 2) { return @{ score = (200 + $groups[0].v); name = 'Double Paire ✨' } }
+                if ($groups[0].c -eq 2) { return @{ score = (100 + $groups[0].v); name = 'Paire' } }
+                return @{ score = $vals[0]; name = 'Carte Haute' }
+            }
+
+            # Helper table par défaut
+            $getDefaultPokerTable = {
+                param($tId)
+                $cfg = if ($pokerConfigs.ContainsKey($tId)) { $pokerConfigs[$tId] } else { $pokerConfigs['poker_4max_1'] }
+                return @{
+                    tableId = $cfg.id
+                    name = $cfg.name
+                    maxSeats = $cfg.maxSeats
+                    blind = 100
+                    roundId = 0
+                    status = 'waiting'
+                    countdownEndsAt = 0
+                    pot = 0
+                    currentBet = 100
+                    community = @()
+                    deck = @()
+                    dealerIndex = 0
+                    turn = $null
+                    turnEndsAt = 0
+                    actionCount = 0
+                    lastAggressor = $null
+                    players = @{}
+                    playerOrder = @()
+                    winner = $null
+                    finishedAt = 0
+                    nextRoundAt = 0
+                    announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis..."
+                    updatedAt = $now
+                }
+            }
+
+            $reqTableId = 'poker_4max_1'
+            $clientUser = ""
+
+            if ($request.HttpMethod -eq 'GET') {
+                if ($request.QueryString["table"]) { $reqTableId = [string]$request.QueryString["table"].ToLower().Trim() }
+                if ($request.QueryString["tableId"]) { $reqTableId = [string]$request.QueryString["tableId"].ToLower().Trim() }
+                if ($request.QueryString["user"]) { $clientUser = [string]$request.QueryString["user"].Trim() }
+            } elseif ($request.HttpMethod -eq 'POST') {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $postRaw = $reader.ReadToEnd()
+                $reader.Close()
+                $postObj = if ($postRaw) { Convert-PSObjectToHashtable ($postRaw | ConvertFrom-Json) } else { @{} }
+                if ($postObj.tableId) { $reqTableId = [string]$postObj.tableId.ToLower().Trim() }
+                if ($postObj.username) { $clientUser = [string]$postObj.username.Trim() }
+            }
+
+            if (-not $pokerConfigs.ContainsKey($reqTableId)) { $reqTableId = 'poker_4max_1' }
+
+            if (-not $currentTables.ContainsKey($reqTableId) -or -not $currentTables[$reqTableId]) {
+                $currentTables[$reqTableId] = (& $getDefaultPokerTable $reqTableId)
+            }
+            $table = $currentTables[$reqTableId]
+
+            # BOT CROUPIER : Cycle automatique
+            # 1. Nettoyer les joueurs inactifs (> 25s)
+            $orderKeys = @($table.playerOrder)
+            foreach ($pk in $orderKeys) {
+                if ($table.players -and $table.players.ContainsKey($pk)) {
+                    $p = $table.players[$pk]
+                    if ($p.updatedAt -and ($now - [int64]$p.updatedAt -gt 25000)) {
+                        if (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
+                            $p.folded = $true
+                            $p.status = 'A quitté'
+                        }
+                        $table.players.Remove($pk)
+                        $table.playerOrder = @($table.playerOrder | Where-Object { $_ -ne $pk })
+                    }
+                }
+            }
+
+            # 2. Gestion WAITING -> COUNTDOWN
+            $seatedCount = if ($table.players) { $table.players.Count } else { 0 }
+            if ($table.status -eq 'waiting') {
+                if ($seatedCount -ge 2) {
+                    $table.status = 'countdown'
+                    $table.countdownEndsAt = $now + 4000
+                    $table.announcement = "🤖 Croupier : $seatedCount flambeurs assis ! La donne commence dans 4s..."
+                    $table.updatedAt = $now
+                }
+            }
+            elseif ($table.status -eq 'countdown') {
+                if ($seatedCount -lt 2) {
+                    $table.status = 'waiting'
+                    $table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis..."
+                    $table.updatedAt = $now
+                } elseif ($now -ge [int64]$table.countdownEndsAt) {
+                    # Lancement automatique de la main
+                    $pKeys = @($table.playerOrder)
+                    $deck = (& $newDeckFunc)
+                    $table.roundId = $now
+                    $table.community = @()
+                    $table.blind = 100
+                    $table.pot = (100 * $pKeys.Count)
+                    $table.currentBet = 100
+                    $table.winner = $null
+                    $table.actionCount = 0
+                    $table.lastAggressor = $null
+                    $table.dealerIndex = (([int]$table.dealerIndex + 1) % $pKeys.Count)
+
+                    foreach ($pk in $pKeys) {
+                        $p = $table.players[$pk]
+                        if ([int]$p.stack -lt 100) { $p.stack = 5000 }
+                        $p.stack = [int]$p.stack - 100
+                        $p.bet = 100
+                        $p.roundBet = 100
+                        $c1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                        $c2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                        $p.cards = @($c1, $c2)
+                        $p.folded = $false
+                        $p.allIn = $false
+                        $p.status = 'Blind 100 €'
+                        $p.updatedAt = $now
+                    }
+                    $table.deck = $deck
+                    $firstTurnIdx = if ($pKeys.Count -eq 2) { [int]$table.dealerIndex } else { (([int]$table.dealerIndex + 1) % $pKeys.Count) }
+                    $table.turn = $pKeys[$firstTurnIdx]
+                    $table.turnEndsAt = $now + 20000
+                    $table.status = 'preflop'
+                    $table.announcement = "🤖 Croupier : Cartes distribuées ! Au tour de $($table.players[$table.turn].username) (20s)."
+                    $table.updatedAt = $now
+                }
+            }
+            # 3. Gestion Timeout tour (20s)
+            elseif (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
+                if ($table.turn -and $table.turnEndsAt -and ($now -gt [int64]$table.turnEndsAt)) {
+                    $turnPk = [string]$table.turn
+                    if ($table.players.ContainsKey($turnPk)) {
+                        $p = $table.players[$turnPk]
+                        $toCall = [Math]::Max(0, [int]$table.currentBet - [int]$p.roundBet)
+                        if ($toCall -le 0) {
+                            $p.status = 'Parole (Auto)'
+                        } else {
+                            $p.folded = $true
+                            $p.status = 'Couché (Temps)'
+                        }
+                        $table.actionCount = [int]$table.actionCount + 1
+                        $table.updatedAt = $now
+
+                        # Vérifier fin de manche ou tour
+                        $activeRemaining = @($table.playerOrder | Where-Object { $table.players[$_] -and -not $table.players[$_].folded })
+                        if ($activeRemaining.Count -le 1) {
+                            $wKey = $activeRemaining[0]
+                            $wPlayer = $table.players[$wKey]
+                            $wPlayer.stack = [int]$wPlayer.stack + [int]$table.pot
+                            $table.winner = @{ username = $wPlayer.username; pot = $table.pot; handName = 'Adversaires couchés' }
+                            $table.status = 'finished'
+                            $table.finishedAt = $now
+                            $table.nextRoundAt = $now + 5000
+                            $table.announcement = "🏆 $($wPlayer.username) remporte le pot de $($table.pot) € !"
+                        } else {
+                            # Suivant
+                            $sIdx = [array]::IndexOf($table.playerOrder, $turnPk)
+                            $nextTurn = $null
+                            for ($i = 1; $i -le $table.playerOrder.Count; $i++) {
+                                $candKey = $table.playerOrder[($sIdx + $i) % $table.playerOrder.Count]
+                                if ($table.players[$candKey] -and -not $table.players[$candKey].folded -and -not $table.players[$candKey].allIn) {
+                                    $nextTurn = $candKey; break
+                                }
+                            }
+                            if ($nextTurn) {
+                                $table.turn = $nextTurn
+                                $table.turnEndsAt = $now + 20000
+                                $table.announcement = "Au tour de $($table.players[$nextTurn].username) (20s)."
+                            }
+                        }
+                    }
+                }
+            }
+            # 4. Relance automatique de la manche finie
+            elseif ($table.status -eq 'finished') {
+                if ($table.nextRoundAt -and ($now -ge [int64]$table.nextRoundAt)) {
+                    if ($seatedCount -ge 2) {
+                        # Relance donne
+                        $pKeys = @($table.playerOrder)
+                        $deck = (& $newDeckFunc)
+                        $table.roundId = $now
+                        $table.community = @()
+                        $table.blind = 100
+                        $table.pot = (100 * $pKeys.Count)
+                        $table.currentBet = 100
+                        $table.winner = $null
+                        $table.actionCount = 0
+                        $table.lastAggressor = $null
+                        $table.dealerIndex = (([int]$table.dealerIndex + 1) % $pKeys.Count)
+
+                        foreach ($pk in $pKeys) {
+                            $p = $table.players[$pk]
+                            if ([int]$p.stack -lt 100) { $p.stack = 5000 }
+                            $p.stack = [int]$p.stack - 100
+                            $p.bet = 100
+                            $p.roundBet = 100
+                            $c1 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                            $c2 = $deck[-1]; $deck = $deck[0..($deck.Count - 2)]
+                            $p.cards = @($c1, $c2)
+                            $p.folded = $false
+                            $p.allIn = $false
+                            $p.status = 'Blind 100 €'
+                            $p.updatedAt = $now
+                        }
+                        $table.deck = $deck
+                        $firstTurnIdx = if ($pKeys.Count -eq 2) { [int]$table.dealerIndex } else { (([int]$table.dealerIndex + 1) % $pKeys.Count) }
+                        $table.turn = $pKeys[$firstTurnIdx]
+                        $table.turnEndsAt = $now + 20000
+                        $table.status = 'preflop'
+                        $table.announcement = "🤖 Croupier : Nouvelle main ! Au tour de $($table.players[$table.turn].username) (20s)."
+                        $table.updatedAt = $now
+                    } else {
+                        $table.status = 'waiting'
+                        $table.community = @()
+                        $table.pot = 0
+                        $table.winner = $null
+                        $table.announcement = "🤖 Croupier : En attente d'autres joueurs..."
+                        $table.updatedAt = $now
+                    }
+                }
+            }
+
+            # GESTION DES REQUETES POST (ACTIONS JOUEUR)
+            if ($request.HttpMethod -eq 'POST' -and $postObj -and $postObj.action) {
+                $act = [string]$postObj.action
+                $uKey = if ($clientUser) { $clientUser.ToLower().Trim() } else { "" }
+
+                if ($act -eq 'join' -and $uKey) {
+                    if (-not $table.players.ContainsKey($uKey)) {
+                        if ($table.playerOrder.Count -lt [int]$table.maxSeats) {
+                            $av = if ($postObj.avatar) { $postObj.avatar } else { "👤" }
+                            $stk = if ($postObj.balance) { [int]$postObj.balance } else { 5500 }
+                            $table.players[$uKey] = @{
+                                username = $clientUser
+                                avatar = $av
+                                stack = [Math]::Max(100, $stk)
+                                bet = 0
+                                roundBet = 0
+                                cards = @()
+                                folded = $false
+                                allIn = $false
+                                status = 'Prêt'
+                                updatedAt = $now
+                            }
+                            $table.playerOrder += $uKey
+                            $table.announcement = "👤 $clientUser s'est assis à la table !"
+                            $table.updatedAt = $now
+                            if ($table.status -eq 'waiting' -and $table.playerOrder.Count -ge 2) {
+                                $table.status = 'countdown'
+                                $table.countdownEndsAt = $now + 4000
+                                $table.announcement = "🤖 Croupier : $($table.playerOrder.Count) flambeurs assis ! La donne commence dans 4s..."
+                            }
+                        }
+                    } else {
+                        $table.players[$uKey].updatedAt = $now
+                    }
+                }
+                elseif ($act -eq 'leave' -and $uKey) {
+                    if ($table.players.ContainsKey($uKey)) {
+                        if (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
+                            $table.players[$uKey].folded = $true
+                            $table.players[$uKey].status = 'A quitté'
+                        }
+                        $table.players.Remove($uKey)
+                        $table.playerOrder = @($table.playerOrder | Where-Object { $_ -ne $uKey })
+                        $table.announcement = "🚪 $clientUser a quitté la table."
+                        $table.updatedAt = $now
+
+                        $activeRemaining = @($table.playerOrder | Where-Object { $table.players[$_] -and -not $table.players[$_].folded })
+                        if (@('preflop', 'flop', 'turn', 'river') -contains $table.status -and $activeRemaining.Count -le 1) {
+                            $wKey = $activeRemaining[0]
+                            if ($wKey -and $table.players.ContainsKey($wKey)) {
+                                $wPlayer = $table.players[$wKey]
+                                $wPlayer.stack = [int]$wPlayer.stack + [int]$table.pot
+                                $table.winner = @{ username = $wPlayer.username; pot = $table.pot; handName = 'Adversaires couchés' }
+                                $table.status = 'finished'
+                                $table.finishedAt = $now
+                                $table.nextRoundAt = $now + 5000
+                                $table.announcement = "🏆 $($wPlayer.username) remporte le pot de $($table.pot) € !"
+                            }
+                        }
+                    }
+                }
+                elseif ($act -eq 'ping' -and $uKey) {
+                    if ($table.players.ContainsKey($uKey)) {
+                        $table.players[$uKey].updatedAt = $now
+                    }
+                }
+                elseif (@('fold', 'check', 'call', 'raise', 'allin') -contains $act -and $uKey) {
+                    if (@('preflop', 'flop', 'turn', 'river') -contains $table.status -and $table.turn -eq $uKey -and $table.players.ContainsKey($uKey)) {
+                        $p = $table.players[$uKey]
+                        $toCall = [Math]::Max(0, [int]$table.currentBet - [int]$p.roundBet)
+
+                        if ($act -eq 'fold') {
+                            $p.folded = $true
+                            $p.status = 'Couché'
+                        } elseif ($act -eq 'check') {
+                            if ($toCall -le 0) {
+                                $p.status = 'Parole'
+                            } else {
+                                $p.folded = $true
+                                $p.status = 'Couché'
+                            }
+                        } elseif ($act -eq 'call') {
+                            $pay = [Math]::Min([int]$p.stack, $toCall)
+                            $p.stack = [int]$p.stack - $pay
+                            $p.bet = [int]$p.bet + $pay
+                            $p.roundBet = [int]$p.roundBet + $pay
+                            $table.pot = [int]$table.pot + $pay
+                            $p.status = "Suit ($($p.roundBet))"
+                            if ([int]$p.stack -le 0) { $p.allIn = $true }
+                        } elseif ($act -eq 'raise') {
+                            $raiseVal = if ($postObj.amount) { [Math]::Max(100, [int]$postObj.amount) } else { 200 }
+                            $pay = [Math]::Min([int]$p.stack, $toCall + $raiseVal)
+                            $p.stack = [int]$p.stack - $pay
+                            $p.bet = [int]$p.bet + $pay
+                            $p.roundBet = [int]$p.roundBet + $pay
+                            $table.currentBet = [int]$p.roundBet
+                            $table.pot = [int]$table.pot + $pay
+                            $table.lastAggressor = $uKey
+                            $p.status = "Relance $($table.currentBet)"
+                            if ([int]$p.stack -le 0) { $p.allIn = $true }
+                        } elseif ($act -eq 'allin') {
+                            $pay = [int]$p.stack
+                            $p.stack = 0
+                            $p.bet = [int]$p.bet + $pay
+                            $p.roundBet = [int]$p.roundBet + $pay
+                            $table.pot = [int]$table.pot + $pay
+                            if ([int]$p.roundBet -gt [int]$table.currentBet) {
+                                $table.currentBet = [int]$p.roundBet
+                                $table.lastAggressor = $uKey
+                            }
+                            $p.allIn = $true
+                            $p.status = 'Tapis ! 🔥'
+                        }
+                        $p.updatedAt = $now
+                        $table.actionCount = [int]$table.actionCount + 1
+                        $table.updatedAt = $now
+
+                        # Vérifier fin de manche par couchage
+                        $activeRemaining = @($table.playerOrder | Where-Object { $table.players[$_] -and -not $table.players[$_].folded })
+                        if ($activeRemaining.Count -le 1) {
+                            $wKey = $activeRemaining[0]
+                            if ($wKey -and $table.players.ContainsKey($wKey)) {
+                                $wPlayer = $table.players[$wKey]
+                                $wPlayer.stack = [int]$wPlayer.stack + [int]$table.pot
+                                $table.winner = @{ username = $wPlayer.username; pot = $table.pot; handName = 'Adversaires couchés' }
+                                $table.status = 'finished'
+                                $table.finishedAt = $now
+                                $table.nextRoundAt = $now + 5000
+                                $table.announcement = "🏆 $($wPlayer.username) remporte le pot de $($table.pot) € !"
+                            }
+                        } else {
+                            # Vérifier si tour de mise égalisé
+                            $nonAllIn = @($activeRemaining | Where-Object { -not $table.players[$_].allIn })
+                            $allMatched = $true
+                            foreach ($nak in $nonAllIn) {
+                                if ([int]$table.players[$nak].roundBet -ne [int]$table.currentBet) { $allMatched = $false; break }
+                            }
+                            $roundSettled = ($table.actionCount -ge $nonAllIn.Count -and $allMatched) -or ($nonAllIn.Count -le 1)
+
+                            if (-not $roundSettled) {
+                                $sIdx = [array]::IndexOf($table.playerOrder, $uKey)
+                                $nextTurn = $null
+                                for ($i = 1; $i -le $table.playerOrder.Count; $i++) {
+                                    $candKey = $table.playerOrder[($sIdx + $i) % $table.playerOrder.Count]
+                                    if ($table.players[$candKey] -and -not $table.players[$candKey].folded -and -not $table.players[$candKey].allIn) {
+                                        $nextTurn = $candKey; break
+                                    }
+                                }
+                                if ($nextTurn) {
+                                    $table.turn = $nextTurn
+                                    $table.turnEndsAt = $now + 20000
+                                    $table.announcement = "Au tour de $($table.players[$nextTurn].username) (20s)."
+                                }
+                            } else {
+                                # Progression phase (preflop -> flop -> turn -> river -> showdown)
+                                $table.actionCount = 0
+                                $table.currentBet = 0
+                                $table.lastAggressor = $null
+                                foreach ($pk in $table.playerOrder) { if ($table.players[$pk]) { $table.players[$pk].roundBet = 0 } }
+
+                                if ($table.status -eq 'preflop') {
+                                    $table.status = 'flop'
+                                    $deck = $table.deck
+                                    $c1 = $deck[-1]; $c2 = $deck[-2]; $c3 = $deck[-3]
+                                    $table.deck = $deck[0..($deck.Count - 4)]
+                                    $table.community = @($c1, $c2, $c3)
+                                } elseif ($table.status -eq 'flop') {
+                                    $table.status = 'turn'
+                                    $deck = $table.deck
+                                    $c1 = $deck[-1]
+                                    $table.deck = $deck[0..($deck.Count - 2)]
+                                    $table.community += $c1
+                                } elseif ($table.status -eq 'turn') {
+                                    $table.status = 'river'
+                                    $deck = $table.deck
+                                    $c1 = $deck[-1]
+                                    $table.deck = $deck[0..($deck.Count - 2)]
+                                    $table.community += $c1
+                                } elseif ($table.status -eq 'river') {
+                                    # Showdown !
+                                    $table.status = 'finished'
+                                    $table.finishedAt = $now
+                                    $table.nextRoundAt = $now + 6500
+
+                                    $bestSc = -1
+                                    $winners = @()
+                                    foreach ($ak in $activeRemaining) {
+                                        $pl = $table.players[$ak]
+                                        $all7 = @($pl.cards) + @($table.community)
+                                        $ev = (& $evalHandFunc $all7)
+                                        $pl.status = $ev.name
+                                        $pl.handRank = $ev.name
+                                        $pl.score = $ev.score
+                                        if ([int]$ev.score -gt $bestSc) {
+                                            $bestSc = [int]$ev.score
+                                            $winners = @($pl)
+                                        } elseif ([int]$ev.score -eq $bestSc) {
+                                            $winners += $pl
+                                        }
+                                    }
+
+                                    $split = [Math]::Floor([int]$table.pot / $winners.Count)
+                                    foreach ($w in $winners) { $w.stack = [int]$w.stack + $split }
+                                    $wNames = @($winners | ForEach-Object { $_.username }) -join ' & '
+                                    $table.winner = @{ username = $wNames; pot = $table.pot; handName = $winners[0].handRank }
+                                    $table.announcement = "🏆 $wNames remporte le pot de $($table.pot) € avec $($winners[0].handRank) !"
+                                }
+
+                                if ($table.status -ne 'finished') {
+                                    # Définir le tour du premier joueur actif
+                                    $dIdx = [int]$table.dealerIndex
+                                    $nextTurn = $null
+                                    for ($i = 1; $i -le $table.playerOrder.Count; $i++) {
+                                        $candKey = $table.playerOrder[($dIdx + $i) % $table.playerOrder.Count]
+                                        if ($table.players[$candKey] -and -not $table.players[$candKey].folded -and -not $table.players[$candKey].allIn) {
+                                            $nextTurn = $candKey; break
+                                        }
+                                    }
+                                    $table.turn = $nextTurn
+                                    $table.turnEndsAt = $now + 20000
+                                    $table.announcement = "Le Croupier avance le jeu ! Au tour de $($table.players[$nextTurn].username) (20s)."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            # Sauvegarder poker_state.json
+            try {
+                $pokerOut = $currentTables | ConvertTo-Json -Depth 10
+                Set-Content -Path $pokerFile -Value $pokerOut -Encoding UTF8
+            } catch {}
+
+            # Sécuriser les cartes des adversaires
+            $respTable = Convert-PSObjectToHashtable ($table | ConvertTo-Json -Depth 10 | ConvertFrom-Json)
+            if ($respTable.status -ne 'finished' -and $respTable.players) {
+                $myK = if ($clientUser) { $clientUser.ToLower().Trim() } else { "" }
+                foreach ($pk in $respTable.players.Keys) {
+                    if ($pk -ne $myK) {
+                        $opp = $respTable.players[$pk]
+                        if ($opp.cards) {
+                            $opp.cards = @(@{ hidden = $true }, @{ hidden = $true })
+                        }
+                    }
+                }
+            }
+            if ($respTable.ContainsKey('deck')) { $respTable.Remove('deck') }
+
+            $outJson = $respTable | ConvertTo-Json -Depth 8
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
             $response.StatusCode = 200
             $response.ContentLength64 = $bytes.Length

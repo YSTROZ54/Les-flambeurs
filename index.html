@@ -628,6 +628,15 @@
             🃏 Distribuer les cartes
           </button>
 
+          <!-- Bandeau Croupier Automatique (Multijoueur) -->
+          <div id="pokerDealerBotBanner" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-400/30 text-center space-y-1 shadow-inner">
+            <div class="text-[10px] uppercase tracking-widest text-amber-300 font-extrabold flex items-center justify-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>🤖 Croupier Automatique Actif</span>
+            </div>
+            <div id="pokerDealerBotStatus" class="text-xs font-bold text-white">En attente d'un 2ème joueur...</div>
+          </div>
+
           <div class="space-y-2 pt-1">
             <button id="btnPokerCheckCall" onclick="playerPokerAction('call')" disabled class="w-full py-3 rounded-xl font-extrabold text-xs bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-30 transition">
               ✔ Parole / Suivre
@@ -4460,7 +4469,7 @@
 
     function renderCardHTML(c, size = 'lg', hidden = false, game = 'poker') {
       const sizeClass = size === 'sm' ? 'card-sm' : 'card-lg';
-      if (hidden || !c) {
+      if (hidden || !c || c.hidden) {
         return `<div class="playing-card ${sizeClass} card-back"></div>`;
       }
       let skinClass = '';
@@ -4631,6 +4640,26 @@
       // avait misé reste au milieu et elle est retirée de la table.
       // ==============================================================
       if (game === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
+        const tableId = (lobbies.poker.publicTableId || '').toLowerCase().trim();
+        if (tableId) {
+          try {
+            const leavePayload = JSON.stringify({
+              action: 'leave',
+              tableId: tableId,
+              username: state.username
+            });
+            if (navigator.sendBeacon) {
+              navigator.sendBeacon(getPokerApiUrl(), new Blob([leavePayload], { type: 'application/json' }));
+            }
+            fetch(getPokerApiUrl(), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: leavePayload,
+              keepalive: true
+            }).catch(() => {});
+          } catch (e) {}
+        }
+
         const inHand = poker.inProgress;
         const realPlayers = getTableParticipants('poker');
 
@@ -4924,6 +4953,11 @@
         const pubBrowser = document.getElementById('pokerPublicTablesBrowser');
         if (pubBrowser) pubBrowser.classList.toggle('hidden', !isMulti);
 
+        const dealBtn = document.getElementById('pokerDealBtn');
+        const botBanner = document.getElementById('pokerDealerBotBanner');
+        if (dealBtn) dealBtn.classList.toggle('hidden', isMulti);
+        if (botBanner) botBanner.classList.toggle('hidden', !isMulti);
+
         // Rendu des 9 tables publiques de Poker
         if (isMulti) {
           renderPokerPublicTablesBrowser();
@@ -5182,7 +5216,7 @@
               </div>
             </div>
             <div class="flex gap-1 flex-shrink-0">
-              ${o.cards.length === 2 ? o.cards.map(c => renderCardHTML(c, 'sm', !revealAll, 'poker')).join('') : renderCardHTML(null, 'sm', true, 'poker') + renderCardHTML(null, 'sm', true, 'poker')}
+              ${o.cards.length === 2 ? o.cards.map(c => renderCardHTML(c, 'sm', c.hidden || !revealAll, 'poker')).join('') : renderCardHTML(null, 'sm', true, 'poker') + renderCardHTML(null, 'sm', true, 'poker')}
             </div>
           </div>
         `;
@@ -5201,12 +5235,14 @@
         poker.community[idx] ? renderCardHTML(poker.community[idx], 'lg', false, 'poker') : `<div class="w-[50px] h-[74px] sm:w-[62px] sm:h-[90px] rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center text-[10px] text-white/30">${l}</div>`
       ).join('');
 
-      document.getElementById('pokerHeroCards').innerHTML = poker.heroCards.length === 2
+      document.getElementById('pokerHeroCards').innerHTML = poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r
         ? poker.heroCards.map(c => renderCardHTML(c, 'lg', false, 'poker')).join('')
         : renderCardHTML(null, 'lg', true, 'poker') + renderCardHTML(null, 'lg', true, 'poker');
 
-      if (poker.heroCards.length === 2) {
+      if (poker.heroCards.length === 2 && poker.heroCards[0] && poker.heroCards[0].r) {
         document.getElementById('pokerHeroHandRank').textContent = evaluateBestHand([...poker.heroCards, ...poker.community]).name;
+      } else {
+        document.getElementById('pokerHeroHandRank').textContent = '—';
       }
       document.getElementById('pokerPotAmount').textContent = fmt(poker.pot);
       document.getElementById('pokerHeroBetBadge').textContent = `Mise : ${fmt(poker.heroBet)}`;
@@ -5245,25 +5281,18 @@
         return;
       }
       const isMulti = lobbies.poker.mode === 'multi';
-      if (isMulti && !lobbies.poker.publicTableId) {
-        showToast('👉 Choisis une table de poker publique ci-dessus pour t\'asseoir !');
-        scrollToPokerBrowser();
+      if (isMulti) {
+        showToast('🤖 Le Croupier Automatique gère la table ! Dès que 2 joueurs sont assis, la donne démarre automatiquement.');
         return;
       }
 
-      // En multijoueur, la blind commence strictement à 100 €
-      const blind = isMulti ? 100 : Math.max(10, parseInt(document.getElementById('pokerBlindsInput')?.value) || 100);
+      // Mode Solo direct contre bots
+      const blind = Math.max(10, parseInt(document.getElementById('pokerBlindsInput')?.value) || 100);
       if (state.balance < blind) return showToast(`❌ Pas assez de pièces (Blind ${blind} € requise) !`);
       if (!poker.opponents.length) setupPokerSeats();
 
       const activeOpps = poker.opponents.filter(o => !o.isEmpty);
-      if (activeOpps.length === 0) {
-        if (isMulti) {
-          return showToast('⏳ En attente d\'autres joueurs ! Aucun adversaire réel n\'est encore assis à la table.');
-        } else {
-          return showToast('❌ Aucun joueur à la table.');
-        }
-      }
+      if (activeOpps.length === 0) return showToast('❌ Aucun joueur à la table.');
 
       poker.inProgress = true;
       poker.phase = 'Pré-Flop';
@@ -5297,6 +5326,35 @@
     }
 
     function playerPokerAction(act) {
+      const isMulti = lobbies.poker && lobbies.poker.mode === 'multi';
+      if (isMulti) {
+        if (!pokerSyncTable || !['preflop', 'flop', 'turn', 'river'].includes(pokerSyncTable.status)) return;
+        const myKey = (state.username || '').toLowerCase().trim();
+        if ((pokerSyncTable.turn || '').toLowerCase().trim() !== myKey) {
+          return showToast('⏳ Ce n\'est pas encore ton tour de jouer !');
+        }
+
+        if (act === 'fold') {
+          sendPokerAction('fold');
+        } else if (act === 'call') {
+          const myPl = pokerSyncTable.players ? pokerSyncTable.players[myKey] : null;
+          const myRoundBet = myPl ? (myPl.roundBet || 0) : 0;
+          const toCall = Math.max(0, (pokerSyncTable.currentBet || 100) - myRoundBet);
+          if (toCall === 0) {
+            sendPokerAction('check');
+          } else {
+            sendPokerAction('call');
+          }
+        } else if (act === 'raise') {
+          const raiseInp = document.getElementById('pokerRaiseInput');
+          const addRaise = Math.max(100, parseInt(raiseInp?.value) || 200);
+          sendPokerAction('raise', addRaise);
+        } else if (act === 'allin') {
+          sendPokerAction('allin');
+        }
+        return;
+      }
+
       if (!poker.inProgress) return;
       if (act === 'fold') {
         poker.inProgress = false;
@@ -5379,80 +5437,263 @@
       }
     }
 
-    /* ================= SYNCHRONISATION MULTIJOUEUR POKER EN TEMPS RÉEL ================= */
-    function syncPokerMultiplayer() {
-      if (currentRoomKey !== 'poker' || !lobbies.poker || lobbies.poker.mode !== 'multi') return;
+    /* ================= SYNCHRONISATION MULTIJOUEUR POKER EN TEMPS RÉEL (< 400MS) & CROUPIER AUTOMATIQUE ================= */
+    let pokerSyncTable = null;
+    let isPokerSyncing = false;
+    let myProcessedPokerRoundId = null;
+    let myDeductedPokerRoundId = null;
 
-      const currentParticipants = getTableParticipants('poker');
-      const activeNames = new Set(currentParticipants.map(p => (p.username || '').toLowerCase().trim()));
-      const db = getAccountsDB();
-      const myKey = (state.username || '').toLowerCase().trim();
-      const myAcc = db[myKey];
+    function getPokerApiUrl() {
+      if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+        return 'http://localhost:8080/api/poker';
+      }
+      return '/api/poker';
+    }
 
-      // A. Forfait direct signalé par un adversaire ayant quitté la table
-      if (myAcc && myAcc.currentTable && myAcc.currentTable.pokerForfeit) {
-        const pf = myAcc.currentTable.pokerForfeit;
-        if (pf.winner && pf.winner.toLowerCase().trim() === myKey) {
-          const potWon = pf.pot || poker.pot;
-          poker.inProgress = false;
-          setPokerBtns(false);
-          delete myAcc.currentTable.pokerForfeit;
-          saveAccountsDB(db);
-          pushRemoteAccount(myAcc);
-          playCoinWinSound();
-          document.getElementById('pokerTableAnnouncement').textContent = `🏆 ${pf.loser} a quitté le jeu ! Ses mises restent au milieu et tu remportes le pot (${fmt(potWon)} €) !`;
-          showToast(`🏆 ${pf.loser} a quitté le jeu. Tu remportes le pot de ${fmt(potWon)} € !`);
-          setupPokerSeats();
-          renderPokerTable(true);
-          return;
+    function getPokerCurrentTableId() {
+      if (!lobbies.poker?.publicTableId) return null;
+      return (lobbies.poker.publicTableId || 'poker_4max_1').toLowerCase().trim();
+    }
+
+    async function sendPokerAction(act, amount = 0) {
+      const tableId = getPokerCurrentTableId();
+      if (!tableId) return;
+      playCardFlipSound();
+      setPokerBtns(false);
+      try {
+        const res = await fetch(getPokerApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: act,
+            tableId: tableId,
+            username: state.username,
+            avatar: state.avatarEmoji || '👤',
+            stack: state.balance,
+            amount: amount
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.tableId) {
+            mergePokerServerState(data);
+          }
         }
+      } catch (e) {
+        console.warn('Erreur sendPokerAction:', e);
+      }
+      setTimeout(syncPokerMultiplayer, 100);
+      setTimeout(syncPokerMultiplayer, 300);
+    }
+
+    function mergePokerServerState(srv) {
+      if (!srv || typeof srv !== 'object') return;
+      pokerSyncTable = srv;
+      const myKey = (state.username || '').toLowerCase().trim();
+      const myPl = srv.players ? srv.players[myKey] : null;
+
+      const isMulti = lobbies.poker && lobbies.poker.mode === 'multi';
+      if (!isMulti) return;
+
+      const dealerBanner = document.getElementById('pokerDealerBotBanner');
+      const dealerStatus = document.getElementById('pokerDealerBotStatus');
+      const turnBadge = document.getElementById('pokerActiveTurnBadge');
+      const annEl = document.getElementById('pokerTableAnnouncement');
+      const checkCallBtn = document.getElementById('btnPokerCheckCall');
+
+      if (dealerBanner) dealerBanner.classList.remove('hidden');
+      if (srv.announcement && annEl) {
+        annEl.textContent = srv.announcement;
       }
 
-      // B. Si une main est en cours et qu'un joueur assis s'est déconnecté ou a changé de jeu
-      if (poker.inProgress) {
-        let oppLeft = false;
-        let leftName = '';
+      const now = Date.now();
+      if (srv.status === 'waiting') {
+        poker.inProgress = false;
+        if (dealerStatus) dealerStatus.textContent = "En attente d'un 2ème joueur...";
+        if (turnBadge) {
+          turnBadge.textContent = "En attente";
+          turnBadge.className = "text-[11px] font-extrabold text-stone-400";
+        }
+        setPokerBtns(false);
+      } else if (srv.status === 'countdown') {
+        poker.inProgress = false;
+        const sLeft = Math.max(1, Math.ceil(((srv.countdownEndsAt || now) - now) / 1000));
+        if (dealerStatus) dealerStatus.textContent = `⏰ La donne commence dans ${sLeft}s...`;
+        if (turnBadge) {
+          turnBadge.textContent = `Donne (${sLeft}s)`;
+          turnBadge.className = "text-[11px] font-extrabold text-amber-400 animate-pulse";
+        }
+        setPokerBtns(false);
+      } else if (['preflop', 'flop', 'turn', 'river'].includes(srv.status)) {
+        poker.inProgress = true;
+        const isMyTurn = (srv.turn === myKey);
+        const turnSecLeft = Math.max(0, Math.ceil(((srv.turnEndsAt || now) - now) / 1000));
+        const turnPlayer = srv.players && srv.players[srv.turn];
+        const turnName = turnPlayer ? turnPlayer.username : (srv.turn || 'Joueur');
 
-        poker.opponents.forEach(o => {
-          if (o.isFriend && !o.isEmpty) {
-            const oppUser = (o.name || '').toLowerCase().trim();
-            if (!activeNames.has(oppUser)) {
-              oppLeft = true;
-              leftName = o.name;
-              // Retiré de la table, mais ses mises restent dans poker.pot !
-              o.isEmpty = true;
-              o.folded = true;
-              o.cards = [];
-              o.status = 'A quitté';
-              o.name = 'Siège libre';
-              o.avatar = '🪑';
-            }
+        if (isMyTurn) {
+          if (dealerStatus) dealerStatus.textContent = `👉 À TOI DE JOUER (${turnSecLeft}s) !`;
+          if (turnBadge) {
+            turnBadge.textContent = `🟢 Ton tour (${turnSecLeft}s)`;
+            turnBadge.className = "text-[11px] font-extrabold text-emerald-400 animate-pulse";
           }
-        });
-
-        if (oppLeft) {
-          const remainingActive = poker.opponents.filter(o => !o.isEmpty && !o.folded);
-          if (remainingActive.length === 0) {
-            // Seul joueur restant à la table : il remporte tout le pot !
-            const potWon = poker.pot;
-            poker.inProgress = false;
+          if (myPl && !myPl.folded) {
+            setPokerBtns(true);
+            const toCall = Math.max(0, (srv.currentBet || 100) - (myPl.roundBet || 0));
+            if (checkCallBtn) {
+              checkCallBtn.textContent = toCall === 0 ? '✔ Parole (Check)' : `✔ Suivre ${fmt(toCall)} € (Call)`;
+            }
+          } else {
             setPokerBtns(false);
-            state.balance += potWon;
+          }
+        } else {
+          if (dealerStatus) dealerStatus.textContent = `⏳ Tour de ${turnName} (${turnSecLeft}s)...`;
+          if (turnBadge) {
+            turnBadge.textContent = `Tour de ${turnName} (${turnSecLeft}s)`;
+            turnBadge.className = "text-[11px] font-extrabold text-sky-400";
+          }
+          setPokerBtns(false);
+        }
+
+        // Déduction de la blind (100 €) au lancement d'une nouvelle main
+        if (srv.roundId && myDeductedPokerRoundId !== srv.roundId) {
+          myDeductedPokerRoundId = srv.roundId;
+          if (myPl) {
+            state.balance = Math.max(0, state.balance - 100);
+            saveState();
+            updateGlobalUI();
+            playCardFlipSound();
+          }
+        }
+      } else if (srv.status === 'finished') {
+        poker.inProgress = false;
+        setPokerBtns(false);
+        if (dealerStatus) dealerStatus.textContent = "🏆 Manche terminée ! Prochaine donne automatique...";
+        if (turnBadge) {
+          turnBadge.textContent = "Showdown";
+          turnBadge.className = "text-[11px] font-extrabold text-amber-300";
+        }
+
+        // Attribution des gains si la manche vient de se terminer
+        if (srv.roundId && myProcessedPokerRoundId !== srv.roundId) {
+          myProcessedPokerRoundId = srv.roundId;
+          if (srv.winner && srv.winner.toLowerCase().trim() === myKey) {
+            state.balance += (srv.pot || 0);
             playCoinWinSound();
             saveState();
             updateGlobalUI();
-            document.getElementById('pokerTableAnnouncement').textContent = `🏆 ${leftName} a quitté la table ! Ses mises restent au milieu et tu remportes le pot (${fmt(potWon)} €) !`;
-            showToast(`🏆 ${leftName} a quitté le jeu. Tu remportes le pot (${fmt(potWon)} €) !`);
-            renderPokerTable(true);
-          } else {
-            // La main continue avec les joueurs restants, avec toutes les mises au milieu
-            document.getElementById('pokerTableAnnouncement').textContent = `⚠️ ${leftName} a quitté la table. Ses mises restent dans le pot (${fmt(poker.pot)} €).`;
-            renderPokerTable(false);
+            showToast(`🏆 Tu remportes le pot de ${fmt(srv.pot || 0)} € au Poker !`);
           }
         }
+      }
+
+      // Synchronisation globale des cartes et du pot
+      poker.pot = srv.pot || 0;
+      poker.currentBet = srv.currentBet || 100;
+      poker.community = srv.community || [];
+      poker.phase = srv.status === 'preflop' ? 'Pré-Flop'
+        : srv.status === 'flop' ? 'Flop'
+        : srv.status === 'turn' ? 'Turn'
+        : srv.status === 'river' ? 'River'
+        : srv.status === 'finished' ? 'Showdown'
+        : 'En attente';
+
+      if (myPl) {
+        poker.heroCards = myPl.cards || [];
+        poker.heroBet = myPl.roundBet || 0;
       } else {
-        // Hors main : actualiser les sièges
-        setupPokerSeats();
+        poker.heroCards = [];
+        poker.heroBet = 0;
+      }
+
+      // Construction des sièges adverses
+      const otherKeys = (srv.playerOrder || []).filter(k => k !== myKey);
+      const maxOppSeats = (srv.maxSeats || 4) - 1;
+      const opps = [];
+      for (let i = 0; i < maxOppSeats; i++) {
+        if (i < otherKeys.length) {
+          const opKey = otherKeys[i];
+          const opData = srv.players[opKey];
+          if (opData) {
+            opps.push({
+              id: i,
+              name: opData.username || opKey,
+              isFriend: true,
+              isEmpty: false,
+              avatar: opData.avatar || '👤',
+              stack: opData.stack || 0,
+              bet: opData.roundBet || 0,
+              cards: opData.cards || [],
+              folded: opData.folded === true,
+              status: opData.status || (opData.folded ? 'Couché' : 'En jeu')
+            });
+          }
+        } else {
+          opps.push({
+            id: i,
+            name: 'Siège libre',
+            isFriend: false,
+            isEmpty: true,
+            avatar: '🪑',
+            stack: 0,
+            bet: 0,
+            cards: [],
+            folded: true,
+            status: 'En attente'
+          });
+        }
+      }
+      poker.opponents = opps;
+
+      renderPokerTable(srv.status === 'finished');
+    }
+
+    async function syncPokerMultiplayer() {
+      if (currentRoomKey !== 'poker' || !lobbies.poker || lobbies.poker.mode !== 'multi') return;
+      if (isPokerSyncing) return;
+      isPokerSyncing = true;
+
+      try {
+        const tableId = getPokerCurrentTableId();
+        if (!tableId || state.currentTable?.leftTable) {
+          isPokerSyncing = false;
+          return;
+        }
+
+        let srvTable = null;
+
+        // 1. Appel HTTP à /api/poker
+        try {
+          const userParam = state.username ? `&user=${encodeURIComponent(state.username)}` : '';
+          const res = await fetch(`${getPokerApiUrl()}?table=${encodeURIComponent(tableId)}${userParam}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && (data.status || data.players)) {
+              srvTable = data;
+            }
+          }
+        } catch (e) {}
+
+        // 2. Fallback Supabase Cloud direct si nécessaire
+        if (!srvTable) {
+          try {
+            const sRes = await supabaseFetch('accounts?username=eq.__poker_game__');
+            if (sRes.ok) {
+              const rows = await sRes.json();
+              if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.tables?.[tableId]) {
+                srvTable = rows[0].data.tables[tableId];
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (srvTable) {
+          mergePokerServerState(srvTable);
+        }
+      } catch (e) {
+        console.warn('Erreur syncPokerMultiplayer:', e);
+      } finally {
+        isPokerSyncing = false;
       }
     }
 
@@ -6271,6 +6512,8 @@
         syncCrashMultiplayer();
       } else if (currentRoomKey === 'blackjack' && lobbies.bj && lobbies.bj.mode === 'multi') {
         syncBjMultiplayer();
+      } else if (currentRoomKey === 'poker' && lobbies.poker && lobbies.poker.mode === 'multi') {
+        syncPokerMultiplayer();
       }
     }, 400);
 
@@ -7243,6 +7486,24 @@
         }
       });
 
+      // 3. Joueurs synchronisés en direct depuis le serveur Poker si cette table est active
+      if (pokerSyncTable && pokerSyncTable.tableId === normTarget && pokerSyncTable.players) {
+        Object.keys(pokerSyncTable.players).forEach(pk => {
+          const sPl = pokerSyncTable.players[pk];
+          if (!sPl || (sPl.folded && sPl.status === 'A quitté')) return;
+          const u = (sPl.username || pk).toLowerCase().trim();
+          if (!seen.has(u)) {
+            seen.add(u);
+            occupants.push({
+              username: sPl.username || pk,
+              avatar: sPl.avatar || '👤',
+              isMe: (u === me),
+              updatedAt: now
+            });
+          }
+        });
+      }
+
       return {
         tableId: normTarget,
         players: occupants,
@@ -7420,6 +7681,24 @@
       renderPokerPublicTablesBrowser();
 
       showToast(`🃏 Tu t'es assis à la ${tableObj.name} (${tableObj.categoryLabel}) !`);
+
+      // Notifier immédiatement le serveur Poker /api/poker
+      try {
+        fetch(getPokerApiUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'join',
+            tableId: targetTableId,
+            username: state.username,
+            avatar: state.avatarEmoji || '👤',
+            stack: state.balance
+          })
+        }).then(r => r.json()).then(data => {
+          if (data && data.tableId) mergePokerServerState(data);
+        }).catch(() => {});
+      } catch (e) {}
+
       syncPokerMultiplayer();
 
       const feltEl = document.getElementById('pokerFeltBox');
@@ -7433,6 +7712,26 @@
         }
         poker.inProgress = false;
         setPokerBtns(false);
+      }
+
+      const oldTableId = lobbies.poker.publicTableId;
+      if (oldTableId) {
+        try {
+          const leavePayload = JSON.stringify({
+            action: 'leave',
+            tableId: oldTableId,
+            username: state.username
+          });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(getPokerApiUrl(), new Blob([leavePayload], { type: 'application/json' }));
+          }
+          fetch(getPokerApiUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: leavePayload,
+            keepalive: true
+          }).catch(() => {});
+        } catch (e) {}
       }
 
       lobbies.poker.publicTableId = null;
