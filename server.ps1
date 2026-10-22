@@ -362,8 +362,7 @@ while ($listener.IsListening) {
                         players = $pArr
                     }
                 }
-                $privList = @($currentTables.Keys | Where-Object { $_ -notmatch '^bj_pub_[1-5]$' -and $_ -ne 'public' })
-                $jsonOut = @{ ok = $true; publicTables = $publicList; activePrivateCount = $privList.Length; maxPrivateTables = 5 } | ConvertTo-Json -Depth 5
+                $jsonOut = @{ ok = $true; publicTables = $publicList } | ConvertTo-Json -Depth 5
                 $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonOut)
                 $response.OutputStream.Write($buffer, 0, $buffer.Length)
                 $response.OutputStream.Close()
@@ -373,7 +372,7 @@ while ($listener.IsListening) {
             $tableParam = $request.QueryString["table"]
             if (-not $tableParam) { $tableParam = "bj_pub_1" }
             $tableParam = $tableParam.ToLower().Trim()
-            if ($tableParam -eq "public") { $tableParam = "bj_pub_1" }
+            if ($tableParam -notmatch '^bj_pub_[1-5]$') { $tableParam = "bj_pub_1" }
 
             if (-not $currentTables.ContainsKey($tableParam)) {
                 $currentTables[$tableParam] = @{
@@ -496,8 +495,7 @@ while ($listener.IsListening) {
                                         players = $pArr
                                     }
                                 }
-                                $privList = @($currentTables.Keys | Where-Object { $_ -notmatch '^bj_pub_[1-5]$' -and $_ -ne 'public' })
-                                $jsonOut = @{ ok = $true; publicTables = $publicList; activePrivateCount = $privList.Length; maxPrivateTables = 5 } | ConvertTo-Json -Depth 5
+                                $jsonOut = @{ ok = $true; publicTables = $publicList } | ConvertTo-Json -Depth 5
                                 $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonOut)
                                 $response.OutputStream.Write($buffer, 0, $buffer.Length)
                                 $response.OutputStream.Close()
@@ -505,7 +503,7 @@ while ($listener.IsListening) {
                             }
 
                             $tId = if ($postObj.tableId) { $postObj.tableId.ToLower().Trim() } else { $tableParam }
-                            if ($tId -eq 'public') { $tId = 'bj_pub_1' }
+                            if ($tId -notmatch '^bj_pub_[1-5]$') { $tId = 'bj_pub_1' }
                             if (-not $currentTables.ContainsKey($tId)) {
                                 $currentTables[$tId] = @{
                                     tableId = $tId
@@ -585,7 +583,7 @@ while ($listener.IsListening) {
                             # ACTION SET_BET
                             elseif ($postObj.action -eq 'set_bet' -and $postObj.username) {
                                 $pKey = [string]$postObj.username.ToLower().Trim()
-                                $bVal = [Math]::Max(10, [int]$postObj.bet)
+                                $bVal = [Math]::Min(50000, [Math]::Max(10, [int]$postObj.bet))
                                 $curTable = $currentTables[$tId]
                                 if (-not $curTable.readyBets) { $curTable.readyBets = @{} }
                                 $curTable.readyBets[$pKey] = $bVal
@@ -597,7 +595,7 @@ while ($listener.IsListening) {
                             # ACTION SET_READY
                             elseif ($postObj.action -eq 'set_ready' -and $postObj.username) {
                                 $pKey = [string]$postObj.username.ToLower().Trim()
-                                $bVal = [Math]::Max(10, [int]$postObj.bet)
+                                $bVal = [Math]::Min(50000, [Math]::Max(10, [int]$postObj.bet))
                                 $curTable = $currentTables[$tId]
                                 if (-not $curTable.readyBets) { $curTable.readyBets = @{} }
                                 $curTable.readyBets[$pKey] = $bVal

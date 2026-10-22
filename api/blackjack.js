@@ -79,31 +79,17 @@ async function getFreshTables(force = false) {
   return memoryTables;
 }
 
-const PUBLIC_TABLE_IDS = ['bj_pub_1', 'bj_pub_2', 'bj_pub_3', 'bj_pub_4', 'bj_pub_5', 'public'];
-const MAX_PRIVATE_TABLES = 5;
-
-function isPrivateTableActive(tbl, now) {
-  if (!tbl) return false;
-  if (tbl.status === 'playing' || tbl.status === 'dealer_turn') return true;
-  if (now - (tbl.updatedAt || 0) > 45000) return false;
-  const activeCount = Object.keys(tbl.players || {}).length + Object.keys(tbl.readyPlayers || {}).length + Object.keys(tbl.knownPlayers || {}).length;
-  return activeCount > 0;
-}
+const PUBLIC_TABLE_IDS = ['bj_pub_1', 'bj_pub_2', 'bj_pub_3', 'bj_pub_4', 'bj_pub_5'];
 
 function cleanInactiveTables(tables, now) {
   let changed = false;
   Object.keys(tables).forEach(tId => {
-    if (PUBLIC_TABLE_IDS.includes(tId.toLowerCase())) return;
-    if (!isPrivateTableActive(tables[tId], now)) {
+    if (!PUBLIC_TABLE_IDS.includes(tId.toLowerCase())) {
       delete tables[tId];
       changed = true;
     }
   });
   return changed;
-}
-
-function getActivePrivateTablesList(tables, now) {
-  return Object.keys(tables).filter(tId => !PUBLIC_TABLE_IDS.includes(tId.toLowerCase()) && isPrivateTableActive(tables[tId], now));
 }
 
 function getDefaultTable(tableId) {
@@ -265,7 +251,7 @@ function startServerDeal(table, participants, now) {
     const isBJ = sc === 21;
 
     const recordedBet = (table.readyBets && table.readyBets[pKey]) ? table.readyBets[pKey] : null;
-    const playerBet = parseInt(p.bet) || recordedBet || 100;
+    const playerBet = Math.min(50000, Math.max(10, parseInt(p.bet) || recordedBet || 100));
 
     table.players[pKey] = {
       username: p.username,
@@ -335,15 +321,12 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        publicTables: publicSummaries,
-        activePrivateCount: activePrivate.length,
-        activePrivateTables: activePrivate,
-        maxPrivateTables: MAX_PRIVATE_TABLES
+        publicTables: publicSummaries
       });
     }
 
     let rawTableId = (req.query.table || req.query.tableId || 'bj_pub_1').toLowerCase().trim();
-    if (rawTableId === 'public') rawTableId = 'bj_pub_1';
+    if (!PUBLIC_TABLE_IDS.includes(rawTableId)) rawTableId = 'bj_pub_1';
     const tableId = rawTableId;
 
     let table = tables[tableId];
@@ -449,30 +432,13 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        publicTables: publicSummaries,
-        activePrivateCount: activePrivate.length,
-        activePrivateTables: activePrivate,
-        maxPrivateTables: MAX_PRIVATE_TABLES
+        publicTables: publicSummaries
       });
     }
 
     let rawTableId = (body.tableId || 'bj_pub_1').toLowerCase().trim();
-    if (rawTableId === 'public') rawTableId = 'bj_pub_1';
+    if (!PUBLIC_TABLE_IDS.includes(rawTableId)) rawTableId = 'bj_pub_1';
     const tableId = rawTableId;
-
-    // CONTRÔLE DE LIMITE : Maximum 5 tables privées actives autorisées
-    if (!PUBLIC_TABLE_IDS.includes(tableId)) {
-      const activePrivate = getActivePrivateTablesList(tables, now);
-      const isAlreadyActive = tables[tableId] && isPrivateTableActive(tables[tableId], now);
-      if (!isAlreadyActive && activePrivate.length >= MAX_PRIVATE_TABLES && !activePrivate.includes(tableId)) {
-        return res.status(200).json({
-          ok: false,
-          error: "Limite atteinte : Seules 5 tables privées peuvent être créées simultanément. Rejoins une table existante ou attends qu'une table se libère !",
-          activePrivateCount: activePrivate.length,
-          maxPrivate: MAX_PRIVATE_TABLES
-        });
-      }
-    }
 
     let table = tables[tableId];
     if (!table) {
@@ -485,7 +451,7 @@ export default async function handler(req, res) {
     // S. ENREGISTRER MA MISE (SET_BET)
     if (action === 'set_bet' && body.username) {
       const pKey = body.username.toLowerCase().trim();
-      const betVal = Math.max(10, parseInt(body.bet) || 100);
+      const betVal = Math.min(50000, Math.max(10, parseInt(body.bet) || 100));
       if (!table.readyBets || typeof table.readyBets !== 'object') table.readyBets = {};
       table.readyBets[pKey] = betVal;
       if (!table.knownPlayers) table.knownPlayers = {};
@@ -499,7 +465,7 @@ export default async function handler(req, res) {
     // R. ÉTAT PRÊT JOUEUR & RELANCE AUTO (SET_READY)
     if (action === 'set_ready' && body.username) {
       const pKey = body.username.toLowerCase().trim();
-      const betVal = Math.max(10, parseInt(body.bet) || 100);
+      const betVal = Math.min(50000, Math.max(10, parseInt(body.bet) || 100));
 
       if (body.host && !table.host) {
         table.host = body.host.toLowerCase().trim();
@@ -577,16 +543,9 @@ export default async function handler(req, res) {
         table.host = pKey;
       }
 
-      // VÉRIFICATION HÔTE SUR MANCHE 1 : En table privée uniquement, seul l'hôte qui a créé peut lancer
-      if (!PUBLIC_TABLE_IDS.includes(tableId)) {
-        if (!table.hasPlayedRound && table.roundId === 0 && table.host && pKey !== table.host) {
-          return res.status(200).json({ ok: false, error: "Seul l'hôte qui a créé la table privée peut lancer la première partie !", table });
-        }
-      }
-
       let participants = Array.isArray(body.participants) && body.participants.length > 0
         ? body.participants.filter(p => !((p.username || '').toLowerCase().includes('bot') || (p.username || '').toLowerCase().includes('roxy')))
-        : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: parseInt(body.bet) || 100 }];
+        : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: Math.min(50000, Math.max(10, parseInt(body.bet) || 100)) }];
 
       if (participants.length < 2) {
         return res.status(200).json({ ok: false, error: "En multijoueur, tu ne peux jouer qu'avec une personne invitée (aucun bot autorisé) !", table });
