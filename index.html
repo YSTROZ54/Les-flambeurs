@@ -482,13 +482,13 @@
             <button onclick="setPokerGameMode('multi')" id="pmode-multi" class="pill-choice">🌐 Lobby Multi</button>
           </div>
 
-          <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
+          <div id="pokerSeatsSelectorGroup" class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
             <button onclick="setPokerSeats(1)" id="pseat-1" class="pill-choice">1v1</button>
             <button onclick="setPokerSeats(3)" id="pseat-3" class="pill-choice active">Table de 4</button>
             <button onclick="setPokerSeats(5)" id="pseat-5" class="pill-choice">Table 6 Max</button>
           </div>
 
-          <div class="flex items-center gap-1.5 bg-black/60 px-3 py-1.5 rounded-xl border border-white/10">
+          <div id="pokerBlindSelectorGroup" class="flex items-center gap-1.5 bg-black/60 px-3 py-1.5 rounded-xl border border-white/10">
             <span class="text-stone-400 font-bold">Blind :</span>
             <input id="pokerBlindsInput" type="number" value="100" min="10" class="w-16 bg-stone-900 border border-amber-500/40 rounded-lg px-2 py-1 text-center font-mono-num font-bold text-amber-300 focus:outline-none">
           </div>
@@ -502,56 +502,46 @@
         </div>
       </div>
 
-      <!-- LOBBY MULTI POKER (TABLE PUBLIQUE / PRIVÉE PAR CODE + OPTION BOTS) -->
+      <!-- LOBBY MULTI POKER (TABLES PUBLIQUES 1v1, TABLE DE 4, TABLE DE 6) -->
       <div id="pokerLobbyBanner" class="hidden lobby-panel p-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="font-serif-title font-extrabold text-amber-300 text-sm flex items-center gap-1.5">
-              <span>🃏 Salon Poker Multi</span>
+          <div class="flex items-center gap-2">
+            <span class="font-serif-title font-extrabold text-amber-300 text-sm flex items-center gap-2">
+              <span class="text-base">🃏</span> <span>Salons de Poker Multijoueur</span>
             </span>
-            <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10 text-xs">
-              <button onclick="setPokerTableType('public')" id="ptype-public" class="pill-choice active">🌍 Table Publique</button>
-              <button onclick="setPokerTableType('private')" id="ptype-private" class="pill-choice">🔒 Table Privée</button>
-            </div>
-            <div id="pokerPrivateCodeBox" class="hidden flex flex-wrap items-center gap-1.5 bg-black/80 border border-amber-400/40 px-3 py-1.5 rounded-xl text-xs">
-              <span class="text-stone-400 font-bold">Code :</span>
-              <span id="pokerRoomCodeDisplay" class="room-code-tag text-amber-300 font-bold">POK-842</span>
-              <button onclick="copyRoomCode('poker')" title="Copier le code" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-amber-200 font-bold">📋 Copier</button>
-              <button onclick="regenerateRoomCode('poker')" title="Générer un nouveau code" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-stone-200">🎲 Nouveau</button>
-              <input id="pokerJoinCodeInput" type="text" placeholder="Entrer code..." class="w-24 bg-stone-900 border border-white/20 rounded px-2 py-0.5 text-xs font-mono-num text-white uppercase ml-1 focus:outline-none">
-              <button onclick="joinRoomByCode('poker')" class="px-2.5 py-0.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold rounded text-xs">Rejoindre</button>
-            </div>
+            <span class="text-[11px] text-stone-400 font-semibold">• 100% Vrais Joueurs (Aucun Bot)</span>
           </div>
           <div class="flex items-center gap-2 text-xs">
             <button onclick="openFriendsModal()" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-gradient-to-r from-purple-500 to-indigo-600 hover:brightness-110 text-white text-xs flex items-center gap-1.5 shadow transition">
               <span>👥</span> <span>Inviter un ami</span>
             </button>
-            <span class="text-stone-300 font-semibold">Combler les places vides :</span>
-            <button onclick="togglePokerFillBots()" id="pokerFillBotsBtn" class="px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition">
-              🤖 Bots : OUI
-            </button>
           </div>
         </div>
-        <!-- NAVIGATEUR DES 3 TABLES PUBLIQUES POKER -->
-        <div id="pokerPublicTablesBrowser" class="space-y-2.5 pt-2 border-t border-white/10">
+
+        <!-- NAVIGATEUR DES 9 TABLES PUBLIQUES POKER -->
+        <div id="pokerPublicTablesBrowser" class="space-y-3 pt-2 border-t border-white/10">
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div class="flex items-center gap-2">
-              <span class="text-amber-300 font-bold text-sm">🏛️ Salons de Poker</span>
-              <span class="text-[11px] text-stone-400">• 3 Tables publiques en libre accès :</span>
+            <!-- Filtres de Catégories de Table -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-stone-400 font-bold mr-1">Format :</span>
+              <button onclick="filterPokerTables('all')" id="ptab-all" class="pill-choice active px-3 py-1 rounded-lg text-xs font-bold">Tous (9)</button>
+              <button onclick="filterPokerTables('1v1')" id="ptab-1v1" class="pill-choice px-3 py-1 rounded-lg text-xs font-bold">⚔️ 1v1 (3)</button>
+              <button onclick="filterPokerTables('4max')" id="ptab-4max" class="pill-choice px-3 py-1 rounded-lg text-xs font-bold">🃏 Table de 4 (3)</button>
+              <button onclick="filterPokerTables('6max')" id="ptab-6max" class="pill-choice px-3 py-1 rounded-lg text-xs font-bold">👑 Table de 6 (3)</button>
             </div>
             <button onclick="renderPokerPublicTablesBrowser()" title="Actualiser la liste" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 text-[11px] flex items-center gap-1 transition">
               🔄 <span>Actualiser</span>
             </button>
           </div>
-          <!-- Grille des 3 Tables Publiques -->
-          <div id="pokerPublicTablesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Grille des Tables Publiques -->
+          <div id="pokerPublicTablesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <!-- Dynamiquement généré par renderPokerPublicTablesBrowser() -->
           </div>
         </div>
 
         <div id="pokerLobbyStatusText" class="text-[11px] text-stone-400 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Table Publique connectée • Choisis l'une des 3 tables ci-dessus pour t'asseoir.</span>
+          <span>Salons Multijoueurs connectés • Choisis une table libre ci-dessus pour t'asseoir (Blind 100 €).</span>
         </div>
       </div>
 
@@ -4346,12 +4336,10 @@
           lobbies.bj.tableType = 'public';
           lobbies.bj.publicTableId = cur.publicTableId || 'bj_pub_1';
         } else if (roomKey === 'poker') {
-          lobbies.poker.tableType = cur.tableType || (cur.publicTableId ? 'public' : 'private');
-          if (lobbies.poker.tableType === 'public') {
-            lobbies.poker.publicTableId = cur.publicTableId || 'poker_pub_1';
-          } else {
-            lobbies.poker.roomCode = cur.roomCode || 'POK-842';
-          }
+          lobbies.poker.tableType = 'public';
+          lobbies.poker.publicTableId = cur.publicTableId || 'poker_4max_1';
+          const tObj = POKER_PUBLIC_TABLES.find(t => t.id === lobbies.poker.publicTableId) || POKER_PUBLIC_TABLES[0];
+          poker.seatCount = tObj.maxSeats - 1;
         } else if (cur.roomCode) {
           lobbies[lobbyKey].tableType = cur.tableType || 'private';
           lobbies[lobbyKey].roomCode = cur.roomCode;
@@ -4369,9 +4357,9 @@
         game: gameKey,
         mode: 'multi',
         leftTable: false,
-        tableType: roomKey === 'blackjack' ? 'public' : (cur.tableType || (cur.publicTableId ? 'public' : 'private')),
-        publicTableId: roomKey === 'blackjack' ? (cur.publicTableId || 'bj_pub_1') : (roomKey === 'poker' && (cur.tableType === 'public' || cur.publicTableId) ? (cur.publicTableId || 'poker_pub_1') : null),
-        roomCode: (roomKey === 'blackjack' || (roomKey === 'poker' && (cur.tableType === 'public' || cur.publicTableId))) ? '' : (cur.roomCode || ''),
+        tableType: (roomKey === 'blackjack' || roomKey === 'poker') ? 'public' : (cur.tableType || 'private'),
+        publicTableId: roomKey === 'blackjack' ? (cur.publicTableId || 'bj_pub_1') : (roomKey === 'poker' ? (cur.publicTableId || 'poker_4max_1') : null),
+        roomCode: (roomKey === 'blackjack' || roomKey === 'poker') ? '' : (cur.roomCode || ''),
         host: cur.from,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
@@ -4528,13 +4516,24 @@
     ];
 
     const POKER_PUBLIC_TABLES = [
-      { id: 'poker_pub_1', num: 1, name: 'Table 1 • Texas Flambeur', icon: '🃏', maxSeats: 4, defaultBlind: 100, desc: 'Petites mises (Blind 100 €) • Table conviviale' },
-      { id: 'poker_pub_2', num: 2, name: 'Table 2 • Vegas VIP Club', icon: '💎', maxSeats: 4, defaultBlind: 250, desc: 'Mises intermédiaires (Blind 250 €) • Rythme soutenu' },
-      { id: 'poker_pub_3', num: 3, name: 'Table 3 • High Roller Royale', icon: '👑', maxSeats: 4, defaultBlind: 500, desc: 'Grandes mises (Blind 500 €) • Pour les vrais flambeurs' }
+      // --- 3 TABLES 1v1 (Duel Heads-Up, 2 Joueurs Max) ---
+      { id: 'poker_1v1_1', num: 1, name: 'Table 1 • Duel des As', icon: '⚔️', maxSeats: 2, category: '1v1', categoryLabel: '⚔️ 1v1', defaultBlind: 100, desc: 'Face à face intense • Blind 100 €' },
+      { id: 'poker_1v1_2', num: 2, name: 'Table 2 • Heads-Up Flambeur', icon: '🔥', maxSeats: 2, category: '1v1', categoryLabel: '⚔️ 1v1', defaultBlind: 100, desc: 'Duel 1v1 rapide • Blind 100 €' },
+      { id: 'poker_1v1_3', num: 3, name: 'Table 3 • Showdown VIP', icon: '⚡', maxSeats: 2, category: '1v1', categoryLabel: '⚔️ 1v1', defaultBlind: 100, desc: 'Duel 1v1 prestige • Blind 100 €' },
+
+      // --- 3 TABLES DE 4 (Standard, 4 Joueurs Max) ---
+      { id: 'poker_4max_1', num: 4, name: 'Table 4 • Texas Flambeur', icon: '🃏', maxSeats: 4, category: '4max', categoryLabel: '🃏 Table de 4', defaultBlind: 100, desc: 'Table standard 4 joueurs • Blind 100 €' },
+      { id: 'poker_4max_2', num: 5, name: 'Table 5 • Vegas VIP Club', icon: '💎', maxSeats: 4, category: '4max', categoryLabel: '🃏 Table de 4', defaultBlind: 100, desc: 'Table 4 joueurs dynamique • Blind 100 €' },
+      { id: 'poker_4max_3', num: 6, name: 'Table 6 • Cercle Privilège', icon: '🏛️', maxSeats: 4, category: '4max', categoryLabel: '🃏 Table de 4', defaultBlind: 100, desc: 'Table 4 joueurs conviviale • Blind 100 €' },
+
+      // --- 3 TABLES DE 6 (6-Max, 6 Joueurs Max) ---
+      { id: 'poker_6max_1', num: 7, name: 'Table 7 • 6-Max Royale', icon: '👑', maxSeats: 6, category: '6max', categoryLabel: '👑 Table de 6', defaultBlind: 100, desc: 'Table 6 joueurs pleine action • Blind 100 €' },
+      { id: 'poker_6max_2', num: 8, name: 'Table 8 • Grand Tournoi Cash', icon: '🏆', maxSeats: 6, category: '6max', categoryLabel: '👑 Table de 6', defaultBlind: 100, desc: 'Table 6 joueurs compétition • Blind 100 €' },
+      { id: 'poker_6max_3', num: 9, name: 'Table 9 • Table des Maîtres', icon: '🌟', maxSeats: 6, category: '6max', categoryLabel: '👑 Table de 6', defaultBlind: 100, desc: 'Table 6 joueurs grands flambeurs • Blind 100 €' }
     ];
 
     const lobbies = {
-      poker: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: 'POK-842', fillWithBots: true },
+      poker: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false },
       bj: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false },
       cups: { mode: 'solo' }
     };
@@ -4754,8 +4753,8 @@
       const existing = (state.currentTable && state.currentTable.game === room) ? state.currentTable : {};
       
       const isBjLeft = (room === 'blackjack' && (existing.leftTable === true || !l.publicTableId));
-      const isPokerLeft = (room === 'poker' && (existing.leftTable === true || (l.mode === 'multi' && l.tableType === 'public' && !l.publicTableId)));
-      const isLeft = (room === 'blackjack' ? isBjLeft : (room === 'poker' && l.mode === 'multi' && l.tableType === 'public' ? isPokerLeft : false));
+      const isPokerLeft = (room === 'poker' && (existing.leftTable === true || (l.mode === 'multi' && !l.publicTableId)));
+      const isLeft = (room === 'blackjack' ? isBjLeft : (room === 'poker' && l.mode === 'multi' ? isPokerLeft : false));
       const currentBjBet = Math.min(50000, Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100));
 
       state.currentTable = {
@@ -4763,9 +4762,9 @@
         game: room,
         leftTable: isLeft ? true : false,
         mode: l.mode || 'solo',
-        tableType: room === 'blackjack' ? 'public' : (l.tableType || 'public'),
-        publicTableId: room === 'blackjack' ? (isBjLeft ? null : (l.publicTableId || null)) : (room === 'poker' && l.tableType === 'public' ? (isPokerLeft ? null : (l.publicTableId || null)) : null),
-        roomCode: (room === 'blackjack' || (room === 'poker' && l.tableType === 'public')) ? '' : (l.roomCode || ''),
+        tableType: (room === 'blackjack' || room === 'poker') ? 'public' : (l.tableType || 'public'),
+        publicTableId: room === 'blackjack' ? (isBjLeft ? null : (l.publicTableId || null)) : (room === 'poker' ? (isPokerLeft ? null : (l.publicTableId || null)) : null),
+        roomCode: (room === 'blackjack' || room === 'poker') ? '' : (l.roomCode || ''),
         host: existing.host || state.currentTable?.host || null,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
@@ -4834,8 +4833,8 @@
               const theirPubId = (ct.publicTableId || 'bj_pub_1').toLowerCase().trim();
               isSameTable = (myPubId === theirPubId);
             } else if (targetGame === 'poker') {
-              const myPubId = (l.publicTableId || 'poker_pub_1').toLowerCase().trim();
-              const theirPubId = (ct.publicTableId || 'poker_pub_1').toLowerCase().trim();
+              const myPubId = (l.publicTableId || 'poker_4max_1').toLowerCase().trim();
+              const theirPubId = (ct.publicTableId || 'poker_4max_1').toLowerCase().trim();
               isSameTable = (myPubId === theirPubId);
             }
             if (isSameTable) {
@@ -4877,13 +4876,9 @@
               if ((ct?.roomCode || '').toUpperCase() !== (l.roomCode || '').toUpperCase()) return;
             }
           } else if (targetGame === 'poker') {
-            if (l.tableType === 'public') {
-              const myPubId = (l.publicTableId || 'poker_pub_1').toLowerCase().trim();
-              const theirPubId = (ct?.publicTableId || 'poker_pub_1').toLowerCase().trim();
-              if (myPubId !== theirPubId) return;
-            } else if (l.tableType === 'private') {
-              if ((ct?.roomCode || '').toUpperCase() !== (l.roomCode || '').toUpperCase()) return;
-            }
+            const myPubId = (l.publicTableId || 'poker_4max_1').toLowerCase().trim();
+            const theirPubId = (ct?.publicTableId || 'poker_4max_1').toLowerCase().trim();
+            if (myPubId !== theirPubId) return;
           }
 
           seen.add(u);
@@ -4909,45 +4904,35 @@
       if (!l) return;
       if (game === 'poker') {
         const isMulti = l.mode === 'multi';
+        l.tableType = 'public';
+
         const soloBtn = document.getElementById('pmode-solo');
         const multiBtn = document.getElementById('pmode-multi');
         if (soloBtn) soloBtn.classList.toggle('active', !isMulti);
         if (multiBtn) multiBtn.classList.toggle('active', isMulti);
 
+        // MASQUER LE SÉLECTEUR DE SIÈGES ET DE BLIND EN MULTIJOUEUR
+        // (En multijoueur, le format et la blind de 100 € sont imposés par la table sélectionnée)
+        const seatsSelector = document.getElementById('pokerSeatsSelectorGroup');
+        const blindSelector = document.getElementById('pokerBlindSelectorGroup');
+        if (seatsSelector) seatsSelector.classList.toggle('hidden', isMulti);
+        if (blindSelector) blindSelector.classList.toggle('hidden', isMulti);
+
         const banner = document.getElementById('pokerLobbyBanner');
         if (banner) banner.classList.toggle('hidden', !isMulti);
 
-        const pubBtn = document.getElementById('ptype-public');
-        const privBtn = document.getElementById('ptype-private');
-        if (pubBtn) pubBtn.classList.toggle('active', l.tableType === 'public');
-        if (privBtn) privBtn.classList.toggle('active', l.tableType === 'private');
-
-        const codeBox = document.getElementById('pokerPrivateCodeBox');
-        if (codeBox) codeBox.classList.toggle('hidden', l.tableType !== 'private');
-
-        const codeDisplay = document.getElementById('pokerRoomCodeDisplay');
-        if (codeDisplay) codeDisplay.textContent = l.roomCode;
-
-        const fillBtn = document.getElementById('pokerFillBotsBtn');
-        if (fillBtn) {
-          fillBtn.textContent = l.fillWithBots ? '🤖 Bots : OUI' : '🚫 Bots : NON';
-          fillBtn.className = l.fillWithBots
-            ? 'px-3.5 py-1.5 rounded-xl font-extrabold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 transition'
-            : 'px-3.5 py-1.5 rounded-xl font-extrabold bg-rose-500/20 border border-rose-400/40 text-rose-300 transition';
-        }
-
         const pubBrowser = document.getElementById('pokerPublicTablesBrowser');
-        if (pubBrowser) pubBrowser.classList.toggle('hidden', !isMulti || l.tableType !== 'public');
+        if (pubBrowser) pubBrowser.classList.toggle('hidden', !isMulti);
 
-        // Rendu des 3 tables publiques de Poker
-        if (isMulti && l.tableType === 'public') {
+        // Rendu des 9 tables publiques de Poker
+        if (isMulti) {
           renderPokerPublicTablesBrowser();
         }
 
         // Bandeau de la table de poker actuellement rejointe
         const curTableBanner = document.getElementById('pokerCurrentTableBanner');
         if (curTableBanner) {
-          const isSeated = isMulti && l.tableType === 'public' && !state.currentTable?.leftTable && Boolean(l.publicTableId);
+          const isSeated = isMulti && !state.currentTable?.leftTable && Boolean(l.publicTableId);
           curTableBanner.classList.toggle('hidden', !isSeated);
           if (isSeated) {
             const iconEl = document.getElementById('pokerCurrentTableIcon');
@@ -4956,18 +4941,18 @@
             const occEl = document.getElementById('pokerCurrentTableOccupants');
             const realParticipants = getTableParticipants('poker');
 
-            const curPub = POKER_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'poker_pub_1')) || POKER_PUBLIC_TABLES[0];
+            const curPub = POKER_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'poker_4max_1')) || POKER_PUBLIC_TABLES[0];
             if (iconEl) iconEl.textContent = curPub.icon;
             if (nameEl) nameEl.textContent = curPub.name;
             if (typeBadgeEl) {
-              typeBadgeEl.textContent = 'Table Publique';
-              typeBadgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+              typeBadgeEl.textContent = curPub.categoryLabel || 'Table Publique';
+              typeBadgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30';
             }
             if (occEl) {
               const totalCount = realParticipants.length + 1;
               occEl.innerHTML = realParticipants.length > 0
-                ? `👥 <strong>${totalCount} / 4 Joueurs assis :</strong> ${state.username} (Toi), ${realParticipants.map(p => '<strong>' + escapeHtml(p.username) + '</strong>').join(', ')}`
-                : `👥 <strong>1 / 4 Joueur assis (Toi) :</strong> En attente d'autres flambeurs (accès libre) ou comblé par des bots.`;
+                ? `👥 <strong>${totalCount} / ${curPub.maxSeats} Joueurs assis :</strong> ${escapeHtml(state.username)} (Toi), ${realParticipants.map(p => '<strong>' + escapeHtml(p.username) + '</strong>').join(', ')} • Blind 100 €`
+                : `👥 <strong>1 / ${curPub.maxSeats} Joueur assis (Toi) :</strong> En attente d'autres flambeurs réels (aucun bot) • Blind 100 €`;
             }
           }
         }
@@ -4977,19 +4962,14 @@
         if (statusTxt) {
           if (!isMulti) {
             statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-stone-400"></span><span>Mode Solo • Tu joues contre les bots du club.</span>`;
-          } else if (l.tableType === 'public') {
+          } else {
             const isSeated = !state.currentTable?.leftTable && Boolean(l.publicTableId);
             if (isSeated) {
-              const curPub = POKER_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'poker_pub_1')) || POKER_PUBLIC_TABLES[0];
-              statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>${curPub.name} • ${realParticipants.length > 0 ? realParticipants.length + ' joueur(s) connecté(s) avec toi.' : 'En attente d\'autres joueurs.'}</span>`;
+              const curPub = POKER_PUBLIC_TABLES.find(t => t.id === (l.publicTableId || 'poker_4max_1')) || POKER_PUBLIC_TABLES[0];
+              statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>${curPub.name} • ${realParticipants.length > 0 ? (realParticipants.length + 1) + '/' + curPub.maxSeats + ' joueurs assis.' : 'En attente d\'autres joueurs.'} (Blind 100 €)</span>`;
             } else {
-              statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>3 Tables Publiques • Choisis une table libre ci-dessus pour t'asseoir (accès libre sans invitation).</span>`;
+              statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>9 Tables Publiques (1v1, Table de 4, Table de 6) • Choisis une table ci-dessous pour t'asseoir (Blind 100 €).</span>`;
             }
-          } else if (realParticipants.length > 0) {
-            const namesList = realParticipants.map(p => `<strong>${p.username}</strong>`).join(', ');
-            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • Joueurs assis : <strong>${state.username} (Toi)</strong>, ${namesList}</span>`;
-          } else {
-            statusTxt.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span>Table Privée [${l.roomCode}] • ${l.fillWithBots ? 'Places libres comblées par des bots.' : 'Seuls les vrais joueurs assis jouent.'}</span>`;
           }
         }
       } else if (game === 'bj') {
@@ -5061,6 +5041,7 @@
     function setPokerGameMode(m) {
       if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
       lobbies.poker.mode = m;
+      lobbies.poker.tableType = 'public';
       if (m === 'multi') {
         lobbies.poker.publicTableId = null;
         if (!state.currentTable) state.currentTable = {};
@@ -5068,6 +5049,7 @@
         state.currentTable.publicTableId = null;
         state.currentTable.game = 'poker';
         state.currentTable.mode = 'multi';
+        state.currentTable.tableType = 'public';
       } else {
         lobbies.poker.publicTableId = null;
         if (state.currentTable) {
@@ -5075,30 +5057,25 @@
           state.currentTable.publicTableId = null;
           state.currentTable.game = 'poker';
           state.currentTable.mode = 'solo';
+          state.currentTable.tableType = 'public';
         }
       }
       updateCurrentTable('poker');
       updateLobbyUI('poker');
       setupPokerSeats();
-      showToast(m === 'solo' ? '🤖 Poker : Mode Solo direct contre les bots' : '🌐 Poker : Salon Multijoueur activé');
+      showToast(m === 'solo' ? '🤖 Poker : Mode Solo direct contre les bots' : '🌐 Poker : Salons Multijoueurs (9 tables publiques)');
     }
 
     function setPokerTableType(t) {
-      if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
-      lobbies.poker.tableType = t;
-      updateCurrentTable('poker');
+      lobbies.poker.tableType = 'public';
       updateLobbyUI('poker');
-      setupPokerSeats();
-      showToast(t === 'public' ? '🌍 Table Publique sélectionnée' : `🔒 Table Privée [${lobbies.poker.roomCode}]`);
     }
 
     function togglePokerFillBots() {
-      if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
-      lobbies.poker.fillWithBots = !lobbies.poker.fillWithBots;
-      updateCurrentTable('poker');
-      updateLobbyUI('poker');
-      setupPokerSeats();
-      showToast(lobbies.poker.fillWithBots ? '🤖 Places vides : comblées par des bots' : '🚫 Places vides : réservées aux vrais joueurs');
+      // Les bots sont strictement désactivés en mode multijoueur
+      if (lobbies.poker.mode === 'multi') {
+        return showToast('🚫 Les bots sont interdits en multijoueur. Seuls les vrais joueurs peuvent s\'asseoir !');
+      }
     }
 
     function setPokerMode(m) {
@@ -5109,7 +5086,10 @@
     function setPokerSeats(n) {
       if (poker.inProgress) return showToast('Termine d\'abord la main en cours !');
       poker.seatCount = n;
-      [1, 3, 5].forEach(k => document.getElementById(`pseat-${k}`).classList.toggle('active', k === n));
+      [1, 3, 5].forEach(k => {
+        const btn = document.getElementById(`pseat-${k}`);
+        if (btn) btn.classList.toggle('active', k === n);
+      });
       setupPokerSeats();
       const label = n === 1 ? 'Duel 1v1' : n === 3 ? 'Table de 4' : 'Table 6 Max';
       showToast(`♠️ Configuration : ${label}`);
@@ -5138,6 +5118,7 @@
           });
         }
       } else {
+        // MULTIJOUEUR : 100% VRAIS JOUEURS, STRICTEMENT AUCUN BOT
         const realPlayers = getTableParticipants('poker');
         for (let i = 0; i < count; i++) {
           if (i < realPlayers.length) {
@@ -5154,24 +5135,10 @@
               folded: false,
               status: '🟢 Connecté'
             });
-          } else if (pLobby.fillWithBots) {
-            const b = BOT_PROFILES[i % BOT_PROFILES.length];
-            opps.push({
-              id: i,
-              name: b.name,
-              isFriend: false,
-              isEmpty: false,
-              avatar: b.avatar,
-              stack: 6000,
-              bet: 0,
-              cards: [],
-              folded: false,
-              status: '🤖 Bot'
-            });
           } else {
             opps.push({
               id: i,
-              name: `Siège ${i + 2}`,
+              name: `Siège libre`,
               isFriend: false,
               isEmpty: true,
               avatar: '🪑',
@@ -5209,7 +5176,7 @@
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-7 h-7 rounded-full bg-stone-800 border border-emerald-400/50 flex items-center justify-center text-xs flex-shrink-0">${o.avatar}</div>
               <div class="min-w-0">
-                <div class="text-[11px] font-bold text-white truncate">${o.name}</div>
+                <div class="text-[11px] font-bold text-white truncate">${escapeHtml(o.name)}</div>
                 <div class="text-[10px] font-mono-num text-amber-300">${fmt(o.stack)} 🪙</div>
                 <div class="text-[9px] font-bold text-emerald-400 truncate">${o.status}</div>
               </div>
@@ -5220,7 +5187,12 @@
           </div>
         `;
       };
-      document.getElementById('pokerTopSeats').innerHTML = poker.opponents.slice(0, 3).map(o => `<div class="flex justify-center">${seatHTML(o)}</div>`).join('');
+
+      const is1v1 = poker.opponents.length === 1;
+      document.getElementById('pokerTopSeats').innerHTML = poker.opponents.slice(0, 3).map(o => {
+        const colClass = is1v1 ? 'sm:col-start-2' : '';
+        return `<div class="flex justify-center ${colClass}">${seatHTML(o)}</div>`;
+      }).join('');
       document.getElementById('pokerLeftSeat').innerHTML = poker.opponents[3] ? seatHTML(poker.opponents[3]) : '';
       document.getElementById('pokerRightSeat').innerHTML = poker.opponents[4] ? seatHTML(poker.opponents[4]) : '';
 
@@ -5272,18 +5244,25 @@
         openAuthModal('login');
         return;
       }
-      if (lobbies.poker.mode === 'multi' && lobbies.poker.tableType === 'public' && !lobbies.poker.publicTableId) {
+      const isMulti = lobbies.poker.mode === 'multi';
+      if (isMulti && !lobbies.poker.publicTableId) {
         showToast('👉 Choisis une table de poker publique ci-dessus pour t\'asseoir !');
         scrollToPokerBrowser();
         return;
       }
-      const blind = Math.max(10, parseInt(document.getElementById('pokerBlindsInput').value) || 100);
-      if (state.balance < blind) return showToast('❌ Pas assez de pièces !');
+
+      // En multijoueur, la blind commence strictement à 100 €
+      const blind = isMulti ? 100 : Math.max(10, parseInt(document.getElementById('pokerBlindsInput')?.value) || 100);
+      if (state.balance < blind) return showToast(`❌ Pas assez de pièces (Blind ${blind} € requise) !`);
       if (!poker.opponents.length) setupPokerSeats();
 
       const activeOpps = poker.opponents.filter(o => !o.isEmpty);
       if (activeOpps.length === 0) {
-        return showToast('❌ Aucun joueur à la table. Active les bots ou invite un ami !');
+        if (isMulti) {
+          return showToast('⏳ En attente d\'autres joueurs ! Aucun adversaire réel n\'est encore assis à la table.');
+        } else {
+          return showToast('❌ Aucun joueur à la table.');
+        }
       }
 
       poker.inProgress = true;
@@ -7207,11 +7186,14 @@
     /* ================= GESTION DES 3 TABLES PUBLIQUES DE POKER ================= */
     function getPokerCurrentTableId() {
       if (!lobbies.poker?.publicTableId) return null;
-      return (lobbies.poker.publicTableId || 'poker_pub_1').toLowerCase().trim();
+      return (lobbies.poker.publicTableId || 'poker_4max_1').toLowerCase().trim();
     }
 
     function getPokerTableOccupants(targetTableId) {
-      const normTarget = (targetTableId || 'poker_pub_1').toLowerCase().trim();
+      const normTarget = (targetTableId || 'poker_4max_1').toLowerCase().trim();
+      const tableObj = POKER_PUBLIC_TABLES.find(t => t.id.toLowerCase() === normTarget) || POKER_PUBLIC_TABLES[0];
+      const maxSeats = tableObj.maxSeats || 4;
+
       const db = getAccountsDB();
       const now = Date.now();
       const PRESENCE_TIMEOUT_MS = 25000;
@@ -7220,7 +7202,7 @@
       const me = (state.username || '').toLowerCase().trim();
 
       // 1. Joueur courant
-      if (lobbies.poker && lobbies.poker.mode === 'multi' && lobbies.poker.tableType === 'public') {
+      if (lobbies.poker && lobbies.poker.mode === 'multi') {
         const myCurrentTableId = (lobbies.poker.publicTableId || '').toLowerCase().trim();
         const isLeft = state.currentTable?.leftTable === true || !lobbies.poker.publicTableId;
         if (!isLeft && myCurrentTableId === normTarget && me) {
@@ -7244,12 +7226,12 @@
         if (!ct || ct.leftTable) return;
 
         const accGame = ct.game;
-        if (accGame !== 'poker' || ct.mode !== 'multi' || ct.tableType !== 'public') return;
+        if (accGame !== 'poker' || ct.mode !== 'multi') return;
 
         const ctTime = typeof ct.updatedAt === 'number' ? ct.updatedAt : (acc.updated_at ? new Date(acc.updated_at).getTime() : 0);
         if (ctTime > 0 && (now - ctTime > PRESENCE_TIMEOUT_MS)) return;
 
-        const ctTableId = (ct.publicTableId || 'poker_pub_1').toLowerCase().trim();
+        const ctTableId = (ct.publicTableId || 'poker_4max_1').toLowerCase().trim();
         if (ctTableId === normTarget) {
           seen.add(u);
           occupants.push({
@@ -7261,7 +7243,6 @@
         }
       });
 
-      const maxSeats = 4;
       return {
         tableId: normTarget,
         players: occupants,
@@ -7270,6 +7251,22 @@
         isFull: occupants.length >= maxSeats,
         isUserHere: occupants.some(p => p.isMe)
       };
+    }
+
+    let pokerTableFilter = 'all';
+
+    function filterPokerTables(cat) {
+      pokerTableFilter = cat;
+      ['all', '1v1', '4max', '6max'].forEach(k => {
+        const btn = document.getElementById(`ptab-${k}`);
+        if (btn) btn.classList.toggle('active', k === cat);
+      });
+      renderPokerPublicTablesBrowser();
+    }
+
+    function scrollToPokerBrowser() {
+      const el = document.getElementById('pokerPublicTablesBrowser') || document.getElementById('pokerLobbyBanner');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function renderPokerPublicTablesBrowser() {
@@ -7282,7 +7279,11 @@
       const currentPubId = (lobbies.poker.publicTableId || '').toLowerCase().trim();
       const isSeated = !state.currentTable?.leftTable && Boolean(lobbies.poker.publicTableId);
 
-      const newHtml = POKER_PUBLIC_TABLES.map(t => {
+      const tablesToRender = pokerTableFilter === 'all'
+        ? POKER_PUBLIC_TABLES
+        : POKER_PUBLIC_TABLES.filter(t => t.category === pokerTableFilter);
+
+      const newHtml = tablesToRender.map(t => {
         const occ = getPokerTableOccupants(t.id);
         const isCurrent = isSeated && (currentPubId === t.id.toLowerCase());
         const isFull = occ.isFull;
@@ -7290,15 +7291,16 @@
         // Badge Statut
         let statusBadge = '';
         if (occ.count === 0) {
-          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">🟢 0/4 Libre</span>`;
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">🟢 0/${t.maxSeats} Libre</span>`;
         } else if (occ.count < t.maxSeats) {
           statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse">🟡 ${occ.count}/${t.maxSeats} Libre</span>`;
         } else {
           statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/40">🔴 ${t.maxSeats}/${t.maxSeats} Pleine</span>`;
         }
 
-        // 4 Sièges
-        const seatsHtml = [0, 1, 2, 3].map(i => {
+        // Sièges dynamiques selon maxSeats
+        const seatSlots = Array.from({ length: t.maxSeats }, (_, i) => i);
+        const seatsHtml = seatSlots.map(i => {
           const p = occ.players[i] || null;
           if (p) {
             return `<div class="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-2 py-1 text-xs truncate">
@@ -7311,6 +7313,12 @@
                     </div>`;
           }
         }).join('');
+
+        const gridColsClass = t.maxSeats === 2
+          ? 'grid-cols-2'
+          : t.maxSeats === 6
+            ? 'grid-cols-2 sm:grid-cols-3'
+            : 'grid-cols-2';
 
         // Bouton d'action
         let actionBtn = '';
@@ -7328,7 +7336,7 @@
         } else if (isFull) {
           actionBtn = `
             <button disabled class="w-full py-2 rounded-xl bg-stone-900 border border-white/5 text-stone-500 text-xs font-bold cursor-not-allowed">
-              🚫 Pleine (4/4)
+              🚫 Pleine (${t.maxSeats}/${t.maxSeats})
             </button>
           `;
         } else {
@@ -7352,8 +7360,11 @@
                 </span>
                 ${statusBadge}
               </div>
-              <div class="text-[10px] text-stone-400 mb-2 truncate">${t.desc}</div>
-              <div class="grid grid-cols-2 gap-1.5">
+              <div class="flex items-center justify-between text-[10px] text-stone-400 mb-2">
+                <span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-amber-300 font-bold">${t.categoryLabel}</span>
+                <span class="font-mono-num font-bold text-stone-300">Blind : 100 €</span>
+              </div>
+              <div class="grid ${gridColsClass} gap-1.5">
                 ${seatsHtml}
               </div>
             </div>
@@ -7371,25 +7382,28 @@
 
     function joinPokerPublicTable(targetTableId) {
       if (poker.inProgress) return showToast('Termine d\'abord la main de Poker en cours !');
+      const tableObj = POKER_PUBLIC_TABLES.find(t => t.id === targetTableId) || POKER_PUBLIC_TABLES[0];
       const occ = getPokerTableOccupants(targetTableId);
       const me = (state.username || '').toLowerCase().trim();
       const isAlreadyIn = occ.players.some(p => p.username.toLowerCase().trim() === me);
 
       if (!isAlreadyIn && occ.isFull) {
-        return showToast('🚫 Cette table est déjà complète (4/4 joueurs). Choisis un autre salon libre !');
+        return showToast(`🚫 Cette table est déjà complète (${tableObj.maxSeats}/${tableObj.maxSeats} joueurs). Choisis un autre salon libre !`);
       }
-
-      const tableObj = POKER_PUBLIC_TABLES.find(t => t.id === targetTableId) || POKER_PUBLIC_TABLES[0];
 
       lobbies.poker.mode = 'multi';
       lobbies.poker.tableType = 'public';
       lobbies.poker.publicTableId = targetTableId;
 
-      if (tableObj.defaultBlind) {
-        const blindInput = document.getElementById('pokerBlindsInput');
-        if (blindInput) blindInput.value = tableObj.defaultBlind;
-      }
-      setPokerSeats(3);
+      // Fixer la blind à 100 €
+      const blindInput = document.getElementById('pokerBlindsInput');
+      if (blindInput) blindInput.value = '100';
+
+      // Configurer le nombre de sièges adverses selon le format de la table :
+      // 1v1 : maxSeats = 2 -> 1 adversaire (poker.seatCount = 1)
+      // Table de 4 : maxSeats = 4 -> 3 adversaires (poker.seatCount = 3)
+      // Table de 6 : maxSeats = 6 -> 5 adversaires (poker.seatCount = 5)
+      poker.seatCount = tableObj.maxSeats - 1;
 
       if (!state.currentTable) state.currentTable = {};
       state.currentTable.leftTable = false;
@@ -7405,7 +7419,7 @@
       renderPokerTable(false);
       renderPokerPublicTablesBrowser();
 
-      showToast(`🃏 Tu t'es assis à la ${tableObj.name} !`);
+      showToast(`🃏 Tu t'es assis à la ${tableObj.name} (${tableObj.categoryLabel}) !`);
       syncPokerMultiplayer();
 
       const feltEl = document.getElementById('pokerFeltBox');
@@ -9111,6 +9125,11 @@
         if (roomKey === 'blackjack') {
           lobbies.bj.tableType = 'public';
           lobbies.bj.publicTableId = cur.publicTableId || 'bj_pub_1';
+        } else if (roomKey === 'poker') {
+          lobbies.poker.tableType = 'public';
+          lobbies.poker.publicTableId = cur.publicTableId || 'poker_4max_1';
+          const tObj = POKER_PUBLIC_TABLES.find(t => t.id === lobbies.poker.publicTableId) || POKER_PUBLIC_TABLES[0];
+          poker.seatCount = tObj.maxSeats - 1;
         } else if (cur.roomCode) {
           lobbies[lobbyKey].tableType = cur.tableType || 'private';
           lobbies[lobbyKey].roomCode = cur.roomCode;
@@ -9128,9 +9147,9 @@
         game: gameKey,
         mode: 'multi',
         leftTable: false,
-        tableType: roomKey === 'blackjack' ? 'public' : (cur.tableType || 'private'),
-        publicTableId: roomKey === 'blackjack' ? (cur.publicTableId || 'bj_pub_1') : null,
-        roomCode: roomKey === 'blackjack' ? '' : (cur.roomCode || ''),
+        tableType: (roomKey === 'blackjack' || roomKey === 'poker') ? 'public' : (cur.tableType || 'private'),
+        publicTableId: roomKey === 'blackjack' ? (cur.publicTableId || 'bj_pub_1') : (roomKey === 'poker' ? (cur.publicTableId || 'poker_4max_1') : null),
+        roomCode: (roomKey === 'blackjack' || roomKey === 'poker') ? '' : (cur.roomCode || ''),
         host: cur.from,
         user: state.username,
         avatar: state.avatarEmoji || '🎭',
@@ -9628,13 +9647,9 @@
         const tNum = currentLobby.publicTableId.replace('bj_pub_', 'Table ');
         lobbyExtra = ` (${tNum} Publique)`;
       } else if (room === 'poker') {
-        if (currentLobby && currentLobby.tableType === 'public') {
-          if (!currentLobby.publicTableId) currentLobby.publicTableId = 'poker_pub_1';
-          const curT = POKER_PUBLIC_TABLES.find(t => t.id === currentLobby.publicTableId);
-          lobbyExtra = ` (${curT?.name || 'Table 1'} Publique)`;
-        } else {
-          lobbyExtra = ` (Table Privée Code : ${currentLobby?.roomCode || 'POK-842'})`;
-        }
+        if (!currentLobby.publicTableId) currentLobby.publicTableId = 'poker_4max_1';
+        const curT = POKER_PUBLIC_TABLES.find(t => t.id === currentLobby.publicTableId) || POKER_PUBLIC_TABLES[0];
+        lobbyExtra = ` (${curT?.name || 'Table 4'} Publique)`;
       } else if (currentLobby && currentLobby.mode === 'multi') {
         lobbyExtra = currentLobby.tableType === 'private'
           ? ` (Table Privée Code : ${currentLobby.roomCode})`
@@ -9648,9 +9663,9 @@
         to: friendName,
         room: room,
         gameName: roomNames[room] || room,
-        tableType: room === 'blackjack' ? 'public' : (currentLobby?.tableType || 'public'),
-        publicTableId: room === 'blackjack' ? (currentLobby?.publicTableId || 'bj_pub_1') : (room === 'poker' && currentLobby?.tableType === 'public' ? (currentLobby?.publicTableId || 'poker_pub_1') : null),
-        roomCode: (room === 'blackjack' || (room === 'poker' && currentLobby?.tableType === 'public')) ? '' : (currentLobby?.roomCode || ''),
+        tableType: (room === 'blackjack' || room === 'poker') ? 'public' : (currentLobby?.tableType || 'public'),
+        publicTableId: room === 'blackjack' ? (currentLobby?.publicTableId || 'bj_pub_1') : (room === 'poker' ? (currentLobby?.publicTableId || 'poker_4max_1') : null),
+        roomCode: (room === 'blackjack' || room === 'poker') ? '' : (currentLobby?.roomCode || ''),
         host: state.username,
         timestamp: Date.now()
       };
