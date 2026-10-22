@@ -579,3 +579,163 @@ select {
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
+/* ================= POKER TABLE VERTICALE & JETONS CASINO ================= */
+.poker-vertical-stadium {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  border-radius: 54px;
+  background: radial-gradient(ellipse at 50% 50%, #064e3b 0%, #033629 55%, #011b15 100%);
+  border: 4px solid #1a1608;
+  box-shadow: 
+    0 0 0 2px rgba(245, 158, 11, 0.7),
+    0 0 25px rgba(245, 158, 11, 0.3),
+    inset 0 0 35px rgba(0, 0, 0, 0.85);
+  padding: 16px 12px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 620px;
+}
+
+.poker-vertical-stadium::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 46px;
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  pointer-events: none;
+}
+
+/* Pastille Dealer Button [ D ] */
+.dealer-button-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #d97706 70%, #78350f 100%);
+  color: #1a1303;
+  font-weight: 900;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.8), inset 0 1px 1px #fff;
+  border: 1px solid #fef08a;
+  z-index: 20;
+}
+
+/* Jetons de poker 3D sur le tapis */
+.poker-chip-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 5px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.65);
+  animation: chipDrop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes chipDrop {
+  0% { transform: translateY(-8px) scale(0.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.poker-chip-token {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fbbf24 0%, #b45309 80%, #78350f 100%);
+  border: 2px dashed #fef08a;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.7), inset 0 1px 2px #fff;
+  position: relative;
+  flex-shrink: 0;
+}
+.poker-chip-token.chip-gold {
+  background: radial-gradient(circle at 35% 35%, #fde047 0%, #ca8a04 80%, #713f12 100%);
+  border-color: #fef9c3;
+}
+.poker-chip-token.chip-red {
+  background: radial-gradient(circle at 35% 35%, #f87171 0%, #dc2626 80%, #7f1d1d 100%);
+  border-color: #fecaca;
+}
+
+/* Révélation d'une carte avec flip 3D */
+.card-flip-reveal {
+  animation: cardFlipAnim 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes cardFlipAnim {
+  0% { transform: scale(0.6) rotateY(90deg); opacity: 0; }
+  60% { transform: scale(1.08) rotateY(-10deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+/* Slider de relance doré */
+.poker-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #d97706, #fbbf24, #78350f);
+  outline: none;
+}
+.poker-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fef08a 0%, #d97706 100%);
+  border: 2px solid #78350f;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.7), inset 0 1px 2px #fff;
+}
+.poker-range-slider::-moz-range-thumb {
+  width: 38px;
+  height: 22px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fef08a 0%, #d97706 100%);
+  border: 2px solid #78350f;
+  cursor: pointer;
+}
+
+/* Boutons tactiles mobile poker */
+.btn-poker-mobile-fold {
+  background: linear-gradient(180deg, #1f1d24 0%, #141219 100%);
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.btn-poker-mobile-fold:active {
+  background: #2a1b20;
+  border-color: #ef4444;
+}
+
+.btn-poker-mobile-call {
+  background: linear-gradient(180deg, #0e1e2c 0%, #09131d 100%);
+  border: 2px solid #06b6d4;
+  color: #67e8f9;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.45), 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+.btn-poker-mobile-call:active {
+  background: #0d283c;
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.7);
+}
+
+.btn-poker-mobile-raise {
+  background: linear-gradient(180deg, #fef08a 0%, #d97706 60%, #b45309 100%);
+  border: 2px solid #fef08a;
+  color: #1a1003;
+  font-weight: 900;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.55), 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+.btn-poker-mobile-raise:active {
+  filter: brightness(1.15);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.85);
+}
+

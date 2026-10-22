@@ -367,11 +367,11 @@ function startDealerDeal(table, now) {
 function stepDealerBot(table, now) {
   let changed = false;
 
-  // 1. Nettoyer les joueurs inactifs (> 25s)
+  // 1. Nettoyer les joueurs inactifs (> 20s sans ping)
   const order = table.playerOrder || [];
   order.forEach(k => {
     const p = table.players[k];
-    if (p && p.updatedAt && (now - p.updatedAt > 25000)) {
+    if (p && p.updatedAt && (now - p.updatedAt > 20000)) {
       if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
         p.folded = true;
         p.status = 'A quitté';
@@ -381,6 +381,15 @@ function stepDealerBot(table, now) {
       changed = true;
     }
   });
+
+  if (table.playerOrder.length === 0 && table.status !== 'waiting') {
+    table.status = 'waiting';
+    table.community = [];
+    table.pot = 0;
+    table.winner = null;
+    table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis...";
+    changed = true;
+  }
 
   const activeSeated = table.playerOrder.filter(k => Boolean(table.players[k]));
 
@@ -471,6 +480,23 @@ function sanitizeTableForUser(table, username) {
   return copy;
 }
 
+function buildTablesSummary(allTables) {
+  const summary = {};
+  Object.keys(PUBLIC_TABLE_CONFIGS).forEach(tId => {
+    const t = allTables[tId];
+    if (!t || !t.players) {
+      summary[tId] = { count: 0, players: [] };
+    } else {
+      const seated = (t.playerOrder || []).filter(k => Boolean(t.players[k])).map(k => ({
+        username: t.players[k].username,
+        avatar: t.players[k].avatar || '👤'
+      }));
+      summary[tId] = { count: seated.length, players: seated };
+    }
+  });
+  return summary;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -488,6 +514,7 @@ export default async function handler(req, res) {
 
   // GET
   if (req.method === 'GET') {
+    const uKey = (req.query.user || '').toLowerCase().trim();
     let rawTableId = (req.query.table || req.query.tableId || 'poker_4max_1').toLowerCase().trim();
     if (!PUBLIC_TABLE_CONFIGS[rawTableId]) rawTableId = 'poker_4max_1';
     const tableId = rawTableId;
@@ -498,6 +525,11 @@ export default async function handler(req, res) {
       tables[tableId] = table;
     }
 
+    // Refresh heartbeat pour éviter qu'un joueur assis soit éjecté pour inactivité
+    if (uKey && table.players[uKey]) {
+      table.players[uKey].updatedAt = now;
+    }
+
     const changed = stepDealerBot(table, now);
     if (changed) {
       memoryTables = tables;
@@ -505,6 +537,7 @@ export default async function handler(req, res) {
     }
 
     const clientView = sanitizeTableForUser(table, req.query.user || '');
+    clientView.tablesSummary = buildTablesSummary(tables);
     return res.status(200).json(clientView);
   }
 
@@ -572,6 +605,13 @@ export default async function handler(req, res) {
         delete table.players[uKey];
         table.playerOrder = table.playerOrder.filter(k => k !== uKey);
         table.announcement = `🚪 ${user} a quitté la table.`;
+        if (table.playerOrder.length === 0) {
+          table.status = 'waiting';
+          table.community = [];
+          table.pot = 0;
+          table.winner = null;
+          table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis...";
+        }
         table.updatedAt = now;
         modified = true;
         advancePokerPhaseOrTurn(table, now);
@@ -658,6 +698,7 @@ export default async function handler(req, res) {
     }
 
     const clientView = sanitizeTableForUser(table, user);
+    clientView.tablesSummary = buildTablesSummary(tables);
     return res.status(200).json(clientView);
   }
 

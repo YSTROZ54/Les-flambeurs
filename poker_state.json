@@ -1,1 +1,35 @@
-{}
+﻿{
+    "poker_4max_1":  {
+                         "currentBet":  100,
+                         "turnEndsAt":  0,
+                         "roundId":  0,
+                         "name":  "Table 4 • Texas Flambeur",
+                         "countdownEndsAt":  0,
+                         "announcement":  "🤖 Croupier : En attente d\u0027au moins 2 joueurs assis...",
+                         "tableId":  "poker_4max_1",
+                         "dealerIndex":  0,
+                         "deck":  [
+
+                                  ],
+                         "playerOrder":  [
+
+                                         ],
+                         "maxSeats":  4,
+                         "pot":  0,
+                         "players":  {
+
+                                     },
+                         "blind":  100,
+                         "updatedAt":  1792682851085,
+                         "lastAggressor":  null,
+                         "status":  "waiting",
+                         "finishedAt":  0,
+                         "nextRoundAt":  0,
+                         "turn":  null,
+                         "community":  [
+
+                                       ],
+                         "winner":  null,
+                         "actionCount":  0
+                     }
+}

@@ -1075,13 +1075,19 @@ while ($listener.IsListening) {
             }
             $table = $currentTables[$reqTableId]
 
+            # Si le client poll en GET ou POST et est assis, rafraîchir son heartbeat
+            $uKey = if ($clientUser) { $clientUser.ToLower().Trim() } else { "" }
+            if ($uKey -and $table.players -and $table.players.ContainsKey($uKey)) {
+                $table.players[$uKey].updatedAt = $now
+            }
+
             # BOT CROUPIER : Cycle automatique
-            # 1. Nettoyer les joueurs inactifs (> 25s)
+            # 1. Nettoyer les joueurs inactifs (> 20s sans ping)
             $orderKeys = @($table.playerOrder)
             foreach ($pk in $orderKeys) {
                 if ($table.players -and $table.players.ContainsKey($pk)) {
                     $p = $table.players[$pk]
-                    if ($p.updatedAt -and ($now - [int64]$p.updatedAt -gt 25000)) {
+                    if ($p.updatedAt -and ($now - [int64]$p.updatedAt -gt 20000)) {
                         if (@('preflop', 'flop', 'turn', 'river') -contains $table.status) {
                             $p.folded = $true
                             $p.status = 'A quitté'
@@ -1090,6 +1096,14 @@ while ($listener.IsListening) {
                         $table.playerOrder = @($table.playerOrder | Where-Object { $_ -ne $pk })
                     }
                 }
+            }
+
+            if ($table.playerOrder.Count -eq 0 -and $table.status -ne 'waiting') {
+                $table.status = 'waiting'
+                $table.community = @()
+                $table.pot = 0
+                $table.winner = $null
+                $table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis..."
             }
 
             # 2. Gestion WAITING -> COUNTDOWN
@@ -1283,6 +1297,13 @@ while ($listener.IsListening) {
                         $table.players.Remove($uKey)
                         $table.playerOrder = @($table.playerOrder | Where-Object { $_ -ne $uKey })
                         $table.announcement = "🚪 $clientUser a quitté la table."
+                        if ($table.playerOrder.Count -eq 0) {
+                            $table.status = 'waiting'
+                            $table.community = @()
+                            $table.pot = 0
+                            $table.winner = $null
+                            $table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis..."
+                        }
                         $table.updatedAt = $now
 
                         $activeRemaining = @($table.playerOrder | Where-Object { $table.players[$_] -and -not $table.players[$_].folded })
@@ -1487,6 +1508,26 @@ while ($listener.IsListening) {
                 }
             }
             if ($respTable.ContainsKey('deck')) { $respTable.Remove('deck') }
+
+            # Construire tablesSummary pour les 9 tables
+            $tablesSummary = @{}
+            foreach ($cfgKey in $pokerConfigs.Keys) {
+                if ($currentTables.ContainsKey($cfgKey) -and $currentTables[$cfgKey].players) {
+                    $tRef = $currentTables[$cfgKey]
+                    $seated = @()
+                    if ($tRef.playerOrder) {
+                        foreach ($k in $tRef.playerOrder) {
+                            if ($tRef.players.ContainsKey($k)) {
+                                $seated += @{ username = $tRef.players[$k].username; avatar = $tRef.players[$k].avatar }
+                            }
+                        }
+                    }
+                    $tablesSummary[$cfgKey] = @{ count = $seated.Count; players = $seated }
+                } else {
+                    $tablesSummary[$cfgKey] = @{ count = 0; players = @() }
+                }
+            }
+            $respTable['tablesSummary'] = $tablesSummary
 
             $outJson = $respTable | ConvertTo-Json -Depth 8
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
