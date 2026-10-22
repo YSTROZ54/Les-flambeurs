@@ -952,10 +952,7 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="scrollToBjBrowser()" id="bjChangeTableBtn" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 transition flex items-center gap-1.5">
-            <span>📋</span> <span>Changer de table</span>
-          </button>
-          <button onclick="leaveBjCurrentTable()" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 transition flex items-center gap-1.5">
+          <button onclick="leaveBjCurrentTable()" class="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 transition flex items-center gap-1.5 shadow-sm">
             <span>🚪</span> <span>Quitter la table</span>
           </button>
         </div>
@@ -1026,7 +1023,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-400/30 text-orange-300 text-xs font-bold flex items-center gap-1.5">
-            <span>🤖</span> <span>Solo vs Bot (Roxy)</span>
+            <span>🤖</span> <span>Solo vs ( Bot )</span>
           </span>
           <button onclick="openRulesModal('cups')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">❓ Comment jouer</button>
         </div>
@@ -1044,7 +1041,7 @@
             <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Vitesse &amp; Multiplicateur</label>
             <div class="mt-1.5 px-3.5 py-2.5 rounded-xl bg-orange-500/15 border border-orange-400/40 flex items-center justify-between text-xs">
               <span class="font-extrabold text-white flex items-center gap-1.5">
-                <span>⚡</span> <span>Vitesse Rapide (Fixe)</span>
+                <span>⚡</span> <span>Vitesse Ultra-Rapide (Fixe)</span>
               </span>
               <span class="font-mono-num font-black text-amber-300 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30">
                 Gain ×1.25
@@ -1052,44 +1049,17 @@
             </div>
           </div>
 
-          <!-- Choix de qui cache la bille (Solo vs Bot) -->
-          <div id="cupsHiderChoiceContainer" class="space-y-1.5">
-            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Qui cache la bille d'or ?</label>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" onclick="setCupsHider('me')" id="chider-me" class="pill-choice active">
-                👤 Moi
-              </button>
-              <button type="button" onclick="setCupsHider('opponent')" id="chider-opp" class="pill-choice">
-                <span id="cupsHiderOpponentLabel">🤖 Roxy (Bot)</span>
-              </button>
+          <div class="p-3.5 rounded-xl bg-orange-950/30 border border-orange-400/30 space-y-1.5 text-xs">
+            <div class="font-extrabold text-orange-200 flex items-center gap-1.5">
+              <span>🤖</span> <span>Le ( Bot ) cache la bille dorée</span>
             </div>
-          </div>
-
-          <!-- Panneau secret pour cacher la bille (actif quand c'est moi qui cache) -->
-          <div id="cupsFriendSetupBox" class="p-3.5 rounded-xl bg-orange-950/40 border border-orange-400/40 space-y-3">
-            <div id="cupsSetupTitle" class="text-xs font-extrabold text-orange-200">🕵️ Où caches-tu la bille ? :</div>
-            <div class="space-y-2 text-xs">
-              <div>
-                <span class="text-stone-400 block mb-1">Gobelet de départ :</span>
-                <div class="grid grid-cols-3 gap-1.5">
-                  <button type="button" onclick="setCupsStart(0)" id="cstart-0" class="pill-choice">Gauche</button>
-                  <button type="button" onclick="setCupsStart(1)" id="cstart-1" class="pill-choice active">Milieu</button>
-                  <button type="button" onclick="setCupsStart(2)" id="cstart-2" class="pill-choice">Droite</button>
-                </div>
-              </div>
-              <div>
-                <span class="text-stone-400 block mb-1">Gobelet d'arrivée (après mélange) :</span>
-                <div class="grid grid-cols-3 gap-1.5">
-                  <button type="button" onclick="setCupsEnd(0)" id="cend-0" class="pill-choice">Gauche</button>
-                  <button type="button" onclick="setCupsEnd(1)" id="cend-1" class="pill-choice">Milieu</button>
-                  <button type="button" onclick="setCupsEnd(2)" id="cend-2" class="pill-choice active">Droite</button>
-                </div>
-              </div>
-            </div>
+            <p class="text-stone-300 text-[11px] leading-relaxed">
+              Le ( Bot ) dissimule la bille sous l'un des gobelets et mélange à toute vitesse. Suis bien le bon gobelet des yeux pour le démasquer !
+            </p>
           </div>
 
           <button id="cupsStartBtn" onclick="startCupsGame()" class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer">
-            🥤 Mélanger les Gobelets
+            🥤 Lancer la partie vs ( Bot )
           </button>
         </div>
 
@@ -1108,6 +1078,29 @@
           <div class="text-center text-xs text-stone-300">
             Clique directement sur le gobelet qui cache la bille quand le mélange s'arrête.
           </div>
+        </div>
+      </div>
+
+      <!-- CLASSEMENT DU JEU DES GOBELETS (TOP 3 VICTOIRES D'AFFILÉE) -->
+      <div class="rounded-3xl p-5 sm:p-6 bg-stone-950/90 border border-orange-500/30 shadow-2xl backdrop-blur-xl space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl p-2 rounded-2xl bg-orange-500/15 border border-orange-400/30">🏆</span>
+            <div>
+              <h3 class="font-serif-title font-extrabold text-base sm:text-lg text-white">Classement des Maîtres du Gobelet</h3>
+              <p class="text-xs text-orange-300">Les 3 joueurs ayant réussi la plus longue série de victoires d'affilée</p>
+            </div>
+          </div>
+          <div id="cupsMyStreakBanner" class="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-400/40 text-xs font-bold text-orange-200 flex items-center gap-2">
+            <span>🔥 Ta série en cours : <strong id="cupsCurrentStreakText" class="text-white font-mono-num font-black">0</strong></span>
+            <span>•</span>
+            <span>🏆 Ton record : <strong id="cupsBestStreakText" class="text-amber-300 font-mono-num font-black">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Les 3 Joueurs du Podium -->
+        <div id="cupsLeaderboardGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Dynamiquement généré par renderCupsLeaderboard() -->
         </div>
       </div>
     </section>
@@ -1895,6 +1888,8 @@
       balance: 0,
       chestStreak: 1,
       lastChestTime: 0,
+      cupsStreak: 0,
+      cupsBestStreak: 0,
       friends: [],
       friendBalances: {},
       ownedSkins: ['veh_rocket', 'felt_green', 'cards_classic', 'ball_gold', 'bj_classic', 'cab_classic', 'av_default'],
@@ -2089,6 +2084,8 @@
                 db[key] = {
                   ...DEFAULT_USER_STATE,
                   ...extraData,
+                  cupsStreak: extraData.cupsStreak || 0,
+                  cupsBestStreak: extraData.cupsBestStreak || 0,
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
@@ -2099,6 +2096,9 @@
                   pendingGameInvites: Array.isArray(extraData.pendingGameInvites) ? extraData.pendingGameInvites : [],
                   currentTable: extraData.currentTable || {}
                 };
+                if (isMe && typeof extraData.cupsBestStreak === 'number' && extraData.cupsBestStreak > (state.cupsBestStreak || 0)) {
+                  state.cupsBestStreak = extraData.cupsBestStreak;
+                }
                 changed = true;
               }
             });
@@ -2305,6 +2305,8 @@
           ownedSkins: account.ownedSkins || [],
           chestStreak: account.chestStreak || 1,
           lastChestTime: account.lastChestTime || 0,
+          cupsStreak: isMe ? (state.cupsStreak || 0) : (account.cupsStreak || account.data?.cupsStreak || 0),
+          cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0),
           friends: account.friends || [],
           friendBalances: account.friendBalances || {},
           bankTransfers: account.bankTransfers || [],
@@ -2589,6 +2591,8 @@
         state = {
           ...DEFAULT_USER_STATE,
           ...acc,
+          cupsStreak: acc.cupsStreak || 0,
+          cupsBestStreak: acc.cupsBestStreak || 0,
           equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
           luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
         };
@@ -3218,6 +3222,7 @@
       if (bjLbl && bjSkin) bjLbl.textContent = bjSkin.name;
 
       renderLeaderboard();
+      try { renderCupsLeaderboard(); } catch (e) {}
       renderShop();
       renderBankHistory();
       try { updateNotificationsBadge(); } catch (e) {}
@@ -3360,6 +3365,7 @@
       if (room === 'cups') {
         updateLobbyUI('cups');
         updateCupsSetupBoxVisibility();
+        renderCupsLeaderboard();
       }
       if (room === 'crash') {
         const balDisplay = document.getElementById('crashUserBalanceDisplay');
@@ -3430,9 +3436,10 @@
       cups: {
         title: '🥤 Comment jouer aux Gobelets ?',
         html: `
-          <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille au départ et suis le gobelet des yeux pendant le mélange !</p>
-          <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre Roxy (le Bot)</strong>. Tu peux deviner où le bot cache la bille, ou bien cacher toi-même la bille et défier le bot de la retrouver !</p>
-          <p>⚡ <strong>Vitesse &amp; Gains :</strong> La partie se joue exclusivement en <strong>Vitesse Rapide</strong>. Peu importe la mise engagée, une victoire rapporte exactement <strong>×1.25 ta mise</strong>.</p>
+          <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille dorée au départ et suis le bon gobelet des yeux pendant le mélange ultra-rapide !</p>
+          <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre le ( Bot )</strong>. Le ( Bot ) dissimule la bille sous l'un des trois gobelets et les mélange à toute vitesse !</p>
+          <p>⚡ <strong>Vitesse &amp; Gains :</strong> La partie se joue en <strong>Vitesse Ultra-Rapide</strong>. Une victoire rapporte exactement <strong>×1.25 ta mise</strong>.</p>
+          <p>🏆 <strong>Classement :</strong> Tente d'enchaîner le plus de victoires d'affilée pour intégrer le <strong>Top 3 du classement des Maîtres du Gobelet</strong> affiché sous le jeu !</p>
         `
       },
       blindtest: {
@@ -4355,7 +4362,7 @@
 
     const lobbies = {
       poker: { mode: 'solo', tableType: 'public', roomCode: 'POK-842', fillWithBots: true },
-      bj: { mode: 'solo', tableType: 'public', publicTableId: 'bj_pub_1', roomCode: '', fillWithBots: false },
+      bj: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false },
       cups: { mode: 'solo' }
     };
 
@@ -4600,6 +4607,7 @@
       const lobbyKey = (game === 'blackjack' || game === 'bj') ? 'bj' : 'poker';
       const l = lobbies[lobbyKey];
       if (!l || l.mode !== 'multi') return [];
+      if (lobbyKey === 'bj' && (!l.publicTableId || state.currentTable?.leftTable)) return [];
 
       const db = getAccountsDB();
       const me = (state.username || '').toLowerCase().trim();
@@ -6599,13 +6607,27 @@
         try { handlePlayerLeavingGame('blackjack'); } catch (e) {}
       }
       lobbies.bj.mode = m;
+      if (m === 'multi') {
+        // Le joueur choisit librement sa table parmi les 5 salons : aucune attribution automatique !
+        lobbies.bj.publicTableId = null;
+        if (!state.currentTable) state.currentTable = {};
+        state.currentTable.leftTable = true;
+        state.currentTable.publicTableId = null;
+        state.currentTable.game = 'blackjack';
+        state.currentTable.mode = 'multi';
+      } else {
+        lobbies.bj.publicTableId = null;
+        if (state.currentTable) {
+          state.currentTable.leftTable = true;
+          state.currentTable.publicTableId = null;
+        }
+      }
       updateCurrentTable('blackjack');
       updateLobbyUI('bj');
       renderBlackjack();
-      showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack : Salon Multijoueur activé');
+      showToast(m === 'solo' ? '🤖 Blackjack : Solo direct contre le Croupier' : '🌐 Blackjack Multijoueur : Choisis ta table pour t\'asseoir');
       if (m === 'multi') {
         try { onBjBetChange(); } catch (e) {}
-        syncBjMultiplayer();
       }
     }
 
@@ -7372,6 +7394,9 @@
       if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise !');
 
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
+      if (isMulti && (!lobbies.bj.publicTableId || state.currentTable?.leftTable)) {
+        return showToast('👉 Choisis d\'abord une table parmi les 5 salons ci-dessus pour t\'asseoir !');
+      }
       if (!isMulti) {
         // --- MODE SOLO DIRECT VS CROUPIER IA ---
         state.balance -= bet; saveState(); updateGlobalUI();
@@ -7891,52 +7916,26 @@
     let cupsGame = {
       mode: 'bot',
       speed: 'fast',
-      startPos: 1,
-      endPos: 2,
       canPick: false,
       bet: 100,
       mult: 1.25,
       positions: [0, 1, 2],
       ballCupId: 1,
-      hider: 'me',
+      hider: 'opponent', // Seul le ( Bot ) cache la bille
       activeRoundId: null,
       lastFinishedRoundId: null,
       isShuffling: false
     };
 
     function setCupsHider(h) {
-      if (cupsGame.isShuffling || cupsGame.canPick) return showToast('Termine d\'abord la manche de gobelets en cours !');
-      cupsGame.hider = h;
-      const meBtn = document.getElementById('chider-me');
-      const oppBtn = document.getElementById('chider-opp');
-      if (meBtn) meBtn.classList.toggle('active', h === 'me');
-      if (oppBtn) oppBtn.classList.toggle('active', h === 'opponent');
-      updateCupsSetupBoxVisibility();
+      cupsGame.hider = 'opponent';
     }
 
     function updateCupsSetupBoxVisibility() {
-      const setupBox = document.getElementById('cupsFriendSetupBox');
       const startBtn = document.getElementById('cupsStartBtn');
-      const setupTitle = document.getElementById('cupsSetupTitle');
-      const oppLbl = document.getElementById('cupsHiderOpponentLabel');
-
-      if (oppLbl) oppLbl.textContent = '🤖 Roxy (Bot)';
-
-      if (cupsGame.hider === 'me') {
-        if (setupBox) setupBox.classList.remove('hidden');
-        if (setupTitle) setupTitle.textContent = `🕵️ Choisis où tu caches la bille (${state.username || 'Moi'}) :`;
-        if (startBtn) {
-          startBtn.disabled = false;
-          startBtn.textContent = '🥤 Cacher & Faire deviner le Bot';
-          startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
-        }
-      } else {
-        if (setupBox) setupBox.classList.add('hidden');
-        if (startBtn) {
-          startBtn.disabled = false;
-          startBtn.textContent = '🥤 Mélanger les Gobelets (Devine la bille)';
-          startBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer';
-        }
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.textContent = '🥤 Lancer la partie vs ( Bot )';
       }
     }
 
@@ -7951,11 +7950,9 @@
     }
     function setCupsStart(n) {
       cupsGame.startPos = n;
-      [0, 1, 2].forEach(k => document.getElementById(`cstart-${k}`)?.classList.toggle('active', k === n));
     }
     function setCupsEnd(n) {
       cupsGame.endPos = n;
-      [0, 1, 2].forEach(k => document.getElementById(`cend-${k}`)?.classList.toggle('active', k === n));
     }
 
     function updateCupVisualPositions() {
@@ -7990,94 +7987,43 @@
       cupsGame.mult = 1.25; // Gain strict x1.25 peu importe la somme mise
       cupsGame.bet = bet;
       cupsGame.positions = [0, 1, 2];
+      cupsGame.hider = 'opponent';
 
-      // 1. SI JE SUIS CELUI QUI CACHE LA BILLE (FACE AU BOT ROXY)
-      if (cupsGame.hider === 'me') {
-        state.balance -= bet;
-        saveState();
-        updateGlobalUI();
+      // Le ( Bot ) déduit la mise et dissimule la bille dorée
+      state.balance -= bet;
+      saveState();
+      updateGlobalUI();
 
-        const startPos = cupsGame.startPos;
-        const targetEndPos = cupsGame.endPos;
-        cupsGame.ballCupId = startPos;
-        cupsGame.isShuffling = true;
-        updateCupVisualPositions();
+      const startPos = Math.floor(Math.random() * 3);
+      const targetEndPos = Math.floor(Math.random() * 3);
+      cupsGame.ballCupId = startPos;
+      cupsGame.isShuffling = true;
+      updateCupVisualPositions();
 
-        const ball = document.getElementById('cupGoldenBall');
-        if (ball) ball.style.opacity = '1';
-        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
-        document.getElementById('cupsBanner').textContent = `👀 Tu caches la bille sous le gobelet ${startPos === 0 ? 'Gauche' : startPos === 1 ? 'Milieu' : 'Droite'}...`;
+      const ball = document.getElementById('cupGoldenBall');
+      if (ball) ball.style.opacity = '1';
+      [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
+      document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet le ( Bot ) cache la bille...';
 
+      setTimeout(() => {
+        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
         setTimeout(() => {
-          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
-          setTimeout(() => {
-            if (ball) ball.style.opacity = '0';
-
-            // Mode Solo : Le bot Roxy essaie de deviner
-            runCupsShuffle(speedMode, targetEndPos, true, () => {
-              cupsGame.isShuffling = false;
-              document.getElementById('cupsBanner').textContent = '🤖 Roxy (Bot) analyse les gobelets pour deviner...';
-              setTimeout(() => {
-                // Roxy fait un choix (33% de chance de trouver le bon)
-                const botPick = Math.random() < 0.33 ? targetEndPos : Math.floor(Math.random() * 3);
-                const pickedEl = document.getElementById(`cupSlot${botPick}`);
-                const ballEl = document.getElementById(`cupSlot${cupsGame.ballCupId}`);
-                if (pickedEl) pickedEl.classList.add('lifted');
-                if (ballEl) ballEl.classList.add('lifted');
-                if (ball) ball.style.opacity = '1';
-
-                if (botPick === cupsGame.ballCupId) {
-                  document.getElementById('cupsBanner').textContent = `🤖 Roxy a trouvé ta bille sous le gobelet ${botPick === 0 ? 'Gauche' : botPick === 1 ? 'Milieu' : 'Droite'} ! Tu perds ta mise.`;
-                } else {
-                  const win = Math.floor(bet * 1.25);
-                  state.balance += win;
-                  playCoinWinSound();
-                  saveState();
-                  updateGlobalUI();
-                  document.getElementById('cupsBanner').textContent = `🎉 Roxy a choisi le mauvais gobelet ! Tu gagnes ×1.25 : +${fmt(win)} pièces !`;
-                  showToast(`🥤 Gobelets (Gain ×1.25) : +${fmt(win)} pièces !`);
-                }
-              }, 1400);
-            });
-          }, 350);
-        }, 1000);
-      } else {
-        // 2. SI LE BOT ROXY CACHE LA BILLE (JE DEVINE)
-        state.balance -= bet;
-        saveState();
-        updateGlobalUI();
-
-        const startPos = Math.floor(Math.random() * 3);
-        const targetEndPos = Math.floor(Math.random() * 3);
-        cupsGame.ballCupId = startPos;
-        cupsGame.isShuffling = true;
-        updateCupVisualPositions();
-
-        const ball = document.getElementById('cupGoldenBall');
-        if (ball) ball.style.opacity = '1';
-        [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.toggle('lifted', id === cupsGame.ballCupId));
-        document.getElementById('cupsBanner').textContent = '👀 Regarde bien sous quel gobelet Roxy cache la bille...';
-
-        setTimeout(() => {
-          [0, 1, 2].forEach(id => document.getElementById(`cupSlot${id}`)?.classList.remove('lifted'));
-          setTimeout(() => {
-            if (ball) ball.style.opacity = '0';
-            runCupsShuffle(speedMode, targetEndPos, true, () => {
-              cupsGame.isShuffling = false;
-              cupsGame.canPick = true;
-              document.getElementById('cupsBanner').textContent = '👇 Clique sur le gobelet qui cache la bille !';
-            });
-          }, 350);
-        }, 1000);
-      }
+          if (ball) ball.style.opacity = '0';
+          runCupsShuffle(speedMode, targetEndPos, true, () => {
+            cupsGame.isShuffling = false;
+            cupsGame.canPick = true;
+            document.getElementById('cupsBanner').textContent = '👇 Clique sur le gobelet qui cache la bille !';
+          });
+        }, 300);
+      }, 750);
     }
 
     function runCupsShuffle(speedMode, targetEndPos, forceEndPos, onComplete) {
-      const steps = 10;
-      const interval = 260; // Vitesse Rapide
+      const steps = 14;
+      const interval = 145; // Vitesse ultra-rapide et stimulante
       let currentStep = 0;
 
-      document.getElementById('cupsBanner').textContent = '🌀 Mélange en cours... Suis le gobelet des yeux !';
+      document.getElementById('cupsBanner').textContent = '🌀 Le ( Bot ) mélange les gobelets à toute vitesse...';
 
       const timer = setInterval(() => {
         currentStep++;
@@ -8121,14 +8067,148 @@
       if (isCorrect) {
         const win = Math.floor(cupsGame.bet * 1.25);
         state.balance += win;
+        state.cupsStreak = (state.cupsStreak || 0) + 1;
+        if (!state.cupsBestStreak || state.cupsStreak > state.cupsBestStreak) {
+          state.cupsBestStreak = state.cupsStreak;
+        }
         playCoinWinSound();
         saveState();
         updateGlobalUI();
-        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! La bille était bien là : +${fmt(win)} pièces (×1.25) !`;
-        showToast(`🥤 Gobelets (Gain ×1.25) : +${fmt(win)} pièces !`);
+        document.getElementById('cupsBanner').textContent = `🎉 BIEN VU ! Tu as battu le ( Bot ) : +${fmt(win)} pièces (×1.25) !`;
+        showToast(`🥤 Victoire vs ( Bot ) ! Série en cours : 🔥 ${state.cupsStreak} d'affilée !`);
       } else {
-        document.getElementById('cupsBanner').textContent = '❌ Raté ! La bille était sous un autre gobelet.';
+        state.cupsStreak = 0;
+        saveState();
+        updateGlobalUI();
+        document.getElementById('cupsBanner').textContent = '❌ Raté ! Le ( Bot ) a gardé la bille sous un autre gobelet.';
+        showToast('❌ Le ( Bot ) a remporté la manche.');
       }
+
+      updateCupsAccountStreak();
+      renderCupsLeaderboard();
+    }
+
+    function updateCupsAccountStreak() {
+      const db = getAccountsDB();
+      const meKey = (state.username || '').toLowerCase().trim();
+      if (meKey && db[meKey]) {
+        db[meKey].cupsStreak = state.cupsStreak || 0;
+        db[meKey].cupsBestStreak = state.cupsBestStreak || 0;
+        saveAccountsDB(db);
+        pushRemoteAccount(db[meKey]);
+      }
+    }
+
+    function renderCupsLeaderboard() {
+      const container = document.getElementById('cupsLeaderboardGrid');
+      if (!container) return;
+
+      const myStreakEl = document.getElementById('cupsCurrentStreakText');
+      const myBestEl = document.getElementById('cupsBestStreakText');
+      if (myStreakEl) myStreakEl.textContent = state.cupsStreak || 0;
+      if (myBestEl) myBestEl.textContent = state.cupsBestStreak || 0;
+
+      const db = getAccountsDB();
+      const meKey = (state.username || '').toLowerCase().trim();
+      const FAKE_TEST_PROFILES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim', 'grandfrigo'];
+
+      const players = [];
+      const seen = new Set();
+
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (acc && acc.username && !k.startsWith('__') && !isUsernameBanned(k)) {
+          const uKey = acc.username.toLowerCase().trim();
+          if (FAKE_TEST_PROFILES.includes(uKey)) return;
+          const streak = Math.max(acc.cupsBestStreak || 0, acc.cupsStreak || 0);
+          seen.add(uKey);
+          players.push({
+            name: acc.username,
+            avatar: getAvatarDisplay(acc),
+            streak: streak,
+            isMe: isUserLoggedIn() && uKey === meKey
+          });
+        }
+      });
+
+      if (isUserLoggedIn() && state.username && !seen.has(meKey) && !isUsernameBanned(meKey)) {
+        players.push({
+          name: state.username,
+          avatar: getAvatarDisplay(state),
+          streak: Math.max(state.cupsBestStreak || 0, state.cupsStreak || 0),
+          isMe: true
+        });
+      }
+
+      const defaultLeaders = [
+        { name: 'Flambeur_As', avatar: '🎩', streak: 12, isMe: false },
+        { name: 'LuckyStrike', avatar: '⚡', streak: 9, isMe: false },
+        { name: 'MysticCup', avatar: '🔮', streak: 7, isMe: false }
+      ];
+
+      defaultLeaders.forEach(def => {
+        if (!players.some(p => p.name.toLowerCase() === def.name.toLowerCase())) {
+          players.push(def);
+        }
+      });
+
+      players.sort((a, b) => b.streak - a.streak);
+      const top3 = players.slice(0, 3);
+
+      const podiumConfig = [
+        {
+          rankLabel: '1er Place',
+          badgeIcon: '🥇',
+          cardBorder: 'border-amber-400/70 bg-gradient-to-b from-amber-500/20 via-black/80 to-stone-950 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/40',
+          textColor: 'text-amber-300',
+          badgeBg: 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+        },
+        {
+          rankLabel: '2e Place',
+          badgeIcon: '🥈',
+          cardBorder: 'border-stone-400/60 bg-gradient-to-b from-stone-400/15 via-black/80 to-stone-950 shadow-md ring-1 ring-stone-400/30',
+          textColor: 'text-stone-200',
+          badgeBg: 'bg-stone-400/20 text-stone-200 border-stone-400/40'
+        },
+        {
+          rankLabel: '3e Place',
+          badgeIcon: '🥉',
+          cardBorder: 'border-amber-700/60 bg-gradient-to-b from-amber-700/15 via-black/80 to-stone-950 shadow-md ring-1 ring-amber-700/30',
+          textColor: 'text-amber-500',
+          badgeBg: 'bg-amber-700/20 text-amber-400 border-amber-700/40'
+        }
+      ];
+
+      container.innerHTML = top3.map((p, idx) => {
+        const conf = podiumConfig[idx] || podiumConfig[2];
+        return `
+          <div class="rounded-2xl p-4 border ${conf.cardBorder} flex flex-col justify-between gap-3 backdrop-blur-md relative overflow-hidden transition hover:scale-[1.02]">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black border ${conf.badgeBg}">
+                <span>${conf.badgeIcon}</span> <span>${conf.rankLabel}</span>
+              </span>
+              ${p.isMe ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-400/40">✓ Toi</span>' : ''}
+            </div>
+            <div class="flex items-center gap-3 my-1">
+              <div class="w-12 h-12 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center text-2xl shadow-inner shrink-0">
+                ${p.avatar || '👤'}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-serif-title font-extrabold text-sm sm:text-base text-white truncate flex items-center gap-1.5">
+                  <span class="truncate">${p.name}</span>
+                </div>
+                <div class="text-[11px] text-stone-400">Maître des Gobelets</div>
+              </div>
+            </div>
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+              <span class="text-stone-400">Victoires d'affilée :</span>
+              <span class="font-mono-num font-black ${conf.textColor} text-sm flex items-center gap-1">
+                <span>🔥</span> <span>${p.streak}</span> <span>d'affilée</span>
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function syncCupsMultiplayer() {}
