@@ -2044,6 +2044,70 @@
   <!-- NOTIFICATION TOAST -->
   <div id="toastBox" class="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl bg-stone-950 border-2 border-amber-400 text-amber-100 text-xs font-extrabold shadow-2xl hidden"></div>
 <script>
+    /* ================= SÉCURITÉ ANTI-BOT & ENCAPSULATION DES ACTIONS (BARRIÈRE 3) ================= */
+    const _AntiBotGuard = {
+      lastActionTime: 0,
+      minCadenceMs: 65,
+      rapidViolations: 0,
+
+      verify(actionName, event) {
+        // 1. Détection des navigateurs automatisés (Puppeteer / Selenium)
+        if (navigator.webdriver) {
+          console.warn(`[Anti-Bot] Blocage '${actionName}' : environnement automatisé détecté (navigator.webdriver).`);
+          try { showToast("⛔ Navigateur automatisé détecté."); } catch (e) {}
+          return false;
+        }
+
+        // 2. Détection de l'événement utilisateur réel
+        const evt = event || window.event;
+        if (!evt) {
+          console.warn(`[Anti-Bot] Blocage '${actionName}' : aucun événement utilisateur réel (appel direct par script/console).`);
+          try { showToast("⛔ Action automatisée interdite (script/bot bloqué)."); } catch (e) {}
+          return false;
+        }
+
+        // 3. Détection des clics synthétiques (Auto-clicker JS / .click() / dispatchEvent)
+        if (evt.isTrusted !== true) {
+          console.warn(`[Anti-Bot] Blocage '${actionName}' : clic simulé détecté (isTrusted === false).`);
+          try { showToast("⛔ Clic virtuel interdit (auto-clicker bloqué)."); } catch (e) {}
+          return false;
+        }
+
+        // 4. Cadence minimale (Anti-spam / Anti-macro surhumaine)
+        const now = performance.now();
+        const diff = now - this.lastActionTime;
+        this.lastActionTime = now;
+        if (diff < this.minCadenceMs) {
+          this.rapidViolations++;
+          if (this.rapidViolations >= 2) {
+            console.warn(`[Anti-Bot] Blocage '${actionName}' : cadence surhumaine (${Math.round(diff)}ms).`);
+            try { showToast("⚠️ Cadence trop rapide, ralentis un peu !"); } catch (e) {}
+            return false;
+          }
+        } else {
+          this.rapidViolations = 0;
+        }
+
+        return true;
+      }
+    };
+
+    // Protection anti-tamper sur window.state : empêche la modification ou l'injection directe via console/scripts
+    try {
+      Object.defineProperty(window, 'state', {
+        get() {
+          console.warn("[Anti-Bot] Tentative d'accès mémoire non autorisée à 'state'.");
+          return undefined;
+        },
+        set(val) {
+          console.warn("[Anti-Bot] Tentative de modification de solde/état bloquée !");
+          try { showToast("⛔ Modification interdite (bot/triche détecté)."); } catch (e) {}
+          return false;
+        },
+        configurable: false
+      });
+    } catch (e) {}
+
     /* ================= CONFIGURATION & CURSEURS DU PATRON ================= */
     const CONFIG_CASINO = {
       CHANCE_CRASH: 50,
@@ -3812,7 +3876,8 @@
       if (elapsedHours > 30) state.chestStreak = 1;
     }
 
-    function claimDailyChest() {
+    function claimDailyChest(e) {
+      if (!_AntiBotGuard.verify('Coffre quotidien', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour ouvrir le coffre et recevoir tes jetons !');
         openAuthModal('login');
@@ -4352,7 +4417,8 @@
       renderAdminPlayerPills();
     }
 
-    function sendBankDonation() {
+    function sendBankDonation(e) {
+      if (!_AntiBotGuard.verify('Virement bancaire', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour effectuer un virement bancaire !');
         openAuthModal('login');
@@ -6064,7 +6130,8 @@
       }
     }
 
-    function startPokerHand() {
+    function startPokerHand(e) {
+      if (!_AntiBotGuard.verify('Poker - Distribuer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer au Poker !');
         openAuthModal('login');
@@ -6121,7 +6188,8 @@
       setPokerBtns(true);
     }
 
-    function playerPokerAction(act) {
+    function playerPokerAction(act, e) {
+      if (!_AntiBotGuard.verify('Poker - ' + act, e)) return;
       const isMulti = lobbies.poker && lobbies.poker.mode === 'multi';
       if (isMulti) {
         if (!pokerSyncTable || !['preflop', 'flop', 'turn', 'river'].includes(pokerSyncTable.status)) return;
@@ -7060,7 +7128,8 @@
     }
 
     // BOUTON 1 : MISER SANS LANCER / REJOINDRE LE VOL / S'ÉJECTER
-    function handleCrashButton() {
+    function handleCrashButton(e) {
+      if (!_AntiBotGuard.verify('Crash - Bouton', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour pouvoir miser et jouer !');
         openAuthModal('login');
@@ -7101,7 +7170,8 @@
     }
 
     // BOUTON 2 : DÉCOLLER (LANCER LE COMPTE À REBOURS DE 7S)
-    function handleCrashLaunch() {
+    function handleCrashLaunch(e) {
+      if (!_AntiBotGuard.verify('Crash - Décollage', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour pouvoir jouer !');
         openAuthModal('login');
@@ -7900,7 +7970,8 @@
       el.value = Math.min(target, state.balance > 0 ? state.balance : target);
     }
 
-    function pullSlotLever() {
+    function pullSlotLever(e) {
+      if (!_AntiBotGuard.verify('Machine à sous', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer à la machine à sous !');
         openAuthModal('login');
@@ -8008,7 +8079,8 @@
       }).join('');
     }
 
-    function startMinesGame() {
+    function startMinesGame(e) {
+      if (!_AntiBotGuard.verify('Mines - Lancer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer à la Chambre Forte !');
         openAuthModal('login');
@@ -8036,7 +8108,8 @@
       return Math.max(1, m * 0.97);
     }
 
-    function clickMineCell(idx) {
+    function clickMineCell(idx, e) {
+      if (!_AntiBotGuard.verify('Mines - Case', e)) return;
       if (!mines.active || mines.revealed.includes(idx)) return;
 
       // Influence du curseur CHANCE_MINES du Patron
@@ -8064,7 +8137,8 @@
       renderMinesGrid(false);
     }
 
-    function cashoutMines() {
+    function cashoutMines(e) {
+      if (!_AntiBotGuard.verify('Mines - Retrait', e)) return;
       if (!mines.active || !mines.revealed.length) return;
       const win = Math.floor(mines.bet * getMinesMult());
       state.balance += win;
@@ -8819,7 +8893,7 @@
         if (_bjTurnSecondsLeft <= 0) {
           stopBjTurnTimer();
           showToast('⏰ Temps de tour écoulé (30s) ! Tu restes automatiquement.');
-          bjStand();
+          bjStand(null, true);
         }
       }, 1000);
     }
@@ -9293,7 +9367,8 @@
       renderBlackjack();
     }
 
-    function startBlackjack() {
+    function startBlackjack(e) {
+      if (!_AntiBotGuard.verify('Blackjack - Distribuer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer au Blackjack !');
         openAuthModal('login');
@@ -9334,7 +9409,7 @@
         playCardFlipSound();
         renderBlackjack(true);
         startBjTurnTimer();
-        if (bjScore(bj.player) === 21) bjStand();
+        if (bjScore(bj.player) === 21) bjStand(null, true);
         return;
       }
 
@@ -9459,7 +9534,8 @@
       if (dBtn) dBtn.disabled = val;
     }
 
-    async function bjHit() {
+    async function bjHit(e) {
+      if (!_AntiBotGuard.verify('Blackjack - Tirer', e)) return;
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
@@ -9471,7 +9547,7 @@
           endBj('💥 Tu as dépassé 21 !', 0);
         } else if (bjScore(bj.player) === 21) {
           stopBjTurnTimer();
-          bjStand();
+          bjStand(null, true);
         } else {
           startBjTurnTimer();
         }
@@ -9510,7 +9586,8 @@
       setTimeout(syncBjMultiplayer, 250);
     }
 
-    async function bjDouble() {
+    async function bjDouble(e) {
+      if (!_AntiBotGuard.verify('Blackjack - Doubler', e)) return;
       stopBjTurnTimer();
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
@@ -9521,7 +9598,7 @@
         bj.player.push(bj.deck.pop());
         renderBlackjack(true);
         if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
-        else bjStand();
+        else bjStand(null, true);
         return;
       }
 
@@ -9563,7 +9640,8 @@
       setTimeout(syncBjMultiplayer, 250);
     }
 
-    async function bjStand() {
+    async function bjStand(e, isInternal = false) {
+      if (!isInternal && !_AntiBotGuard.verify('Blackjack - Rester', e)) return;
       stopBjTurnTimer();
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
@@ -9897,7 +9975,8 @@
       if (ball) ball.style.left = CUP_PERCENTS[ballPosIndex];
     }
 
-    function startCupsGame() {
+    function startCupsGame(e) {
+      if (!_AntiBotGuard.verify('Gobelets - Lancer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer aux Gobelets !');
         openAuthModal('login');
@@ -9988,7 +10067,8 @@
       }, interval);
     }
 
-    function pickCup(clickedCupId) {
+    function pickCup(clickedCupId, e) {
+      if (!_AntiBotGuard.verify('Gobelets - Choix', e)) return;
       if (!cupsGame.canPick) return;
       cupsGame.canPick = false;
 
