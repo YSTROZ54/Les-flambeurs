@@ -252,14 +252,52 @@ class TexasHoldemGame {
     this.actedThisRound = new Set();
 
     // 6 Sièges : Joueur principal (0) + 5 Bots (1 à 5)
+    const initialHeroStack = (typeof state !== 'undefined' && typeof state.balance === 'number') ? state.balance : 25400;
+    const initialHeroName = (typeof state !== 'undefined' && state.username) ? state.username : 'Flambeur (Toi)';
+    const initialHeroAvatar = (typeof getAvatarDisplay === 'function') ? getAvatarDisplay(state) : '😎';
+
     this.players = [
-      { id: 0, name: 'Flambeur (Toi)', avatar: '😎', stack: 25400, isHero: true, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
+      { id: 0, name: initialHeroName, avatar: initialHeroAvatar, stack: initialHeroStack, isHero: true, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
       { id: 1, name: 'Viper (Bot)', avatar: '🐍', stack: 6000, isHero: false, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
       { id: 2, name: 'Le Baron (Bot)', avatar: '🎩', stack: 8500, isHero: false, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
       { id: 3, name: 'Roxy (Bot)', avatar: '🦊', stack: 5200, isHero: false, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
       { id: 4, name: 'Montana (Bot)', avatar: '🤠', stack: 7100, isHero: false, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null },
       { id: 5, name: 'Kaiser (Bot)', avatar: '👑', stack: 12000, isHero: false, currentBet: 0, folded: false, allIn: false, hand: [], status: '🟢 Prêt', bestHand: null }
     ];
+  }
+
+  syncHeroBalance() {
+    const hero = this.players[0];
+    if (typeof state !== 'undefined') {
+      state.balance = Math.max(0, hero.stack);
+      if (typeof saveState === 'function') {
+        saveState();
+      }
+      if (typeof updateGlobalUI === 'function') {
+        updateGlobalUI();
+      }
+    }
+  }
+
+  updateHeroIdentity() {
+    const hero = this.players[0];
+    if (typeof state !== 'undefined') {
+      if (typeof state.balance === 'number') {
+        hero.stack = state.balance;
+      }
+      if (state.username) {
+        hero.name = state.username;
+      }
+      if (typeof getAvatarDisplay === 'function') {
+        hero.avatar = getAvatarDisplay(state);
+      }
+    }
+    const pseudoEl = document.querySelector('#heroPlayerEncart .player-pseudo');
+    if (pseudoEl && hero.name) pseudoEl.textContent = hero.name;
+    const avatarEl = document.querySelector('#heroPlayerEncart .player-avatar-box > div');
+    if (avatarEl && hero.avatar) avatarEl.textContent = hero.avatar;
+    const stackEl = document.getElementById('playerTotalStack');
+    if (stackEl) stackEl.textContent = `${hero.stack.toLocaleString('fr-FR')} €`;
   }
 
   setTableFormat(format) {
@@ -290,8 +328,20 @@ class TexasHoldemGame {
     const modal = document.getElementById('winnerBannerModal');
     if (modal) modal.classList.add('hidden');
 
-    // Recharges de stack si vide
-    if (this.players[0].stack <= 0) this.players[0].stack = 10000;
+    // Recharges de stack et synchronisation avec state.balance du site principal
+    if (typeof state !== 'undefined' && typeof state.balance === 'number') {
+      if (state.balance <= 0) {
+        state.balance = 500; // Secours de table si ruiné
+        this.syncHeroBalance();
+      }
+      this.players[0].stack = state.balance;
+      this.players[0].name = state.username || 'Flambeur (Toi)';
+      if (typeof getAvatarDisplay === 'function') {
+        this.players[0].avatar = getAvatarDisplay(state);
+      }
+    } else {
+      if (this.players[0].stack <= 0) this.players[0].stack = 10000;
+    }
     for (let i = 1; i < this.players.length; i++) {
       if (this.players[i].stack <= 0) this.players[i].stack = 5000;
     }
@@ -327,11 +377,13 @@ class TexasHoldemGame {
     sbPlayer.stack -= sbAmount;
     sbPlayer.currentBet = sbAmount;
     if (sbPlayer.stack === 0) sbPlayer.allIn = true;
+    if (sbPlayer.isHero) this.syncHeroBalance();
 
     const bbAmount = Math.min(this.bigBlind, bbPlayer.stack);
     bbPlayer.stack -= bbAmount;
     bbPlayer.currentBet = bbAmount;
     if (bbPlayer.stack === 0) bbPlayer.allIn = true;
+    if (bbPlayer.isHero) this.syncHeroBalance();
 
     this.pot = sbAmount + bbAmount;
     this.currentMaxBet = Math.max(sbAmount, bbAmount);
@@ -617,6 +669,7 @@ class TexasHoldemGame {
     p.currentBet += amount;
     this.pot += amount;
     if (p.stack === 0) p.allIn = true;
+    if (p.isHero) this.syncHeroBalance();
     p.status = p.allIn ? '🔥 Tapis' : `🟡 Suit (${p.currentBet} €)`;
     this.advanceTurn();
   }
@@ -634,6 +687,7 @@ class TexasHoldemGame {
       this.currentMaxBet = p.currentBet;
     }
     if (p.stack === 0) p.allIn = true;
+    if (p.isHero) this.syncHeroBalance();
     p.status = p.allIn ? '🔥 Tapis' : `🔵 Relance (${p.currentBet} €)`;
 
     this.actedThisRound.clear();
@@ -669,6 +723,7 @@ class TexasHoldemGame {
     winners.forEach((w, idx) => {
       w.stack += share + (idx === 0 ? remainder : 0);
       w.status = '👑 Vainqueur !';
+      if (w.isHero) this.syncHeroBalance();
     });
 
     this.exp.syncTable3D();
@@ -681,6 +736,7 @@ class TexasHoldemGame {
     this.isHeroTurn = false;
     soleWinner.stack += this.pot;
     soleWinner.status = '👑 Vainqueur !';
+    if (soleWinner.isHero) this.syncHeroBalance();
 
     this.exp.syncTable3D();
     this.exp.updateHeroLiveHand();
@@ -1653,6 +1709,12 @@ class Poker3DExperience {
     const stackEl = document.getElementById('playerTotalStack');
     if (stackEl) stackEl.textContent = `${hero.stack.toLocaleString('fr-FR')} €`;
 
+    const pseudoEl = document.querySelector('#heroPlayerEncart .player-pseudo');
+    if (pseudoEl && hero.name) pseudoEl.textContent = hero.name;
+
+    const avatarEl = document.querySelector('#heroPlayerEncart .player-avatar-box > div');
+    if (avatarEl && hero.avatar) avatarEl.textContent = hero.avatar;
+
     const betEl = document.getElementById('heroCurrentBetDisplay');
     if (betEl) betEl.textContent = `${hero.currentBet.toLocaleString('fr-FR')} €`;
 
@@ -2039,7 +2101,11 @@ class Poker3DExperience {
   }
 
   startRenderLoop() {
+    if (this.isRunning) return;
+    this.isRunning = true;
+
     const animate = () => {
+      if (!this.isRunning) return;
       this.animationFrameId = requestAnimationFrame(animate);
 
       const time = performance.now() * 0.001;
@@ -2051,11 +2117,58 @@ class Poker3DExperience {
       this.renderer.render(this.scene, this.camera);
     };
 
-    animate();
+    this.animationFrameId = requestAnimationFrame(animate);
+  }
+
+  pause() {
+    this.isRunning = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    if (this.game) {
+      if (this.game.botTimer) {
+        clearTimeout(this.game.botTimer);
+        this.game.botTimer = null;
+      }
+      if (this.game.nextHandTimer) {
+        clearTimeout(this.game.nextHandTimer);
+        this.game.nextHandTimer = null;
+      }
+      if (this.game.countdownInterval) {
+        clearInterval(this.game.countdownInterval);
+        this.game.countdownInterval = null;
+      }
+      if (this.game.phaseTimers && this.game.phaseTimers.length) {
+        this.game.phaseTimers.forEach(t => clearTimeout(t));
+        this.game.phaseTimers = [];
+      }
+    }
+    console.log('⏸️ [Poker3D] Rendu Three.js et timers bots mis en pause.');
+  }
+
+  resume() {
+    if (this.game) {
+      this.game.updateHeroIdentity();
+    }
+    this.handleResize();
+    this.startRenderLoop();
+    if (this.game) {
+      // Reprise intelligente de la main si un bot réfléchissait
+      if (!this.game.isHeroTurn && this.game.phase !== 'showdown' && this.game.phase !== 'finished') {
+        const curPlayer = this.game.players[this.game.currentTurn];
+        if (curPlayer && !curPlayer.isHero && !curPlayer.folded && curPlayer.stack > 0) {
+          this.game.botTimer = setTimeout(() => {
+            this.game.executeBotAI(curPlayer);
+          }, 1200);
+        }
+      }
+    }
+    console.log('▶️ [Poker3D] Rendu Three.js repris.');
   }
 
   destroy() {
-    if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+    this.pause();
     window.removeEventListener('resize', this.handleResize);
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
@@ -2064,7 +2177,73 @@ class Poker3DExperience {
   }
 }
 
+// Fonctions d'aide globale pour les modales et formats
+function openTableConfigModal() {
+  const m = document.getElementById('tableConfigModal');
+  if (m) m.classList.remove('hidden');
+}
+function closeTableConfigModal() {
+  const m = document.getElementById('tableConfigModal');
+  if (m) m.classList.add('hidden');
+}
+function openPokerRulesModal() {
+  const m = document.getElementById('poker3dRulesModal') || document.getElementById('rulesModal');
+  if (m) m.classList.remove('hidden');
+}
+function closePokerRulesModal() {
+  const m = document.getElementById('poker3dRulesModal') || document.getElementById('rulesModal');
+  if (m) m.classList.add('hidden');
+}
+
+function changeTableFormat(fmt) {
+  if (window.pokerExp) {
+    window.pokerExp.setTableFormat(fmt);
+  }
+  const formats = ['1v1', '4max', '6max'];
+  formats.forEach(f => {
+    const btn = document.getElementById('btnFormat' + f);
+    if (!btn) return;
+    if (f === fmt) {
+      btn.className = 'py-2.5 px-1.5 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition flex flex-col items-center shadow-md';
+    } else {
+      btn.className = 'py-2.5 px-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition flex flex-col items-center';
+    }
+  });
+  const tag = document.getElementById('headerTableFormatTag');
+  if (tag) {
+    tag.textContent = fmt === '1v1' ? '1v1 (Duel)' : (fmt === '4max' ? 'Table de 4' : '6-Max');
+  }
+  closeTableConfigModal();
+}
+
+function changeBlindLevel(level) {
+  if (window.pokerGame) {
+    window.pokerGame.setBigBlind(level);
+  }
+  const levels = [100, 500, 1000];
+  levels.forEach(lvl => {
+    const btn = document.getElementById('btnBlind' + lvl);
+    if (!btn) return;
+    if (lvl === level) {
+      btn.className = 'py-2 px-1 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition shadow-md';
+    } else {
+      btn.className = 'py-2 px-1 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition';
+    }
+  });
+  const tag = document.getElementById('headerBlindTag');
+  if (tag) {
+    tag.textContent = `${Math.floor(level / 2)}/${level} €`;
+  }
+  closeTableConfigModal();
+}
+
 // Export global
 window.Poker3DExperience = Poker3DExperience;
 window.TexasHoldemGame = TexasHoldemGame;
 window.evaluateBestHand = evaluateBestHand;
+window.openTableConfigModal = openTableConfigModal;
+window.closeTableConfigModal = closeTableConfigModal;
+window.openPokerRulesModal = openPokerRulesModal;
+window.closePokerRulesModal = closePokerRulesModal;
+window.changeTableFormat = changeTableFormat;
+window.changeBlindLevel = changeBlindLevel;

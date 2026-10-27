@@ -905,6 +905,138 @@ select {
   transition: opacity 0.4s ease;
 }
 
+/* ========================================================================= */
+/* POKER 3D THREE.JS & HUD SUPERPOSÉ (CASINO UNDERGROUND)                    */
+/* ========================================================================= */
+#poker3dContainer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#nameplatesOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.poker-hud-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.hud-interactive {
+  pointer-events: auto;
+}
+
+.poker-range-slider {
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+.poker-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fbbf24;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+}
+
+@media (max-width: 768px) {
+  .poker-hud-overlay {
+    padding: 0.5rem !important;
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  #bottomHudContainer {
+    max-width: 100% !important;
+    gap: 0.35rem !important;
+    padding-bottom: 0 !important;
+  }
+
+  #heroPlayerEncart {
+    padding: 0.3rem 0.5rem !important;
+    border-radius: 0.85rem !important;
+  }
+  #heroPlayerEncart .player-avatar-box {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+    font-size: 0.9rem !important;
+  }
+  #heroPlayerEncart .player-pseudo {
+    font-size: 0.68rem !important;
+  }
+  #heroTurnText {
+    font-size: 0.58rem !important;
+  }
+  #heroLiveHandContainer {
+    padding: 0 0.2rem !important;
+  }
+  #heroLiveHandBadge {
+    font-size: 0.60rem !important;
+    padding: 0.15rem 0.4rem !important;
+    border-radius: 0.45rem !important;
+  }
+  #playerTotalStack {
+    font-size: 0.78rem !important;
+  }
+  #heroCurrentBetDisplay {
+    font-size: 0.68rem !important;
+  }
+
+  #raiseControlPanel {
+    padding: 0.35rem 0.5rem !important;
+    border-radius: 0.85rem !important;
+    gap: 0.25rem !important;
+  }
+  #raiseControlPanel .text-xs {
+    font-size: 0.65rem !important;
+  }
+  #demoRaiseDisplay {
+    font-size: 0.75rem !important;
+  }
+  #raiseControlPanel button {
+    padding: 0.15rem 0.35rem !important;
+    font-size: 0.56rem !important;
+    border-radius: 0.4rem !important;
+  }
+
+  #actionButtonsRow {
+    gap: 0.35rem !important;
+  }
+  #actionButtonsRow button {
+    padding: 0.45rem 0.2rem !important;
+    border-radius: 0.85rem !important;
+  }
+  #btnActionFold span:first-child,
+  #btnCheckCallMainText,
+  #btnActionRaise span:first-child {
+    font-size: 0.70rem !important;
+  }
+  #btnActionFold span:last-child,
+  #btnCheckCallSubText,
+  #btnRaiseAmount {
+    font-size: 0.58rem !important;
+  }
+}
+
+
 
 
 
