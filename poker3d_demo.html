@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Démo Poker 3D — Ambiance Casino Underground (Prominence Poker)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
       background-color: #060608;
       font-family: 'Plus Jakarta Sans', sans-serif;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* Conteneur 3D Plein Écran */
@@ -41,7 +42,7 @@
       overflow: hidden;
     }
 
-    /* HUD HTML/CSS Superposé (Non bloquant pour le WebGL grâce à pointer-events: none) */
+    /* HUD HTML/CSS Superposé */
     .poker-hud-overlay {
       position: absolute;
       inset: 0;
@@ -50,7 +51,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 1rem;
+      padding: 0.85rem;
     }
 
     .hud-interactive {
@@ -74,6 +75,91 @@
       cursor: pointer;
       box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
     }
+
+    /* ----------------------------------------------------------------------- */
+    /* ADAPTATION MOBILE RESPONSIVE ULTRA-COMPACTE (LARGEUR < 768PX)           */
+    /* ----------------------------------------------------------------------- */
+    @media (max-width: 768px) {
+      .poker-hud-overlay {
+        padding: 0.5rem !important;
+        padding-bottom: max(0.4rem, env(safe-area-inset-bottom)) !important;
+      }
+
+      /* Conteneur du bas : compacté pour libérer les 2 cartes 3D du joueur */
+      #bottomHudContainer {
+        max-width: 100% !important;
+        gap: 0.35rem !important;
+        padding-bottom: 0 !important;
+      }
+
+      /* Encart du Joueur Principal */
+      #heroPlayerEncart {
+        padding: 0.3rem 0.5rem !important;
+        border-radius: 0.85rem !important;
+      }
+      #heroPlayerEncart .player-avatar-box {
+        width: 1.85rem !important;
+        height: 1.85rem !important;
+        font-size: 0.9rem !important;
+      }
+      #heroPlayerEncart .player-pseudo {
+        font-size: 0.68rem !important;
+      }
+      #heroTurnText {
+        font-size: 0.58rem !important;
+      }
+      #heroLiveHandContainer {
+        padding: 0 0.2rem !important;
+      }
+      #heroLiveHandBadge {
+        font-size: 0.60rem !important;
+        padding: 0.15rem 0.4rem !important;
+        border-radius: 0.45rem !important;
+      }
+      #playerTotalStack {
+        font-size: 0.78rem !important;
+      }
+      #heroCurrentBetDisplay {
+        font-size: 0.68rem !important;
+      }
+
+      /* Panneau de Relance */
+      #raiseControlPanel {
+        padding: 0.35rem 0.5rem !important;
+        border-radius: 0.85rem !important;
+        gap: 0.25rem !important;
+      }
+      #raiseControlPanel .text-xs {
+        font-size: 0.65rem !important;
+      }
+      #demoRaiseDisplay {
+        font-size: 0.75rem !important;
+      }
+      #raiseControlPanel button {
+        padding: 0.15rem 0.35rem !important;
+        font-size: 0.56rem !important;
+        border-radius: 0.4rem !important;
+      }
+
+      /* Les 3 Grands Boutons d'Action */
+      #actionButtonsRow {
+        gap: 0.35rem !important;
+      }
+      #actionButtonsRow button {
+        padding: 0.45rem 0.2rem !important;
+        border-radius: 0.85rem !important;
+      }
+      #btnActionFold span:first-child,
+      #btnCheckCallMainText,
+      #btnActionRaise span:first-child {
+        font-size: 0.70rem !important;
+      }
+      #btnActionFold span:last-child,
+      #btnCheckCallSubText,
+      #btnRaiseAmount {
+        font-size: 0.58rem !important;
+      }
+    }
   </style>
 </head>
 <body class="relative w-full h-full">
@@ -87,35 +173,45 @@
   <!-- 2. INTERFACE UTILISATEUR HUD (SUPERPOSÉE EN PUR HTML/CSS VIA Z-INDEX) -->
   <div class="poker-hud-overlay">
     
-    <!-- HAUT DE L'ÉCRAN : POT, TOUR & STATUT DE TABLE -->
-    <div class="flex items-center justify-between w-full max-w-4xl mx-auto gap-2">
-      <div class="hud-interactive flex items-center gap-2 bg-black/85 border border-white/10 px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md">
+    <!-- HAUT DE L'ÉCRAN : POT, TOUR, FORMAT TABLE & BOUTONS D'OPTIONS -->
+    <div class="flex items-center justify-between w-full max-w-5xl mx-auto gap-1.5 sm:gap-2">
+      
+      <!-- Étiquette Format de Table & Blindes -->
+      <div class="hud-interactive flex items-center gap-1.5 bg-black/85 border border-white/10 px-2.5 sm:px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="text-xs font-black tracking-wide text-white uppercase hidden sm:inline">Table VIP • Underground</span>
-        <span class="text-xs font-black tracking-wide text-emerald-400 sm:hidden">3D VIP</span>
+        <span id="headerTableFormatTag" class="text-[11px] sm:text-xs font-black tracking-wide text-white uppercase">6-Max</span>
+        <span class="text-white/20">|</span>
+        <span id="headerBlindTag" class="text-[10px] sm:text-xs font-bold text-amber-300 font-mono">50/100 €</span>
       </div>
 
       <!-- Pot au centre -->
-      <div class="hud-interactive flex items-center gap-3 bg-black/90 border border-amber-500/40 px-5 py-2 rounded-full shadow-2xl backdrop-blur-md">
-        <div class="flex items-center gap-2">
-          <span class="text-lg">🪙</span>
+      <div class="hud-interactive flex items-center gap-2 sm:gap-3 bg-black/90 border border-amber-500/40 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full shadow-2xl backdrop-blur-md">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <span class="text-base sm:text-lg">🪙</span>
           <div>
-            <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">POT AU CENTRE</div>
-            <div id="potCenterDisplay" class="font-mono text-base font-black text-amber-300">0 €</div>
+            <div class="text-[8px] sm:text-[9px] uppercase tracking-widest text-stone-400 font-bold">POT</div>
+            <div id="potCenterDisplay" class="font-mono text-sm sm:text-base font-black text-amber-300">0 €</div>
           </div>
         </div>
-        <div class="border-l border-white/15 pl-3">
-          <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">TOUR / PHASE</div>
-          <div id="tablePhaseDisplay" class="text-xs font-extrabold text-emerald-400">Distribution...</div>
+        <div class="border-l border-white/15 pl-2 sm:pl-3">
+          <div class="text-[8px] sm:text-[9px] uppercase tracking-widest text-stone-400 font-bold">PHASE</div>
+          <div id="tablePhaseDisplay" class="text-[11px] sm:text-xs font-extrabold text-emerald-400">Distribution...</div>
         </div>
       </div>
 
-      <!-- Commandes de test -->
-      <div class="hud-interactive flex items-center gap-1.5">
-        <a href="Les_Flambeurs.html" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold transition">
-          ← Casino
+      <!-- Boutons d'options (Table, Règles, Casino) -->
+      <div class="hud-interactive flex items-center gap-1 sm:gap-1.5">
+        <button onclick="openTableConfigModal()" title="Options de Table & Blindes" class="px-2.5 sm:px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-xs font-bold transition flex items-center gap-1 shadow-md">
+          <span>⚙️</span> <span class="hidden sm:inline">Table</span>
+        </button>
+        <button onclick="openRulesModal()" title="Règles du Poker" class="px-2 sm:px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold transition flex items-center gap-1">
+          <span>❓</span> <span class="hidden sm:inline">Règles</span>
+        </button>
+        <a href="Les_Flambeurs.html" title="Retour au Casino" class="px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold transition">
+          ←
         </a>
       </div>
+
     </div>
 
     <!-- BANNIÈRE DE FIN DE MAIN (SHOWDOWN / VAINQUEUR) -->
@@ -143,27 +239,27 @@
       </div>
     </div>
 
-    <!-- BAS DE L'ÉCRAN : COMMANDES DE JEU (FIXÉES ET ACCESSIBLES AU POUCE SUR MOBILE) -->
-    <div class="w-full max-w-lg mx-auto space-y-2.5 pb-2">
+    <!-- BAS DE L'ÉCRAN : COMMANDES DE JEU ULTRA-COMPACTES SUR MOBILE -->
+    <div id="bottomHudContainer" class="w-full max-w-lg mx-auto space-y-2 pb-1 sm:pb-2">
       
       <!-- ENCART DU JOUEUR PRINCIPAL (AVATAR, PSEUDO, COMBINAISON LIVE, SOLDE TOTAL & MISE) -->
       <div id="heroPlayerEncart" class="hud-interactive flex items-center justify-between bg-black/90 border border-amber-500/40 rounded-2xl px-3.5 py-2 shadow-2xl backdrop-blur-md transition-all duration-300">
         <!-- Avatar & Identité -->
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2 sm:gap-2.5">
           <div class="relative">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-md flex items-center justify-center">
-              <div class="w-full h-full rounded-full bg-stone-900 flex items-center justify-center text-lg">
+            <div class="player-avatar-box w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-md flex items-center justify-center">
+              <div class="w-full h-full rounded-full bg-stone-900 flex items-center justify-center text-base sm:text-lg">
                 😎
               </div>
             </div>
-            <span id="heroTurnDot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-black animate-pulse"></span>
+            <span id="heroTurnDot" class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 border-2 border-black animate-pulse"></span>
           </div>
           <div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs font-black tracking-wide text-white uppercase">Flambeur (Toi)</span>
-              <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-[9px] font-extrabold text-amber-300 border border-amber-400/30">VIP</span>
+            <div class="flex items-center gap-1">
+              <span class="player-pseudo text-xs font-black tracking-wide text-white uppercase">Flambeur (Toi)</span>
+              <span class="px-1 py-0.5 rounded bg-amber-500/20 text-[8px] sm:text-[9px] font-extrabold text-amber-300 border border-amber-400/30">VIP</span>
             </div>
-            <div id="heroTurnText" class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+            <div id="heroTurnText" class="text-[9px] sm:text-[10px] font-bold text-emerald-400 flex items-center gap-1">
               <span>●</span> À toi de jouer
             </div>
           </div>
@@ -171,71 +267,251 @@
 
         <!-- BADGE COMBINAISON EN TEMPS RÉEL DU JOUEUR (ÉVALUATION LIVE PRÉ-FLOP / FLOP / TURN / RIVER) -->
         <div id="heroLiveHandContainer" class="flex flex-col items-center justify-center px-1">
-          <div class="text-[8px] uppercase tracking-widest text-amber-400/80 font-black mb-0.5">TA MAIN</div>
-          <div id="heroLiveHandBadge" class="px-2 py-0.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 border border-amber-400/50 text-amber-300 font-mono text-[11px] font-black tracking-wide flex items-center gap-1 shadow-md uppercase">
+          <div class="text-[7px] sm:text-[8px] uppercase tracking-widest text-amber-400/80 font-black mb-0.5">TA MAIN</div>
+          <div id="heroLiveHandBadge" class="px-2 py-0.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 border border-amber-400/50 text-amber-300 font-mono text-[10px] sm:text-[11px] font-black tracking-wide flex items-center gap-1 shadow-md uppercase">
             <span>🃏</span> <span id="heroLiveHandText">EN COURS...</span>
           </div>
         </div>
 
         <!-- Solde & Mise actuelle -->
-        <div class="flex items-center gap-2.5 text-right">
-          <!-- Mise actuelle -->
-          <div class="border-r border-white/10 pr-2.5">
-            <div class="text-[9px] uppercase tracking-wider text-stone-400 font-bold">Mise</div>
+        <div class="flex items-center gap-2 sm:gap-2.5 text-right">
+          <div class="border-r border-white/10 pr-2 sm:pr-2.5">
+            <div class="text-[8px] sm:text-[9px] uppercase tracking-wider text-stone-400 font-bold">Mise</div>
             <div id="heroCurrentBetDisplay" class="font-mono text-xs font-black text-cyan-300">0 €</div>
           </div>
-          <!-- Solde total (Stack) -->
           <div>
-            <div class="text-[9px] uppercase tracking-wider text-amber-400/90 font-bold">Solde</div>
-            <div id="playerTotalStack" class="font-mono text-sm font-black text-amber-300">25 400 €</div>
+            <div class="text-[8px] sm:text-[9px] uppercase tracking-wider text-amber-400/90 font-bold">Solde</div>
+            <div id="playerTotalStack" class="font-mono text-xs sm:text-sm font-black text-amber-300">25 400 €</div>
           </div>
         </div>
       </div>
 
       <!-- Bandeau Curseur & Montant de Relance -->
-      <div id="raiseControlPanel" class="hud-interactive bg-black/85 border border-white/15 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2 transition-opacity duration-200">
+      <div id="raiseControlPanel" class="hud-interactive bg-black/85 border border-white/15 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-md space-y-1.5 sm:space-y-2 transition-opacity duration-200">
         <div class="flex items-center justify-between text-xs">
-          <span class="text-stone-300 font-bold">Montant de relance :</span>
-          <span id="demoRaiseDisplay" class="font-mono text-sm font-black text-amber-300">200 €</span>
+          <span class="text-stone-300 font-bold">Relance :</span>
+          <span id="demoRaiseDisplay" class="font-mono text-xs sm:text-sm font-black text-amber-300">200 €</span>
         </div>
         <input id="demoRaiseSlider" type="range" min="100" max="25400" step="50" value="200" class="poker-range-slider w-full" oninput="window.pokerGame && window.pokerGame.onSliderInput(this.value)">
-        <div class="flex items-center justify-between gap-1 text-[10px] font-bold text-amber-200">
-          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('min')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">Min</button>
-          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(500)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">500 €</button>
-          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(1000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">1 000 €</button>
-          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(5000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">5 000 €</button>
-          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('allin')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">Tapis</button>
+        <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] font-bold text-amber-200">
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('min')" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">Min</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(500)" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">500 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(1000)" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">1 000 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(5000)" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">5 000 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('allin')" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">Tapis</button>
         </div>
       </div>
 
       <!-- Les 3 Grands Boutons Tactiles (Passer, Suivre, Relancer) -->
-      <div id="actionButtonsRow" class="hud-interactive grid grid-cols-3 gap-2 transition-opacity duration-200">
+      <div id="actionButtonsRow" class="hud-interactive grid grid-cols-3 gap-1.5 sm:gap-2 transition-opacity duration-200">
         <!-- SE COUCHER -->
-        <button id="btnActionFold" onclick="window.pokerGame && window.pokerGame.heroFold()" class="py-3.5 rounded-2xl bg-gradient-to-b from-stone-800 to-stone-900 border border-rose-500/40 hover:border-rose-400 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+        <button id="btnActionFold" onclick="window.pokerGame && window.pokerGame.heroFold()" class="py-2.5 sm:py-3.5 rounded-2xl bg-gradient-to-b from-stone-800 to-stone-900 border border-rose-500/40 hover:border-rose-400 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
           <span class="text-xs font-black text-white tracking-wide">PASSER</span>
-          <span class="text-[10px] font-bold text-rose-400">SE COUCHER</span>
+          <span class="text-[9px] sm:text-[10px] font-bold text-rose-400">SE COUCHER</span>
         </button>
 
         <!-- PAROLE / SUIVRE -->
-        <button id="btnActionCheckCall" onclick="window.pokerGame && window.pokerGame.heroCheckOrCall()" class="py-3.5 rounded-2xl bg-gradient-to-b from-sky-700 to-sky-900 border border-sky-400/50 hover:brightness-110 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+        <button id="btnActionCheckCall" onclick="window.pokerGame && window.pokerGame.heroCheckOrCall()" class="py-2.5 sm:py-3.5 rounded-2xl bg-gradient-to-b from-sky-700 to-sky-900 border border-sky-400/50 hover:brightness-110 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
           <span id="btnCheckCallMainText" class="text-xs font-black text-white tracking-wide">PAROLE</span>
-          <span id="btnCheckCallSubText" class="text-[10px] font-bold text-cyan-200">0 €</span>
+          <span id="btnCheckCallSubText" class="text-[9px] sm:text-[10px] font-bold text-cyan-200">0 €</span>
         </button>
 
         <!-- RELANCER -->
-        <button id="btnActionRaise" onclick="window.pokerGame && window.pokerGame.heroRaise()" class="py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:brightness-110 text-black active:scale-95 transition shadow-lg flex flex-col items-center justify-center font-black">
+        <button id="btnActionRaise" onclick="window.pokerGame && window.pokerGame.heroRaise()" class="py-2.5 sm:py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:brightness-110 text-black active:scale-95 transition shadow-lg flex flex-col items-center justify-center font-black">
           <span class="text-xs font-black tracking-wide">RELANCER</span>
-          <span id="btnRaiseAmount" class="text-[10px] font-mono font-extrabold text-amber-950">200 €</span>
+          <span id="btnRaiseAmount" class="text-[9px] sm:text-[10px] font-mono font-extrabold text-amber-950">200 €</span>
         </button>
       </div>
 
     </div>
 
+    <!-- MODALE CONFIGURATION DE TABLE (FORMAT 1v1 / 4-MAX / 6-MAX & BLINDES) -->
+    <div id="tableConfigModal" class="hud-interactive hidden pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div class="bg-gradient-to-b from-[#12131c] to-[#090a0f] border-2 border-amber-500/50 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-[0_0_50px_rgba(251,191,36,0.3)] space-y-4">
+        
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⚙️</span>
+            <h3 class="text-base sm:text-lg font-black text-white tracking-wide uppercase">Options de la Table</h3>
+          </div>
+          <button onclick="closeTableConfigModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition">✕</button>
+        </div>
+
+        <!-- Format de table -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black tracking-widest text-amber-400/90 uppercase">Format de Table</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="changeTableFormat('1v1')" id="btnFormat1v1" class="py-2.5 px-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition flex flex-col items-center">
+              <span class="text-sm">⚔️</span>
+              <span class="mt-0.5 font-bold">1v1 (Duel)</span>
+              <span class="text-[8px] text-stone-500 font-normal">Roxy en face</span>
+            </button>
+            <button onclick="changeTableFormat('4max')" id="btnFormat4max" class="py-2.5 px-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition flex flex-col items-center">
+              <span class="text-sm">👥</span>
+              <span class="mt-0.5 font-bold">Table de 4</span>
+              <span class="text-[8px] text-stone-500 font-normal">3 Bots</span>
+            </button>
+            <button onclick="changeTableFormat('6max')" id="btnFormat6max" class="py-2.5 px-1.5 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition flex flex-col items-center shadow-md">
+              <span class="text-sm">👑</span>
+              <span class="mt-0.5 font-bold">6-Max</span>
+              <span class="text-[8px] text-amber-400/80 font-normal">5 Bots</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Niveau des Blindes -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black tracking-widest text-amber-400/90 uppercase">Niveau des Blindes</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="changeBlindLevel(100)" id="btnBlind100" class="py-2 px-1 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition shadow-md">
+              <div>100 €</div>
+              <div class="text-[8px] text-amber-400/70 font-normal">SB 50 / BB 100</div>
+            </button>
+            <button onclick="changeBlindLevel(500)" id="btnBlind500" class="py-2 px-1 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition">
+              <div>500 €</div>
+              <div class="text-[8px] text-stone-500 font-normal">SB 250 / BB 500</div>
+            </button>
+            <button onclick="changeBlindLevel(1000)" id="btnBlind1000" class="py-2 px-1 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition">
+              <div>1 000 €</div>
+              <div class="text-[8px] text-stone-500 font-normal">SB 500 / BB 1k</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <button onclick="closeTableConfigModal()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:brightness-110 font-black text-black text-xs uppercase tracking-wider transition shadow-lg">
+            Valider et Distribuer
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MODALE RÈGLES & COMBINAISONS DU POKER -->
+    <div id="rulesModal" class="hud-interactive hidden pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div class="bg-gradient-to-b from-[#12131c] to-[#090a0f] border-2 border-amber-500/50 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-[0_0_50px_rgba(251,191,36,0.3)] space-y-3">
+        
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">📖</span>
+            <h3 class="text-base sm:text-lg font-black text-white tracking-wide uppercase">Règles & Combinaisons</h3>
+          </div>
+          <button onclick="closeRulesModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition">✕</button>
+        </div>
+
+        <div class="text-xs text-stone-300 space-y-1.5 max-h-[55vh] overflow-y-auto pr-1">
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-amber-300">1. Quinte Flush Royale</span> <span class="text-[10px] text-stone-400 block">As, Roi, Dame, Valet, 10 de même couleur</span></div>
+            <span class="text-base">👑</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-amber-300">2. Quinte Flush</span> <span class="text-[10px] text-stone-400 block">5 cartes consécutives de même couleur</span></div>
+            <span class="text-base">🔥</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">3. Carré</span> <span class="text-[10px] text-stone-400 block">4 cartes identiques (ex: 4 Rois)</span></div>
+            <span class="text-base">💣</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">4. Full House</span> <span class="text-[10px] text-stone-400 block">Brelan (3 cartes) + Paire (2 cartes)</span></div>
+            <span class="text-base">👑</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">5. Couleur (Flush)</span> <span class="text-[10px] text-stone-400 block">5 cartes de même couleur non consécutives</span></div>
+            <span class="text-base">♦️</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">6. Quinte (Suite)</span> <span class="text-[10px] text-stone-400 block">5 cartes consécutives de couleurs différentes</span></div>
+            <span class="text-base">⚡</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">7. Brelan</span> <span class="text-[10px] text-stone-400 block">3 cartes de même valeur</span></div>
+            <span class="text-base">🎯</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">8. Double Paire</span> <span class="text-[10px] text-stone-400 block">Deux paires de valeurs distinctes</span></div>
+            <span class="text-base">✨</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-white">9. Paire</span> <span class="text-[10px] text-stone-400 block">Deux cartes de même valeur</span></div>
+            <span class="text-base">🃏</span>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div><span class="font-bold text-stone-400">10. Carte Haute</span> <span class="text-[10px] text-stone-500 block">La carte isolée la plus forte en main</span></div>
+            <span class="text-base">🎴</span>
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <button onclick="closeRulesModal()" class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 font-bold text-white text-xs uppercase tracking-wider transition">
+            Fermer
+          </button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <!-- 3. CODE COMPLET POKER 3D (CHARGÉ VIA POKER3D.JS AVEC ANTI-CACHE) -->
-  <script src="poker3d.js?v=4.1"></script>
+  <script src="poker3d.js?v=4.2"></script>
   <script>
+    // Gestion des modales et options
+    function openTableConfigModal() {
+      document.getElementById('tableConfigModal').classList.remove('hidden');
+    }
+    function closeTableConfigModal() {
+      document.getElementById('tableConfigModal').classList.add('hidden');
+    }
+    function openRulesModal() {
+      document.getElementById('rulesModal').classList.remove('hidden');
+    }
+    function closeRulesModal() {
+      document.getElementById('rulesModal').classList.add('hidden');
+    }
+
+    function changeTableFormat(fmt) {
+      if (window.pokerExp) {
+        window.pokerExp.setTableFormat(fmt);
+      }
+      const formats = ['1v1', '4max', '6max'];
+      formats.forEach(f => {
+        const btn = document.getElementById('btnFormat' + f);
+        if (!btn) return;
+        if (f === fmt) {
+          btn.className = 'py-2.5 px-1.5 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition flex flex-col items-center shadow-md';
+        } else {
+          btn.className = 'py-2.5 px-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition flex flex-col items-center';
+        }
+      });
+      const tag = document.getElementById('headerTableFormatTag');
+      if (tag) {
+        tag.textContent = fmt === '1v1' ? '1v1 (Duel)' : (fmt === '4max' ? 'Table de 4' : '6-Max');
+      }
+      closeTableConfigModal();
+    }
+
+    function changeBlindLevel(level) {
+      if (window.pokerGame) {
+        window.pokerGame.setBigBlind(level);
+      }
+      const levels = [100, 500, 1000];
+      levels.forEach(lvl => {
+        const btn = document.getElementById('btnBlind' + lvl);
+        if (!btn) return;
+        if (lvl === level) {
+          btn.className = 'py-2 px-1 rounded-xl border border-amber-400 bg-amber-500/20 font-black text-xs text-amber-300 transition shadow-md';
+        } else {
+          btn.className = 'py-2 px-1 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 font-bold text-xs text-stone-300 transition';
+        }
+      });
+      const tag = document.getElementById('headerBlindTag');
+      if (tag) {
+        tag.textContent = `${Math.floor(level / 2)}/${level} €`;
+      }
+      closeTableConfigModal();
+    }
+
     // Instanciation de la scène 3D et du moteur Texas Hold'em
     window.addEventListener('DOMContentLoaded', () => {
       window.pokerExp = new Poker3DExperience('poker3dContainer');
