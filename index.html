@@ -243,11 +243,11 @@
       </button>
 
       <!-- Grattage -->
-      <button onclick="handleComingSoonGame('grattage')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Jeu de Grattage (MàJ)">
+      <button onclick="switchRoom('scratch')" id="nav-scratch" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Jeu de Grattage (50 €)">
         <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🎟️</span>
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Jeu de Grattage</span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30 ml-1">MàJ</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30 ml-1">50€</span>
         </div>
       </button>
 
@@ -595,28 +595,28 @@
             </button>
           </div>
 
-          <!-- 9. JEU DE GRATTAGE (FUTUR MISE À JOUR) -->
-          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#2a2211]/95 via-[#191407]/95 to-black border border-amber-500/40 hover:border-amber-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
-            <div class="absolute -top-10 -right-10 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <!-- 9. JEU DE GRATTAGE -->
+          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#2b0838]/95 via-[#1b0524]/95 to-black border border-fuchsia-500/40 hover:border-amber-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
+            <div class="absolute -top-10 -right-10 w-28 h-28 bg-fuchsia-500/15 rounded-full blur-2xl pointer-events-none"></div>
             <div>
               <div class="flex items-center justify-between">
                 <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold flex items-center gap-1">
                   <span>🎟️</span> <span>Instant Gagnant</span>
                 </span>
-                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
-                  ( Futur mise à jour )
+                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-400/40">
+                  Jackpot 20 000 €
                 </span>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-amber-200 mt-3 flex items-center gap-2">
                 <span>Jeu de Grattage</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-sans font-bold border border-amber-400/30">Bientôt</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-sans font-bold border border-amber-400/30">50 €</span>
               </h3>
               <p class="text-xs text-amber-100/80 mt-2 leading-relaxed">
-                Gratte les cases dorées du ticket mystère, aligne les symboles gagnants et décroche le jackpot cash instantané !
+                Achète ton ticket 3D à 50 €, gratte la couche argentée et découvre ton gain instantané pouvant atteindre jusqu'à 20 000 € !
               </p>
             </div>
-            <button onclick="handleComingSoonGame('grattage')" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
-              <span>🎟️</span> <span>Gratter un ticket (futur mise à jour)</span>
+            <button onclick="switchRoom('scratch')" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
+              <span>🎟️</span> <span>Gratter un ticket (50 €)</span>
             </button>
           </div>
 
@@ -1608,6 +1608,307 @@
     </section>
 
     <!-- =============================================================== -->
+    <!-- VUE 9.5 : JEU DE GRATTAGE 3D « LES FLAMBEURS » (JACKPOT 20 000 €) -->
+    <!-- =============================================================== -->
+    <section id="view-scratch" class="space-y-6 hidden">
+      <!-- En-tête du jeu -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-stone-950/90 border border-fuchsia-500/30 rounded-2xl p-4">
+        <div class="flex items-center gap-3">
+          <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
+          <div>
+            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2">
+              <span>🎟️ Ticket de Grattage "Les Flambeurs"</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-sans font-bold">3D VIP</span>
+            </h2>
+            <p class="text-xs text-fuchsia-300">Ticket 50 € la carte • Gratte toi-même la couche argentée • Jackpot max : <strong>20 000 €</strong></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-400/30 text-purple-300 text-xs font-bold flex items-center gap-1.5">
+            <span>🌐</span> <span>Classement Multijoueur</span>
+          </span>
+          <button onclick="openRulesModal('scratch')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold hover:brightness-110 transition">
+            ❓ Comment jouer
+          </button>
+        </div>
+      </div>
+
+      <!-- Grille principale : Carte 3D à gauche & Classement / Paliers à droite -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- COLONNE GAUCHE : CARTE 3D & COMMANDES -->
+        <div class="lg:col-span-7 xl:col-span-7 space-y-4">
+          
+          <!-- Scène 3D Interactive avec effet de perspective et inclinaison dynamique -->
+          <div id="scratch3dStage" class="scratch-3d-stage py-2">
+            <div id="scratch3dCard" class="scratch-3d-card p-5 flex flex-col justify-between">
+              
+              <!-- Reflet holographique dynamique au survol -->
+              <div id="scratchShineOverlay" class="scratch-shine-overlay"></div>
+
+              <!-- Haut de la carte : Bannière néon et Titre 3D "LES FLAMBEURS" -->
+              <div class="text-center relative z-10 space-y-1">
+                <div class="text-[11px] uppercase tracking-widest text-fuchsia-300 font-extrabold flex items-center justify-center gap-2">
+                  <span>★</span> <span>-- LES FLAMBEURS --</span> <span>★</span>
+                </div>
+                <h2 class="scratch-casino-title text-3xl sm:text-4xl text-center my-0.5">LES FLAMBEURS</h2>
+                <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-black/60 border border-amber-400/50 shadow">
+                  <span class="text-[10px] text-amber-300 font-extrabold uppercase tracking-wider">50 € LE TICKET</span>
+                  <span class="text-amber-400/60 text-[9px]">•</span>
+                  <span class="text-[10px] text-emerald-300 font-mono-num font-black tracking-wider">JACKPOT 20 000 €</span>
+                </div>
+              </div>
+
+              <!-- Milieu de la carte : Écrin VIP avec cartes Aces néon & jetons dorés (sans machine) -->
+              <div class="my-3 relative z-10 flex flex-col items-center justify-center">
+                <!-- Arche lumineuse avec guirlande d'ampoules néon -->
+                <div class="relative w-56 h-28 flex items-center justify-center">
+                  <!-- Halo néon rose/violet -->
+                  <div class="absolute inset-0 bg-fuchsia-600/20 rounded-full blur-xl pointer-events-none"></div>
+
+                  <!-- Éventail de 4 cartes néon VIP Aces (♠️ ♥️ ♣️ ♦️) -->
+                  <div class="absolute bottom-2 flex justify-center items-end gap-1 pointer-events-none">
+                    <div class="w-9 h-14 rounded-lg bg-black/80 border-2 border-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.7)] flex flex-col items-center justify-between p-0.5 transform -rotate-15 translate-y-1">
+                      <span class="text-[9px] font-bold text-fuchsia-300 self-start">A</span>
+                      <span class="text-xs text-fuchsia-400">♠</span>
+                    </div>
+                    <div class="w-9 h-14 rounded-lg bg-black/80 border-2 border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.7)] flex flex-col items-center justify-between p-0.5 transform -rotate-6">
+                      <span class="text-[9px] font-bold text-rose-300 self-start">A</span>
+                      <span class="text-xs text-rose-400">♥</span>
+                    </div>
+                    <div class="w-9 h-14 rounded-lg bg-black/80 border-2 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.7)] flex flex-col items-center justify-between p-0.5 transform rotate-6">
+                      <span class="text-[9px] font-bold text-amber-300 self-start">A</span>
+                      <span class="text-xs text-amber-400">♦</span>
+                    </div>
+                    <div class="w-9 h-14 rounded-lg bg-black/80 border-2 border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.7)] flex flex-col items-center justify-between p-0.5 transform rotate-15 translate-y-1">
+                      <span class="text-[9px] font-bold text-cyan-300 self-start">A</span>
+                      <span class="text-xs text-cyan-400">♣</span>
+                    </div>
+                  </div>
+
+                  <!-- Emblème central : Couronne et jetons d'or VIP -->
+                  <div class="relative z-10 flex flex-col items-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]">
+                    <div class="text-3xl filter drop-shadow-[0_0_12px_rgba(250,204,21,0.9)]">👑</div>
+                    <div class="flex items-center -space-x-2 mt-0.5">
+                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">🪙</span>
+                      <span class="text-2xl filter drop-shadow-[0_0_10px_rgba(250,204,21,0.9)] z-10">💎</span>
+                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">🪙</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Ruban doré avec mention du Jackpot -->
+                <div class="mt-1 px-4 py-0.5 rounded-full bg-gradient-to-r from-amber-500/30 via-yellow-400/40 to-amber-500/30 border border-amber-400/60 shadow text-center">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-amber-200">★ ÉDITION MULTIJOUEUR CASH ★</span>
+                </div>
+              </div>
+
+              <!-- Bas de la carte : ZONE DE GRATTAGE IDENTIQUE À LA PHOTO AVEC CODE-BARRES & SÉRIE -->
+              <div class="relative z-10 space-y-2">
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                    <span>🪙</span> <span>Zone à gratter :</span>
+                  </span>
+                  <span id="scratchSerialLabel" class="text-[10px] font-mono-num font-bold text-stone-400">№ 2654177</span>
+                </div>
+
+                <!-- Cadre contenant le résultat caché et le canvas argenté à gratter par dessus -->
+                <div class="flex items-stretch gap-1.5 p-1 rounded-2xl bg-black/70 border border-amber-400/50 shadow-inner">
+                  
+                  <!-- Zone principale de grattage -->
+                  <div class="scratch-box-frame relative flex-1 h-[115px]">
+                    
+                    <!-- Couche cachée (Résultat affiché en dessous) -->
+                    <div id="scratchResultLayer" class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center transition-all">
+                      <!-- Contenu injecté dynamiquement par le script (GAGNÉ ou PERDU) -->
+                      <div class="text-stone-400 text-xs">
+                        Clique sur « Acheter un ticket » pour commencer !
+                      </div>
+                    </div>
+
+                    <!-- Couche argentée Canvas à gratter avec la souris ou le doigt -->
+                    <canvas id="scratchCanvas" width="290" height="115"></canvas>
+                  </div>
+
+                  <!-- Bande latérale de sécurité avec code-barres comme sur la photo originale -->
+                  <div class="w-8 rounded-xl bg-white/10 border border-white/10 p-1 flex flex-col items-center justify-between text-[8px] font-mono-num text-stone-400 select-none">
+                    <div class="rotate-90 origin-center whitespace-nowrap mt-3 font-bold text-[9px] text-amber-300/80">2654177</div>
+                    <!-- Code barre stylisé -->
+                    <div class="w-full space-y-0.5 my-auto flex flex-col items-center opacity-60">
+                      <div class="h-0.5 bg-white w-full"></div>
+                      <div class="h-1 bg-white w-3/4"></div>
+                      <div class="h-0.5 bg-white w-full"></div>
+                      <div class="h-1 bg-white w-4/5"></div>
+                      <div class="h-0.5 bg-white w-2/3"></div>
+                      <div class="h-1.5 bg-white w-full"></div>
+                    </div>
+                    <div class="rotate-90 origin-center whitespace-nowrap mb-3 text-[7px] text-stone-500">VIP</div>
+                  </div>
+                </div>
+
+                <div class="text-[9px] text-center text-amber-200/60 font-mono-num">
+                  Frotte avec la souris ou ton doigt pour révéler ton gain instantané
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Commandes et barre de progression sous la carte -->
+          <div class="rounded-2xl p-4 bg-stone-950/90 border border-fuchsia-500/30 space-y-3">
+            
+            <!-- Barre de progression du grattage -->
+            <div id="scratchProgressContainer" class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-stone-300 font-bold flex items-center gap-1.5">
+                  <span>🪙</span> <span>Surface découverte :</span>
+                </span>
+                <span id="scratchProgressText" class="font-mono-num font-black text-amber-300">0%</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-black/60 border border-white/10 overflow-hidden">
+                <div id="scratchProgressBar" class="h-full w-0 bg-gradient-to-r from-amber-400 to-fuchsia-500 transition-all duration-150"></div>
+              </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button id="scratchBuyBtn" onclick="buyScratchCard()" class="py-3 px-4 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-black shadow-lg shadow-amber-500/20 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2">
+                <span>🎟️</span> <span>Acheter un ticket (50 €)</span>
+              </button>
+              <button id="scratchRevealBtn" onclick="autoRevealScratch()" disabled class="py-3 px-4 rounded-xl font-bold text-xs bg-white/10 text-stone-400 border border-white/10 hover:text-white hover:bg-white/15 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                <span>⚡</span> <span>Tout révéler d'un coup</span>
+              </button>
+            </div>
+
+            <!-- Rappel du solde joueur -->
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-stone-400">
+              <span>Coût fixe : <strong class="text-amber-300 font-mono-num">50 €</strong> par carte</span>
+              <span>Ton solde : <strong id="scratchBalanceDisplay" class="text-white font-mono-num font-bold">0 €</strong></span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- COLONNE DROITE : CLASSEMENT MULTIJOUEUR DES GRATTEURS & PALIERS -->
+        <div class="lg:col-span-5 xl:col-span-5 space-y-4">
+          
+          <!-- Carte Résumé des Statistiques Personnelles -->
+          <div class="rounded-2xl p-4 bg-stone-950/90 border border-amber-500/40 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-white/10 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">📊</span>
+                <span class="font-serif-title font-extrabold text-sm text-amber-200">Mes Exploits au Grattage</span>
+              </div>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30">Profil</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="p-2 rounded-xl bg-black/60 border border-white/10">
+                <div class="text-[10px] text-stone-400 font-bold uppercase">Record Ticket</div>
+                <div id="scratchMyBestWin" class="text-sm font-mono-num font-extrabold text-amber-300 mt-0.5">0 €</div>
+              </div>
+              <div class="p-2 rounded-xl bg-black/60 border border-white/10">
+                <div class="text-[10px] text-stone-400 font-bold uppercase">Total Gagné</div>
+                <div id="scratchMyTotalWon" class="text-sm font-mono-num font-extrabold text-emerald-400 mt-0.5">0 €</div>
+              </div>
+              <div class="p-2 rounded-xl bg-black/60 border border-white/10">
+                <div class="text-[10px] text-stone-400 font-bold uppercase">Cartes Jouées</div>
+                <div id="scratchMyCardsPlayed" class="text-sm font-mono-num font-extrabold text-sky-400 mt-0.5">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CLASSEMENT MULTIJOUEUR : QUI A GAGNÉ LE PLUS EN GRATTANT UNE CARTE -->
+          <div class="rounded-2xl p-5 bg-stone-950/90 border border-fuchsia-500/40 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 class="font-serif-title text-base font-extrabold text-fuchsia-200 flex items-center gap-2">
+                  <span>🏆</span> <span>Classement des Meilleurs Gratteurs</span>
+                </h3>
+                <p class="text-[11px] text-stone-400">Qui a décroché le plus gros gain sur un ticket ?</p>
+              </div>
+              <button onclick="renderScratchLeaderboard()" title="Actualiser le classement" class="p-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 border border-fuchsia-400/40 text-fuchsia-300 text-xs transition">
+                🔄
+              </button>
+            </div>
+
+            <!-- Liste des meilleurs joueurs -->
+            <div id="scratchLeaderboardList" class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+              <!-- Injecté dynamiquement par renderScratchLeaderboard() -->
+            </div>
+          </div>
+
+          <!-- FIL D'ACTUALITÉ : DERNIERS GAINS EN DIRECT -->
+          <div class="rounded-2xl p-4 bg-stone-950/90 border border-white/10 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold text-stone-300 flex items-center gap-1.5 uppercase tracking-wider">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Derniers Gains en Direct</span>
+              </span>
+              <span class="text-[10px] text-stone-400">Live Casino</span>
+            </div>
+            <div id="scratchRecentWinsList" class="space-y-1.5 text-xs">
+              <div class="p-2 rounded-xl bg-black/50 border border-white/5 text-stone-400 text-center text-[11px]">
+                En attente du prochain gros gain au grattage...
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLEAU DES PALIERS DE GAINS (POT MAX : 20 000 €) -->
+          <div class="rounded-2xl p-4 bg-gradient-to-br from-[#1b0826]/80 to-black border border-amber-500/30 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <span>💰</span> <span>Paliers de Jackpot Possibles</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 font-mono-num">
+                Max 20 000 €
+              </span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 text-[11px] font-mono-num">
+              <div class="p-2 rounded-lg bg-black/60 border border-amber-400/40 text-center">
+                <div class="text-[9px] uppercase font-sans text-amber-400 font-extrabold">Jackpot</div>
+                <div class="font-extrabold text-amber-300">20 000 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-amber-400/20 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Légendaire</div>
+                <div class="font-extrabold text-amber-200">10 000 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Colossal</div>
+                <div class="font-extrabold text-amber-100">5 000 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Super</div>
+                <div class="font-bold text-white">2 500 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Gros Lot</div>
+                <div class="font-bold text-white">1 000 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Joli Gain</div>
+                <div class="font-bold text-white">500 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Gain</div>
+                <div class="text-stone-300">200 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Gain</div>
+                <div class="text-stone-300">100 €</div>
+              </div>
+              <div class="p-2 rounded-lg bg-black/60 border border-white/10 text-center">
+                <div class="text-[9px] uppercase font-sans text-stone-400 font-bold">Remboursé</div>
+                <div class="text-stone-300">50 €</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =============================================================== -->
     <!-- VUE 10 : BOUTIQUE PAR CATÉGORIES (PLAFOND 50 000 🪙 MAX)        -->
     <!-- =============================================================== -->
     <section id="view-shop" class="space-y-6 hidden">
@@ -1816,6 +2117,11 @@
         <div class="space-y-1">
           <div class="flex justify-between"><span>🎰 Machine à Sous :</span><strong id="lblLuckSlot" class="font-mono-num text-amber-300">35%</strong></div>
           <input id="adminSlotLuck" type="range" min="5" max="95" value="35" oninput="document.getElementById('lblLuckSlot').textContent=this.value+'%'" class="w-full accent-amber-400 cursor-pointer">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between"><span>🎟️ Jeu de Grattage :</span><strong id="lblLuckScratch" class="font-mono-num text-amber-300">35%</strong></div>
+          <input id="adminScratchLuck" type="range" min="1" max="95" value="35" oninput="document.getElementById('lblLuckScratch').textContent=this.value+'%'" class="w-full accent-amber-400 cursor-pointer">
         </div>
 
         <button onclick="saveAdminConfig()" class="w-full py-2.5 mt-2 rounded-xl bg-amber-400 text-black font-extrabold text-xs hover:brightness-110 transition">
@@ -2504,6 +2810,7 @@
       CHANCE_MINES: 50,
       CHANCE_BLACKJACK: 50,
       CHANCE_MACHINE_A_SOUS: 35,
+      CHANCE_SCRATCH: 35,
       DELAI_ENTRE_PARTIES_SECONDES: 3
     };
 
@@ -3177,6 +3484,9 @@
       lastChestTime: 0,
       cupsStreak: 0,
       cupsBestStreak: 0,
+      scratchBestWin: 0,
+      scratchTotalWon: 0,
+      scratchCardsPlayed: 0,
       friends: [],
       friendBalances: {},
       ownedSkins: ['veh_rocket', 'felt_green', 'cards_classic', 'ball_gold', 'bj_classic', 'cab_classic', 'av_default'],
@@ -3193,7 +3503,8 @@
         crash: 50,
         mines: 50,
         blackjack: 50,
-        slots: 35
+        slots: 35,
+        scratch: 35
       },
       bankTransfers: [],
       pendingTransfers: [],
@@ -3393,15 +3704,27 @@
 
                 const remoteCupsStreak = typeof extraData.cupsStreak === 'number' ? extraData.cupsStreak : (typeof row.cupsStreak === 'number' ? row.cupsStreak : 0);
                 const remoteCupsBest = typeof extraData.cupsBestStreak === 'number' ? extraData.cupsBestStreak : (typeof row.cupsBestStreak === 'number' ? row.cupsBestStreak : 0);
+                const remoteScratchBest = typeof extraData.scratchBestWin === 'number' ? extraData.scratchBestWin : (typeof row.scratchBestWin === 'number' ? row.scratchBestWin : 0);
+                const remoteScratchTotal = typeof extraData.scratchTotalWon === 'number' ? extraData.scratchTotalWon : (typeof row.scratchTotalWon === 'number' ? row.scratchTotalWon : 0);
+                const remoteScratchPlayed = typeof extraData.scratchCardsPlayed === 'number' ? extraData.scratchCardsPlayed : (typeof row.scratchCardsPlayed === 'number' ? row.scratchCardsPlayed : 0);
                 const existingAcc = db[key] || {};
 
                 let myResolvedStreak = Math.max(existingAcc.cupsStreak || 0, remoteCupsStreak);
                 let myResolvedBest = Math.max(existingAcc.cupsBestStreak || 0, remoteCupsBest);
+                let myResolvedScratchBest = Math.max(existingAcc.scratchBestWin || 0, remoteScratchBest);
+                let myResolvedScratchTotal = Math.max(existingAcc.scratchTotalWon || 0, remoteScratchTotal);
+                let myResolvedScratchPlayed = Math.max(existingAcc.scratchCardsPlayed || 0, remoteScratchPlayed);
                 if (isMe) {
                   state.cupsStreak = Math.max(state.cupsStreak || 0, myResolvedStreak);
                   state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, myResolvedBest, state.cupsStreak || 0);
+                  state.scratchBestWin = Math.max(state.scratchBestWin || 0, myResolvedScratchBest);
+                  state.scratchTotalWon = Math.max(state.scratchTotalWon || 0, myResolvedScratchTotal);
+                  state.scratchCardsPlayed = Math.max(state.scratchCardsPlayed || 0, myResolvedScratchPlayed);
                   myResolvedStreak = state.cupsStreak;
                   myResolvedBest = state.cupsBestStreak;
+                  myResolvedScratchBest = state.scratchBestWin;
+                  myResolvedScratchTotal = state.scratchTotalWon;
+                  myResolvedScratchPlayed = state.scratchCardsPlayed;
                 }
 
                 db[key] = {
@@ -3409,6 +3732,9 @@
                   ...extraData,
                   cupsStreak: myResolvedStreak,
                   cupsBestStreak: myResolvedBest,
+                  scratchBestWin: myResolvedScratchBest,
+                  scratchTotalWon: myResolvedScratchTotal,
+                  scratchCardsPlayed: myResolvedScratchPlayed,
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
@@ -3422,6 +3748,9 @@
                 };
                 if (isMe && typeof extraData.cupsBestStreak === 'number' && extraData.cupsBestStreak > (state.cupsBestStreak || 0)) {
                   state.cupsBestStreak = extraData.cupsBestStreak;
+                }
+                if (isMe && typeof extraData.scratchBestWin === 'number' && extraData.scratchBestWin > (state.scratchBestWin || 0)) {
+                  state.scratchBestWin = extraData.scratchBestWin;
                 }
                 changed = true;
               }
@@ -3446,9 +3775,15 @@
                 const existing = db[k] || {};
                 const rBest = Math.max(existing.cupsBestStreak || 0, remoteAcc.cupsBestStreak || 0, remoteAcc.data?.cupsBestStreak || 0);
                 const rStreak = Math.max(existing.cupsStreak || 0, remoteAcc.cupsStreak || 0, remoteAcc.data?.cupsStreak || 0);
+                const rScratchBest = Math.max(existing.scratchBestWin || 0, remoteAcc.scratchBestWin || 0, remoteAcc.data?.scratchBestWin || 0);
+                const rScratchTotal = Math.max(existing.scratchTotalWon || 0, remoteAcc.scratchTotalWon || 0, remoteAcc.data?.scratchTotalWon || 0);
+                const rScratchPlayed = Math.max(existing.scratchCardsPlayed || 0, remoteAcc.scratchCardsPlayed || 0, remoteAcc.data?.scratchCardsPlayed || 0);
                 if (isMe) {
                   state.cupsStreak = Math.max(state.cupsStreak || 0, rStreak);
                   state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, rBest, state.cupsStreak || 0);
+                  state.scratchBestWin = Math.max(state.scratchBestWin || 0, rScratchBest);
+                  state.scratchTotalWon = Math.max(state.scratchTotalWon || 0, rScratchTotal);
+                  state.scratchCardsPlayed = Math.max(state.scratchCardsPlayed || 0, rScratchPlayed);
                 }
                 const mFriends = (Array.isArray(remoteAcc.friends) && remoteAcc.friends.length) ? remoteAcc.friends : (existing.friends || []);
                 const mTransfers = (Array.isArray(remoteAcc.pendingTransfers) && remoteAcc.pendingTransfers.length) ? remoteAcc.pendingTransfers : (existing.pendingTransfers || []);
@@ -3462,7 +3797,10 @@
                   pendingFriendRequests: mFreqs,
                   pendingGameInvites: mInvs,
                   cupsStreak: isMe ? state.cupsStreak : rStreak,
-                  cupsBestStreak: isMe ? state.cupsBestStreak : rBest
+                  cupsBestStreak: isMe ? state.cupsBestStreak : rBest,
+                  scratchBestWin: isMe ? state.scratchBestWin : rScratchBest,
+                  scratchTotalWon: isMe ? state.scratchTotalWon : rScratchTotal,
+                  scratchCardsPlayed: isMe ? state.scratchCardsPlayed : rScratchPlayed
                 };
                 changed = true;
               }
@@ -3633,6 +3971,8 @@
         } else if (currentRoomKey === 'cups') {
           updateLobbyUI('cups');
           renderCupsLeaderboard();
+        } else if (currentRoomKey === 'scratch') {
+          renderScratchLeaderboard();
         }
       } catch (e) {}
 
@@ -3663,6 +4003,9 @@
           lastChestTime: account.lastChestTime || 0,
           cupsStreak: isMe ? (state.cupsStreak || 0) : (account.cupsStreak || account.data?.cupsStreak || 0),
           cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0),
+          scratchBestWin: isMe ? (state.scratchBestWin || 0) : (account.scratchBestWin || account.data?.scratchBestWin || 0),
+          scratchTotalWon: isMe ? (state.scratchTotalWon || 0) : (account.scratchTotalWon || account.data?.scratchTotalWon || 0),
+          scratchCardsPlayed: isMe ? (state.scratchCardsPlayed || 0) : (account.scratchCardsPlayed || account.data?.scratchCardsPlayed || 0),
           friends: account.friends || [],
           friendBalances: account.friendBalances || {},
           bankTransfers: account.bankTransfers || [],
@@ -3693,7 +4036,10 @@
         const localPayload = {
           ...account,
           cupsStreak: isMe ? (state.cupsStreak || 0) : (account.cupsStreak || account.data?.cupsStreak || 0),
-          cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0)
+          cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0),
+          scratchBestWin: isMe ? (state.scratchBestWin || 0) : (account.scratchBestWin || account.data?.scratchBestWin || 0),
+          scratchTotalWon: isMe ? (state.scratchTotalWon || 0) : (account.scratchTotalWon || account.data?.scratchTotalWon || 0),
+          scratchCardsPlayed: isMe ? (state.scratchCardsPlayed || 0) : (account.scratchCardsPlayed || account.data?.scratchCardsPlayed || 0)
         };
         await fetch('/api/accounts', {
           method: 'POST',
@@ -3953,6 +4299,9 @@
         const acc = db[activeUser.toLowerCase()];
         let loadedCupsStreak = acc.cupsStreak || 0;
         let loadedCupsBest = acc.cupsBestStreak || 0;
+        let loadedScratchBest = acc.scratchBestWin || 0;
+        let loadedScratchTotal = acc.scratchTotalWon || 0;
+        let loadedScratchPlayed = acc.scratchCardsPlayed || 0;
         try {
           const rawLocal = localStorage.getItem(STORAGE_KEY);
           if (rawLocal) {
@@ -3960,6 +4309,9 @@
             if (parsed && (parsed.username || '').toLowerCase() === activeUser.toLowerCase()) {
               loadedCupsStreak = Math.max(loadedCupsStreak, parsed.cupsStreak || 0);
               loadedCupsBest = Math.max(loadedCupsBest, parsed.cupsBestStreak || 0, loadedCupsStreak);
+              loadedScratchBest = Math.max(loadedScratchBest, parsed.scratchBestWin || 0);
+              loadedScratchTotal = Math.max(loadedScratchTotal, parsed.scratchTotalWon || 0);
+              loadedScratchPlayed = Math.max(loadedScratchPlayed, parsed.scratchCardsPlayed || 0);
             }
           }
         } catch (e) {}
@@ -3969,6 +4321,9 @@
           ...acc,
           cupsStreak: loadedCupsStreak,
           cupsBestStreak: loadedCupsBest,
+          scratchBestWin: loadedScratchBest,
+          scratchTotalWon: loadedScratchTotal,
+          scratchCardsPlayed: loadedScratchPlayed,
           equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
           luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
         };
@@ -4431,6 +4786,8 @@
       setText('lblLuckBj', CONFIG_CASINO.CHANCE_BLACKJACK + '%');
       setVal('adminSlotLuck', CONFIG_CASINO.CHANCE_MACHINE_A_SOUS);
       setText('lblLuckSlot', CONFIG_CASINO.CHANCE_MACHINE_A_SOUS + '%');
+      setVal('adminScratchLuck', CONFIG_CASINO.CHANCE_SCRATCH || 35);
+      setText('lblLuckScratch', (CONFIG_CASINO.CHANCE_SCRATCH || 35) + '%');
 
       const modal = document.getElementById('adminModal');
       if (modal) modal.classList.remove('hidden');
@@ -4490,16 +4847,18 @@
       CONFIG_CASINO.CHANCE_MINES = parseInt(document.getElementById('adminMinesLuck').value) || 50;
       CONFIG_CASINO.CHANCE_BLACKJACK = parseInt(document.getElementById('adminBjLuck').value) || 50;
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = parseInt(document.getElementById('adminSlotLuck').value) || 35;
+      CONFIG_CASINO.CHANCE_SCRATCH = parseInt(document.getElementById('adminScratchLuck').value) || 35;
 
       state.luckConfig = {
         crash: CONFIG_CASINO.CHANCE_CRASH,
         mines: CONFIG_CASINO.CHANCE_MINES,
         blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
-        slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS
+        slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS,
+        scratch: CONFIG_CASINO.CHANCE_SCRATCH
       };
       saveState();
       closeAdminModal();
-      showToast('⚙️ Les 4 pourcentages de chance (Winrate) ont été enregistrés !');
+      showToast('⚙️ Les 5 pourcentages de chance (Winrate) ont été enregistrés !');
     }
 
     /* ================= COFFRE DU JOUR (TOUTES LES 6 HEURES) ================= */
@@ -4712,11 +5071,12 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'blindtest', 'shop', 'bank'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'scratch', 'blindtest', 'shop', 'bank'];
     const ROOM_TITLES = {
       hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
+      scratch: '/ Jeu de Grattage',
       blindtest: '/ Blind Test (futur mise à jour)',
       shop: '/ Boutique', bank: '/ La Banque'
     };
@@ -4783,6 +5143,10 @@
         updateLobbyUI('cups');
         updateCupsSetupBoxVisibility();
         renderCupsLeaderboard();
+      }
+      if (room === 'scratch') {
+        if (typeof initScratchGame === 'function') initScratchGame();
+        if (typeof renderScratchLeaderboard === 'function') renderScratchLeaderboard();
       }
       if (room === 'crash') {
         const balDisplay = document.getElementById('crashUserBalanceDisplay');
@@ -10923,6 +11287,491 @@
     }
 
     function syncCupsMultiplayer() {}
+
+    /* ================= JEU DE GRATTAGE 3D « LES FLAMBEURS » ================= */
+    let scratchTicket = {
+      active: false,
+      cost: 50,
+      winAmount: 0,
+      isRevealed: false,
+      serial: '№ 2654177'
+    };
+    let isScratching = false;
+    let scratchLastX = 0, scratchLastY = 0;
+    let scratchFoilSoundTimer = 0;
+
+    function initScratchGame() {
+      setupScratch3DInteraction();
+      setupScratchCanvas();
+      updateScratchUI();
+      renderScratchLeaderboard();
+    }
+
+    function setupScratch3DInteraction() {
+      const stage = document.getElementById('scratch3dStage');
+      const card = document.getElementById('scratch3dCard');
+      const shine = document.getElementById('scratchShineOverlay');
+      if (!stage || !card) return;
+
+      if (stage._has3dListeners) return;
+      stage._has3dListeners = true;
+
+      const handleMove = (e) => {
+        const rect = card.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = ((y - centerY) / centerY) * -12;
+        const rotateY = ((x - centerX) / centerX) * 12;
+
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+        if (shine) {
+          const shineX = (x / rect.width) * 100;
+          const shineY = (y / rect.height) * 100;
+          shine.style.setProperty('--shine-x', `${shineX}%`);
+          shine.style.setProperty('--shine-y', `${shineY}%`);
+        }
+      };
+
+      const handleLeave = () => {
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+      };
+
+      stage.addEventListener('mousemove', handleMove);
+      stage.addEventListener('mouseleave', handleLeave);
+      stage.addEventListener('touchmove', handleMove, { passive: true });
+      stage.addEventListener('touchend', handleLeave);
+    }
+
+    function playScratchFoilSound() {
+      const now = Date.now();
+      if (now - scratchFoilSoundTimer < 90) return;
+      scratchFoilSoundTimer = now;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const masterVol = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.8;
+      if (masterVol <= 0) return;
+
+      try {
+        const bufferSize = ctx.sampleRate * 0.05;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(3200 + Math.random() * 800, ctx.currentTime);
+        filter.Q.setValueAtTime(3.0, ctx.currentTime);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.22 * masterVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+      } catch (e) {}
+    }
+
+    function playScratchWinSound(isJackpot = false) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const masterVol = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.8;
+      if (masterVol <= 0) return;
+
+      const notes = isJackpot 
+        ? [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98] 
+        : [440, 554.37, 659.25, 880];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = isJackpot ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
+        g.gain.setValueAtTime(0, ctx.currentTime + i * 0.1);
+        g.gain.linearRampToValueAtTime(0.25 * masterVol, ctx.currentTime + i * 0.1 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.4);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime + i * 0.1);
+        osc.stop(ctx.currentTime + i * 0.1 + 0.42);
+      });
+    }
+
+    function drawScratchFoil(ctx, width, height) {
+      const grad = ctx.createLinearGradient(0, 0, width, height);
+      grad.addColorStop(0, '#94a3b8');
+      grad.addColorStop(0.25, '#e2e8f0');
+      grad.addColorStop(0.5, '#cbd5e1');
+      grad.addColorStop(0.75, '#f8fafc');
+      grad.addColorStop(1, '#64748b');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1;
+      for (let i = -width; i < width * 2; i += 18) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + 40, height);
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.fillStyle = '#1e293b';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.font = 'bold 15px "Cinzel", "Outfit", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✨ GRATTEZ ICI ✨', width / 2, height / 2 - 10);
+      ctx.font = 'bold 10px "Inter", sans-serif';
+      ctx.fillStyle = '#475569';
+      ctx.fillText('PIÈCE OU DOIGT', width / 2, height / 2 + 14);
+      ctx.restore();
+    }
+
+    function setupScratchCanvas() {
+      const canvas = document.getElementById('scratchCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width || 290;
+      const h = canvas.height || 115;
+
+      if (!scratchTicket.active || scratchTicket.isRevealed) {
+        drawScratchFoil(ctx, w, h);
+      }
+
+      if (canvas._hasScratchEvents) return;
+      canvas._hasScratchEvents = true;
+
+      const getPos = (e) => {
+        const cRect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / cRect.width;
+        const scaleY = canvas.height / cRect.height;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - cRect.left) * scaleX,
+          y: (clientY - cRect.top) * scaleY
+        };
+      };
+
+      const scratch = (x, y) => {
+        if (!scratchTicket.active || scratchTicket.isRevealed) return;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.lineWidth = 36;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(scratchLastX, scratchLastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        scratchLastX = x;
+        scratchLastY = y;
+        playScratchFoilSound();
+        checkScratchProgress();
+      };
+
+      const startScratch = (e) => {
+        if (!scratchTicket.active || scratchTicket.isRevealed) {
+          if (!scratchTicket.active) showToast('🎟️ Clique sur « Acheter un ticket (50 €) » pour commencer !');
+          return;
+        }
+        isScratching = true;
+        const pos = getPos(e);
+        scratchLastX = pos.x;
+        scratchLastY = pos.y;
+        scratch(pos.x, pos.y);
+      };
+
+      const moveScratch = (e) => {
+        if (!isScratching) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        scratch(pos.x, pos.y);
+      };
+
+      const stopScratch = () => {
+        isScratching = false;
+      };
+
+      canvas.addEventListener('mousedown', startScratch);
+      window.addEventListener('mousemove', moveScratch);
+      window.addEventListener('mouseup', stopScratch);
+
+      canvas.addEventListener('touchstart', startScratch, { passive: false });
+      window.addEventListener('touchmove', moveScratch, { passive: false });
+      window.addEventListener('touchend', stopScratch);
+    }
+
+    function checkScratchProgress() {
+      const canvas = document.getElementById('scratchCanvas');
+      if (!canvas || !scratchTicket.active || scratchTicket.isRevealed) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      let cleared = 0;
+      const totalPixels = data.length / 4;
+      for (let i = 3; i < data.length; i += 16) {
+        if (data[i] === 0) cleared++;
+      }
+      const percent = Math.min(100, Math.round((cleared / (totalPixels / 4)) * 100));
+
+      const pText = document.getElementById('scratchProgressText');
+      const pBar = document.getElementById('scratchProgressBar');
+      if (pText) pText.textContent = `${percent}%`;
+      if (pBar) pBar.style.width = `${percent}%`;
+
+      if (percent >= 55) {
+        completeScratchReveal();
+      }
+    }
+
+    function buyScratchCard() {
+      if (state.balance < 50) {
+        showToast('❌ Solde insuffisant ! Un ticket coûte 50 pièces.');
+        return;
+      }
+
+      state.balance -= 50;
+      state.scratchCardsPlayed = (state.scratchCardsPlayed || 0) + 1;
+      saveState();
+      updateScratchUI();
+
+      const winChance = (CONFIG_CASINO.CHANCE_SCRATCH || 35) / 100;
+      const isWin = Math.random() < winChance;
+      let winAmount = 0;
+
+      if (isWin) {
+        const roll = Math.random() * 100;
+        if (roll < 50) winAmount = 100;         // 2x
+        else if (roll < 75) winAmount = 200;    // 4x
+        else if (roll < 90) winAmount = 500;    // 10x
+        else if (roll < 97) winAmount = 1000;   // 20x
+        else if (roll < 99.5) winAmount = 5000; // 100x
+        else winAmount = 20000;                 // 400x (JACKPOT SUPRÊME)
+      }
+
+      scratchTicket = {
+        active: true,
+        cost: 50,
+        winAmount: winAmount,
+        isRevealed: false,
+        serial: '№ ' + Math.floor(1000000 + Math.random() * 9000000)
+      };
+
+      const serialLabel = document.getElementById('scratchSerialLabel');
+      if (serialLabel) serialLabel.textContent = scratchTicket.serial;
+
+      const resLayer = document.getElementById('scratchResultLayer');
+      if (resLayer) {
+        if (winAmount > 0) {
+          const isJackpot = winAmount >= 5000;
+          resLayer.innerHTML = `
+            <div class="flex flex-col items-center justify-center animate-bounce">
+              <span class="text-3xl">${isJackpot ? '💎👑💎' : '🎉💰🎉'}</span>
+              <span class="text-xs uppercase font-black tracking-wider text-amber-300">${isJackpot ? '★ JACKPOT ROYALE ★' : 'TICKET GAGNANT !'}</span>
+              <span class="text-2xl font-mono-num font-black ${isJackpot ? 'text-amber-200' : 'text-emerald-400'}">+${fmt(winAmount)}</span>
+            </div>
+          `;
+        } else {
+          resLayer.innerHTML = `
+            <div class="flex flex-col items-center justify-center text-center">
+              <span class="text-2xl">💔</span>
+              <span class="text-xs font-bold text-stone-300">Pas de chance cette fois !</span>
+              <span class="text-[11px] text-stone-500 font-mono-num">0 € • Réessaie au prochain ticket !</span>
+            </div>
+          `;
+        }
+      }
+
+      const canvas = document.getElementById('scratchCanvas');
+      if (canvas) {
+        canvas.style.opacity = '1';
+        const ctx = canvas.getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        drawScratchFoil(ctx, canvas.width, canvas.height);
+      }
+
+      const pText = document.getElementById('scratchProgressText');
+      const pBar = document.getElementById('scratchProgressBar');
+      if (pText) pText.textContent = '0%';
+      if (pBar) pBar.style.width = '0%';
+
+      const revBtn = document.getElementById('scratchRevealBtn');
+      if (revBtn) revBtn.disabled = false;
+
+      playCoinWinSound();
+      showToast('🎟️ Nouveau ticket acheté pour 50 pièces ! Gratte pour découvrir.');
+    }
+
+    function autoRevealScratch() {
+      if (!scratchTicket.active || scratchTicket.isRevealed) return;
+      completeScratchReveal();
+    }
+
+    function completeScratchReveal() {
+      if (!scratchTicket.active || scratchTicket.isRevealed) return;
+      scratchTicket.isRevealed = true;
+
+      const canvas = document.getElementById('scratchCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        canvas.style.opacity = '0';
+      }
+
+      const pText = document.getElementById('scratchProgressText');
+      const pBar = document.getElementById('scratchProgressBar');
+      if (pText) pText.textContent = '100%';
+      if (pBar) pBar.style.width = '100%';
+
+      const revBtn = document.getElementById('scratchRevealBtn');
+      if (revBtn) revBtn.disabled = true;
+
+      if (scratchTicket.winAmount > 0) {
+        const win = scratchTicket.winAmount;
+        state.balance += win;
+        state.scratchTotalWon = (state.scratchTotalWon || 0) + win;
+        state.scratchBestWin = Math.max(state.scratchBestWin || 0, win);
+
+        playScratchWinSound(win >= 5000);
+        playCoinWinSound();
+
+        showToast(`🎉 FÉLICITATIONS ! Tu as gagné ${fmt(win)} au ticket ${scratchTicket.serial} !`);
+        addScratchRecentWin(state.username || 'Moi', win);
+      } else {
+        showToast('😢 Carte perdante. Tente ta chance sur le prochain ticket !');
+      }
+
+      saveState();
+      pushRemoteAccount(state);
+      updateScratchUI();
+      renderScratchLeaderboard();
+    }
+
+    function addScratchRecentWin(player, amount) {
+      const list = document.getElementById('scratchRecentWinsList');
+      if (!list) return;
+      const isJackpot = amount >= 5000;
+      const entry = document.createElement('div');
+      entry.className = `p-2 rounded-xl flex items-center justify-between border ${isJackpot ? 'bg-amber-500/20 border-amber-400/40 text-amber-200' : 'bg-black/60 border-white/10 text-stone-300'}`;
+      entry.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span>${isJackpot ? '👑' : '🎟️'}</span>
+          <span class="font-bold text-xs">${player}</span>
+        </div>
+        <span class="font-mono-num font-black ${isJackpot ? 'text-amber-300' : 'text-emerald-400'}">+${fmt(amount)}</span>
+      `;
+      if (list.querySelector('.text-stone-400.text-center')) {
+        list.innerHTML = '';
+      }
+      list.prepend(entry);
+      while (list.children.length > 5) {
+        list.removeChild(list.lastChild);
+      }
+    }
+
+    function updateScratchUI() {
+      const bal = document.getElementById('scratchBalanceDisplay');
+      if (bal) bal.textContent = fmt(state.balance);
+
+      const best = document.getElementById('scratchMyBestWin');
+      if (best) best.textContent = fmt(state.scratchBestWin || 0);
+
+      const total = document.getElementById('scratchMyTotalWon');
+      if (total) total.textContent = fmt(state.scratchTotalWon || 0);
+
+      const cards = document.getElementById('scratchMyCardsPlayed');
+      if (cards) cards.textContent = state.scratchCardsPlayed || 0;
+    }
+
+    function renderScratchLeaderboard() {
+      const container = document.getElementById('scratchLeaderboardList');
+      if (!container) return;
+
+      const db = getAccountsDB();
+      const meKey = (state.username || '').toLowerCase().trim();
+      const players = [];
+      const seen = new Set();
+
+      Object.keys(db).forEach(k => {
+        const acc = db[k];
+        if (acc && acc.username && !k.startsWith('__') && !isUsernameBanned(k)) {
+          const uKey = acc.username.toLowerCase().trim();
+          const best = Math.max(acc.scratchBestWin || 0, acc.data?.scratchBestWin || 0);
+          if (best > 0) {
+            seen.add(uKey);
+            players.push({
+              name: acc.username,
+              avatar: getAvatarDisplay(acc),
+              bestWin: best,
+              totalWon: Math.max(acc.scratchTotalWon || 0, acc.data?.scratchTotalWon || 0),
+              isMe: isUserLoggedIn() && uKey === meKey
+            });
+          }
+        }
+      });
+
+      if (isUserLoggedIn() && state.username && (state.scratchBestWin || 0) > 0 && !seen.has(meKey)) {
+        players.push({
+          name: state.username,
+          avatar: getAvatarDisplay(state),
+          bestWin: state.scratchBestWin || 0,
+          totalWon: state.scratchTotalWon || 0,
+          isMe: true
+        });
+      }
+
+      players.sort((a, b) => b.bestWin - a.bestWin || b.totalWon - a.totalWon);
+
+      if (players.length === 0) {
+        container.innerHTML = `
+          <div class="p-4 rounded-xl bg-black/40 border border-white/5 text-center text-xs text-stone-500">
+            Aucun gagnant pour l'instant. Sois le premier à remporter un gros gain au grattage !
+          </div>
+        `;
+        return;
+      }
+
+      const medals = ['🥇', '🥈', '🥉'];
+      container.innerHTML = players.slice(0, 10).map((p, idx) => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl border ${p.isMe ? 'bg-amber-500/15 border-amber-400/50 ring-1 ring-amber-400/30' : 'bg-black/50 border-white/5'}">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-sm font-black w-6 text-center">${medals[idx] || (idx + 1)}</span>
+            <div class="w-8 h-8 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-base shrink-0">
+              ${p.avatar}
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs font-bold truncate ${p.isMe ? 'text-amber-200' : 'text-stone-200'}">
+                ${p.name} ${p.isMe ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-extrabold ml-1">Moi</span>' : ''}
+              </div>
+              <div class="text-[10px] text-stone-400 font-mono-num">Total : ${fmt(p.totalWon)}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono-num font-black text-xs text-amber-300">+${fmt(p.bestWin)}</div>
+            <div class="text-[9px] text-stone-500 uppercase">Record</div>
+          </div>
+        </div>
+      `).join('');
+    }
 
     // Intervalle ultra-rapide (200ms) dédié au Blackjack multijoueur pour une réactivité instantanée
     if (!window._bjFastSyncTimer) {

@@ -833,5 +833,79 @@ select {
   scrollbar-width: none;
 }
 
+/* ================= TICKET DE GRATTAGE 3D « LES FLAMBEURS » ================= */
+.scratch-3d-stage {
+  perspective: 1200px;
+}
+
+.scratch-3d-card {
+  position: relative;
+  width: 100%;
+  max-width: 370px;
+  min-height: 530px;
+  margin: 0 auto;
+  border-radius: 1.75rem;
+  background: radial-gradient(circle at 50% 30%, #4a065c 0%, #290336 48%, #100017 100%);
+  border: 2.5px solid #fbbf24;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 35px rgba(217, 70, 239, 0.4), inset 0 0 15px rgba(251, 191, 36, 0.3);
+  transform-style: preserve-3d;
+  transition: transform 0.12s ease-out, box-shadow 0.15s ease-out;
+  will-change: transform;
+  overflow: hidden;
+  user-select: none;
+}
+
+.scratch-3d-card:hover {
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.95), 0 0 45px rgba(217, 70, 239, 0.55), inset 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.scratch-shine-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--shine-x, 50%) var(--shine-y, 30%), rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 35%, transparent 65%);
+  mix-blend-mode: overlay;
+  z-index: 25;
+}
+
+.scratch-casino-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #fffb00;
+  text-shadow: 
+    0 2px 0 #d97706,
+    0 4px 0 #b45309,
+    0 6px 0 #78350f,
+    0 0 10px rgba(255, 251, 0, 0.8),
+    0 0 25px rgba(236, 72, 153, 0.9),
+    0 0 45px rgba(217, 70, 239, 0.8);
+  -webkit-text-stroke: 1px #ff007f;
+}
+
+.scratch-box-frame {
+  position: relative;
+  border-radius: 1rem;
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  background: #0b0711;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+#scratchCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.85rem;
+  cursor: crosshair;
+  touch-action: none;
+  z-index: 10;
+  transition: opacity 0.4s ease;
+}
+
+
 
 
