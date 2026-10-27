@@ -775,46 +775,30 @@ select {
   will-change: opacity, transform;
 }
 
-/* ================= BARRE LATÉRALE FIXE (RAIL GAUCHE) & GRAND PANNEAU ================= */
-#leftNavRail {
-  width: 56px;
-  min-width: 56px;
+/* ================= BARRE LATÉRALE UNIQUE RÉTRACTABLE (SUNO STYLE) ================= */
+#mainSidebar {
+  width: 60px;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+  will-change: width;
 }
 
-#sidePanel {
-  left: 56px;
-  transform: translateX(-120%);
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+#mainSidebar.w-64 {
+  width: 256px !important;
 }
 
-#sidePanelBackdrop {
-  transition: opacity 0.28s ease;
-}
-
-.rail-icon-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  font-size: 18px;
-  color: #d6d3d1;
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.18s ease;
+.sidebar-item {
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
   user-select: none;
 }
-.rail-icon-btn:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.3);
-  transform: scale(1.06);
+.sidebar-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }
-.rail-icon-btn:active {
-  transform: scale(0.94);
+.sidebar-item:active {
+  transform: scale(0.97);
+}
+
+#sidebarBackdrop {
+  transition: opacity 0.28s ease;
 }
 
 .no-scrollbar::-webkit-scrollbar {
