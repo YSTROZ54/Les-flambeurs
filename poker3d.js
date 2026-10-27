@@ -3,7 +3,9 @@
  * POKER 3D — MODULE THREE.JS & MOTEUR TEXAS HOLD'EM COMPLET
  * Direction Artistique : Casino Underground (Type "Prominence Poker")
  * Ambiance : Scène sombre, lumière dramatique suspendue, feutre texturé,
- *            cartes texturées (face/dos), adversaires 3D, IA et moteur complet.
+ *            cartes texturées ultra-nettes (filtrage anisotrope max),
+ *            Nameplates HTML nettes (coordonnées arrondies Math.round),
+ *            distribution séquentielle du Flop et évaluation en temps réel.
  * RÈGLE ABSOLUE : Coordonnées spatiales verrouillées géométriquement.
  * =============================================================================
  */
@@ -182,7 +184,7 @@ function evaluateBestHand(cards) {
         return { tier: 2, score: cards[0].value, name: `Paire de ${RANK_PLURALS[cards[0].value]}` };
       }
       const high = Math.max(cards[0].value, cards[1].value);
-      return { tier: 1, score: high, name: `Hauteur ${RANK_NAMES[high]}` };
+      return { tier: 1, score: high, name: `Carte Haute ${RANK_NAMES[high]}` };
     }
     return { tier: 0, score: 0, name: 'En cours...' };
   }
@@ -215,7 +217,6 @@ function createShuffledDeck() {
       deck.push({ rank: rk.r, suit: s, value: rk.v });
     });
   });
-  // Algorithme de Fisher-Yates
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -224,7 +225,7 @@ function createShuffledDeck() {
 }
 
 /* ------------------------------------------------------------------------- */
-/* C. MOTEUR DE JEU TEXAS HOLD'EM (LOGIQUE, TOURS, IA, BLINDS & SHOWDOWN)    */
+/* C. MOTEUR DE JEU TEXAS HOLD'EM (LOGIQUE, RYTHME SLOW BOT & FLOP SÉQUENCE)  */
 /* ------------------------------------------------------------------------- */
 class TexasHoldemGame {
   constructor(experience) {
@@ -236,7 +237,7 @@ class TexasHoldemGame {
     this.deck = [];
     this.communityCards = [];
     this.pot = 0;
-    this.phase = 'preflop'; // 'preflop', 'flop', 'turn', 'river', 'showdown', 'finished'
+    this.phase = 'preflop';
     this.currentTurn = 0;
     this.currentMaxBet = 100;
     this.lastRaiseSize = 100;
@@ -244,6 +245,7 @@ class TexasHoldemGame {
     this.botTimer = null;
     this.nextHandTimer = null;
     this.countdownInterval = null;
+    this.phaseTimers = [];
     this.actedThisRound = new Set();
 
     // 6 Sièges : Joueur principal (0) + 5 Bots (1 à 5)
@@ -257,32 +259,29 @@ class TexasHoldemGame {
     ];
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* NOUVELLE MAIN                                                             */
-  /* ------------------------------------------------------------------------- */
   startNewHand() {
     if (this.botTimer) clearTimeout(this.botTimer);
     if (this.nextHandTimer) clearTimeout(this.nextHandTimer);
     if (this.countdownInterval) clearInterval(this.countdownInterval);
+    this.phaseTimers.forEach(t => clearTimeout(t));
+    this.phaseTimers = [];
 
-    // Cacher la bannière de fin
     const modal = document.getElementById('winnerBannerModal');
     if (modal) modal.classList.add('hidden');
 
-    // Recharges automatiques des stacks vides
+    // Recharges de stack si vide
     if (this.players[0].stack <= 0) this.players[0].stack = 10000;
     for (let i = 1; i < this.players.length; i++) {
       if (this.players[i].stack <= 0) this.players[i].stack = 5000;
     }
 
-    // Mélange d'un nouveau paquet
     this.deck = createShuffledDeck();
     this.communityCards = [];
     this.pot = 0;
     this.phase = 'preflop';
     this.actedThisRound.clear();
 
-    // Distribution de 2 cartes à chaque joueur actif
+    // Distribution des cartes fermées
     this.players.forEach(p => {
       p.folded = false;
       p.allIn = false;
@@ -292,7 +291,7 @@ class TexasHoldemGame {
       p.hand = [this.deck.pop(), this.deck.pop()];
     });
 
-    // Rotation du bouton Dealer
+    // Rotation Dealer
     this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
 
     // Prélèvement des Blinds
@@ -316,10 +315,11 @@ class TexasHoldemGame {
     this.currentMaxBet = Math.max(sbAmount, bbAmount);
     this.lastRaiseSize = this.bigBlind;
 
-    // En Pré-Flop, le premier à parler est le joueur suivant la Big Blind (UTG)
+    // Premier de parole en Pré-Flop : UTG
     this.currentTurn = this.getNextActiveSeat(bbSeat);
 
     this.exp.syncTable3D();
+    this.exp.updateHeroLiveHand();
     this.startTurn();
   }
 
@@ -343,9 +343,6 @@ class TexasHoldemGame {
     return this.players.filter(p => !p.folded && p.stack > 0);
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* GESTION DES TOURS ET ENCHAÎNEMENT DES ACTIONS                             */
-  /* ------------------------------------------------------------------------- */
   startTurn() {
     const active = this.getActivePlayers();
     if (active.length <= 1) {
@@ -367,8 +364,8 @@ class TexasHoldemGame {
       player.status = '⏳ Réfléchit...';
       this.exp.syncTable3D();
 
-      // Délai de réflexion réaliste du bot (850ms à 1350ms)
-      const thinkDelay = 850 + Math.floor(Math.random() * 500);
+      // RALENTISSEMENT DES BOTS : entre 1400ms et 2200ms pour lisibilité optimale
+      const thinkDelay = 1400 + Math.floor(Math.random() * 800);
       this.botTimer = setTimeout(() => {
         this.executeBotAI(player);
       }, thinkDelay);
@@ -378,30 +375,28 @@ class TexasHoldemGame {
   advanceTurn() {
     this.actedThisRound.add(this.currentTurn);
 
-    // Vérifier si un seul joueur reste en lice
     const active = this.getActivePlayers();
     if (active.length <= 1) {
       this.finishHandWithSoleWinner(active[0] || this.players[0]);
       return;
     }
 
-    // Vérifier si le tour d'enchères en cours est achevé
     const playersWithChips = this.getPlayersWithChips();
     const allChipsActed = playersWithChips.every(p => this.actedThisRound.has(p.id) && p.currentBet === this.currentMaxBet);
 
     if (playersWithChips.length <= 1 || allChipsActed) {
-      // Passer à la phase suivante
       this.advancePhase();
       return;
     }
 
-    // Joueur suivant
     this.currentTurn = this.getNextActiveSeat(this.currentTurn);
     this.startTurn();
   }
 
+  /* ------------------------------------------------------------------------- */
+  /* DISTRIBUTION SÉQUENTIELLE DU FLOP, TURN ET RIVER                         */
+  /* ------------------------------------------------------------------------- */
   advancePhase() {
-    // Ramasser les mises du tour dans le pot principal
     this.players.forEach(p => { p.currentBet = 0; });
     this.currentMaxBet = 0;
     this.lastRaiseSize = this.bigBlind;
@@ -413,42 +408,110 @@ class TexasHoldemGame {
       return;
     }
 
+    // 1. DISTRIBUTION SÉQUENTIELLE DU FLOP : Carte par carte avec 450ms d'intervalle
     if (this.phase === 'preflop') {
-      // Distribuer le Flop (3 cartes)
-      this.communityCards.push(this.deck.pop(), this.deck.pop(), this.deck.pop());
-      this.phase = 'flop';
-    } else if (this.phase === 'flop') {
-      // Distribuer le Turn (4e carte)
-      this.communityCards.push(this.deck.pop());
-      this.phase = 'turn';
-    } else if (this.phase === 'turn') {
-      // Distribuer la River (5e carte)
-      this.communityCards.push(this.deck.pop());
-      this.phase = 'river';
-    } else if (this.phase === 'river') {
-      // Abattage (Showdown)
+      this.phase = 'dealing_flop';
+      this.isHeroTurn = false;
+      this.exp.syncHUD();
+
+      const c1 = this.deck.pop();
+      const c2 = this.deck.pop();
+      const c3 = this.deck.pop();
+
+      // 1re carte du Flop
+      this.communityCards = [c1];
+      this.exp.animateDealCommunityCard(0, c1);
+      this.exp.updateHeroLiveHand();
+
+      const t1 = setTimeout(() => {
+        // 2e carte du Flop après 450ms
+        this.communityCards.push(c2);
+        this.exp.animateDealCommunityCard(1, c2);
+        this.exp.updateHeroLiveHand();
+
+        const t2 = setTimeout(() => {
+          // 3e carte du Flop après 450ms
+          this.communityCards.push(c3);
+          this.exp.animateDealCommunityCard(2, c3);
+          this.exp.updateHeroLiveHand();
+
+          this.phase = 'flop';
+          this.exp.syncTable3D();
+
+          this.checkAllInOrStartBetting();
+        }, 450);
+        this.phaseTimers.push(t2);
+      }, 450);
+      this.phaseTimers.push(t1);
+      return;
+    }
+
+    // 2. DISTRIBUTION DU TURN : Délai de 600ms
+    if (this.phase === 'flop') {
+      this.phase = 'dealing_turn';
+      this.isHeroTurn = false;
+      this.exp.syncHUD();
+
+      const t = setTimeout(() => {
+        const turnCard = this.deck.pop();
+        this.communityCards.push(turnCard);
+        this.exp.animateDealCommunityCard(3, turnCard);
+        this.exp.updateHeroLiveHand();
+
+        this.phase = 'turn';
+        this.exp.syncTable3D();
+
+        this.checkAllInOrStartBetting();
+      }, 600);
+      this.phaseTimers.push(t);
+      return;
+    }
+
+    // 3. DISTRIBUTION DE LA RIVER : Délai de 600ms
+    if (this.phase === 'turn') {
+      this.phase = 'dealing_river';
+      this.isHeroTurn = false;
+      this.exp.syncHUD();
+
+      const t = setTimeout(() => {
+        const riverCard = this.deck.pop();
+        this.communityCards.push(riverCard);
+        this.exp.animateDealCommunityCard(4, riverCard);
+        this.exp.updateHeroLiveHand();
+
+        this.phase = 'river';
+        this.exp.syncTable3D();
+
+        this.checkAllInOrStartBetting();
+      }, 600);
+      this.phaseTimers.push(t);
+      return;
+    }
+
+    // 4. SHOWDOWN
+    if (this.phase === 'river') {
       this.phase = 'showdown';
       this.executeShowdown();
       return;
     }
+  }
 
-    // Si tous les joueurs (ou tous sauf un) sont à tapis, enchaîner sans enchères
+  checkAllInOrStartBetting() {
     const canBet = this.getPlayersWithChips();
     if (canBet.length <= 1) {
       this.exp.syncTable3D();
-      setTimeout(() => {
+      const t = setTimeout(() => {
         this.advancePhase();
       }, 1000);
+      this.phaseTimers.push(t);
       return;
     }
-
-    // Le premier à parler après le flop est le premier joueur actif après le dealer
     this.currentTurn = this.getNextActiveSeat(this.dealerIndex);
     this.startTurn();
   }
 
   /* ------------------------------------------------------------------------- */
-  /* IA DES BOTS : ANALYSE DE MAIN, POT-ODDS ET PRISE DE DÉCISION              */
+  /* IA DES BOTS : ANALYSE & DÉCISIONS COHÉRENTES                              */
   /* ------------------------------------------------------------------------- */
   executeBotAI(bot) {
     if (bot.folded || bot.stack <= 0) {
@@ -460,7 +523,6 @@ class TexasHoldemGame {
     const cards = [...bot.hand, ...this.communityCards];
     const evaluated = evaluateBestHand(cards);
 
-    // Calcul de la force relative (0.1 à 1.0)
     let strength = 0.3;
     if (this.phase === 'preflop') {
       const v1 = bot.hand[0].value;
@@ -475,17 +537,15 @@ class TexasHoldemGame {
       else if (highCard >= 11) strength = isSuited ? 0.60 : 0.45;
       else strength = isSuited ? 0.35 : 0.20;
     } else {
-      if (evaluated.tier >= 7) strength = 0.98; // Full, Carré, Quinte Flush
-      else if (evaluated.tier >= 5) strength = 0.88; // Quinte, Couleur
-      else if (evaluated.tier === 4) strength = 0.80; // Brelan
-      else if (evaluated.tier === 3) strength = 0.68; // Double Paire
-      else if (evaluated.tier === 2) strength = evaluated.score > 10 ? 0.55 : 0.40; // Paire
-      else strength = 0.20; // Hauteur
+      if (evaluated.tier >= 7) strength = 0.98;
+      else if (evaluated.tier >= 5) strength = 0.88;
+      else if (evaluated.tier === 4) strength = 0.80;
+      else if (evaluated.tier === 3) strength = 0.68;
+      else if (evaluated.tier === 2) strength = evaluated.score > 10 ? 0.55 : 0.40;
+      else strength = 0.20;
     }
 
-    // Choix de l'action
     if (toCall <= 0) {
-      // Parole (Check) ou Relance
       if (strength >= 0.75 && Math.random() < 0.45) {
         this.processRaise(bot.id, this.currentMaxBet + this.bigBlind * 2);
       } else if (strength >= 0.50 && Math.random() < 0.20) {
@@ -494,32 +554,26 @@ class TexasHoldemGame {
         this.processCheck(bot.id);
       }
     } else {
-      // Suivre (Call), Relancer ou Se coucher (Fold)
       const callRatio = toCall / (bot.stack + toCall);
-
       if (strength >= 0.80) {
-        // Main forte : Relance dans 35% des cas, sinon suit
         if (Math.random() < 0.35 && bot.stack > toCall + this.bigBlind) {
           this.processRaise(bot.id, this.currentMaxBet + this.bigBlind * 2);
         } else {
           this.processCall(bot.id, toCall);
         }
       } else if (strength >= 0.50) {
-        // Main moyenne : Suit si la mise n'est pas disproportionnée
         if (callRatio <= 0.35 || toCall <= this.bigBlind * 3) {
           this.processCall(bot.id, toCall);
         } else {
           this.processFold(bot.id);
         }
       } else if (strength >= 0.30) {
-        // Main faible : Suit seulement les petites mises
         if (toCall <= this.bigBlind) {
           this.processCall(bot.id, toCall);
         } else {
           this.processFold(bot.id);
         }
       } else {
-        // Poubelle : Se couche sauf parole gratuite
         if (toCall <= this.bigBlind && Math.random() < 0.25) {
           this.processCall(bot.id, toCall);
         } else {
@@ -529,9 +583,6 @@ class TexasHoldemGame {
     }
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* ACTIONS DES JOUEURS & MISE À JOUR DU POT                                  */
-  /* ------------------------------------------------------------------------- */
   processCheck(playerId) {
     const p = this.players[playerId];
     p.status = '🟢 Parole';
@@ -564,7 +615,6 @@ class TexasHoldemGame {
     if (p.stack === 0) p.allIn = true;
     p.status = p.allIn ? '🔥 Tapis' : `🔵 Relance (${p.currentBet} €)`;
 
-    // Les autres joueurs doivent reparler face à la relance
     this.actedThisRound.clear();
     this.actedThisRound.add(playerId);
     this.advanceTurn();
@@ -574,11 +624,14 @@ class TexasHoldemGame {
     const p = this.players[playerId];
     p.folded = true;
     p.status = '🔴 Couché';
+    if (p.isHero) {
+      this.exp.updateHeroLiveHand();
+    }
     this.advanceTurn();
   }
 
   /* ------------------------------------------------------------------------- */
-  /* ABATTAGE (SHOWDOWN) & ATTRIBUTION DU POT                                  */
+  /* ABATTAGE & BANNIÈRE DU VAINQUEUR                                          */
   /* ------------------------------------------------------------------------- */
   executeShowdown() {
     this.isHeroTurn = false;
@@ -601,8 +654,7 @@ class TexasHoldemGame {
     });
 
     this.exp.syncTable3D();
-
-    // Affichage de la bannière de fin de main
+    this.exp.updateHeroLiveHand();
     this.showWinnerBanner(winners);
   }
 
@@ -613,6 +665,7 @@ class TexasHoldemGame {
     soleWinner.status = '👑 Vainqueur !';
 
     this.exp.syncTable3D();
+    this.exp.updateHeroLiveHand();
 
     const bannerTitle = document.getElementById('bannerTitle');
     const winnerName = document.getElementById('bannerWinnerName');
@@ -626,7 +679,7 @@ class TexasHoldemGame {
       if (winnerName) winnerName.textContent = `${soleWinner.avatar} ${soleWinner.name}`;
       if (potWon) potWon.textContent = `+ ${this.pot.toLocaleString('fr-FR')} €`;
       if (handDesc) handDesc.textContent = 'Tous les adversaires se sont couchés';
-      if (details) details.innerHTML = `<div class="text-stone-300">${soleWinner.name} remporte le pot sans abattage.</div>`;
+      if (details) details.innerHTML = `<div class="text-stone-300 font-medium">${soleWinner.name} remporte le pot sans abattage.</div>`;
       modal.classList.remove('hidden');
     }
 
@@ -689,7 +742,7 @@ class TexasHoldemGame {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* COMMANDES HERO (BOUTONS HUD)                                              */
+  /* COMMANDES HERO (HUD)                                                      */
   /* ------------------------------------------------------------------------- */
   heroFold() {
     if (!this.isHeroTurn) return;
@@ -744,7 +797,7 @@ class TexasHoldemGame {
 }
 
 /* ------------------------------------------------------------------------- */
-/* D. CLASSE PRINCIPALE THREE.JS (SCÈNE 3D & SYNCHRONISATION)               */
+/* D. CLASSE PRINCIPALE THREE.JS & RENDU ANISOTROPE HAUTE NETTETÉ            */
 /* ------------------------------------------------------------------------- */
 class Poker3DExperience {
   constructor(containerElement, options = {}) {
@@ -758,11 +811,11 @@ class Poker3DExperience {
     }
 
     this.options = Object.assign({
-      feltColor: 0x0a3821,     // Vert feutre sombre casino underground
-      railColor: 0x121013,     // Cuir noir / bordeaux très sombre
-      woodColor: 0x1e1108,     // Bois acajou foncé
-      tableWidth: 6.6,         // Longueur de la table ovale
-      tableDepth: 3.3,         // Largeur de la table ovale
+      feltColor: 0x0a3821,
+      railColor: 0x121013,
+      woodColor: 0x1e1108,
+      tableWidth: 6.6,
+      tableDepth: 3.3,
     }, options);
 
     this.scene = null;
@@ -772,10 +825,9 @@ class Poker3DExperience {
     this.animationFrameId = null;
     this.tableGroup = null;
 
-    // Cache pour textures de cartes et jetons
     this.textureCache = {};
 
-    // Données fixes des 5 bots
+    // Données des 5 bots avec angles verrouillés
     this.thetas = [
       Math.PI - 0.55,       // Bot 1 : Viper (Gauche bas ~148°)
       -Math.PI + 1.05,      // Bot 2 : Le Baron (Gauche haut ~220°)
@@ -784,11 +836,14 @@ class Poker3DExperience {
       0.55                  // Bot 5 : Kaiser (Droite bas ~32°)
     ];
 
-    // Références vers les objets 3D interactifs
+    // Points d'ancrage 3D des Nameplates
+    this.botAnchors3D = [];
+    this.htmlNameplateElements = [];
+
+    // Objets 3D du jeu
     this.heroCards = [];
     this.communityCardMeshes = [];
-    this.botCards = []; // [ [c1, c2], [c1, c2], ... ]
-    this.botNameplates = [];
+    this.botCards = [];
     this.botChipGroups = [];
     this.heroChipGroup = null;
     this.centerPotGroup = null;
@@ -813,6 +868,7 @@ class Poker3DExperience {
     this.buildCommunityCards();
     this.buildOpponentsSeats();
     this.buildCenterPotChips();
+    this.setupHTMLNameplates();
     this.setupEventListeners();
     this.handleResize();
     this.startRenderLoop();
@@ -875,7 +931,6 @@ class Poker3DExperience {
     const ambientLight = new THREE.AmbientLight(0x10131a, 0.35);
     this.scene.add(ambientLight);
 
-    // Spot puissant suspendu au-dessus du centre de la table
     this.spotLight = new THREE.SpotLight(0xffeed1, 3.8);
     this.spotLight.position.set(0, 6.8, 0.2);
     this.spotLight.angle = Math.PI / 4.1;
@@ -915,7 +970,6 @@ class Poker3DExperience {
     const r = d / 2;
     const straightLen = w - d;
 
-    // A. Forme 2D ovale du tapis
     const ovalShape = new THREE.Shape();
     ovalShape.moveTo(-straightLen / 2, r);
     ovalShape.lineTo(straightLen / 2, r);
@@ -923,7 +977,6 @@ class Poker3DExperience {
     ovalShape.lineTo(-straightLen / 2, -r);
     ovalShape.absarc(-straightLen / 2, 0, r, -Math.PI / 2, Math.PI / 2, true);
 
-    // B. Tapis en Feutre Véritable
     const feltTexture = this.generateRealisticFeltTexture();
     const feltBumpMap = this.generateFeltBumpMap();
     const feltMat = new THREE.MeshStandardMaterial({
@@ -940,7 +993,6 @@ class Poker3DExperience {
     feltMesh.receiveShadow = true;
     this.tableGroup.add(feltMesh);
 
-    // C. Ligne de mise dorée
     const ringShape = new THREE.Shape();
     const rw = w * 0.72, rd = d * 0.68, rr = rd / 2, rsl = rw - rd;
     ringShape.moveTo(-rsl / 2, rr);
@@ -957,7 +1009,6 @@ class Poker3DExperience {
     ringLine.position.y = 0.002;
     this.tableGroup.add(ringLine);
 
-    // D. Piste intérieure en bois verni
     const woodRailShape = new THREE.Shape();
     const wrThickness = 0.18;
     const wrR = r + wrThickness;
@@ -986,7 +1037,6 @@ class Poker3DExperience {
     woodRailMesh.receiveShadow = true;
     this.tableGroup.add(woodRailMesh);
 
-    // E. Accoudoir en Cuir Noir Rembourré
     const railOuterShape = new THREE.Shape();
     const railThickness = 0.38;
     const roR = wrR + railThickness;
@@ -1014,7 +1064,6 @@ class Poker3DExperience {
     railMesh.receiveShadow = true;
     this.tableGroup.add(railMesh);
 
-    // F. Pieds de la table
     const legGeo = new THREE.CylinderGeometry(0.35, 0.45, 1.6, 24);
     const legMat = new THREE.MeshStandardMaterial({ color: 0x110b06, roughness: 0.7 });
     const leg1 = new THREE.Mesh(legGeo, legMat);
@@ -1043,8 +1092,8 @@ class Poker3DExperience {
     const backTexture = this.getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 });
-    const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture });
-    const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08 });
+    const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0 });
+    const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08, transparent: true, opacity: 1.0 });
 
     const materials = [
       edgeMat, // +X
@@ -1065,7 +1114,7 @@ class Poker3DExperience {
   setCardFace(cardMesh, rank, suit) {
     if (!cardMesh) return;
     const frontTexture = this.getCardFrontTexture(rank, suit);
-    cardMesh.material[4] = new THREE.MeshBasicMaterial({ map: frontTexture });
+    cardMesh.material[4] = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0 });
     cardMesh.material[4].needsUpdate = true;
     cardMesh.userData = { rank, suit, isFaceDown: false };
   }
@@ -1073,13 +1122,13 @@ class Poker3DExperience {
   setCardBack(cardMesh) {
     if (!cardMesh) return;
     const backTexture = this.getCardBackTexture();
-    cardMesh.material[4] = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08 });
+    cardMesh.material[4] = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08, transparent: true, opacity: 1.0 });
     cardMesh.material[4].needsUpdate = true;
     cardMesh.userData = { isFaceDown: true };
   }
 
   setCardOpacity(cardMesh, opacity) {
-    if (!cardMesh) return;
+    if (!cardMesh || !cardMesh.material) return;
     cardMesh.material.forEach(m => {
       m.transparent = true;
       m.opacity = opacity;
@@ -1087,21 +1136,16 @@ class Poker3DExperience {
     });
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* CARTES DU JOUEUR PRINCIPAL (REDESCENDUES EN BAS DU TAPIS À Z = Rz*0.62)   */
-  /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     const TABLE_Y = 0;
     const Rz = 1.35;
     const heroZ = Rz * 0.62; // ~0.84
 
-    // Carte 1
     const card1 = this.createCardObject('A', '♠', false, 0.75);
     card1.position.set(-0.22, TABLE_Y + 0.015, heroZ);
     card1.rotation.set(-Math.PI / 2, 0, 0.08);
     this.scene.add(card1);
 
-    // Carte 2
     const card2 = this.createCardObject('K', '♠', false, 0.75);
     card2.position.set(0.22, TABLE_Y + 0.016, heroZ);
     card2.rotation.set(-Math.PI / 2, 0, -0.08);
@@ -1109,14 +1153,10 @@ class Poker3DExperience {
 
     this.heroCards = [card1, card2];
 
-    // Groupe pour les jetons du joueur en bas à gauche
     this.heroChipGroup = new THREE.Group();
     this.scene.add(this.heroChipGroup);
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* CARTES COMMUNES (FLOP, TURN, RIVER) - POSITIONNÉES AU CENTRE Z = 0.05     */
-  /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
     const TABLE_Y = 0;
     const spacing = 0.44;
@@ -1134,28 +1174,51 @@ class Poker3DExperience {
     }
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* PLACEMENT RADIAL DES BOTS (CARTES RAYON 0.84, JETONS DEVANT 0.68)         */
-  /* ------------------------------------------------------------------------- */
+  animateDealCommunityCard(index, card) {
+    const mesh = this.communityCardMeshes[index];
+    if (!mesh) return;
+    this.setCardFace(mesh, card.rank, card.suit);
+    this.setCardOpacity(mesh, 1.0);
+    mesh.visible = true;
+
+    // Glissement fluide sur l'axe Y pour un impact visuel net
+    const startY = 0.065;
+    const targetY = 0.01;
+    mesh.position.y = startY;
+
+    const startTime = performance.now();
+    const duration = 200;
+
+    const slideAnim = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      mesh.position.y = startY + (targetY - startY) * ease;
+      if (progress < 1) {
+        requestAnimationFrame(slideAnim);
+      } else {
+        mesh.position.y = targetY;
+      }
+    };
+    requestAnimationFrame(slideAnim);
+  }
+
   buildOpponentsSeats() {
     const TABLE_Y = 0;
     const Rx = 2.60;
     const Rz = 1.35;
 
     this.botCards = [];
-    this.botNameplates = [];
     this.botChipGroups = [];
+    this.botAnchors3D = [];
 
     this.thetas.forEach((theta, i) => {
-      // 1. Nameplate
+      // Point d'ancrage 3D pour la Nameplate HTML
       const npX = Math.cos(theta) * Rx * 1.05;
       const npZ = Math.sin(theta) * Rz * 1.05;
-      const sprite = this.create3DNameplate(`Bot ${i + 1}`, 5000, '👤', '🟢 Prêt');
-      sprite.position.set(npX, TABLE_Y + 0.05, npZ);
-      this.scene.add(sprite);
-      this.botNameplates.push(sprite);
+      this.botAnchors3D.push(new THREE.Vector3(npX, TABLE_Y + 0.05, npZ));
 
-      // 2. Les 2 cartes du bot
+      // Les 2 cartes du bot
       const cardCenterX = Math.cos(theta) * Rx * 0.84;
       const cardCenterZ = Math.sin(theta) * Rz * 0.84;
       const rotZ = -theta - Math.PI / 2;
@@ -1174,23 +1237,138 @@ class Poker3DExperience {
 
       this.botCards.push([c1, c2]);
 
-      // 3. Groupe pour les jetons du bot
       const chipGrp = new THREE.Group();
       this.scene.add(chipGrp);
       this.botChipGroups.push(chipGrp);
     });
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* JETONS DU POT AU CENTRE (ALIGNÉS HORIZONTALEMENT À Z = -Rz * 0.28)        */
-  /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
     this.centerPotGroup = new THREE.Group();
     this.scene.add(this.centerPotGroup);
   }
 
   /* ------------------------------------------------------------------------- */
-  /* SYNCHRONISATION DYNAMIQUE DES JETONS 3D                                   */
+  /* NAMEPLATES HTML ULTRA-NETTES (PROJECTION 3D->2D SANS TRANSFORM:SCALE)      */
+  /* ------------------------------------------------------------------------- */
+  setupHTMLNameplates() {
+    const overlay = document.getElementById('nameplatesOverlay');
+    if (!overlay) return;
+    overlay.innerHTML = '';
+    this.htmlNameplateElements = [];
+
+    const botProfiles = [
+      { name: 'Viper (Bot)', avatar: '🐍' },
+      { name: 'Le Baron (Bot)', avatar: '🎩' },
+      { name: 'Roxy (Bot)', avatar: '🦊' },
+      { name: 'Montana (Bot)', avatar: '🤠' },
+      { name: 'Kaiser (Bot)', avatar: '👑' }
+    ];
+
+    botProfiles.forEach((bot, i) => {
+      const el = document.createElement('div');
+      el.id = `botNameplate-${i}`;
+      el.className = 'absolute pointer-events-none flex items-center gap-2 bg-[#0c0d14]/95 border border-amber-500/40 rounded-xl px-2.5 py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md whitespace-nowrap transition-transform duration-75';
+      el.style.transform = 'translate(-50%, -100%)';
+      el.style.left = '0px';
+      el.style.top = '0px';
+
+      el.innerHTML = `
+        <div class="bot-avatar-box w-7 h-7 rounded-full bg-slate-800 border border-amber-500/60 flex items-center justify-center text-sm shadow">
+          <span class="bot-avatar">${bot.avatar}</span>
+        </div>
+        <div class="flex flex-col text-left leading-tight">
+          <div class="flex items-center gap-1.5">
+            <span class="bot-name text-white" style="font-size: 13px; font-weight: 700; letter-spacing: -0.2px;">${bot.name}</span>
+            <span class="bot-status" style="font-size: 11px; font-weight: 700; color: #34d399;">🟢 Prêt</span>
+          </div>
+          <div class="bot-stack font-mono" style="font-size: 14px; font-weight: 700; color: #FFD700;">
+            🪙 5 000 €
+          </div>
+        </div>
+      `;
+
+      overlay.appendChild(el);
+      this.htmlNameplateElements.push(el);
+    });
+  }
+
+  updateHTMLNameplatesPosition() {
+    if (!this.camera || !this.container) return;
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
+
+    for (let i = 0; i < this.botAnchors3D.length; i++) {
+      const anchor = this.botAnchors3D[i];
+      const el = this.htmlNameplateElements[i];
+      if (!anchor || !el) continue;
+
+      const v = anchor.clone().project(this.camera);
+      if (v.z > 1) {
+        el.style.display = 'none';
+        continue;
+      }
+      el.style.display = 'flex';
+
+      // Arrondi strict à l'entier avec Math.round pour éradiquer le flou de sous-pixel
+      const screenX = Math.round((v.x * 0.5 + 0.5) * width);
+      const screenY = Math.round((-v.y * 0.5 + 0.5) * height);
+
+      el.style.left = `${screenX}px`;
+      el.style.top = `${screenY}px`;
+    }
+  }
+
+  updateHTMLNameplate(botIdx, name, stack, avatar, status, isTurn) {
+    const el = this.htmlNameplateElements[botIdx];
+    if (!el) return;
+
+    const nameEl = el.querySelector('.bot-name');
+    const stackEl = el.querySelector('.bot-stack');
+    const statusEl = el.querySelector('.bot-status');
+    const avatarEl = el.querySelector('.bot-avatar');
+    const avatarBox = el.querySelector('.bot-avatar-box');
+
+    if (nameEl) nameEl.textContent = name;
+    if (stackEl) stackEl.textContent = `🪙 ${stack.toLocaleString('fr-FR')} €`;
+    if (avatarEl) avatarEl.textContent = avatar;
+
+    if (statusEl) {
+      statusEl.textContent = status;
+      if (status && status.includes('Couché')) {
+        statusEl.style.color = '#ef4444';
+      } else if (isTurn) {
+        statusEl.style.color = '#fbbf24';
+      } else if (status && status.includes('Vainqueur')) {
+        statusEl.style.color = '#10b981';
+      } else {
+        statusEl.style.color = '#34d399';
+      }
+    }
+
+    if (isTurn) {
+      el.style.borderColor = '#fbbf24';
+      el.style.boxShadow = '0 0 20px rgba(251, 191, 36, 0.65), 0 4px 16px rgba(0,0,0,0.85)';
+      el.style.backgroundColor = 'rgba(28, 22, 16, 0.98)';
+      el.style.opacity = '1.0';
+      if (avatarBox) avatarBox.style.borderColor = '#fbbf24';
+    } else if (status && status.includes('Couché')) {
+      el.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.7)';
+      el.style.backgroundColor = 'rgba(18, 10, 10, 0.88)';
+      el.style.opacity = '0.55';
+      if (avatarBox) avatarBox.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+    } else {
+      el.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      el.style.boxShadow = '0 4px 16px rgba(0,0,0,0.85)';
+      el.style.backgroundColor = 'rgba(12, 13, 20, 0.95)';
+      el.style.opacity = '1.0';
+      if (avatarBox) avatarBox.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+    }
+  }
+
+  /* ------------------------------------------------------------------------- */
+  /* SYNCHRONISATION DES JETONS 3D                                             */
   /* ------------------------------------------------------------------------- */
   syncChips3D(potAmount, players) {
     const chipRadius = 0.08;
@@ -1199,7 +1377,6 @@ class Poker3DExperience {
     const Rz = 1.35;
     const potZ = -Rz * 0.28;
 
-    // 1. Vider et recréer les piles du pot central
     while (this.centerPotGroup.children.length > 0) {
       this.centerPotGroup.remove(this.centerPotGroup.children[0]);
     }
@@ -1227,7 +1404,6 @@ class Poker3DExperience {
       });
     }
 
-    // 2. Vider et recréer les jetons du joueur Hero
     while (this.heroChipGroup.children.length > 0) {
       this.heroChipGroup.remove(this.heroChipGroup.children[0]);
     }
@@ -1250,7 +1426,6 @@ class Poker3DExperience {
       }
     }
 
-    // 3. Vider et recréer les jetons des Bots
     for (let i = 1; i < players.length; i++) {
       const bot = players[i];
       const grp = this.botChipGroups[i - 1];
@@ -1283,13 +1458,13 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* SYNCHRONISATION GLOBALE 3D & HUD (`syncTable3D`)                          */
+  /* SYNCHRONISATION 3D & ÉVALUATION EN TEMPS RÉEL                             */
   /* ------------------------------------------------------------------------- */
   syncTable3D() {
     const g = this.game;
     if (!g) return;
 
-    // 1. Cartes communes du centre
+    // Cartes communes
     const commCards = g.communityCards;
     for (let i = 0; i < 5; i++) {
       const mesh = this.communityCardMeshes[i];
@@ -1303,7 +1478,7 @@ class Poker3DExperience {
       }
     }
 
-    // 2. Cartes du joueur principal
+    // Cartes Hero
     const hero = g.players[0];
     if (hero.hand && hero.hand.length === 2) {
       this.setCardFace(this.heroCards[0], hero.hand[0].rank, hero.hand[0].suit);
@@ -1319,7 +1494,7 @@ class Poker3DExperience {
       this.heroCards[1].visible = true;
     }
 
-    // 3. Cartes des Bots
+    // Cartes Bots
     for (let i = 1; i <= 5; i++) {
       const bot = g.players[i];
       const cards = this.botCards[i - 1];
@@ -1328,13 +1503,11 @@ class Poker3DExperience {
         this.setCardOpacity(cards[0], 0.20);
         this.setCardOpacity(cards[1], 0.20);
       } else if (g.phase === 'showdown' && bot.hand && bot.hand.length === 2) {
-        // Révélation à l'abattage
         this.setCardFace(cards[0], bot.hand[0].rank, bot.hand[0].suit);
         this.setCardFace(cards[1], bot.hand[1].rank, bot.hand[1].suit);
         this.setCardOpacity(cards[0], 1.0);
         this.setCardOpacity(cards[1], 1.0);
       } else {
-        // Face cachée
         this.setCardBack(cards[0]);
         this.setCardBack(cards[1]);
         this.setCardOpacity(cards[0], 1.0);
@@ -1342,18 +1515,63 @@ class Poker3DExperience {
       }
     }
 
-    // 4. Nameplates 3D des Bots
+    // Nameplates HTML
     for (let i = 1; i <= 5; i++) {
       const bot = g.players[i];
       const isTurn = (g.currentTurn === i && g.phase !== 'showdown' && g.phase !== 'finished');
-      this.update3DNameplate(i - 1, bot.name, bot.stack, bot.avatar, bot.status, isTurn);
+      this.updateHTMLNameplate(i - 1, bot.name, bot.stack, bot.avatar, bot.status, isTurn);
     }
 
-    // 5. Jetons 3D
     this.syncChips3D(g.pot, g.players);
-
-    // 6. HUD HTML
     this.syncHUD();
+    this.updateHeroLiveHand();
+  }
+
+  /* ------------------------------------------------------------------------- */
+  /* BADGE DE COMBINAISON DU JOUEUR EN TEMPS RÉEL (PRÉ-FLOP, FLOP, TURN, RIVER)*/
+  /* ------------------------------------------------------------------------- */
+  updateHeroLiveHand() {
+    const g = this.game;
+    if (!g) return;
+    const hero = g.players[0];
+    const textEl = document.getElementById('heroLiveHandText');
+    const badgeEl = document.getElementById('heroLiveHandBadge');
+    if (!textEl || !hero) return;
+
+    if (hero.folded) {
+      textEl.textContent = 'COUCHÉ';
+      if (badgeEl) {
+        badgeEl.className = 'px-2 py-0.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 font-mono text-[11px] font-black tracking-wide flex items-center gap-1 shadow-md uppercase';
+      }
+      return;
+    }
+
+    if (!hero.hand || hero.hand.length < 2) {
+      textEl.textContent = 'DISTRIBUTION...';
+      return;
+    }
+
+    const allCards = [...hero.hand, ...g.communityCards];
+    let handName = '';
+
+    if (allCards.length === 2) {
+      // Évaluation live Pré-Flop
+      if (allCards[0].value === allCards[1].value) {
+        handName = `PAIRE DE ${RANK_PLURALS[allCards[0].value].toUpperCase()}`;
+      } else {
+        const high = Math.max(allCards[0].value, allCards[1].value);
+        handName = `CARTE HAUTE ${RANK_NAMES[high].toUpperCase()}`;
+      }
+    } else {
+      // Évaluation live au Flop (5 cartes), Turn (6 cartes) et River (7 cartes)
+      const best = evaluateBestHand(allCards);
+      handName = best ? best.name.replace(/[👑🔥💣♦️⚡🎯✨]/g, '').trim().toUpperCase() : 'EN COURS...';
+    }
+
+    textEl.textContent = handName;
+    if (badgeEl) {
+      badgeEl.className = 'px-2 py-0.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 border border-amber-400/50 text-amber-300 font-mono text-[11px] font-black tracking-wide flex items-center gap-1 shadow-md uppercase';
+    }
   }
 
   syncHUD() {
@@ -1361,16 +1579,17 @@ class Poker3DExperience {
     if (!g) return;
     const hero = g.players[0];
 
-    // Pot au centre
     const potEl = document.getElementById('potCenterDisplay');
     if (potEl) potEl.textContent = `${g.pot.toLocaleString('fr-FR')} €`;
 
-    // Statut Tour / Phase
     const phaseEl = document.getElementById('tablePhaseDisplay');
     if (phaseEl) {
       if (g.phase === 'showdown' || g.phase === 'finished') {
         phaseEl.textContent = 'Abattage';
         phaseEl.className = 'text-xs font-extrabold text-amber-300';
+      } else if (g.phase.startsWith('dealing_')) {
+        phaseEl.textContent = 'Distribution...';
+        phaseEl.className = 'text-xs font-extrabold text-cyan-300';
       } else if (g.isHeroTurn) {
         phaseEl.textContent = 'À toi de jouer';
         phaseEl.className = 'text-xs font-extrabold text-emerald-400';
@@ -1381,14 +1600,12 @@ class Poker3DExperience {
       }
     }
 
-    // Encart Hero : Stack et Mise
     const stackEl = document.getElementById('playerTotalStack');
     if (stackEl) stackEl.textContent = `${hero.stack.toLocaleString('fr-FR')} €`;
 
     const betEl = document.getElementById('heroCurrentBetDisplay');
     if (betEl) betEl.textContent = `${hero.currentBet.toLocaleString('fr-FR')} €`;
 
-    // Encart Hero : Indicateur et texte de tour
     const dotEl = document.getElementById('heroTurnDot');
     const textEl = document.getElementById('heroTurnText');
     if (dotEl && textEl) {
@@ -1404,7 +1621,6 @@ class Poker3DExperience {
       }
     }
 
-    // Surbrillance encart Hero
     const encart = document.getElementById('heroPlayerEncart');
     if (encart) {
       if (g.isHeroTurn) {
@@ -1416,7 +1632,6 @@ class Poker3DExperience {
       }
     }
 
-    // Boutons tactiles et contrôles de relance
     const foldBtn = document.getElementById('btnActionFold');
     const checkCallBtn = document.getElementById('btnActionCheckCall');
     const raiseBtn = document.getElementById('btnActionRaise');
@@ -1479,104 +1694,151 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* CRÉATION & MISE À JOUR DES NAMEPLATES 3D                                  */
+  /* TEXTURES DE CARTES ULTRA-NETTES AVEC FILTRAGE ANISOTROPE MAXIMUM          */
   /* ------------------------------------------------------------------------- */
-  create3DNameplate(name, stack, avatar = '👤', status = '🟢 Prêt') {
+  getCardFrontTexture(rank, suit) {
+    const key = `card_${rank}_${suit}`;
+    if (this.textureCache[key]) return this.textureCache[key];
+
     const canvas = document.createElement('canvas');
-    canvas.width = 384;
-    canvas.height = 96;
+    canvas.width = 512;
+    canvas.height = 720;
     const ctx = canvas.getContext('2d');
 
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.center.set(0.5, 0.0);
-    sprite.scale.set(0.68, 0.17, 1);
-    sprite.userData = { canvas, ctx, texture, name, avatar };
+    // Fond blanc pur et propre
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, 512, 720);
 
-    this.drawNameplateCanvas(ctx, name, stack, avatar, status, false);
-    texture.needsUpdate = true;
-    return sprite;
-  }
+    // Bordure grise nette
+    ctx.strokeStyle = '#D1D5DB';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, 504, 712);
 
-  update3DNameplate(botIdx, name, stack, avatar, status, isTurn) {
-    const sprite = this.botNameplates[botIdx];
-    if (!sprite || !sprite.userData || !sprite.userData.ctx) return;
-    const { ctx, texture } = sprite.userData;
-    ctx.clearRect(0, 0, 384, 96);
-    this.drawNameplateCanvas(ctx, name, stack, avatar, status, isTurn);
-    texture.needsUpdate = true;
-  }
-
-  drawNameplateCanvas(ctx, name, stack, avatar, status, isTurn) {
-    if (isTurn) {
-      ctx.fillStyle = 'rgba(28, 25, 23, 0.96)';
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 4;
-    } else if (status && status.includes('Couché')) {
-      ctx.fillStyle = 'rgba(15, 10, 10, 0.88)';
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2;
-    } else {
-      ctx.fillStyle = 'rgba(10, 10, 16, 0.90)';
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 2.5;
-    }
-
-    const r = 16;
-    ctx.beginPath();
-    ctx.moveTo(6 + r, 6);
-    ctx.lineTo(378 - r, 6);
-    ctx.arcTo(378, 6, 378, 90, r);
-    ctx.lineTo(378, 90 - r);
-    ctx.arcTo(378, 90, 6, 90, r);
-    ctx.lineTo(6 + r, 90);
-    ctx.arcTo(6, 90, 6, 6, r);
-    ctx.lineTo(6, 6 + r);
-    ctx.arcTo(6, 6, 378, 6, r);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = isTurn ? '#78350f' : '#1e293b';
-    ctx.beginPath();
-    ctx.arc(42, 48, 24, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = isTurn ? '#fbbf24' : '#f59e0b';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.font = '24px sans-serif';
+    // Couleurs vives et contrastées
+    const isRed = (suit === '♥' || suit === '♦');
+    const color = isRed ? '#DC2626' : '#000000';
+    ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(avatar, 42, 50);
 
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 21px "Georgia", "Times New Roman", serif';
-    ctx.fillStyle = isTurn ? '#fef08a' : '#ffffff';
-    ctx.fillText(name, 78, 36);
+    // Chiffres et symboles agrandis et en gras dans les coins
+    ctx.font = '900 84px "Georgia", "Times New Roman", serif';
+    ctx.fillText(rank, 62, 72);
+    ctx.font = 'bold 58px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 62, 142);
 
-    ctx.font = 'bold 18px "Georgia", "Times New Roman", serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`🪙 ${stack.toLocaleString('fr-FR')} €`, 78, 68);
+    ctx.save();
+    ctx.translate(450, 648);
+    ctx.rotate(Math.PI);
+    ctx.font = '900 84px "Georgia", "Times New Roman", serif';
+    ctx.fillText(rank, 0, 0);
+    ctx.font = 'bold 58px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 0, 70);
+    ctx.restore();
 
-    ctx.font = 'bold 14px "Georgia", sans-serif';
-    ctx.textAlign = 'right';
-    if (status && status.includes('Couché')) {
-      ctx.fillStyle = '#ef4444';
-    } else if (isTurn) {
-      ctx.fillStyle = '#fbbf24';
-    } else if (status && status.includes('Vainqueur')) {
-      ctx.fillStyle = '#10b981';
+    // Symbole central net
+    if (['J', 'Q', 'K'].includes(rank)) {
+      ctx.strokeStyle = 'rgba(209, 213, 219, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(100, 140, 312, 440);
+
+      ctx.font = 'bold 180px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
+
+      ctx.font = '900 68px "Georgia", "Times New Roman", serif';
+      ctx.fillText(rank, 256, 230);
+    } else if (rank === 'A') {
+      ctx.font = 'bold 220px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
     } else {
-      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 190px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
     }
-    ctx.fillText(status, 368, 36);
+
+    const tex = new THREE.CanvasTexture(canvas);
+
+    // FILTRAGE ANISOTROPE MAXIMUM ET MIPMAPPING LINÉAIRE (Élimine le flou en perspective)
+    if (this.renderer && this.renderer.capabilities) {
+      tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    } else {
+      tex.anisotropy = 16;
+    }
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+
+    this.textureCache[key] = tex;
+    return tex;
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* TEXTURES DE CARTES & JETONS                                               */
-  /* ------------------------------------------------------------------------- */
+  getCardBackTexture() {
+    if (this.textureCache['card_back']) return this.textureCache['card_back'];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#7f1d1d';
+    ctx.fillRect(0, 0, 512, 720);
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(10, 10, 492, 700);
+
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(26, 26, 460, 668);
+
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.22)';
+    ctx.lineWidth = 2;
+    for (let x = -720; x < 1200; x += 28) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 720, 720);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x, 720);
+      ctx.lineTo(x + 720, 0);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#450a0a';
+    ctx.beginPath();
+    ctx.arc(256, 360, 90, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+
+    ctx.font = 'bold 75px serif';
+    ctx.fillStyle = '#fef08a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('♠', 256, 355);
+
+    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText('FLAMBEURS', 256, 415);
+
+    const tex = new THREE.CanvasTexture(canvas);
+
+    if (this.renderer && this.renderer.capabilities) {
+      tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    } else {
+      tex.anisotropy = 16;
+    }
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+
+    this.textureCache['card_back'] = tex;
+    return tex;
+  }
+
   getChipMaterials(baseHex) {
     const key = 'chip_' + baseHex;
     if (this.textureCache[key]) return this.textureCache[key];
@@ -1637,121 +1899,6 @@ class Poker3DExperience {
     return mats;
   }
 
-  getCardBackTexture() {
-    if (this.textureCache['card_back']) return this.textureCache['card_back'];
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = '#7f1d1d';
-    ctx.fillRect(0, 0, 512, 720);
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 14;
-    ctx.strokeRect(10, 10, 492, 700);
-
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(26, 26, 460, 668);
-
-    ctx.strokeStyle = 'rgba(251, 191, 36, 0.22)';
-    ctx.lineWidth = 2;
-    for (let x = -720; x < 1200; x += 28) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + 720, 720);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(x, 720);
-      ctx.lineTo(x + 720, 0);
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = '#450a0a';
-    ctx.beginPath();
-    ctx.arc(256, 360, 90, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 8;
-    ctx.stroke();
-
-    ctx.font = 'bold 75px serif';
-    ctx.fillStyle = '#fef08a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('♠', 256, 355);
-
-    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText('FLAMBEURS', 256, 415);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    this.textureCache['card_back'] = tex;
-    return tex;
-  }
-
-  getCardFrontTexture(rank, suit) {
-    const key = `card_${rank}_${suit}`;
-    if (this.textureCache[key]) return this.textureCache[key];
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = '#FAFAFA';
-    ctx.fillRect(0, 0, 512, 720);
-
-    ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(4, 4, 504, 712);
-
-    const isRed = (suit === '♥' || suit === '♦');
-    const color = isRed ? '#d32f2f' : '#111827';
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    ctx.font = 'bold 64px "Georgia", "Times New Roman", serif';
-    ctx.fillText(rank, 56, 62);
-    ctx.font = '46px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 56, 120);
-
-    ctx.save();
-    ctx.translate(456, 658);
-    ctx.rotate(Math.PI);
-    ctx.font = 'bold 64px "Georgia", "Times New Roman", serif';
-    ctx.fillText(rank, 0, 0);
-    ctx.font = '46px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 0, 58);
-    ctx.restore();
-
-    if (['J', 'Q', 'K'].includes(rank)) {
-      ctx.strokeStyle = 'rgba(204, 204, 204, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(108, 148, 296, 424);
-
-      ctx.font = '150px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
-
-      ctx.font = 'bold 52px "Georgia", "Times New Roman", serif';
-      ctx.fillText(rank, 256, 240);
-    } else if (rank === 'A') {
-      ctx.font = '185px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
-    } else {
-      ctx.font = '165px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
-    }
-
-    const tex = new THREE.CanvasTexture(canvas);
-    this.textureCache[key] = tex;
-    return tex;
-  }
-
   generateRealisticFeltTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -1798,7 +1945,7 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* CAMÉRA, RESPONSIVE & BOUCLE DE RENDU                                      */
+  /* CAMÉRA, RESPONSIVE & BOUCLE DE RENDU FLUIDE                               */
   /* ------------------------------------------------------------------------- */
   updateCameraForDevice(width, height) {
     if (!this.camera) return;
@@ -1828,6 +1975,7 @@ class Poker3DExperience {
       this.renderer.setSize(width, height);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
+    this.updateHTMLNameplatesPosition();
   }
 
   setupEventListeners() {
@@ -1845,6 +1993,9 @@ class Poker3DExperience {
       if (this.spotLight) {
         this.spotLight.intensity = 3.8 + Math.sin(time * 1.5) * 0.08;
       }
+
+      // Mise à jour de la position 2D projetée des Nameplates HTML
+      this.updateHTMLNameplatesPosition();
 
       this.renderer.render(this.scene, this.camera);
     };
