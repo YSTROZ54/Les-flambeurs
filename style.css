@@ -775,15 +775,39 @@ select {
   will-change: opacity, transform;
 }
 
-/* ================= BARRE LATÉRALE UNIQUE RÉTRACTABLE (SUNO STYLE) ================= */
-#mainSidebar {
-  width: 60px;
-  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
-  will-change: width;
+/* ================= BARRE LATÉRALE UNIQUE RÉTRACTABLE (SUNO STYLE SUR PC / TIROIR MASQUÉ SUR MOBILE) ================= */
+@media (max-width: 767px) {
+  #mainSidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px !important;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+    will-change: transform;
+    z-index: 160;
+  }
+  #mainSidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+  #sidebarBackdrop {
+    z-index: 155;
+  }
 }
 
-#mainSidebar.w-64 {
-  width: 256px !important;
+@media (min-width: 768px) {
+  #mainSidebar {
+    width: 60px;
+    transform: none !important;
+    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+    will-change: width;
+    z-index: 96;
+  }
+  #mainSidebar.w-64 {
+    width: 256px !important;
+  }
 }
 
 .sidebar-item {

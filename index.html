@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="selection:bg-amber-500 selection:text-black pl-[60px]">
+<body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
 
   <!-- ================================================================= -->
   <!-- FOND ANIMÉ HORIZONTAL AVEC BOMBES, CANARDS, FUSÉES, +10 000 €      -->
@@ -320,21 +320,32 @@
   <!-- ================================================================= -->
   <header id="smartHeader" class="sticky top-0 left-0 right-0 w-full z-50 border-b border-white/15 bg-black/95 backdrop-blur-xl transition-transform duration-300 shadow-xl">
     <div class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
-      <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
-      <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
-        <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
-          <svg viewBox="0 0 36 36" class="w-6 h-6">
-            <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
-            <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
-            <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
+      <!-- Groupe Gauche : Bouton menu sur téléphone (◫) + Logo -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Bouton Menu sur téléphone uniquement (◫) -->
+        <button onclick="toggleMainSidebar(event)" id="mobileSidebarToggleBtn" class="flex md:hidden w-10 h-10 rounded-xl bg-white/5 hover:bg-white/15 text-stone-300 hover:text-amber-300 border border-white/10 items-center justify-center transition active:scale-95 cursor-pointer shadow" title="Menu des jeux (◫)">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-1.5">
-            <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
-            <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
+        </button>
+
+        <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
+        <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
+          <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
+            <svg viewBox="0 0 36 36" class="w-6 h-6">
+              <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
+              <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
+              <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
+            </svg>
           </div>
-          <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
+              <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
+            </div>
+            <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
+          </div>
         </div>
       </div>
 
@@ -2601,10 +2612,16 @@
       const backdrop = document.getElementById('sidebarBackdrop');
       const brand = document.getElementById('sidebarBrand');
       const toggleBtn = document.getElementById('sidebarToggleBtn');
+      const mobileBtn = document.getElementById('mobileSidebarToggleBtn');
       if (!sb) return;
 
-      sb.classList.remove('w-[60px]');
-      sb.classList.add('w-64', 'shadow-2xl');
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        sb.classList.add('mobile-open', 'shadow-2xl');
+      } else {
+        sb.classList.remove('w-[60px]');
+        sb.classList.add('w-64', 'shadow-2xl');
+      }
 
       if (brand) {
         brand.classList.remove('hidden');
@@ -2613,6 +2630,9 @@
       if (toggleBtn) {
         toggleBtn.classList.remove('mx-auto');
         toggleBtn.classList.add('bg-white/15', 'text-amber-300', 'border-amber-400/40');
+      }
+      if (mobileBtn) {
+        mobileBtn.classList.add('bg-white/20', 'text-amber-300', 'border-amber-400/50');
       }
 
       // Afficher les libellés, titres de sections et badges
@@ -2635,10 +2655,16 @@
       const backdrop = document.getElementById('sidebarBackdrop');
       const brand = document.getElementById('sidebarBrand');
       const toggleBtn = document.getElementById('sidebarToggleBtn');
+      const mobileBtn = document.getElementById('mobileSidebarToggleBtn');
       if (!sb) return;
 
-      sb.classList.remove('w-64', 'shadow-2xl');
-      sb.classList.add('w-[60px]');
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        sb.classList.remove('mobile-open');
+      } else {
+        sb.classList.remove('w-64', 'shadow-2xl');
+        sb.classList.add('w-[60px]');
+      }
 
       if (brand) {
         brand.classList.add('hidden');
@@ -2647,6 +2673,9 @@
       if (toggleBtn) {
         toggleBtn.classList.add('mx-auto');
         toggleBtn.classList.remove('bg-white/15', 'text-amber-300', 'border-amber-400/40');
+      }
+      if (mobileBtn) {
+        mobileBtn.classList.remove('bg-white/20', 'text-amber-300', 'border-amber-400/50');
       }
 
       // Masquer les libellés, titres de sections et badges
@@ -4696,6 +4725,10 @@
       });
 
       document.getElementById('navBreadcrumb').textContent = ROOM_TITLES[room] || '/ Accueil';
+
+      if (window.innerWidth < 768 && typeof collapseSidebar === 'function') {
+        collapseSidebar();
+      }
 
       if (!fromHistory) {
         try {
