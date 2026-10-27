@@ -304,12 +304,15 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 7. CRÉATION D'OBJET CARTE 3D (AVEC DOS & FACE DISTINCTS)                  */
+  /* 7. CRÉATION D'OBJET CARTE 3D (AVEC ÉCHELLE MODULABLE SCALE)               */
   /* ------------------------------------------------------------------------- */
-  createCardObject(rank = 'A', suit = '♠', isFaceDown = false) {
-    const cardWidth = 0.48;
-    const cardLength = 0.70;
+  createCardObject(rank = 'A', suit = '♠', isFaceDown = false, scale = 1.0) {
+    const baseWidth = 0.48;
+    const baseLength = 0.70;
     const cardThickness = 0.004;
+
+    const cardWidth = baseWidth * scale;
+    const cardLength = baseLength * scale;
 
     // Géométrie X-Y : Largeur en X, Longueur en Y, Épaisseur en Z
     // Ainsi, rotation.x = -Math.PI / 2 couche la carte à 100% à plat sur le tapis
@@ -322,13 +325,6 @@ class Poker3DExperience {
     const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture });
     const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08 });
 
-    // En BoxGeometry :
-    // Face 0: +X, Face 1: -X, Face 2: +Y, Face 3: -Y
-    // Face 4: +Z (Face avant initiale)
-    // Face 5: -Z (Face arrière initiale)
-    // Quand rotation.x = -Math.PI / 2 :
-    // Le vecteur local +Z s'oriente vers World +Y (Haut)
-    // Le vecteur local -Z s'oriente vers World -Y (Bas)
     const materials = [
       edgeMat, // +X
       edgeMat, // -X
@@ -345,34 +341,35 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR PRINCIPAL (POSÉES À PLAT, ÉCARTÉES EN X = -0.6 ET 0.6)*/
+  /* 8. CARTES DU JOUEUR PRINCIPAL (TAILLE -25%, VISIBLES AU-DESSUS DU HUD)   */
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     const TABLE_Y = 0;
 
+    // Cartes réduites de 25% (scale = 0.75), rapprochées au centre et remontées au-dessus du HUD
     // Carte 1 : As de Pique (A♠)
-    const card1 = this.createCardObject('A', '♠', false);
-    card1.position.set(-0.6, TABLE_Y + 0.015, 0.95);
-    card1.rotation.set(-Math.PI / 2, 0, 0);
+    const card1 = this.createCardObject('A', '♠', false, 0.75);
+    card1.position.set(-0.32, TABLE_Y + 0.015, 0.38);
+    card1.rotation.set(-Math.PI / 2, 0, 0.08);
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
-    const card2 = this.createCardObject('K', '♠', false);
-    card2.position.set(0.6, TABLE_Y + 0.015, 0.95);
-    card2.rotation.set(-Math.PI / 2, 0, 0);
+    const card2 = this.createCardObject('K', '♠', false, 0.75);
+    card2.position.set(0.32, TABLE_Y + 0.016, 0.38);
+    card2.rotation.set(-Math.PI / 2, 0, -0.08);
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
-    // Jetons du joueur (Hero) décalés proprement à gauche
-    this.createRealisticChipStack(-1.25, 0.95, [
+    // Jetons du joueur (Hero) décalés proprement à gauche de ses cartes
+    this.createRealisticChipStack(-0.80, 0.38, [
       { color: '#d97706', count: 5 },
       { color: '#dc2626', count: 4 }
     ]);
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - STRICTEMENT À PLAT Y = TABLE_Y + 0.01 */
+  /* 9. CARTES COMMUNES (TAILLE -25%, ESPACEMENT RESSERRÉ SPACING = 0.44)       */
   /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
     const TABLE_Y = 0;
@@ -384,12 +381,13 @@ class Poker3DExperience {
       { rank: 'A', suit: '♦' }
     ];
 
-    const startX = -1.15;
-    const spacing = 0.58;
+    const spacing = 0.44;
+    const startX = - (4 * spacing) / 2; // -0.88 pour centrage parfait
 
     communitySetup.forEach((c, i) => {
-      const card = this.createCardObject(c.rank, c.suit, false);
-      card.position.set(startX + i * spacing, TABLE_Y + 0.01, -0.06);
+      // Cartes communes réduites de 25% (scale = 0.75)
+      const card = this.createCardObject(c.rank, c.suit, false, 0.75);
+      card.position.set(startX + i * spacing, TABLE_Y + 0.01, -0.10);
       card.rotation.set(-Math.PI / 2, 0, 0);
       this.scene.add(card);
       this.cards.community.push(card);
@@ -397,7 +395,7 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 10. PLACEMENT RADIAL EN 3 ZONES POUR LES BOTS (ZÉRO COLLISION)             */
+  /* 10. PLACEMENT RADIAL DES BOTS (CARTES RAYON 0.84, JETONS DEVANT 0.68)      */
   /* ------------------------------------------------------------------------- */
   buildOpponentsSeats() {
     const TABLE_Y = 0;
@@ -425,41 +423,43 @@ class Poker3DExperience {
       this.scene.add(nameplate);
       this.opponents3D.push(nameplate);
 
-      // 2. LES 2 CARTES DU BOT : À l'intérieur du tapis (Rayon 72%), posées à plat
-      const cardCenterX = Math.cos(theta) * Rx * 0.72;
-      const cardCenterZ = Math.sin(theta) * Rz * 0.72;
+      // 2. LES 2 CARTES DU BOT : Reculées vers le bord (Rayon 84%, Taille -45% discrète)
+      const cardCenterX = Math.cos(theta) * Rx * 0.84;
+      const cardCenterZ = Math.sin(theta) * Rz * 0.84;
       const rotZ = -theta - Math.PI / 2;
 
-      // Décalage tangentiel perpendiculaire au rayon pour séparer les 2 cartes
+      // Décalage tangentiel serré (0.06) pour léger chevauchement compact
       const tanX = -Math.sin(theta);
       const tanZ = Math.cos(theta);
 
-      const c1 = this.createCardObject('?', '?', true);
-      c1.position.set(cardCenterX - tanX * 0.14, TABLE_Y + 0.01, cardCenterZ - tanZ * 0.14);
-      c1.rotation.set(-Math.PI / 2, 0, rotZ);
+      // Carte 1 (scale = 0.55 pour -45% de taille)
+      const c1 = this.createCardObject('?', '?', true, 0.55);
+      c1.position.set(cardCenterX - tanX * 0.06, TABLE_Y + 0.01, cardCenterZ - tanZ * 0.06);
+      c1.rotation.set(-Math.PI / 2, 0, rotZ + 0.03);
       this.scene.add(c1);
       this.cards.opponents.push(c1);
 
-      const c2 = this.createCardObject('?', '?', true);
-      c2.position.set(cardCenterX + tanX * 0.14, TABLE_Y + 0.0105, cardCenterZ + tanZ * 0.14);
-      c2.rotation.set(-Math.PI / 2, 0, rotZ);
+      // Carte 2 (légèrement surélevée de 1mm pour chevauchement propre)
+      const c2 = this.createCardObject('?', '?', true, 0.55);
+      c2.position.set(cardCenterX + tanX * 0.06, TABLE_Y + 0.011, cardCenterZ + tanZ * 0.06);
+      c2.rotation.set(-Math.PI / 2, 0, rotZ - 0.03);
       this.scene.add(c2);
       this.cards.opponents.push(c2);
 
-      // 3. LES JETONS DU BOT : Angle theta + 0.25 rad (sur le côté), Rayon 75%
-      const chipX = Math.cos(theta + 0.25) * Rx * 0.75;
-      const chipZ = Math.sin(theta + 0.25) * Rz * 0.75;
+      // 3. LES JETONS DU BOT : Placés DEVANT ses cartes (Rayon 68%) avec décalage franc theta + 0.35
+      const chipX = Math.cos(theta + 0.35) * Rx * 0.68;
+      const chipZ = Math.sin(theta + 0.35) * Rz * 0.68;
       const chipColor = i % 2 === 0 ? '#16a34a' : '#2563eb';
       this.createRealisticChipStack(chipX, chipZ, [{ color: chipColor, count: 5 }]);
     });
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 11. JETONS DU POT AU CENTRE (À DROITE DU FLOP, HAUTEUR RÉDUITE MAX 6)      */
+  /* 11. JETONS DU POT AU CENTRE (À DROITE DU FLOP, HAUTEUR RÉDUITE MAX 5)      */
   /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
-    // Pot central placé à droite du Flop (x = 1.60, z = -0.06), hauteur max 5-6 jetons
-    this.createRealisticChipStack(1.60, -0.06, [
+    // Pot central placé proprement à droite du Flop (x = 1.35, z = -0.10)
+    this.createRealisticChipStack(1.35, -0.10, [
       { color: '#d97706', count: 5 },
       { color: '#dc2626', count: 4 },
       { color: '#16a34a', count: 4 }
