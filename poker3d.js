@@ -341,35 +341,37 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR PRINCIPAL (TAILLE -25%, VISIBLES AU-DESSUS DU HUD)   */
+  /* 8. CARTES DU JOUEUR PRINCIPAL (REDESCENDUES EN BAS DU TAPIS À Z = Rz*0.62)*/
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     const TABLE_Y = 0;
+    const Rz = 1.35;
+    const heroZ = Rz * 0.62; // ~0.84, bien au milieu de la zone verte entre Flop et panneau HTML
 
-    // Cartes réduites de 25% (scale = 0.75), rapprochées au centre et remontées au-dessus du HUD
+    // Cartes réduites de 25% (scale = 0.75), quasi-collées au centre (x = -0.22 et x = 0.22)
     // Carte 1 : As de Pique (A♠)
     const card1 = this.createCardObject('A', '♠', false, 0.75);
-    card1.position.set(-0.32, TABLE_Y + 0.015, 0.38);
+    card1.position.set(-0.22, TABLE_Y + 0.015, heroZ);
     card1.rotation.set(-Math.PI / 2, 0, 0.08);
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
     const card2 = this.createCardObject('K', '♠', false, 0.75);
-    card2.position.set(0.32, TABLE_Y + 0.016, 0.38);
+    card2.position.set(0.22, TABLE_Y + 0.016, heroZ);
     card2.rotation.set(-Math.PI / 2, 0, -0.08);
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
-    // Jetons du joueur (Hero) décalés proprement à gauche de ses cartes
-    this.createRealisticChipStack(-0.80, 0.38, [
+    // Jetons du joueur (Hero) placés en bas à gauche de ses cartes
+    this.createRealisticChipStack(-0.75, heroZ, [
       { color: '#d97706', count: 5 },
       { color: '#dc2626', count: 4 }
     ]);
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 9. CARTES COMMUNES (TAILLE -25%, ESPACEMENT RESSERRÉ SPACING = 0.44)       */
+  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - REMONTÉES LÉGÈREMENT À Z = -0.28 */
   /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
     const TABLE_Y = 0;
@@ -382,12 +384,13 @@ class Poker3DExperience {
     ];
 
     const spacing = 0.44;
-    const startX = - (4 * spacing) / 2; // -0.88 pour centrage parfait
+    const startX = - (4 * spacing) / 2; // -0.88 pour centrage parfait horizontal autour de x = 0
+    const boardZ = -0.28;
 
     communitySetup.forEach((c, i) => {
       // Cartes communes réduites de 25% (scale = 0.75)
       const card = this.createCardObject(c.rank, c.suit, false, 0.75);
-      card.position.set(startX + i * spacing, TABLE_Y + 0.01, -0.10);
+      card.position.set(startX + i * spacing, TABLE_Y + 0.01, boardZ);
       card.rotation.set(-Math.PI / 2, 0, 0);
       this.scene.add(card);
       this.cards.community.push(card);
@@ -455,14 +458,15 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 11. JETONS DU POT AU CENTRE (À DROITE DU FLOP, HAUTEUR RÉDUITE MAX 5)      */
+  /* 11. JETONS DU POT AU CENTRE (REGROUPÉS JUSTE AU-DESSUS DU FLOP EN X = 0)   */
   /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
-    // Pot central placé proprement à droite du Flop (x = 1.35, z = -0.10)
-    this.createRealisticChipStack(1.35, -0.10, [
-      { color: '#d97706', count: 5 },
-      { color: '#dc2626', count: 4 },
-      { color: '#16a34a', count: 4 }
+    // Pot central regroupé en un seul groupe compact AU-DESSUS des 5 cartes communes
+    // Centré en x = 0, entre le Flop et les cartes de Roxy (z = -0.62)
+    this.createRealisticChipStack(0, -0.62, [
+      { color: '#d97706', count: 4 }, // Or
+      { color: '#dc2626', count: 4 }, // Rouge
+      { color: '#16a34a', count: 4 }  // Vert
     ]);
   }
 
