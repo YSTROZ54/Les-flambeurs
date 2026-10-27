@@ -312,6 +312,8 @@ class Poker3DExperience {
     const cardDepth = 0.72;
 
     const geo = new THREE.BoxGeometry(cardWidth, cardHeight, cardDepth);
+    // Décalage de la géométrie pour que la base de la carte commence exactement à y = 0
+    geo.translate(0, cardHeight / 2, 0);
 
     const frontTexture = this.getCardFrontTexture(rank, suit);
     const backTexture = this.getCardBackTexture();
@@ -339,26 +341,22 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR HERO (POSÉES AU-DESSUS DU TAPIS, SANS CLIPPING)        */
+  /* 8. CARTES DU JOUEUR HERO (POSÉES AU-DESSUS DU TAPIS, Y = 0.1 FIXE)        */
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     // Carte 1 : As de Pique (A♠)
     const card1 = this.createCardObject('A', '♠', false);
-    // Hauteur strictement y = 0.28 (>= 0.2) : posée au-dessus du maillage sans traverser
-    card1.position.set(-0.25, 0.28, 1.15);
-    // Inclinaison élégante vers la caméra (~ -38°)
-    card1.rotation.x = -Math.PI / 4.7;
-    card1.rotation.y = 0.07;
-    card1.rotation.z = -0.03;
+    // Hauteur strictement forcée à y = 0.10 (surface feutre à y = 0)
+    card1.position.set(-0.25, 0.10, 0.80);
+    // Posée à plat sur le feutre avec rotation naturelle en éventail
+    card1.rotation.set(0, 0.08, -0.02);
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
     const card2 = this.createCardObject('K', '♠', false);
-    card2.position.set(0.25, 0.29, 1.15);
-    card2.rotation.x = -Math.PI / 4.7;
-    card2.rotation.y = -0.07;
-    card2.rotation.z = 0.03;
+    card2.position.set(0.25, 0.101, 0.80);
+    card2.rotation.set(0, -0.08, 0.02);
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
@@ -370,7 +368,7 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) AU CENTRE DU TAPIS                 */
+  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - FORCÉES STRICTEMENT À Y = 0.1    */
   /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
     const communitySetup = [
@@ -386,61 +384,82 @@ class Poker3DExperience {
 
     communitySetup.forEach((c, i) => {
       const card = this.createCardObject(c.rank, c.suit, false);
-      card.position.set(startX + i * spacing, 0.005, -0.06);
-      card.rotation.y = (Math.random() - 0.5) * 0.03; // Petit décalage réaliste
+      // Hauteur strictement forcée à y = 0.10 (au-dessus du tapis y = 0)
+      card.position.set(startX + i * spacing, 0.10, -0.06);
+      card.rotation.set(0, (Math.random() - 0.5) * 0.03, 0);
       this.scene.add(card);
       this.cards.community.push(card);
     });
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 10. PLACEMENT DES ADVERSAIRES (SIÈGES 3D, CARTES FACE CACHÉE & NAMEPLATES)*/
+  /* 10. PLACEMENT DES ADVERSAIRES (NAMEPLATES DEVANT/À CÔTÉ, Y = 0.05 FIXE)   */
   /* ------------------------------------------------------------------------- */
   buildOpponentsSeats() {
-    // Calcul des positions en arc de cercle autour de la table ovale (Table de 6)
-    const seatCoords = [
-      { x: -2.15, z: 0.85, angle: 0.45 },   // Siège 1 (Gauche bas)
-      { x: -2.35, z: -0.65, angle: 1.15 },  // Siège 2 (Gauche haut)
-      { x: 0.0,   z: -1.35, angle: Math.PI },// Siège 3 (En face / Top centre)
-      { x: 2.35,  z: -0.65, angle: -1.15 }, // Siège 4 (Droite haut)
-      { x: 2.15,  z: 0.85, angle: -0.45 }   // Siège 5 (Droite bas)
+    // Configuration optimisée : étiquettes placées DEVANT ou À CÔTÉ des cartes
+    // Roxy (en face) a son étiquette avancée sur l'axe Z (vers la caméra)
+    const seatsConfig = [
+      // Siège 1 : Viper (Gauche Bas)
+      {
+        cards: { x: -2.15, z: 0.85, angle: 0.35 },
+        nameplate: { x: -1.75, y: 0.05, z: 0.55 },
+        chips: { x: -2.35, z: 0.55, color: '#16a34a' }
+      },
+      // Siège 2 : Le Baron (Gauche Haut)
+      {
+        cards: { x: -2.25, z: -0.75, angle: 0.85 },
+        nameplate: { x: -1.65, y: 0.05, z: -0.45 },
+        chips: { x: -2.25, z: -0.35, color: '#2563eb' }
+      },
+      // Siège 3 : Roxy (Top Centre / En face)
+      // Cartes au fond, Nameplate DEVANT ses cartes rapproché de la caméra sur Z
+      {
+        cards: { x: 0.0, z: -1.35, angle: 0 },
+        nameplate: { x: 0.0, y: 0.05, z: -0.98 },
+        chips: { x: 0.65, z: -1.30, color: '#16a34a' }
+      },
+      // Siège 4 : Montana (Droite Haut)
+      {
+        cards: { x: 2.25, z: -0.75, angle: -0.85 },
+        nameplate: { x: 1.65, y: 0.05, z: -0.45 },
+        chips: { x: 2.25, z: -0.35, color: '#2563eb' }
+      },
+      // Siège 5 : Kaiser (Droite Bas)
+      {
+        cards: { x: 2.15, z: 0.85, angle: -0.35 },
+        nameplate: { x: 1.75, y: 0.05, z: 0.55 },
+        chips: { x: 2.35, z: 0.55, color: '#16a34a' }
+      }
     ];
 
     this.opponentsData.forEach((opp, i) => {
-      const seat = seatCoords[i];
-      if (!seat) return;
+      const cfg = seatsConfig[i];
+      if (!cfg) return;
 
       const oppGroup = new THREE.Group();
-      oppGroup.position.set(seat.x, 0, seat.z);
 
-      // A. Deux cartes 3D face cachée (dos texturé vers le haut)
+      // A. Deux cartes 3D face cachée : Hauteur STRICTEMENT forcée à y = 0.10
       const c1 = this.createCardObject('?', '?', true);
-      c1.position.set(-0.16, 0.005, 0);
-      c1.rotation.y = seat.angle - 0.08;
+      c1.position.set(cfg.cards.x - 0.16, 0.10, cfg.cards.z);
+      c1.rotation.set(0, cfg.cards.angle - 0.08, 0);
       oppGroup.add(c1);
 
       const c2 = this.createCardObject('?', '?', true);
-      c2.position.set(0.16, 0.006, 0);
-      c2.rotation.y = seat.angle + 0.08;
+      c2.position.set(cfg.cards.x + 0.16, 0.101, cfg.cards.z);
+      c2.rotation.set(0, cfg.cards.angle + 0.08, 0);
       oppGroup.add(c2);
 
       // B. Pile de jetons de l'adversaire
-      const chipColor = i % 2 === 0 ? '#16a34a' : '#2563eb';
       const chipSubGroup = this.createRealisticChipStack(
-        Math.cos(seat.angle) * 0.45,
-        Math.sin(seat.angle) * 0.45,
-        [{ color: chipColor, count: 10 }]
+        cfg.chips.x,
+        cfg.chips.z,
+        [{ color: cfg.chips.color, count: 10 }]
       );
       oppGroup.add(chipSubGroup);
 
-      // Direction radiale depuis le centre pour placer l'étiquette juste derrière les cartes
-      const dist = Math.hypot(seat.x, seat.z);
-      const dirX = seat.x / dist;
-      const dirZ = seat.z / dist;
-
-      // C. Étiquette Nameplate 3D posée au niveau de la table (y = 0.04 <= 0.1) juste derrière les cartes
+      // C. Étiquette Nameplate 3D : Ancrage STRICTEMENT forcé à y = 0.05 sur le feutre
       const nameplate = this.create3DNameplate(opp.name, opp.stack, opp.avatar, opp.status);
-      nameplate.position.set(dirX * 0.32, 0.04, dirZ * 0.32);
+      nameplate.position.set(cfg.nameplate.x, 0.05, cfg.nameplate.z);
       oppGroup.add(nameplate);
 
       this.scene.add(oppGroup);
@@ -449,16 +468,17 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 11. JETONS DU POT AU CENTRE DE LA TABLE                                   */
+  /* 11. JETONS DU POT AU CENTRE DE LA TABLE (ESPACÉS POUR DÉGAGER LE CENTRE)  */
   /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
-    this.createRealisticChipStack(-0.35, -0.6, [
-      { color: '#d97706', count: 15 },
-      { color: '#dc2626', count: 12 }
+    // Jetons espacés à x = -0.45 et x = +0.45 pour laisser un champ de vision parfait vers Roxy
+    this.createRealisticChipStack(-0.45, -0.45, [
+      { color: '#d97706', count: 12 },
+      { color: '#dc2626', count: 10 }
     ]);
-    this.createRealisticChipStack(0.35, -0.62, [
-      { color: '#16a34a', count: 18 },
-      { color: '#2563eb', count: 10 }
+    this.createRealisticChipStack(0.45, -0.45, [
+      { color: '#16a34a', count: 14 },
+      { color: '#2563eb', count: 8 }
     ]);
   }
 
