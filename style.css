@@ -775,13 +775,54 @@ select {
   will-change: opacity, transform;
 }
 
-/* ================= PANNEAU LATÉRAL (SIDEBAR FLAMBEURS) ================= */
+/* ================= BARRE LATÉRALE FIXE (RAIL GAUCHE) & GRAND PANNEAU ================= */
+#leftNavRail {
+  width: 56px;
+  min-width: 56px;
+}
+
 #sidePanel {
+  left: 56px;
+  transform: translateX(-120%);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
+
 #sidePanelBackdrop {
   transition: opacity 0.28s ease;
+}
+
+.rail-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 18px;
+  color: #d6d3d1;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+.rail-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+  transform: scale(1.06);
+}
+.rail-icon-btn:active {
+  transform: scale(0.94);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 

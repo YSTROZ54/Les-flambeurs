@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="selection:bg-amber-500 selection:text-black">
+<body class="selection:bg-amber-500 selection:text-black pl-14">
 
   <!-- ================================================================= -->
   <!-- FOND ANIMÉ HORIZONTAL AVEC BOMBES, CANARDS, FUSÉES, +10 000 €      -->
@@ -151,12 +151,89 @@
   </div>
 
   <!-- ================================================================= -->
-  <!-- PANNEAU LATÉRAL FLAMBEURS (SIDEBAR SUR TÉLÉPHONE & PC)             -->
+  <!-- BARRE LATÉRALE MINCE FIXE (RAIL GAUCHE FLAMBEURS - PC & MOBILE)   -->
   <!-- ================================================================= -->
-  <div id="sidePanelBackdrop" class="fixed inset-0 z-[155] bg-black/70 backdrop-blur-sm hidden transition-opacity duration-300" onclick="closeSidePanel()"></div>
-  <aside id="sidePanel" class="fixed top-0 bottom-0 left-0 z-[160] w-72 sm:w-80 max-w-[85vw] bg-stone-950/98 border-r border-white/15 backdrop-blur-2xl shadow-2xl shadow-black flex flex-col transform -translate-x-full transition-transform duration-300 ease-out select-none">
+  <aside id="leftNavRail" class="fixed top-0 bottom-0 left-0 w-14 z-[96] bg-[#0c0d12]/95 backdrop-blur-2xl border-r border-white/10 flex flex-col items-center py-2.5 select-none shadow-2xl">
+    <!-- Bouton Toggle Sidebar (icône ◫ de la photo utilisateur) -->
+    <button onclick="toggleSidePanel(event)" id="rail-toggle-btn" class="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/15 text-stone-300 hover:text-amber-300 border border-white/10 flex items-center justify-center transition active:scale-95 cursor-pointer shadow" title="Menu latéral des jeux (◫)">
+      <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+        <line x1="9" y1="3" x2="9" y2="21"></line>
+      </svg>
+    </button>
+
+    <!-- Séparateur discret -->
+    <div class="w-7 h-px bg-white/10 my-2"></div>
+
+    <!-- Raccourcis rapides des jeux en icônes (défilant sans scrollbar visible si écran court) -->
+    <div class="flex-1 w-full flex flex-col items-center space-y-1.5 overflow-y-auto no-scrollbar py-1">
+      <button onclick="switchRoom('hall'); closeSidePanel();" class="rail-icon-btn" title="Accueil">
+        <span>🏠</span>
+      </button>
+      <button onclick="switchRoom('poker'); closeSidePanel();" class="rail-icon-btn" title="Poker">
+        <span>♠️</span>
+      </button>
+      <button onclick="switchRoom('crash'); closeSidePanel();" class="rail-icon-btn" title="Fusée Crash">
+        <span>🚀</span>
+      </button>
+      <button onclick="switchRoom('slots'); closeSidePanel();" class="rail-icon-btn" title="Machine à Sous">
+        <span>🎰</span>
+      </button>
+      <button onclick="switchRoom('mines'); closeSidePanel();" class="rail-icon-btn" title="La Chambre Forte (20 cases)">
+        <span>🔐</span>
+      </button>
+      <button onclick="switchRoom('blackjack'); closeSidePanel();" class="rail-icon-btn" title="Blackjack">
+        <span>🃏</span>
+      </button>
+      <button onclick="switchRoom('cups'); closeSidePanel();" class="rail-icon-btn" title="Les Gobelets">
+        <span>🥤</span>
+      </button>
+      <button onclick="handleBlindTestClick(); closeSidePanel();" class="rail-icon-btn" title="Blind Test (MàJ)">
+        <span>🎵</span>
+      </button>
+      <button onclick="handleComingSoonGame('grattage'); closeSidePanel();" class="rail-icon-btn" title="Jeu de Grattage (MàJ)">
+        <span>🎟️</span>
+      </button>
+      <button onclick="handleComingSoonGame('chevaux'); closeSidePanel();" class="rail-icon-btn" title="Course de Chevaux (MàJ)">
+        <span>🏇</span>
+      </button>
+      <div class="w-6 h-px bg-white/10 my-1"></div>
+      <button onclick="switchRoom('shop'); closeSidePanel();" class="rail-icon-btn" title="Boutique Custom">
+        <span>🛒</span>
+      </button>
+      <button onclick="switchRoom('bank'); closeSidePanel();" class="rail-icon-btn" title="La Banque">
+        <span>🏦</span>
+      </button>
+    </div>
+
+    <!-- Séparateur discret -->
+    <div class="w-7 h-px bg-white/10 my-2"></div>
+
+    <!-- Raccourcis du bas du rail : Profil, Amis, Sons & Plus (...) -->
+    <div class="w-full flex flex-col items-center space-y-1.5 pt-1 pb-1">
+      <button onclick="closeSidePanel(); openProfileModal();" class="rail-icon-btn" title="Profil">
+        <span>👤</span>
+      </button>
+      <button onclick="closeSidePanel(); openFriendsModal();" class="rail-icon-btn relative" title="Amis">
+        <span>👥</span>
+        <span id="railFriendsBadge" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black"></span>
+      </button>
+      <button onclick="closeSidePanel(); openSettingsModal();" class="rail-icon-btn" title="Paramètres & Son">
+        <span>⚙️</span>
+      </button>
+      <button onclick="closeSidePanel(); togglePlusMenu(event);" class="rail-icon-btn text-amber-300 font-extrabold" title="Plus (Menu Complet)">
+        <span class="tracking-widest font-black text-xs leading-none">•••</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================================================================= -->
+  <!-- GRAND PANNEAU LATÉRAL DÉROULANT (S'OUVRE À CÔTÉ DU RAIL)          -->
+  <!-- ================================================================= -->
+  <div id="sidePanelBackdrop" class="fixed inset-0 left-14 z-[92] bg-black/70 backdrop-blur-sm hidden transition-opacity duration-300" onclick="closeSidePanel()"></div>
+  <aside id="sidePanel" class="fixed top-0 bottom-0 left-14 z-[95] w-72 sm:w-80 max-w-[calc(100vw-56px)] bg-stone-950/98 border-r border-white/15 backdrop-blur-2xl shadow-2xl shadow-black flex flex-col transition-transform duration-300 ease-out select-none">
     
-    <!-- En-tête du panneau latéral avec logo et bouton rétractable -->
+    <!-- En-tête du grand panneau avec titre et bouton de rétractation ◫ -->
     <div class="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
       <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchRoom('hall'); closeSidePanel();">
         <div class="w-9 h-9 rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center text-base shadow">
@@ -167,7 +244,7 @@
           <span class="text-[10px] text-stone-400 uppercase tracking-widest">Le Casino Anonyme</span>
         </div>
       </div>
-      <!-- Bouton de fermeture / rétractation (icône de la photo de l'utilisateur) -->
+      <!-- Bouton de fermeture / rétractation -->
       <button onclick="toggleSidePanel(event)" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 text-stone-300 hover:text-white flex items-center justify-center transition active:scale-95 cursor-pointer" title="Fermer le menu latéral">
         <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
@@ -273,32 +350,21 @@
   <!-- ================================================================= -->
   <header id="smartHeader" class="sticky top-0 left-0 right-0 w-full z-50 border-b border-white/15 bg-black/95 backdrop-blur-xl transition-transform duration-300 shadow-xl">
     <div class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
-      <!-- Bouton Panneau Latéral (Mobile & PC) + Logo -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <!-- Bouton entouré en rouge sur vos photos -->
-        <button onclick="toggleSidePanel(event)" id="btn-toggle-sidebar" class="w-10 h-10 rounded-2xl bg-stone-900/90 hover:bg-stone-800 border border-white/20 text-stone-200 hover:text-amber-300 flex items-center justify-center transition shadow-md active:scale-95 cursor-pointer select-none" title="Menu latéral des jeux">
-          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
-            <line x1="9" y1="3" x2="9" y2="21"></line>
+      <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
+      <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
+        <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
+          <svg viewBox="0 0 36 36" class="w-6 h-6">
+            <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
+            <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
+            <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
           </svg>
-        </button>
-
-        <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
-        <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoSecretClick()">
-          <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
-            <svg viewBox="0 0 36 36" class="w-6 h-6">
-              <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
-              <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
-              <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
-            </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
+            <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
           </div>
-          <div>
-            <div class="flex items-center gap-1.5">
-              <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
-              <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
-            </div>
-            <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
-          </div>
+          <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
         </div>
       </div>
 
@@ -2563,10 +2629,14 @@
       _isSidePanelOpen = true;
       const panel = document.getElementById('sidePanel');
       const backdrop = document.getElementById('sidePanelBackdrop');
+      const toggleBtn = document.getElementById('rail-toggle-btn');
       if (!panel || !backdrop) return;
       backdrop.classList.remove('hidden');
+      if (toggleBtn) {
+        toggleBtn.classList.add('bg-white/20', 'text-amber-300', 'border-amber-400/50');
+      }
       requestAnimationFrame(() => {
-        panel.classList.remove('-translate-x-full');
+        panel.style.transform = 'translateX(0)';
       });
     }
 
@@ -2574,13 +2644,17 @@
       _isSidePanelOpen = false;
       const panel = document.getElementById('sidePanel');
       const backdrop = document.getElementById('sidePanelBackdrop');
+      const toggleBtn = document.getElementById('rail-toggle-btn');
       if (!panel || !backdrop) return;
-      panel.classList.add('-translate-x-full');
+      panel.style.transform = 'translateX(-120%)';
+      if (toggleBtn) {
+        toggleBtn.classList.remove('bg-white/20', 'text-amber-300', 'border-amber-400/50');
+      }
       setTimeout(() => {
         if (!_isSidePanelOpen && backdrop) {
           backdrop.classList.add('hidden');
         }
-      }, 260);
+      }, 280);
     }
 
     /* ================= MENU "PLUS" FLAMBEUR (PROFIL, AMIS, NOTIFS, SUCCÈS, CLASSEMENT, PARAMÈTRES) ================= */
@@ -12052,8 +12126,8 @@
     window.addEventListener('click', (e) => {
       if (typeof _isSidePanelOpen !== 'undefined' && _isSidePanelOpen) {
         const panel = document.getElementById('sidePanel');
-        const btnToggle = document.getElementById('btn-toggle-sidebar');
-        if (panel && !panel.contains(e.target) && (!btnToggle || !btnToggle.contains(e.target))) {
+        const rail = document.getElementById('leftNavRail');
+        if (panel && !panel.contains(e.target) && (!rail || !rail.contains(e.target))) {
           closeSidePanel();
         }
       }
