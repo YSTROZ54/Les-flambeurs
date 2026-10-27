@@ -833,9 +833,9 @@ select {
   scrollbar-width: none;
 }
 
-/* ================= TICKET DE GRATTAGE 3D « LES FLAMBEURS » ================= */
+/* ================= TICKET DE GRATTAGE « LES FLAMBEURS » ================= */
 .scratch-3d-stage {
-  perspective: 1200px;
+  /* Mode 2D stable */
 }
 
 .scratch-3d-card {
@@ -848,9 +848,8 @@ select {
   background: radial-gradient(circle at 50% 30%, #4a065c 0%, #290336 48%, #100017 100%);
   border: 2.5px solid #fbbf24;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 35px rgba(217, 70, 239, 0.4), inset 0 0 15px rgba(251, 191, 36, 0.3);
-  transform-style: preserve-3d;
-  transition: transform 0.12s ease-out, box-shadow 0.15s ease-out;
-  will-change: transform;
+  transform: none !important;
+  transition: box-shadow 0.2s ease-out;
   overflow: hidden;
   user-select: none;
 }

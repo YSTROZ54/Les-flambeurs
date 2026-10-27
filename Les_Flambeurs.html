@@ -1611,7 +1611,7 @@
           <div>
             <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2">
               <span>🎟️ Ticket de Grattage "Les Flambeurs"</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-sans font-bold">3D VIP</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-sans font-bold">VIP</span>
             </h2>
             <p class="text-xs text-fuchsia-300">Ticket 50 € la carte • Gratte toi-même la couche argentée • Jackpot max : <strong>20 000 €</strong></p>
           </div>
@@ -11468,42 +11468,10 @@
     }
 
     function setupScratch3DInteraction() {
-      const stage = document.getElementById('scratch3dStage');
       const card = document.getElementById('scratch3dCard');
-      const shine = document.getElementById('scratchShineOverlay');
-      if (!stage || !card) return;
-
-      if (stage._has3dListeners) return;
-      stage._has3dListeners = true;
-
-      const handleMove = (e) => {
-        const rect = card.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        const rotateX = ((y - centerY) / centerY) * -12;
-        const rotateY = ((x - centerX) / centerX) * 12;
-
-        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
-        if (shine) {
-          const shineX = (x / rect.width) * 100;
-          const shineY = (y / rect.height) * 100;
-          shine.style.setProperty('--shine-x', `${shineX}%`);
-          shine.style.setProperty('--shine-y', `${shineY}%`);
-        }
-      };
-
-      const handleLeave = () => {
-        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
-      };
-
-      stage.addEventListener('mousemove', handleMove);
-      stage.addEventListener('mouseleave', handleLeave);
-      stage.addEventListener('touchmove', handleMove, { passive: true });
-      stage.addEventListener('touchend', handleLeave);
+      if (card) {
+        card.style.transform = 'none';
+      }
     }
 
     function playScratchFoilSound() {
@@ -11703,6 +11671,10 @@
     }
 
     function buyScratchCard() {
+      if (scratchTicket && scratchTicket.active && !scratchTicket.isRevealed) {
+        showToast('⚠️ Tu as déjà un ticket en cours ! Gratte-le complètement avant d\'en acheter un nouveau.');
+        return;
+      }
       if (state.balance < 50) {
         showToast('❌ Solde insuffisant ! Un ticket coûte 50 pièces.');
         return;
@@ -11711,7 +11683,6 @@
       state.balance -= 50;
       state.scratchCardsPlayed = (state.scratchCardsPlayed || 0) + 1;
       saveState();
-      updateScratchUI();
 
       const winChance = (CONFIG_CASINO.CHANCE_SCRATCH || 35) / 100;
       const isWin = Math.random() < winChance;
@@ -11773,11 +11744,9 @@
       if (pText) pText.textContent = '0%';
       if (pBar) pBar.style.width = '0%';
 
-      const revBtn = document.getElementById('scratchRevealBtn');
-      if (revBtn) revBtn.disabled = false;
-
       playCoinWinSound();
       showToast('🎟️ Nouveau ticket acheté pour 50 pièces ! Gratte pour découvrir.');
+      updateScratchUI();
     }
 
     function autoRevealScratch() {
@@ -11788,6 +11757,7 @@
     function completeScratchReveal() {
       if (!scratchTicket.active || scratchTicket.isRevealed) return;
       scratchTicket.isRevealed = true;
+      scratchTicket.active = false;
 
       const canvas = document.getElementById('scratchCanvas');
       if (canvas) {
@@ -11801,9 +11771,6 @@
       const pBar = document.getElementById('scratchProgressBar');
       if (pText) pText.textContent = '100%';
       if (pBar) pBar.style.width = '100%';
-
-      const revBtn = document.getElementById('scratchRevealBtn');
-      if (revBtn) revBtn.disabled = true;
 
       if (scratchTicket.winAmount > 0) {
         const win = scratchTicket.winAmount;
@@ -11860,6 +11827,29 @@
 
       const cards = document.getElementById('scratchMyCardsPlayed');
       if (cards) cards.textContent = state.scratchCardsPlayed || 0;
+
+      const buyBtn = document.getElementById('scratchBuyBtn');
+      const revBtn = document.getElementById('scratchRevealBtn');
+      const hasActiveTicket = Boolean(scratchTicket && scratchTicket.active && !scratchTicket.isRevealed);
+
+      if (buyBtn) {
+        if (hasActiveTicket) {
+          buyBtn.disabled = true;
+          buyBtn.className = "py-3 px-4 rounded-xl font-extrabold text-sm bg-stone-800 text-stone-400 border border-white/10 opacity-60 cursor-not-allowed flex items-center justify-center gap-2";
+          buyBtn.innerHTML = `<span>⏳</span> <span>Ticket en cours (gratte-le !)</span>`;
+        } else {
+          buyBtn.disabled = (state.balance < 50);
+          buyBtn.className = "py-3 px-4 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-black shadow-lg shadow-amber-500/20 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
+          buyBtn.innerHTML = `<span>🎟️</span> <span>Acheter un ticket (50 €)</span>`;
+        }
+      }
+
+      if (revBtn) {
+        revBtn.disabled = !hasActiveTicket;
+        revBtn.className = hasActiveTicket
+          ? "py-3 px-4 rounded-xl font-bold text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-500/30 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
+          : "py-3 px-4 rounded-xl font-bold text-xs bg-white/10 text-stone-400 border border-white/10 hover:text-white hover:bg-white/15 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed";
+      }
     }
 
     function renderScratchLeaderboard() {
