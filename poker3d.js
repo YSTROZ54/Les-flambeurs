@@ -307,31 +307,35 @@ class Poker3DExperience {
   /* 7. CRÉATION D'OBJET CARTE 3D (AVEC DOS & FACE DISTINCTS)                  */
   /* ------------------------------------------------------------------------- */
   createCardObject(rank = 'A', suit = '♠', isFaceDown = false) {
-    const cardWidth = 0.50;
-    const cardHeight = 0.005;
-    const cardDepth = 0.72;
+    const cardWidth = 0.48;
+    const cardLength = 0.70;
+    const cardThickness = 0.004;
 
-    const geo = new THREE.BoxGeometry(cardWidth, cardHeight, cardDepth);
-    // Décalage de la géométrie pour que la base de la carte commence exactement à y = 0
-    geo.translate(0, cardHeight / 2, 0);
+    // Géométrie X-Y : Largeur en X, Longueur en Y, Épaisseur en Z
+    // Ainsi, rotation.x = -Math.PI / 2 couche la carte à 100% à plat sur le tapis
+    const geo = new THREE.BoxGeometry(cardWidth, cardLength, cardThickness);
 
     const frontTexture = this.getCardFrontTexture(rank, suit);
     const backTexture = this.getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 });
-    // MeshBasicMaterial pour la face avant : reste lumineuse et contrastée sans être éblouie/délavée par le SpotLight
     const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture });
     const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08 });
 
-    // BoxGeometry Face +Y (Index 2) est la face du haut sur le tapis XZ
-    // BoxGeometry Face -Y (Index 3) est la face du bas
+    // En BoxGeometry :
+    // Face 0: +X, Face 1: -X, Face 2: +Y, Face 3: -Y
+    // Face 4: +Z (Face avant initiale)
+    // Face 5: -Z (Face arrière initiale)
+    // Quand rotation.x = -Math.PI / 2 :
+    // Le vecteur local +Z s'oriente vers World +Y (Haut)
+    // Le vecteur local -Z s'oriente vers World -Y (Bas)
     const materials = [
       edgeMat, // +X
       edgeMat, // -X
-      isFaceDown ? backMat : frontMat,  // +Y (Vers le haut)
-      isFaceDown ? frontMat : backMat,  // -Y (Vers le bas)
-      edgeMat, // +Z
-      edgeMat  // -Z
+      edgeMat, // +Y
+      edgeMat, // -Y
+      isFaceDown ? backMat : frontMat,  // +Z (Haut : visible quand posée à plat)
+      isFaceDown ? frontMat : backMat   // -Z (Bas : contre le tapis)
     ];
 
     const cardMesh = new THREE.Mesh(geo, materials);
@@ -341,36 +345,37 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR HERO (POSÉES AU-DESSUS DU TAPIS, Y = 0.1 FIXE)        */
+  /* 8. CARTES DU JOUEUR PRINCIPAL (POSÉES À PLAT, ÉCARTÉES EN X = -0.6 ET 0.6)*/
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
+    const TABLE_Y = 0;
+
     // Carte 1 : As de Pique (A♠)
     const card1 = this.createCardObject('A', '♠', false);
-    // Hauteur strictement forcée à y = 0.10 (surface feutre à y = 0)
-    card1.position.set(-0.25, 0.10, 0.80);
-    // Posée à plat sur le feutre avec rotation naturelle en éventail
-    card1.rotation.set(0, 0.08, -0.02);
+    card1.position.set(-0.6, TABLE_Y + 0.015, 0.95);
+    card1.rotation.set(-Math.PI / 2, 0, 0);
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
     const card2 = this.createCardObject('K', '♠', false);
-    card2.position.set(0.25, 0.101, 0.80);
-    card2.rotation.set(0, -0.08, 0.02);
+    card2.position.set(0.6, TABLE_Y + 0.015, 0.95);
+    card2.rotation.set(-Math.PI / 2, 0, 0);
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
-    // Jetons du joueur (Hero)
-    this.createRealisticChipStack(-0.95, 0.85, [
-      { color: '#d97706', count: 12 }, // Or
-      { color: '#dc2626', count: 8 }   // Rouge
+    // Jetons du joueur (Hero) décalés proprement à gauche
+    this.createRealisticChipStack(-1.25, 0.95, [
+      { color: '#d97706', count: 5 },
+      { color: '#dc2626', count: 4 }
     ]);
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - FORCÉES STRICTEMENT À Y = 0.1    */
+  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - STRICTEMENT À PLAT Y = TABLE_Y + 0.01 */
   /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
+    const TABLE_Y = 0;
     const communitySetup = [
       { rank: '10', suit: '♠' },
       { rank: 'J', suit: '♥' },
@@ -384,132 +389,148 @@ class Poker3DExperience {
 
     communitySetup.forEach((c, i) => {
       const card = this.createCardObject(c.rank, c.suit, false);
-      // Hauteur strictement forcée à y = 0.10 (au-dessus du tapis y = 0)
-      card.position.set(startX + i * spacing, 0.10, -0.06);
-      card.rotation.set(0, (Math.random() - 0.5) * 0.03, 0);
+      card.position.set(startX + i * spacing, TABLE_Y + 0.01, -0.06);
+      card.rotation.set(-Math.PI / 2, 0, 0);
       this.scene.add(card);
       this.cards.community.push(card);
     });
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 10. PLACEMENT DES ADVERSAIRES (NAMEPLATES DEVANT/À CÔTÉ, Y = 0.05 FIXE)   */
+  /* 10. PLACEMENT RADIAL EN 3 ZONES POUR LES BOTS (ZÉRO COLLISION)             */
   /* ------------------------------------------------------------------------- */
   buildOpponentsSeats() {
-    // Configuration optimisée : étiquettes placées DEVANT ou À CÔTÉ des cartes
-    // Roxy (en face) a son étiquette avancée sur l'axe Z (vers la caméra)
-    const seatsConfig = [
-      // Siège 1 : Viper (Gauche Bas)
-      {
-        cards: { x: -2.15, z: 0.85, angle: 0.35 },
-        nameplate: { x: -1.75, y: 0.05, z: 0.55 },
-        chips: { x: -2.35, z: 0.55, color: '#16a34a' }
-      },
-      // Siège 2 : Le Baron (Gauche Haut)
-      {
-        cards: { x: -2.25, z: -0.75, angle: 0.85 },
-        nameplate: { x: -1.65, y: 0.05, z: -0.45 },
-        chips: { x: -2.25, z: -0.35, color: '#2563eb' }
-      },
-      // Siège 3 : Roxy (Top Centre / En face)
-      // Cartes au fond, Nameplate DEVANT ses cartes rapproché de la caméra sur Z
-      {
-        cards: { x: 0.0, z: -1.35, angle: 0 },
-        nameplate: { x: 0.0, y: 0.05, z: -0.98 },
-        chips: { x: 0.65, z: -1.30, color: '#16a34a' }
-      },
-      // Siège 4 : Montana (Droite Haut)
-      {
-        cards: { x: 2.25, z: -0.75, angle: -0.85 },
-        nameplate: { x: 1.65, y: 0.05, z: -0.45 },
-        chips: { x: 2.25, z: -0.35, color: '#2563eb' }
-      },
-      // Siège 5 : Kaiser (Droite Bas)
-      {
-        cards: { x: 2.15, z: 0.85, angle: -0.35 },
-        nameplate: { x: 1.75, y: 0.05, z: 0.55 },
-        chips: { x: 2.35, z: 0.55, color: '#16a34a' }
-      }
+    const TABLE_Y = 0;
+    const Rx = 2.60;
+    const Rz = 1.35;
+
+    // Angles theta répartis autour de l'ellipse de la table pour les 5 bots
+    const thetas = [
+      Math.PI - 0.55,       // Bot 1 : Viper (Gauche bas ~148°)
+      -Math.PI + 1.05,      // Bot 2 : Le Baron (Gauche haut ~220°)
+      -Math.PI / 2,         // Bot 3 : Roxy (Top centre / En face 270°)
+      -1.05,                // Bot 4 : Montana (Droite haut ~320°)
+      0.55                  // Bot 5 : Kaiser (Droite bas ~32°)
     ];
 
     this.opponentsData.forEach((opp, i) => {
-      const cfg = seatsConfig[i];
-      if (!cfg) return;
+      const theta = thetas[i];
+      if (theta === undefined) return;
 
-      const oppGroup = new THREE.Group();
+      // 1. ÉTIQUETTE DU PRÉNOM (NAMEPLATE) : SUR LA BORDURE EXTÉRIEURE (Rayon 105%)
+      const npX = Math.cos(theta) * Rx * 1.05;
+      const npZ = Math.sin(theta) * Rz * 1.05;
+      const nameplate = this.create3DNameplate(opp.name, opp.stack, opp.avatar, opp.status);
+      nameplate.position.set(npX, TABLE_Y + 0.05, npZ);
+      this.scene.add(nameplate);
+      this.opponents3D.push(nameplate);
 
-      // A. Deux cartes 3D face cachée : Hauteur STRICTEMENT forcée à y = 0.10
+      // 2. LES 2 CARTES DU BOT : À l'intérieur du tapis (Rayon 72%), posées à plat
+      const cardCenterX = Math.cos(theta) * Rx * 0.72;
+      const cardCenterZ = Math.sin(theta) * Rz * 0.72;
+      const rotZ = -theta - Math.PI / 2;
+
+      // Décalage tangentiel perpendiculaire au rayon pour séparer les 2 cartes
+      const tanX = -Math.sin(theta);
+      const tanZ = Math.cos(theta);
+
       const c1 = this.createCardObject('?', '?', true);
-      c1.position.set(cfg.cards.x - 0.16, 0.10, cfg.cards.z);
-      c1.rotation.set(0, cfg.cards.angle - 0.08, 0);
-      oppGroup.add(c1);
+      c1.position.set(cardCenterX - tanX * 0.14, TABLE_Y + 0.01, cardCenterZ - tanZ * 0.14);
+      c1.rotation.set(-Math.PI / 2, 0, rotZ);
+      this.scene.add(c1);
+      this.cards.opponents.push(c1);
 
       const c2 = this.createCardObject('?', '?', true);
-      c2.position.set(cfg.cards.x + 0.16, 0.101, cfg.cards.z);
-      c2.rotation.set(0, cfg.cards.angle + 0.08, 0);
-      oppGroup.add(c2);
+      c2.position.set(cardCenterX + tanX * 0.14, TABLE_Y + 0.0105, cardCenterZ + tanZ * 0.14);
+      c2.rotation.set(-Math.PI / 2, 0, rotZ);
+      this.scene.add(c2);
+      this.cards.opponents.push(c2);
 
-      // B. Pile de jetons de l'adversaire
-      const chipSubGroup = this.createRealisticChipStack(
-        cfg.chips.x,
-        cfg.chips.z,
-        [{ color: cfg.chips.color, count: 10 }]
-      );
-      oppGroup.add(chipSubGroup);
-
-      // C. Étiquette Nameplate 3D : Ancrage STRICTEMENT forcé à y = 0.05 sur le feutre
-      const nameplate = this.create3DNameplate(opp.name, opp.stack, opp.avatar, opp.status);
-      nameplate.position.set(cfg.nameplate.x, 0.05, cfg.nameplate.z);
-      oppGroup.add(nameplate);
-
-      this.scene.add(oppGroup);
-      this.opponents3D.push(oppGroup);
+      // 3. LES JETONS DU BOT : Angle theta + 0.25 rad (sur le côté), Rayon 75%
+      const chipX = Math.cos(theta + 0.25) * Rx * 0.75;
+      const chipZ = Math.sin(theta + 0.25) * Rz * 0.75;
+      const chipColor = i % 2 === 0 ? '#16a34a' : '#2563eb';
+      this.createRealisticChipStack(chipX, chipZ, [{ color: chipColor, count: 5 }]);
     });
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 11. JETONS DU POT AU CENTRE DE LA TABLE (ESPACÉS POUR DÉGAGER LE CENTRE)  */
+  /* 11. JETONS DU POT AU CENTRE (À DROITE DU FLOP, HAUTEUR RÉDUITE MAX 6)      */
   /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
-    // Jetons espacés à x = -0.45 et x = +0.45 pour laisser un champ de vision parfait vers Roxy
-    this.createRealisticChipStack(-0.45, -0.45, [
-      { color: '#d97706', count: 12 },
-      { color: '#dc2626', count: 10 }
-    ]);
-    this.createRealisticChipStack(0.45, -0.45, [
-      { color: '#16a34a', count: 14 },
-      { color: '#2563eb', count: 8 }
+    // Pot central placé à droite du Flop (x = 1.60, z = -0.06), hauteur max 5-6 jetons
+    this.createRealisticChipStack(1.60, -0.06, [
+      { color: '#d97706', count: 5 },
+      { color: '#dc2626', count: 4 },
+      { color: '#16a34a', count: 4 }
     ]);
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 12. PILE DE JETONS DE CASINO RAFFINÉE (AVEC TRANCHE STRIÉE & BICOLORE)   */
+  /* 12. PILES DE JETONS COMPACTES (-40% RAYON, MAX 5 JETONS PAR PILE)         */
   /* ------------------------------------------------------------------------- */
-  createRealisticChipStack(x, z, layers = [{ color: '#d97706', count: 10 }]) {
+  createRealisticChipStack(x, z, layers = [{ color: '#d97706', count: 5 }]) {
     const stackGroup = new THREE.Group();
     stackGroup.position.set(x, 0, z);
 
-    let currentY = 0.015;
+    // Rayon réduit de 40% : 0.175 * 0.60 = 0.105, hauteur fine 0.018
+    const chipRadius = 0.105;
+    const chipHeight = 0.018;
+    const chipGeo = new THREE.CylinderGeometry(chipRadius, chipRadius, chipHeight, 28);
 
+    // Rassembler tous les jetons à placer
+    const allChips = [];
     layers.forEach(layer => {
-      const chipMatArray = this.getChipMaterials(layer.color);
-      const chipGeo = new THREE.CylinderGeometry(0.175, 0.175, 0.036, 32);
-
+      const mats = this.getChipMaterials(layer.color);
       for (let i = 0; i < layer.count; i++) {
-        const chip = new THREE.Mesh(chipGeo, chipMatArray);
+        allChips.push(mats);
+      }
+    });
+
+    // Limiter strictement la hauteur à MAXIMUM 5 jetons par petite pile
+    const maxPerCol = 5;
+    const numCols = Math.max(1, Math.ceil(allChips.length / maxPerCol));
+
+    // Décalages géométriques côte à côte
+    const colOffsets = [];
+    if (numCols === 1) {
+      colOffsets.push({ dx: 0, dz: 0 });
+    } else if (numCols === 2) {
+      colOffsets.push({ dx: -0.11, dz: 0 }, { dx: 0.11, dz: 0 });
+    } else if (numCols === 3) {
+      colOffsets.push(
+        { dx: -0.11, dz: -0.07 },
+        { dx: 0.11, dz: -0.07 },
+        { dx: 0, dz: 0.09 }
+      );
+    } else {
+      colOffsets.push(
+        { dx: -0.11, dz: -0.11 },
+        { dx: 0.11, dz: -0.11 },
+        { dx: -0.11, dz: 0.11 },
+        { dx: 0.11, dz: 0.11 }
+      );
+    }
+
+    let chipIdx = 0;
+    for (let c = 0; c < numCols; c++) {
+      const col = colOffsets[c] || { dx: 0, dz: 0 };
+      const countInCol = Math.min(maxPerCol, allChips.length - chipIdx);
+
+      for (let h = 0; h < countInCol; h++) {
+        const mats = allChips[chipIdx++];
+        const chip = new THREE.Mesh(chipGeo, mats);
         chip.position.set(
-          (Math.random() - 0.5) * 0.005,
-          currentY,
-          (Math.random() - 0.5) * 0.005
+          col.dx + (Math.random() - 0.5) * 0.003,
+          chipHeight / 2 + h * chipHeight,
+          col.dz + (Math.random() - 0.5) * 0.003
         );
         chip.rotation.y = Math.random() * Math.PI;
         chip.castShadow = true;
         chip.receiveShadow = true;
         stackGroup.add(chip);
-
-        currentY += 0.037;
       }
-    });
+    }
 
     this.scene.add(stackGroup);
     this.chipStacks.push(stackGroup);
