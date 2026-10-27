@@ -339,26 +339,26 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR HERO (REHAUSSÉES & INCLINÉES FACE CAMÉRA)             */
+  /* 8. CARTES DU JOUEUR HERO (POSÉES AU-DESSUS DU TAPIS, SANS CLIPPING)        */
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     // Carte 1 : As de Pique (A♠)
     const card1 = this.createCardObject('A', '♠', false);
-    // Hauteur rehaussée à Y = 0.23 pour éliminer tout clipping dans le tapis
-    card1.position.set(-0.26, 0.23, 1.12);
-    // Inclinaison accentuée vers la caméra (~ -41°) pour une lisibilité directe façon Prominence Poker
-    card1.rotation.x = -Math.PI / 4.4;
-    card1.rotation.y = 0.08;
-    card1.rotation.z = -0.04;
+    // Hauteur strictement y = 0.28 (>= 0.2) : posée au-dessus du maillage sans traverser
+    card1.position.set(-0.25, 0.28, 1.15);
+    // Inclinaison élégante vers la caméra (~ -38°)
+    card1.rotation.x = -Math.PI / 4.7;
+    card1.rotation.y = 0.07;
+    card1.rotation.z = -0.03;
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
     const card2 = this.createCardObject('K', '♠', false);
-    card2.position.set(0.26, 0.24, 1.12);
-    card2.rotation.x = -Math.PI / 4.4;
-    card2.rotation.y = -0.08;
-    card2.rotation.z = 0.04;
+    card2.position.set(0.25, 0.29, 1.15);
+    card2.rotation.x = -Math.PI / 4.7;
+    card2.rotation.y = -0.07;
+    card2.rotation.z = 0.03;
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
@@ -433,9 +433,14 @@ class Poker3DExperience {
       );
       oppGroup.add(chipSubGroup);
 
-      // C. Étiquette Nameplate 3D flottante (Sprite toujours face caméra)
+      // Direction radiale depuis le centre pour placer l'étiquette juste derrière les cartes
+      const dist = Math.hypot(seat.x, seat.z);
+      const dirX = seat.x / dist;
+      const dirZ = seat.z / dist;
+
+      // C. Étiquette Nameplate 3D posée au niveau de la table (y = 0.04 <= 0.1) juste derrière les cartes
       const nameplate = this.create3DNameplate(opp.name, opp.stack, opp.avatar, opp.status);
-      nameplate.position.set(0, 0.34, 0);
+      nameplate.position.set(dirX * 0.32, 0.04, dirZ * 0.32);
       oppGroup.add(nameplate);
 
       this.scene.add(oppGroup);
@@ -559,10 +564,7 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 13. ÉTIQUETTE NAMEPLATE 3D FLOTTANTE (SPRITE TOUJOURS FACE CAMÉRA)        */
-  /* ------------------------------------------------------------------------- */
-  /* ------------------------------------------------------------------------- */
-  /* 13. ÉTIQUETTE NAMEPLATE 3D FLOTTANTE (COMPACTE, -45% DE TAILLE)           */
+  /* 13. ÉTIQUETTE NAMEPLATE 3D (POSÉE AU NIVEAU DE LA TABLE, ANCRAGE BAS)     */
   /* ------------------------------------------------------------------------- */
   create3DNameplate(name, stack, avatar = '👤', status = '🟢 Prêt') {
     const canvas = document.createElement('canvas');
@@ -571,9 +573,9 @@ class Poker3DExperience {
     const ctx = canvas.getContext('2d');
 
     // Fond capsule arrondi sombre discret type Prominence Poker
-    ctx.fillStyle = 'rgba(10, 10, 16, 0.88)';
+    ctx.fillStyle = 'rgba(10, 10, 16, 0.90)';
     ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
     
     // Dessin rectangle arrondi compact
     const r = 16;
@@ -594,39 +596,41 @@ class Poker3DExperience {
     // Badge Avatar compact
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
-    ctx.arc(42, 48, 25, 0, Math.PI * 2);
+    ctx.arc(42, 48, 24, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.font = '26px sans-serif';
+    ctx.font = '24px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(avatar, 42, 50);
 
-    // Nom du joueur (taille équilibrée, ne déborde pas)
+    // Nom du joueur (police élégante Georgia / style casino classique)
     ctx.textAlign = 'left';
-    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 21px "Georgia", "Times New Roman", serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, 80, 36);
+    ctx.fillText(name, 78, 36);
 
     // Stack en or avec jeton
-    ctx.font = 'bold 20px "JetBrains Mono", monospace';
+    ctx.font = 'bold 18px "Georgia", "Times New Roman", serif';
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`🪙 ${stack.toLocaleString('fr-FR')} €`, 80, 68);
+    ctx.fillText(`🪙 ${stack.toLocaleString('fr-FR')} €`, 78, 68);
 
     // Statut
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold 14px "Georgia", sans-serif';
     ctx.fillStyle = '#34d399';
     ctx.textAlign = 'right';
-    ctx.fillText(status, 366, 36);
+    ctx.fillText(status, 368, 36);
 
     const texture = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
     const sprite = new THREE.Sprite(spriteMat);
-    // Échelle réduite de plus de 40% pour ne pas surcharger l'écran
-    sprite.scale.set(0.78, 0.20, 1);
+    // Ancrage par le bas du sprite pour reposer exactement au niveau de la table (y <= 0.1)
+    sprite.center.set(0.5, 0.0);
+    // Échelle compacte et raffinée
+    sprite.scale.set(0.68, 0.17, 1);
     return sprite;
   }
 
@@ -703,42 +707,61 @@ class Poker3DExperience {
     canvas.height = 720;
     const ctx = canvas.getContext('2d');
 
-    // Fond blanc pur et propre (non aveuglant grâce à MeshBasicMaterial)
-    ctx.fillStyle = '#ffffff';
+    // 1. Fond très légèrement blanc cassé (#FAFAFA)
+    ctx.fillStyle = '#FAFAFA';
     ctx.fillRect(0, 0, 512, 720);
 
-    // Bordure sombre nette pour découper la carte
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(6, 6, 500, 708);
+    // 2. Fine bordure grise (#CCCCCC) tout autour de la carte pour délimiter proprement
+    ctx.strokeStyle = '#CCCCCC';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 4, 504, 712);
 
-    // Couleurs pures et ultra-contrastées : Noir absolu et Rouge vif
+    // Couleurs casino : Rouge carmin riche ou Noir profond
     const isRed = (suit === '♥' || suit === '♦');
-    const color = isRed ? '#FF0000' : '#000000';
-
+    const color = isRed ? '#d32f2f' : '#111827';
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Coin Haut Gauche : Valeur TRÈS GRANDE (104px) & Symbole TRÈS GRAND (82px)
-    ctx.font = '900 104px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText(rank, 74, 82);
-    ctx.font = 'bold 82px serif';
-    ctx.fillText(suit, 74, 172);
+    // 3. Coin Supérieur Gauche : Valeur et petit symbole (Police Georgia / Times New Roman)
+    ctx.font = 'bold 64px "Georgia", "Times New Roman", serif';
+    ctx.fillText(rank, 56, 62);
+    ctx.font = '46px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 56, 120);
 
-    // 2. Coin Bas Droite (Inversé 180°)
+    // 4. Coin Inférieur Droit Inversé (180°) : Valeur et petit symbole
     ctx.save();
-    ctx.translate(438, 638);
+    ctx.translate(456, 658);
     ctx.rotate(Math.PI);
-    ctx.font = '900 104px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 64px "Georgia", "Times New Roman", serif';
     ctx.fillText(rank, 0, 0);
-    ctx.font = 'bold 82px serif';
-    ctx.fillText(suit, 0, 90);
+    ctx.font = '46px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 0, 58);
     ctx.restore();
 
-    // 3. Grand symbole central géant ultra-lisible (285px)
-    ctx.font = 'bold 285px serif';
-    ctx.fillText(suit, 256, 360);
+    // 5. Symbole central avec élégance et finesse casino classique
+    if (['J', 'Q', 'K'].includes(rank)) {
+      // Cadre intérieur délicat pour les têtes
+      ctx.strokeStyle = 'rgba(204, 204, 204, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(108, 148, 296, 424);
+
+      // Symbole central équilibré
+      ctx.font = '150px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
+
+      // Lettre de la figure au centre en filigrane classique
+      ctx.font = 'bold 52px "Georgia", "Times New Roman", serif';
+      ctx.fillText(rank, 256, 240);
+    } else if (rank === 'A') {
+      // Grand As classique majestueux
+      ctx.font = '185px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
+    } else {
+      // Cartes numérotées
+      ctx.font = '165px "Georgia", "Times New Roman", serif';
+      ctx.fillText(suit, 256, 360);
+    }
 
     const tex = new THREE.CanvasTexture(canvas);
     this.textureCache[key] = tex;
