@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Démo Poker 3D — Ambiance Prominence Poker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+  <!-- CDN Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #060608;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      user-select: none;
+    }
+
+    /* Conteneur Plein Écran de la 3D */
+    #poker3dContainer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* HUD HTML/CSS Superposé (Non bloquant pour la 3D grâce à pointer-events) */
+    .poker-hud-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1rem;
+    }
+
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    /* Curseur de mise doré */
+    .poker-range-slider {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.15);
+      outline: none;
+    }
+    .poker-range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fbbf24;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+    }
+  </style>
+</head>
+<body class="relative w-full h-full">
+
+  <!-- 1. CONTENEUR CANVAS THREE.JS (ARRIÈRE-PLAN 3D) -->
+  <div id="poker3dContainer"></div>
+
+  <!-- 2. INTERFACE UTILISATEUR HUD (SUPERPOSÉE EN HTML/CSS PUR VIA Z-INDEX) -->
+  <div class="poker-hud-overlay">
+    
+    <!-- HAUT DE L'ÉCRAN : POT, TOUR & STATUT DE TABLE -->
+    <div class="flex items-center justify-between w-full max-w-4xl mx-auto">
+      <div class="hud-interactive flex items-center gap-2 bg-black/80 border border-white/10 px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs font-black tracking-wide text-white uppercase">Table VIP • Underground</span>
+      </div>
+
+      <!-- Pot au centre -->
+      <div class="hud-interactive flex items-center gap-3 bg-black/90 border border-amber-500/40 px-5 py-2 rounded-full shadow-2xl backdrop-blur-md">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🪙</span>
+          <div>
+            <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">POT AU CENTRE</div>
+            <div class="font-mono text-base font-black text-amber-300">14 850 €</div>
+          </div>
+        </div>
+        <div class="border-l border-white/15 pl-3">
+          <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">TOUR</div>
+          <div class="text-xs font-extrabold text-emerald-400">À toi de jouer (1:45)</div>
+        </div>
+      </div>
+
+      <div class="hud-interactive">
+        <button class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold transition">
+          ⚙️ Options
+        </button>
+      </div>
+    </div>
+
+    <!-- BAS DE L'ÉCRAN : COMMANDES DE JEU (FIXÉES ET ACCESSIBLES AU POUCE SUR MOBILE) -->
+    <div class="w-full max-w-lg mx-auto space-y-2.5 pb-2">
+      
+      <!-- Bandeau Curseur & Montant de Relance -->
+      <div class="hud-interactive bg-black/85 border border-white/15 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-stone-300 font-bold">Montant de relance :</span>
+          <span id="demoRaiseDisplay" class="font-mono text-sm font-black text-amber-300">250 €</span>
+        </div>
+        <input id="demoRaiseSlider" type="range" min="100" max="10000" step="50" value="250" class="poker-range-slider w-full" oninput="document.getElementById('demoRaiseDisplay').textContent = this.value + ' €'; document.getElementById('btnRaiseAmount').textContent = this.value + ' €';">
+        <div class="flex items-center justify-between gap-1 text-[10px] font-bold text-amber-200">
+          <button onclick="setRaise(100)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">Min (100)</button>
+          <button onclick="setRaise(500)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">500 €</button>
+          <button onclick="setRaise(1000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">1 000 €</button>
+          <button onclick="setRaise(5000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">5 000 €</button>
+          <button onclick="setRaise(10000)" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">Tapis</button>
+        </div>
+      </div>
+
+      <!-- Les 3 Grands Boutons Tactiles (Passer, Suivre, Relancer) -->
+      <div class="hud-interactive grid grid-cols-3 gap-2">
+        <!-- SE COUCHER -->
+        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-stone-800 to-stone-900 border border-rose-500/40 hover:border-rose-400 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+          <span class="text-xs font-black text-white tracking-wide">PASSER</span>
+          <span class="text-[10px] font-bold text-rose-400">SE COUCHER</span>
+        </button>
+
+        <!-- PAROLE / SUIVRE -->
+        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-sky-700 to-sky-900 border border-sky-400/50 hover:brightness-110 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+          <span class="text-xs font-black text-white tracking-wide">PAROLE /</span>
+          <span class="text-[10px] font-bold text-cyan-200">SUIVRE (100 €)</span>
+        </button>
+
+        <!-- RELANCER -->
+        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:brightness-110 text-black active:scale-95 transition shadow-lg flex flex-col items-center justify-center font-black">
+          <span class="text-xs font-black tracking-wide">RELANCER</span>
+          <span id="btnRaiseAmount" class="text-[10px] font-mono font-extrabold text-amber-950">250 €</span>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 3. SCRIPT INITIALISATEUR POKER 3D -->
+  <script src="poker3d.js"></script>
+  <script>
+    function setRaise(val) {
+      document.getElementById('demoRaiseSlider').value = val;
+      document.getElementById('demoRaiseDisplay').textContent = val + ' €';
+      document.getElementById('btnRaiseAmount').textContent = val + ' €';
+    }
+
+    // Instanciation de la scène 3D au chargement
+    window.addEventListener('DOMContentLoaded', () => {
+      const poker3D = new Poker3DExperience('poker3dContainer', {
+        feltColor: 0x0c3b24, // Feutre vert sombre underground
+        railColor: 0x111014, // Cuir noir mat
+        woodColor: 0x180f08  // Acajou profond
+      });
+    });
+  </script>
+</body>
+</html>
