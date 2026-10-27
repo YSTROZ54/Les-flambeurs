@@ -775,5 +775,14 @@ select {
   will-change: opacity, transform;
 }
 
+/* ================= PANNEAU LATÉRAL (SIDEBAR FLAMBEURS) ================= */
+#sidePanel {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+#sidePanelBackdrop {
+  transition: opacity 0.28s ease;
+}
+
 
 

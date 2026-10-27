@@ -151,25 +151,154 @@
   </div>
 
   <!-- ================================================================= -->
+  <!-- PANNEAU LATÉRAL FLAMBEURS (SIDEBAR SUR TÉLÉPHONE & PC)             -->
+  <!-- ================================================================= -->
+  <div id="sidePanelBackdrop" class="fixed inset-0 z-[155] bg-black/70 backdrop-blur-sm hidden transition-opacity duration-300" onclick="closeSidePanel()"></div>
+  <aside id="sidePanel" class="fixed top-0 bottom-0 left-0 z-[160] w-72 sm:w-80 max-w-[85vw] bg-stone-950/98 border-r border-white/15 backdrop-blur-2xl shadow-2xl shadow-black flex flex-col transform -translate-x-full transition-transform duration-300 ease-out select-none">
+    
+    <!-- En-tête du panneau latéral avec logo et bouton rétractable -->
+    <div class="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+      <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchRoom('hall'); closeSidePanel();">
+        <div class="w-9 h-9 rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center text-base shadow">
+          🎭
+        </div>
+        <div>
+          <span class="font-serif-title font-extrabold text-sm text-amber-300 tracking-wider block">LES FLAMBEURS</span>
+          <span class="text-[10px] text-stone-400 uppercase tracking-widest">Le Casino Anonyme</span>
+        </div>
+      </div>
+      <!-- Bouton de fermeture / rétractation (icône de la photo de l'utilisateur) -->
+      <button onclick="toggleSidePanel(event)" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 text-stone-300 hover:text-white flex items-center justify-center transition active:scale-95 cursor-pointer" title="Fermer le menu latéral">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Contenu défilant : Accueil, Jeux du site, Services -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-4">
+      <!-- Accueil -->
+      <div>
+        <button onclick="switchRoom('hall'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-amber-500/20 text-amber-200 border border-amber-400/30 hover:bg-amber-500/30 font-bold text-sm transition">
+          <span class="text-base">🏠</span>
+          <span>Accueil</span>
+        </button>
+      </div>
+
+      <!-- Salles de jeux -->
+      <div class="space-y-1">
+        <span class="px-3 text-[10px] uppercase tracking-wider font-extrabold text-stone-400 block pb-1">Salles de Jeux</span>
+        
+        <button onclick="switchRoom('poker'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">♠️</span> <span>Poker</span>
+        </button>
+        <button onclick="switchRoom('crash'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🚀</span> <span>Fusée Crash</span>
+        </button>
+        <button onclick="switchRoom('slots'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🎰</span> <span>Machine à Sous</span>
+        </button>
+        <button onclick="switchRoom('mines'); closeSidePanel();" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-base">🔐</span> <span>La Chambre Forte</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono-num font-bold">20 cases</span>
+        </button>
+        <button onclick="switchRoom('blackjack'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🃏</span> <span>Blackjack</span>
+        </button>
+        <button onclick="switchRoom('cups'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🥤</span> <span>Les Gobelets</span>
+        </button>
+        <button onclick="handleBlindTestClick(); closeSidePanel();" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-base">🎵</span> <span>Blind Test</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-bold border border-fuchsia-400/30">MàJ</span>
+        </button>
+        <button onclick="handleComingSoonGame('grattage'); closeSidePanel();" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-base">🎟️</span> <span>Jeu de Grattage</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">MàJ</span>
+        </button>
+        <button onclick="handleComingSoonGame('chevaux'); closeSidePanel();" class="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-stone-200 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-base">🏇</span> <span>Course de Chevaux</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">MàJ</span>
+        </button>
+      </div>
+
+      <!-- Services -->
+      <div class="space-y-1">
+        <span class="px-3 text-[10px] uppercase tracking-wider font-extrabold text-stone-400 block pb-1">Services & Économie</span>
+        <button onclick="switchRoom('shop'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-amber-300 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🛒</span> <span>Boutique Custom</span>
+        </button>
+        <button onclick="switchRoom('bank'); closeSidePanel();" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-emerald-300 hover:text-white hover:bg-white/10 text-xs font-semibold transition text-left">
+          <span class="text-base">🏦</span> <span>La Banque (Transferts)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bas du panneau : Profil, Amis, Paramètres & Touche avec les 3 petits points (...) -->
+    <div class="p-3 border-t border-white/10 bg-black/60 space-y-2">
+      <div class="grid grid-cols-3 gap-1.5 text-center text-xs">
+        <button onclick="closeSidePanel(); openProfileModal();" class="py-2 px-1 rounded-xl bg-white/5 hover:bg-white/15 text-stone-200 text-[11px] font-bold flex flex-col items-center gap-1 transition">
+          <span>👤</span> <span>Profil</span>
+        </button>
+        <button onclick="closeSidePanel(); openFriendsModal();" class="py-2 px-1 rounded-xl bg-white/5 hover:bg-white/15 text-stone-200 text-[11px] font-bold flex flex-col items-center gap-1 transition">
+          <span>👥</span> <span>Amis</span>
+        </button>
+        <button onclick="closeSidePanel(); openSettingsModal();" class="py-2 px-1 rounded-xl bg-white/5 hover:bg-white/15 text-stone-200 text-[11px] font-bold flex flex-col items-center gap-1 transition">
+          <span>⚙️</span> <span>Sons</span>
+        </button>
+      </div>
+
+      <!-- Touche avec les trois petits points (...) -->
+      <button onclick="closeSidePanel(); togglePlusMenu(event);" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 border border-amber-400/40 text-amber-200 font-extrabold text-xs transition">
+        <div class="flex items-center gap-2.5">
+          <span class="text-sm tracking-widest font-black leading-none">•••</span>
+          <span>Plus (Menu Complet)</span>
+        </div>
+        <span class="text-xs text-amber-300">›</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================================================================= -->
   <!-- EN-TÊTE PLEINE LARGEUR ALLÉGÉ (SANS BOUTON PATRON VISIBLE)        -->
   <!-- ================================================================= -->
   <header id="smartHeader" class="sticky top-0 left-0 right-0 w-full z-50 border-b border-white/15 bg-black/95 backdrop-blur-xl transition-transform duration-300 shadow-xl">
     <div class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
-      <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
-      <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
-        <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
-          <svg viewBox="0 0 36 36" class="w-6 h-6">
-            <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
-            <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
-            <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
+      <!-- Bouton Panneau Latéral (Mobile & PC) + Logo -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Bouton entouré en rouge sur vos photos -->
+        <button onclick="toggleSidePanel(event)" id="btn-toggle-sidebar" class="w-10 h-10 rounded-2xl bg-stone-900/90 hover:bg-stone-800 border border-white/20 text-stone-200 hover:text-amber-300 flex items-center justify-center transition shadow-md active:scale-95 cursor-pointer select-none" title="Menu latéral des jeux">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-1.5">
-            <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
-            <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
+        </button>
+
+        <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
+        <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoSecretClick()">
+          <div class="w-10 h-10 rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-500/25 via-stone-900 to-black flex items-center justify-center shadow-lg">
+            <svg viewBox="0 0 36 36" class="w-6 h-6">
+              <circle cx="18" cy="18" r="16" fill="#18181b" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3 2"></circle>
+              <text x="18" y="23" text-anchor="middle" font-size="16" fill="#fbbf24">🎭</text>
+              <text x="27" y="13" text-anchor="middle" font-size="11" fill="#ffffff">♠</text>
+            </svg>
           </div>
-          <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
+              <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
+            </div>
+            <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
+          </div>
         </div>
       </div>
 
@@ -347,12 +476,12 @@
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#0c241d]/95 via-[#091613]/95 to-black border border-teal-500/40 hover:border-teal-400 transition flex flex-col justify-between shadow-xl">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-bold">Grille 5×5 (25 Cases)</span>
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-bold">Grille 20 Cases</span>
                 <button onclick="openRulesModal('mines')" class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold">❓ Comment jouer</button>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-teal-100 mt-3">La Chambre Forte</h3>
               <p class="text-xs text-teal-100/80 mt-2 leading-relaxed">
-                Ouvre les 25 coffres blindés (format 5×5) sans tomber sur une bombe. Encaisse ton butin dès que tu veux !
+                Ouvre les 20 coffres blindés sans tomber sur une bombe. Encaisse ton butin dès que tu veux !
               </p>
             </div>
             <button onclick="switchRoom('mines')" class="mt-5 w-full py-2.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-black font-extrabold text-xs transition">
@@ -419,7 +548,57 @@
             </button>
           </div>
 
-          <!-- 9. BOUTIQUE DE CUSTOMISATION -->
+          <!-- 9. JEU DE GRATTAGE (FUTUR MISE À JOUR) -->
+          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#2a2211]/95 via-[#191407]/95 to-black border border-amber-500/40 hover:border-amber-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
+            <div class="absolute -top-10 -right-10 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold flex items-center gap-1">
+                  <span>🎟️</span> <span>Instant Gagnant</span>
+                </span>
+                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
+                  ( Futur mise à jour )
+                </span>
+              </div>
+              <h3 class="font-serif-title text-2xl font-extrabold text-amber-200 mt-3 flex items-center gap-2">
+                <span>Jeu de Grattage</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-sans font-bold border border-amber-400/30">Bientôt</span>
+              </h3>
+              <p class="text-xs text-amber-100/80 mt-2 leading-relaxed">
+                Gratte les cases dorées du ticket mystère, aligne les symboles gagnants et décroche le jackpot cash instantané !
+              </p>
+            </div>
+            <button onclick="handleComingSoonGame('grattage')" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
+              <span>🎟️</span> <span>Gratter un ticket (futur mise à jour)</span>
+            </button>
+          </div>
+
+          <!-- 10. COURSE DE CHEVAUX (FUTUR MISE À JOUR) -->
+          <div class="rounded-2xl p-6 bg-gradient-to-br from-[#122416]/95 via-[#0b170e]/95 to-black border border-emerald-500/40 hover:border-emerald-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
+            <div class="absolute -top-10 -right-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold flex items-center gap-1">
+                  <span>🏇</span> <span>Hippodrome VIP</span>
+                </span>
+                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
+                  ( Futur mise à jour )
+                </span>
+              </div>
+              <h3 class="font-serif-title text-2xl font-extrabold text-emerald-200 mt-3 flex items-center gap-2">
+                <span>Course de Chevaux</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-sans font-bold border border-emerald-400/30">Bientôt</span>
+              </h3>
+              <p class="text-xs text-emerald-100/80 mt-2 leading-relaxed">
+                Mise sur ton pur-sang favori, suis le sprint final sur la piste de l'hippodrome et empoche de superbes cotes !
+              </p>
+            </div>
+            <button onclick="handleComingSoonGame('chevaux')" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
+              <span>🏇</span> <span>Parier sur la course (futur mise à jour)</span>
+            </button>
+          </div>
+
+          <!-- 11. BOUTIQUE DE CUSTOMISATION -->
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#2a173b]/95 via-[#140b1d]/95 to-black border border-purple-500/40 hover:border-purple-400 transition flex flex-col justify-between shadow-xl">
             <div>
               <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">6 Catégories • Max 50 000 🪙</span>
@@ -433,7 +612,7 @@
             </button>
           </div>
 
-          <!-- 10. LA BANQUE DU CLUB -->
+          <!-- 12. LA BANQUE DU CLUB -->
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#1c2430]/95 via-[#0d1117]/95 to-black border border-amber-400/40 hover:border-amber-300 transition flex flex-col justify-between shadow-xl">
             <div>
               <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Donations &amp; Entraide</span>
@@ -1054,7 +1233,7 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 6 : LA CHAMBRE FORTE (GRILLE 5×5 = 25 CASES)                -->
+    <!-- VUE 6 : LA CHAMBRE FORTE (GRILLE 20 CASES)                       -->
     <!-- =============================================================== -->
     <section id="view-mines" class="space-y-6 hidden">
       <div class="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/80 border border-emerald-500/30 rounded-2xl p-4">
@@ -1062,7 +1241,7 @@
           <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
           <div>
             <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">La Chambre Forte</h2>
-            <p class="text-xs text-emerald-300">Grille 5×5 (25 coffres) • Évite les bombes !</p>
+            <p class="text-xs text-emerald-300">Grille 20 coffres (4×5) • Évite les bombes !</p>
           </div>
         </div>
         <button onclick="openRulesModal('mines')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">❓ Comment jouer</button>
@@ -1076,7 +1255,7 @@
           </div>
 
           <div>
-            <label class="text-xs uppercase tracking-wider text-emerald-400 font-bold">Nombre de bombes cachées (sur 25)</label>
+            <label class="text-xs uppercase tracking-wider text-emerald-400 font-bold">Nombre de bombes cachées (sur 20)</label>
             <div class="grid grid-cols-4 gap-2 mt-1.5">
               <button onclick="setMinesBombCount(3)" id="mbomb-3" class="pill-choice active text-center">3 💣</button>
               <button onclick="setMinesBombCount(5)" id="mbomb-5" class="pill-choice text-center">5 💣</button>
@@ -1105,7 +1284,7 @@
         </div>
 
         <div class="lg:col-span-8 rounded-2xl p-4 sm:p-6 bg-black/70 border border-emerald-500/30 flex items-center justify-center">
-          <div id="minesGrid" class="grid grid-cols-5 gap-2.5 sm:gap-3 w-full max-w-md"></div>
+          <div id="minesGrid" class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 sm:gap-3 w-full max-w-md"></div>
         </div>
       </div>
     </section>
@@ -2363,6 +2542,45 @@
 
     function closeSoundModal() {
       closeSettingsModal();
+    }
+
+    /* ================= PANNEAU LATÉRAL DES JEUX (SIDEBAR TÉLÉPHONE & PC) ================= */
+    let _isSidePanelOpen = false;
+
+    function toggleSidePanel(event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      if (_isSidePanelOpen) {
+        closeSidePanel();
+      } else {
+        openSidePanel();
+      }
+    }
+
+    function openSidePanel() {
+      _isSidePanelOpen = true;
+      const panel = document.getElementById('sidePanel');
+      const backdrop = document.getElementById('sidePanelBackdrop');
+      if (!panel || !backdrop) return;
+      backdrop.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        panel.classList.remove('-translate-x-full');
+      });
+    }
+
+    function closeSidePanel() {
+      _isSidePanelOpen = false;
+      const panel = document.getElementById('sidePanel');
+      const backdrop = document.getElementById('sidePanelBackdrop');
+      if (!panel || !backdrop) return;
+      panel.classList.add('-translate-x-full');
+      setTimeout(() => {
+        if (!_isSidePanelOpen && backdrop) {
+          backdrop.classList.add('hidden');
+        }
+      }, 260);
     }
 
     /* ================= MENU "PLUS" FLAMBEUR (PROFIL, AMIS, NOTIFS, SUCCÈS, CLASSEMENT, PARAMÈTRES) ================= */
@@ -4474,7 +4692,7 @@
       mines: {
         title: '🔐 Comment jouer à La Chambre Forte ?',
         html: `
-          <p>🎯 <strong>Le but :</strong> Cliquer sur les 25 coffres (grille 5×5) pour trouver des diamants 💎 sans tomber sur une bombe 💣. Encaisse dès que tu veux !</p>
+          <p>🎯 <strong>Le but :</strong> Cliquer sur les 20 coffres pour trouver des diamants 💎 sans tomber sur une bombe 💣. Encaisse dès que tu veux !</p>
         `
       },
       blackjack: {
@@ -8344,7 +8562,7 @@
         slotSpinning = false;
       }, 2900);
     }
-    /* ================= LA CHAMBRE FORTE (MINES 5×5 = 25 CASES) ================= */
+    /* ================= LA CHAMBRE FORTE (MINES 20 CASES) ================= */
     let mines = { active: false, bet: 0, bombs: [], revealed: [], count: 3 };
 
     function setMinesBombCount(n) {
@@ -8356,7 +8574,7 @@
     function renderMinesGrid(revealAll = false) {
       const g = document.getElementById('minesGrid');
       if (!g) return;
-      g.innerHTML = Array.from({ length: 25 }, (_, i) => {
+      g.innerHTML = Array.from({ length: 20 }, (_, i) => {
         const rev = mines.revealed.includes(i);
         const bmb = mines.bombs.includes(i);
         let txt = '🔒', cls = 'bg-stone-900 border-emerald-500/30 hover:border-emerald-400';
@@ -8380,7 +8598,7 @@
       saveState();
 
       const bombs = [];
-      while (bombs.length < cnt) { const r = Math.floor(Math.random() * 25); if (!bombs.includes(r)) bombs.push(r); }
+      while (bombs.length < cnt) { const r = Math.floor(Math.random() * 20); if (!bombs.includes(r)) bombs.push(r); }
       mines = { active: true, bet, bombs, revealed: [], count: cnt };
       document.getElementById('minesStartBtn').classList.add('hidden');
       document.getElementById('minesCashoutBtn').classList.remove('hidden');
@@ -8391,7 +8609,7 @@
 
     function getMinesMult() {
       let m = 1;
-      for (let i = 0; i < mines.revealed.length; i++) m *= (25 - i) / (25 - mines.count - i);
+      for (let i = 0; i < mines.revealed.length; i++) m *= (20 - i) / (20 - mines.count - i);
       return Math.max(1, m * 0.97);
     }
 
@@ -8401,7 +8619,7 @@
 
       // Influence du curseur CHANCE_MINES du Patron
       if (mines.bombs.includes(idx) && CONFIG_CASINO.CHANCE_MINES > 55 && Math.random() * 100 < (CONFIG_CASINO.CHANCE_MINES - 45)) {
-        const freeSafe = Array.from({ length: 25 }, (_, k) => k).find(k => !mines.bombs.includes(k) && !mines.revealed.includes(k) && k !== idx);
+        const freeSafe = Array.from({ length: 20 }, (_, k) => k).find(k => !mines.bombs.includes(k) && !mines.revealed.includes(k) && k !== idx);
         if (freeSafe !== undefined) {
           mines.bombs = mines.bombs.map(b => b === idx ? freeSafe : b);
         }
@@ -8436,6 +8654,11 @@
       document.getElementById('minesCashoutBtn').classList.add('hidden');
       renderMinesGrid(true);
       showToast(`💰 +${fmt(win)} pièces récupérées !`);
+    }
+
+    /* ================= JEUX À VENIR (GRATTAGE & COURSE DE CHEVAUX) ================= */
+    function handleComingSoonGame(gameName) {
+      showToast('futur mise a jour');
     }
 
     /* ================= BLACKJACK (SOLO DIRECT VS CROUPIER & LOBBY MULTI SYNCHRONISÉ) ================= */
@@ -11818,6 +12041,7 @@
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (typeof _isSidePanelOpen !== 'undefined' && _isSidePanelOpen) closeSidePanel();
         if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) closePlusMenu();
         if (typeof closeAchievementsModal === 'function') closeAchievementsModal();
         if (typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
@@ -11826,6 +12050,13 @@
     });
 
     window.addEventListener('click', (e) => {
+      if (typeof _isSidePanelOpen !== 'undefined' && _isSidePanelOpen) {
+        const panel = document.getElementById('sidePanel');
+        const btnToggle = document.getElementById('btn-toggle-sidebar');
+        if (panel && !panel.contains(e.target) && (!btnToggle || !btnToggle.contains(e.target))) {
+          closeSidePanel();
+        }
+      }
       if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) {
         const dd = document.getElementById('plusMenuDropdown');
         const btnM = document.getElementById('btn-plus-mobile');
