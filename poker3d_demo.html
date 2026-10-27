@@ -87,12 +87,12 @@
           <span class="text-lg">🪙</span>
           <div>
             <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">POT AU CENTRE</div>
-            <div class="font-mono text-base font-black text-amber-300">14 850 €</div>
+            <div id="potCenterDisplay" class="font-mono text-base font-black text-amber-300">0 €</div>
           </div>
         </div>
         <div class="border-l border-white/15 pl-3">
-          <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">TOUR</div>
-          <div class="text-xs font-extrabold text-emerald-400">À toi (1:45)</div>
+          <div class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">TOUR / PHASE</div>
+          <div id="tablePhaseDisplay" class="text-xs font-extrabold text-emerald-400">Distribution...</div>
         </div>
       </div>
 
@@ -104,11 +104,36 @@
       </div>
     </div>
 
+    <!-- BANNIÈRE DE FIN DE MAIN (SHOWDOWN / VAINQUEUR) -->
+    <div id="winnerBannerModal" class="hud-interactive hidden pointer-events-auto my-auto mx-auto max-w-md w-full bg-black/95 border-2 border-amber-400/80 rounded-3xl p-5 shadow-[0_0_60px_rgba(251,191,36,0.45)] backdrop-blur-2xl text-center space-y-3 animate-in fade-in zoom-in duration-300">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-widest">
+        <span>🏆</span> <span id="bannerTitle">Fin du coup</span>
+      </div>
+      <div id="bannerWinnerName" class="text-xl sm:text-2xl font-black text-white tracking-tight">
+        Viper (Bot)
+      </div>
+      <div id="bannerPotWon" class="font-mono text-2xl sm:text-3xl font-black text-amber-300">
+        + 4 500 €
+      </div>
+      <div id="bannerHandDescription" class="text-xs sm:text-sm font-bold text-emerald-300 bg-emerald-950/50 border border-emerald-500/40 rounded-xl py-2 px-3">
+        Brelan d'As
+      </div>
+      <div id="bannerHandDetails" class="text-xs text-stone-300 space-y-1.5 max-h-32 overflow-y-auto pr-1 text-left bg-stone-900/60 p-2.5 rounded-xl border border-white/10">
+        <!-- Révélations détaillées des mains -->
+      </div>
+      <div class="pt-1">
+        <button id="btnNextHand" onclick="window.pokerGame && window.pokerGame.startNewHand()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:brightness-110 active:scale-95 font-black text-black text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2">
+          <span>Main suivante</span>
+          <span id="nextHandCountdown" class="text-[10px] bg-black/20 px-2 py-0.5 rounded-full font-mono">(4s)</span>
+        </button>
+      </div>
+    </div>
+
     <!-- BAS DE L'ÉCRAN : COMMANDES DE JEU (FIXÉES ET ACCESSIBLES AU POUCE SUR MOBILE) -->
     <div class="w-full max-w-lg mx-auto space-y-2.5 pb-2">
       
       <!-- ENCART DU JOUEUR PRINCIPAL (AVATAR, PSEUDO, SOLDE TOTAL & MISE ACTUELLE) -->
-      <div class="hud-interactive flex items-center justify-between bg-black/90 border border-amber-500/40 rounded-2xl px-3.5 py-2 shadow-2xl backdrop-blur-md">
+      <div id="heroPlayerEncart" class="hud-interactive flex items-center justify-between bg-black/90 border border-amber-500/40 rounded-2xl px-3.5 py-2 shadow-2xl backdrop-blur-md transition-all duration-300">
         <!-- Avatar & Identité -->
         <div class="flex items-center gap-2.5">
           <div class="relative">
@@ -117,14 +142,14 @@
                 😎
               </div>
             </div>
-            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-black animate-pulse"></span>
+            <span id="heroTurnDot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-black animate-pulse"></span>
           </div>
           <div>
             <div class="flex items-center gap-1.5">
               <span class="text-xs font-black tracking-wide text-white uppercase">Flambeur (Toi)</span>
               <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-[9px] font-extrabold text-amber-300 border border-amber-400/30">VIP</span>
             </div>
-            <div class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+            <div id="heroTurnText" class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
               <span>●</span> À toi de jouer
             </div>
           </div>
@@ -135,7 +160,7 @@
           <!-- Mise actuelle -->
           <div class="border-r border-white/10 pr-3">
             <div class="text-[9px] uppercase tracking-wider text-stone-400 font-bold">Mise actuelle</div>
-            <div class="font-mono text-xs font-black text-cyan-300">100 €</div>
+            <div id="heroCurrentBetDisplay" class="font-mono text-xs font-black text-cyan-300">0 €</div>
           </div>
           <!-- Solde total (Stack) -->
           <div>
@@ -146,39 +171,39 @@
       </div>
 
       <!-- Bandeau Curseur & Montant de Relance -->
-      <div class="hud-interactive bg-black/85 border border-white/15 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2">
+      <div id="raiseControlPanel" class="hud-interactive bg-black/85 border border-white/15 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2 transition-opacity duration-200">
         <div class="flex items-center justify-between text-xs">
           <span class="text-stone-300 font-bold">Montant de relance :</span>
-          <span id="demoRaiseDisplay" class="font-mono text-sm font-black text-amber-300">250 €</span>
+          <span id="demoRaiseDisplay" class="font-mono text-sm font-black text-amber-300">200 €</span>
         </div>
-        <input id="demoRaiseSlider" type="range" min="100" max="10000" step="50" value="250" class="poker-range-slider w-full" oninput="document.getElementById('demoRaiseDisplay').textContent = this.value + ' €'; document.getElementById('btnRaiseAmount').textContent = this.value + ' €';">
+        <input id="demoRaiseSlider" type="range" min="100" max="25400" step="50" value="200" class="poker-range-slider w-full" oninput="window.pokerGame && window.pokerGame.onSliderInput(this.value)">
         <div class="flex items-center justify-between gap-1 text-[10px] font-bold text-amber-200">
-          <button onclick="setRaise(100)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">Min (100)</button>
-          <button onclick="setRaise(500)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">500 €</button>
-          <button onclick="setRaise(1000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">1 000 €</button>
-          <button onclick="setRaise(5000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">5 000 €</button>
-          <button onclick="setRaise(10000)" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">Tapis</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('min')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">Min</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(500)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">500 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(1000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">1 000 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise(5000)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10">5 000 €</button>
+          <button onclick="window.pokerGame && window.pokerGame.setQuickRaise('allin')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">Tapis</button>
         </div>
       </div>
 
       <!-- Les 3 Grands Boutons Tactiles (Passer, Suivre, Relancer) -->
-      <div class="hud-interactive grid grid-cols-3 gap-2">
+      <div id="actionButtonsRow" class="hud-interactive grid grid-cols-3 gap-2 transition-opacity duration-200">
         <!-- SE COUCHER -->
-        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-stone-800 to-stone-900 border border-rose-500/40 hover:border-rose-400 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+        <button id="btnActionFold" onclick="window.pokerGame && window.pokerGame.heroFold()" class="py-3.5 rounded-2xl bg-gradient-to-b from-stone-800 to-stone-900 border border-rose-500/40 hover:border-rose-400 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
           <span class="text-xs font-black text-white tracking-wide">PASSER</span>
           <span class="text-[10px] font-bold text-rose-400">SE COUCHER</span>
         </button>
 
         <!-- PAROLE / SUIVRE -->
-        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-sky-700 to-sky-900 border border-sky-400/50 hover:brightness-110 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
-          <span class="text-xs font-black text-white tracking-wide">PAROLE /</span>
-          <span class="text-[10px] font-bold text-cyan-200">SUIVRE (100 €)</span>
+        <button id="btnActionCheckCall" onclick="window.pokerGame && window.pokerGame.heroCheckOrCall()" class="py-3.5 rounded-2xl bg-gradient-to-b from-sky-700 to-sky-900 border border-sky-400/50 hover:brightness-110 active:scale-95 transition shadow-lg flex flex-col items-center justify-center">
+          <span id="btnCheckCallMainText" class="text-xs font-black text-white tracking-wide">PAROLE</span>
+          <span id="btnCheckCallSubText" class="text-[10px] font-bold text-cyan-200">0 €</span>
         </button>
 
         <!-- RELANCER -->
-        <button class="py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:brightness-110 text-black active:scale-95 transition shadow-lg flex flex-col items-center justify-center font-black">
+        <button id="btnActionRaise" onclick="window.pokerGame && window.pokerGame.heroRaise()" class="py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:brightness-110 text-black active:scale-95 transition shadow-lg flex flex-col items-center justify-center font-black">
           <span class="text-xs font-black tracking-wide">RELANCER</span>
-          <span id="btnRaiseAmount" class="text-[10px] font-mono font-extrabold text-amber-950">250 €</span>
+          <span id="btnRaiseAmount" class="text-[10px] font-mono font-extrabold text-amber-950">200 €</span>
         </button>
       </div>
 
@@ -187,17 +212,12 @@
   </div>
 
   <!-- 3. CODE COMPLET POKER 3D (CHARGÉ VIA POKER3D.JS AVEC ANTI-CACHE) -->
-  <script src="poker3d.js?v=3.3"></script>
+  <script src="poker3d.js?v=4.0"></script>
   <script>
-    function setRaise(val) {
-      document.getElementById('demoRaiseSlider').value = val;
-      document.getElementById('demoRaiseDisplay').textContent = val + ' €';
-      document.getElementById('btnRaiseAmount').textContent = val + ' €';
-    }
-
-    // Instanciation de la scène 3D
+    // Instanciation de la scène 3D et du moteur Texas Hold'em
     window.addEventListener('DOMContentLoaded', () => {
-      new Poker3DExperience('poker3dContainer');
+      window.pokerExp = new Poker3DExperience('poker3dContainer');
+      window.pokerGame = window.pokerExp.game;
     });
   </script>
 </body>
