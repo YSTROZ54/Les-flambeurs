@@ -1,4 +1,4 @@
-﻿$port = 8080
+$port = 8080
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 
@@ -1318,6 +1318,20 @@ while ($listener.IsListening) {
                         $table.players[$uKey].updatedAt = $now
                         $table.announcement = "👍 $clientUser est prêt !"
                         $table.updatedAt = $now
+
+                        # Déclenchement immédiat du compte à rebours si tous les joueurs assis sont prêts
+                        $sCount = if ($table.players) { $table.players.Count } else { 0 }
+                        $rCount = 0
+                        foreach ($pk in $table.playerOrder) {
+                            if ($table.players.ContainsKey($pk) -and $table.players[$pk].ready -eq $true) {
+                                $rCount++
+                            }
+                        }
+                        if ($sCount -ge 2 -and $rCount -eq $sCount) {
+                            $table.status = 'countdown'
+                            $table.countdownEndsAt = $now + 4000
+                            $table.announcement = "🤖 Croupier : Tous les joueurs sont prêts ($sCount joueurs) ! La donne commence dans 4s..."
+                        }
                     }
                 }
                 elseif ($act -eq 'leave' -and $uKey) {

@@ -212,13 +212,10 @@
         <span class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Machine à Sous</span>
       </button>
 
-      <!-- Chambre Forte (20 cases) -->
-      <button onclick="switchRoom('mines')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="La Chambre Forte (20 cases)">
+      <!-- Chambre Forte -->
+      <button onclick="switchRoom('mines')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="La Chambre Forte">
         <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🔐</span>
-        <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
-          <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">La Chambre Forte</span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono-num font-bold ml-1">20 cases</span>
-        </div>
+        <span class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">La Chambre Forte</span>
       </button>
 
       <!-- Blackjack -->
@@ -243,12 +240,9 @@
       </button>
 
       <!-- Grattage -->
-      <button onclick="switchRoom('scratch')" id="nav-scratch" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Jeu de Grattage (50 €)">
+      <button onclick="switchRoom('scratch')" id="nav-scratch" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Grattage">
         <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🎟️</span>
-        <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
-          <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Jeu de Grattage</span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30 ml-1">50€</span>
-        </div>
+        <span class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Grattage</span>
       </button>
 
       <!-- Chevaux -->
@@ -608,8 +602,7 @@
                 </span>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-amber-200 mt-3 flex items-center gap-2">
-                <span>Jeu de Grattage</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-sans font-bold border border-amber-400/30">50 €</span>
+                <span>Grattage</span>
               </h3>
               <p class="text-xs text-amber-100/80 mt-2 leading-relaxed">
                 Achète ton ticket 3D à 50 €, gratte la couche argentée et découvre ton gain instantané pouvant atteindre jusqu'à 20 000 € !
@@ -1231,16 +1224,16 @@
               <span class="font-mono-num text-amber-300 font-extrabold">×5</span>
             </div>
 
-            <!-- TABLEAU DES 2 SYMBOLES IDENTIQUES PROGRESSIFS -->
+            <!-- TABLEAU DES 2 SYMBOLES IDENTIQUES RÉÉQUILIBRÉS -->
             <div class="text-pink-300 font-serif-title font-extrabold text-sm uppercase pt-2 mb-1">✨ 2 Symboles Identiques :</div>
             <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔥 🔥 2 Flammes</span><strong class="font-mono-num text-amber-300">×10</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>👑 👑 2 Couronnes</span><strong class="font-mono-num text-amber-300">×8</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>7️⃣ 7️⃣ 2 Sept</span><strong class="font-mono-num text-amber-300">×6</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>💎 💎 2 Diamants</span><strong class="font-mono-num text-amber-300">×5</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔔 🔔 2 Cloches</span><strong class="font-mono-num text-pink-200">×1,25</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🍋 🍋 2 Citrons</span><strong class="font-mono-num text-pink-200">×1,2</strong></div>
-              <div class="col-span-2 flex justify-between py-1 px-2.5 rounded bg-pink-500/15 border border-pink-400/30"><span>🍒 🍒 2 Cerises (Moitié remboursée)</span><strong class="font-mono-num text-pink-200">×0,5</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔥 🔥 2 Flammes</span><strong class="font-mono-num text-amber-300">×2,5</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>👑 👑 2 Couronnes</span><strong class="font-mono-num text-amber-300">×2,0</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>7️⃣ 7️⃣ 2 Sept</span><strong class="font-mono-num text-amber-300">×1,8</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>💎 💎 2 Diamants</span><strong class="font-mono-num text-amber-300">×1,5</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔔 🔔 2 Cloches</span><strong class="font-mono-num text-pink-200">×1,1</strong></div>
+              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🍋 🍋 2 Citrons</span><strong class="font-mono-num text-pink-200">×0,8</strong></div>
+              <div class="col-span-2 flex justify-between py-1 px-2.5 rounded bg-pink-500/15 border border-pink-400/30"><span>🍒 🍒 2 Cerises (Lot consolation)</span><strong class="font-mono-num text-pink-200">×0,4</strong></div>
             </div>
           </div>
         </div>
@@ -2120,7 +2113,7 @@
         </div>
 
         <div class="space-y-1">
-          <div class="flex justify-between"><span>🎟️ Jeu de Grattage :</span><strong id="lblLuckScratch" class="font-mono-num text-amber-300">35%</strong></div>
+          <div class="flex justify-between"><span>🎟️ Grattage :</span><strong id="lblLuckScratch" class="font-mono-num text-amber-300">35%</strong></div>
           <input id="adminScratchLuck" type="range" min="1" max="95" value="35" oninput="document.getElementById('lblLuckScratch').textContent=this.value+'%'" class="w-full accent-amber-400 cursor-pointer">
         </div>
 
@@ -2813,6 +2806,28 @@
       CHANCE_SCRATCH: 35,
       DELAI_ENTRE_PARTIES_SECONDES: 3
     };
+
+    const STORAGE_KEY_LUCK_CONFIG = 'flambeurs_casino_luck_config';
+
+    function applyCasinoLuckConfig(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      if (typeof cfg.crash === 'number') CONFIG_CASINO.CHANCE_CRASH = cfg.crash;
+      if (typeof cfg.mines === 'number') CONFIG_CASINO.CHANCE_MINES = cfg.mines;
+      if (typeof cfg.blackjack === 'number') CONFIG_CASINO.CHANCE_BLACKJACK = cfg.blackjack;
+      if (typeof cfg.slots === 'number') CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = cfg.slots;
+      if (typeof cfg.scratch === 'number') CONFIG_CASINO.CHANCE_SCRATCH = cfg.scratch;
+    }
+
+    function loadCasinoLuckConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_LUCK_CONFIG);
+        if (raw) {
+          const cfg = JSON.parse(raw);
+          applyCasinoLuckConfig(cfg);
+        }
+      } catch (e) {}
+    }
+    loadCasinoLuckConfig();
 
     const COIN_SVG = `<svg viewBox="0 0 24 24" class="flambeur-coin"><circle cx="12" cy="12" r="10.5" fill="#f59e0b" stroke="#fef08a" stroke-width="1.8" stroke-dasharray="2.5 1.5"/><circle cx="12" cy="12" r="7.5" fill="#18181b"/><text x="12" y="15.5" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="bold">♠</text></svg>`;
 
@@ -4015,6 +4030,13 @@
           pendingGameInvites: account.pendingGameInvites || [],
           currentTable: isMe ? (state.currentTable || {}) : (account.currentTable || {}),
           bannedUsers: bannedList,
+          luckConfig: state.luckConfig || {
+            crash: CONFIG_CASINO.CHANCE_CRASH,
+            mines: CONFIG_CASINO.CHANCE_MINES,
+            blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
+            slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS,
+            scratch: CONFIG_CASINO.CHANCE_SCRATCH
+          },
           lastBalanceChange: isMe ? (state.lastBalanceChange || Date.now()) : (account.data?.lastBalanceChange || account.lastBalanceChange || Date.now())
         },
         updated_at: new Date().toISOString()
@@ -4039,7 +4061,14 @@
           cupsBestStreak: isMe ? (state.cupsBestStreak || 0) : (account.cupsBestStreak || account.data?.cupsBestStreak || 0),
           scratchBestWin: isMe ? (state.scratchBestWin || 0) : (account.scratchBestWin || account.data?.scratchBestWin || 0),
           scratchTotalWon: isMe ? (state.scratchTotalWon || 0) : (account.scratchTotalWon || account.data?.scratchTotalWon || 0),
-          scratchCardsPlayed: isMe ? (state.scratchCardsPlayed || 0) : (account.scratchCardsPlayed || account.data?.scratchCardsPlayed || 0)
+          scratchCardsPlayed: isMe ? (state.scratchCardsPlayed || 0) : (account.scratchCardsPlayed || account.data?.scratchCardsPlayed || 0),
+          luckConfig: state.luckConfig || {
+            crash: CONFIG_CASINO.CHANCE_CRASH,
+            mines: CONFIG_CASINO.CHANCE_MINES,
+            blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
+            slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS,
+            scratch: CONFIG_CASINO.CHANCE_SCRATCH
+          }
         };
         await fetch('/api/accounts', {
           method: 'POST',
@@ -4364,11 +4393,15 @@
       if (!Array.isArray(state.pendingFriendRequests)) state.pendingFriendRequests = [];
       if (!Array.isArray(state.pendingGameInvites)) state.pendingGameInvites = [];
 
-      // Synchronise les curseurs du Patron
-      CONFIG_CASINO.CHANCE_CRASH = state.luckConfig.crash ?? 50;
-      CONFIG_CASINO.CHANCE_MINES = state.luckConfig.mines ?? 50;
-      CONFIG_CASINO.CHANCE_BLACKJACK = state.luckConfig.blackjack ?? 50;
-      CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = state.luckConfig.slots ?? 35;
+      // Synchronise les curseurs du Patron avec la mémoire persistante
+      loadCasinoLuckConfig();
+      state.luckConfig = {
+        crash: CONFIG_CASINO.CHANCE_CRASH,
+        mines: CONFIG_CASINO.CHANCE_MINES,
+        blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
+        slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS,
+        scratch: CONFIG_CASINO.CHANCE_SCRATCH
+      };
 
       if (state.bjBet) {
         const bInp = document.getElementById('bjBetInput');
@@ -4849,16 +4882,23 @@
       CONFIG_CASINO.CHANCE_MACHINE_A_SOUS = parseInt(document.getElementById('adminSlotLuck').value) || 35;
       CONFIG_CASINO.CHANCE_SCRATCH = parseInt(document.getElementById('adminScratchLuck').value) || 35;
 
-      state.luckConfig = {
+      const luckObj = {
         crash: CONFIG_CASINO.CHANCE_CRASH,
         mines: CONFIG_CASINO.CHANCE_MINES,
         blackjack: CONFIG_CASINO.CHANCE_BLACKJACK,
         slots: CONFIG_CASINO.CHANCE_MACHINE_A_SOUS,
         scratch: CONFIG_CASINO.CHANCE_SCRATCH
       };
+
+      try {
+        localStorage.setItem(STORAGE_KEY_LUCK_CONFIG, JSON.stringify(luckObj));
+      } catch (e) {}
+
+      state.luckConfig = { ...luckObj };
       saveState();
+      pushRemoteAccount(state).catch(() => {});
       closeAdminModal();
-      showToast('⚙️ Les 5 pourcentages de chance (Winrate) ont été enregistrés !');
+      showToast('⚙️ Les 5 pourcentages de chance (Winrate) ont été enregistrés définitivement !');
     }
 
     /* ================= COFFRE DU JOUR (TOUTES LES 6 HEURES) ================= */
@@ -5076,7 +5116,7 @@
       hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
-      scratch: '/ Jeu de Grattage',
+      scratch: '/ Grattage',
       blindtest: '/ Blind Test (futur mise à jour)',
       shop: '/ Boutique', bank: '/ La Banque'
     };
@@ -6784,9 +6824,21 @@
 
     function setupPokerSeats() {
       if (poker.inProgress) return;
+      const pLobby = lobbies.poker;
+
+      // En multijoueur, préserver la table active synchronisée avec le serveur
+      if (pLobby && pLobby.mode === 'multi') {
+        if (pokerSyncTable && pokerSyncTable.players && Object.keys(pokerSyncTable.players).length > 0) {
+          mergePokerServerState(pokerSyncTable);
+          return;
+        }
+        if (poker.opponents && poker.opponents.some(o => !o.isEmpty && o.isFriend)) {
+          return;
+        }
+      }
+
       const count = poker.seatCount;
       const opps = [];
-      const pLobby = lobbies.poker;
 
       if (pLobby.mode === 'solo') {
         for (let i = 0; i < count; i++) {
@@ -7407,6 +7459,20 @@
       if (!tableId) return;
       playCardFlipSound();
       setPokerBtns(false);
+
+      if (act === 'ready') {
+        const readyBtn = document.getElementById('btnPokerReady');
+        const mReadyBtn = document.getElementById('btnPokerMobileReady');
+        if (readyBtn) {
+          readyBtn.disabled = true;
+          readyBtn.textContent = '✔ Tu es prêt ! (En attente des autres)';
+          readyBtn.className = 'w-full py-3.5 rounded-xl font-extrabold text-xs bg-emerald-600/30 text-emerald-300 border border-emerald-400/50 shadow-inner cursor-not-allowed';
+        }
+        if (mReadyBtn) {
+          mReadyBtn.disabled = true;
+          mReadyBtn.textContent = '✔ Tu es prêt !';
+        }
+      }
       try {
         const res = await fetch(getPokerApiUrl(), {
           method: 'POST',
@@ -8211,8 +8277,16 @@
       const countdownDuration = 7000;
       const launchTime = now + countdownDuration;
 
-      const houseEdge = Math.max(0.01, 0.05 - (CONFIG_CASINO.CHANCE_CRASH - 50) * 0.0008);
-      const rawMultiplier = (1 - houseEdge) / (1 - Math.random());
+      const crashLuck = Math.max(5, Math.min(95, CONFIG_CASINO.CHANCE_CRASH ?? 50));
+      const isHighFlight = (Math.random() * 100 < crashLuck);
+      let rawMultiplier;
+      if (!isHighFlight) {
+        rawMultiplier = 1.05 + Math.random() * (0.35 + (crashLuck / 100) * 0.5);
+      } else {
+        const base = 1.5 + (crashLuck / 40);
+        const exp = 1 / Math.max(0.02, 1 - Math.random());
+        rawMultiplier = base + exp * (crashLuck / 80);
+      }
       const crashPoint = parseFloat(Math.min(500, Math.max(1.08, rawMultiplier)).toFixed(2));
 
       crashSync.id = now;
@@ -8976,7 +9050,7 @@
     /* ================= MACHINE À SOUS (NOUVEAU TABLEAU DE GAINS 3 & 2 SYMBOLES) ================= */
     const SLOT_SYMS = ['🔥', '👑', '7️⃣', '💎', '🔔', '🍋', '🍒'];
     const SLOT_PAY_3 = { '🔥': 500, '👑': 250, '7️⃣': 120, '💎': 60, '🔔': 25, '🍋': 8, '🍒': 5 };
-    const SLOT_PAY_2 = { '🔥': 10, '👑': 8, '7️⃣': 6, '💎': 5, '🔔': 1.25, '🍋': 1.2, '🍒': 0.5 };
+    const SLOT_PAY_2 = { '🔥': 2.5, '👑': 2.0, '7️⃣': 1.8, '💎': 1.5, '🔔': 1.1, '🍋': 0.8, '🍒': 0.4 };
     const ITEM_HEIGHT = 176;
     let slotSpinning = false;
 
@@ -9016,18 +9090,31 @@
 
       document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
 
-      const weightedPool = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍋', '🔔', '🔔', '💎', '💎', '7️⃣', '👑', '🔥'];
-      let finals = [
-        weightedPool[Math.floor(Math.random() * weightedPool.length)],
-        weightedPool[Math.floor(Math.random() * weightedPool.length)],
-        weightedPool[Math.floor(Math.random() * weightedPool.length)]
-      ];
+      // La chance de gain est STRICTEMENT régie par le curseur admin CONFIG_CASINO.CHANCE_MACHINE_A_SOUS
+      const winChance = Math.max(0, Math.min(100, CONFIG_CASINO.CHANCE_MACHINE_A_SOUS ?? 35));
+      const isWin = (Math.random() * 100 < winChance);
 
-      if (Math.random() * 100 < CONFIG_CASINO.CHANCE_MACHINE_A_SOUS) {
-        const luckySym = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-        finals[0] = luckySym;
-        finals[1] = luckySym;
-        if (Math.random() < 0.22) finals[2] = luckySym;
+      let finals = [];
+      if (!isWin) {
+        // PERTE STRICTE : 3 symboles strictement différents. AUCUN doublon, AUCUN gain !
+        const shuffled = [...SLOT_SYMS].sort(() => Math.random() - 0.5);
+        finals = [shuffled[0], shuffled[1], shuffled[2]];
+      } else {
+        // VICTOIRE : Répartition entre doublon modéré et triplé
+        const isTriplet = Math.random() < (0.12 + (winChance / 400));
+        const winPool = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍋', '🔔', '🔔', '💎', '7️⃣', '👑', '🔥'];
+        const winSym = winPool[Math.floor(Math.random() * winPool.length)];
+
+        if (isTriplet) {
+          finals = [winSym, winSym, winSym];
+        } else {
+          // Doublon : 2 symboles identiques, 1 différent
+          const otherSyms = SLOT_SYMS.filter(s => s !== winSym);
+          const thirdSym = otherSyms[Math.floor(Math.random() * otherSyms.length)];
+          const thirdPos = Math.floor(Math.random() * 3);
+          finals = [winSym, winSym, winSym];
+          finals[thirdPos] = thirdSym;
+        }
       }
 
       [0, 1, 2].forEach((reelIdx) => {
@@ -9129,11 +9216,21 @@
       if (!_AntiBotGuard.verify('Mines - Case', e)) return;
       if (!mines.active || mines.revealed.includes(idx)) return;
 
-      // Influence du curseur CHANCE_MINES du Patron
-      if (mines.bombs.includes(idx) && CONFIG_CASINO.CHANCE_MINES > 55 && Math.random() * 100 < (CONFIG_CASINO.CHANCE_MINES - 45)) {
-        const freeSafe = Array.from({ length: 20 }, (_, k) => k).find(k => !mines.bombs.includes(k) && !mines.revealed.includes(k) && k !== idx);
-        if (freeSafe !== undefined) {
-          mines.bombs = mines.bombs.map(b => b === idx ? freeSafe : b);
+      // Influence bidirectionnelle stricte du curseur CHANCE_MINES du Patron (1% - 100%)
+      const minesLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_MINES ?? 50));
+      if (mines.bombs.includes(idx)) {
+        if (minesLuck > 45 && Math.random() * 100 < ((minesLuck - 40) * 1.6)) {
+          const freeSafe = Array.from({ length: 20 }, (_, k) => k).find(k => !mines.bombs.includes(k) && !mines.revealed.includes(k) && k !== idx);
+          if (freeSafe !== undefined) {
+            mines.bombs = mines.bombs.map(b => b === idx ? freeSafe : b);
+          }
+        }
+      } else {
+        if (minesLuck < 48 && Math.random() * 100 < ((50 - minesLuck) * 1.5)) {
+          const unrevealedBombIdx = mines.bombs.findIndex(b => !mines.revealed.includes(b));
+          if (unrevealedBombIdx !== -1) {
+            mines.bombs[unrevealedBombIdx] = idx;
+          }
         }
       }
 
@@ -10417,8 +10514,34 @@
         bj.active = true;
         bj.turn = 'player';
         bj.deck = createDeck();
-        bj.player = [bj.deck.pop(), bj.deck.pop()];
-        bj.dealer = [bj.deck.pop(), bj.deck.pop()];
+        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
+        if (bjLuck > 55 && Math.random() * 100 < ((bjLuck - 45) * 1.5)) {
+          // Main avantagée pour le joueur
+          const aces = bj.deck.filter(c => c.r === 'A');
+          const tens = bj.deck.filter(c => ['10', 'J', 'Q', 'K'].includes(c.r));
+          if (aces.length > 0 && tens.length > 0) {
+            bj.player = [aces[0], tens[0]];
+            bj.deck = bj.deck.filter(c => c !== aces[0] && c !== tens[0]);
+          } else {
+            bj.player = [bj.deck.pop(), bj.deck.pop()];
+          }
+        } else if (bjLuck < 45 && Math.random() * 100 < ((50 - bjLuck) * 1.5)) {
+          // Main délicate pour le joueur (14-16) et croupier fort
+          const tens = bj.deck.filter(c => ['10', 'J', 'Q', 'K'].includes(c.r));
+          const weaks = bj.deck.filter(c => ['5', '6'].includes(c.r));
+          if (tens.length >= 2 && weaks.length >= 1) {
+            bj.player = [tens[0], weaks[0]];
+            bj.dealer = [tens[1], bj.deck.find(c => ['8', '9', '10'].includes(c.r)) || bj.deck.pop()];
+            bj.deck = bj.deck.filter(c => !bj.player.includes(c) && !bj.dealer.includes(c));
+          } else {
+            bj.player = [bj.deck.pop(), bj.deck.pop()];
+          }
+        } else {
+          bj.player = [bj.deck.pop(), bj.deck.pop()];
+        }
+        if (!bj.dealer || bj.dealer.length < 2) {
+          bj.dealer = [bj.deck.pop(), bj.deck.pop()];
+        }
         bj.hasRealOpponent = false;
         bj.coPlayer = [];
         bj.bet = bet;
@@ -10562,7 +10685,32 @@
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
         if (!bj.active) return;
-        bj.player.push(bj.deck.pop());
+        const curScore = bjScore(bj.player);
+        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
+        let drawnCard = null;
+        if (curScore >= 12 && curScore <= 20) {
+          const maxSafe = 21 - curScore;
+          if (bjLuck > 50 && Math.random() * 100 < ((bjLuck - 45) * 1.6)) {
+            // Tirer une carte qui ne dépasse pas 21
+            drawnCard = bj.deck.find(c => {
+              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 1 : parseInt(c.r));
+              return val <= maxSafe;
+            });
+          } else if (bjLuck < 50 && Math.random() * 100 < ((50 - bjLuck) * 1.5)) {
+            // Tirer une carte qui dépasse 21
+            drawnCard = bj.deck.find(c => {
+              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 11 : parseInt(c.r));
+              return val > maxSafe;
+            });
+          }
+        }
+        if (drawnCard) {
+          const idx = bj.deck.indexOf(drawnCard);
+          bj.deck.splice(idx, 1);
+          bj.player.push(drawnCard);
+        } else {
+          bj.player.push(bj.deck.pop());
+        }
         renderBlackjack(true);
         if (bjScore(bj.player) > 21) {
           stopBjTurnTimer();
@@ -10668,8 +10816,20 @@
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        if (!bj.active) return;
+        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
         while (bjScore(bj.dealer) < 17) {
+          if (bjLuck > 55 && bjScore(bj.dealer) >= 12 && Math.random() * 100 < ((bjLuck - 45) * 1.5)) {
+            const bustCard = bj.deck.find(c => {
+              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 11 : parseInt(c.r));
+              return (bjScore(bj.dealer) + val) > 21;
+            });
+            if (bustCard) {
+              const idx = bj.deck.indexOf(bustCard);
+              bj.deck.splice(idx, 1);
+              bj.dealer.push(bustCard);
+              continue;
+            }
+          }
           bj.dealer.push(bj.deck.pop());
         }
         renderBlackjack(false);

@@ -72,6 +72,7 @@ export default async function handler(req, res) {
               outgoingFriendRequests: body.outgoingFriendRequests || [],
               pendingGameInvites: body.pendingGameInvites || [],
               bannedUsers: body.bannedUsers || [],
+              luckConfig: body.luckConfig || body.data?.luckConfig || {},
               currentTable: body.currentTable || {}
             },
             updated_at: new Date().toISOString()
