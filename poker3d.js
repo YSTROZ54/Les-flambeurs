@@ -317,8 +317,9 @@ class Poker3DExperience {
     const backTexture = this.getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 });
-    const frontMat = new THREE.MeshStandardMaterial({ map: frontTexture, roughness: 0.32, metalness: 0.04 });
-    const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.32, metalness: 0.08 });
+    // MeshBasicMaterial pour la face avant : reste lumineuse et contrastée sans être éblouie/délavée par le SpotLight
+    const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture });
+    const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08 });
 
     // BoxGeometry Face +Y (Index 2) est la face du haut sur le tapis XZ
     // BoxGeometry Face -Y (Index 3) est la face du bas
@@ -338,25 +339,26 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 8. CARTES DU JOUEUR HERO (INCLINÉES VERS LA CAMÉRA)                       */
+  /* 8. CARTES DU JOUEUR HERO (REHAUSSÉES & INCLINÉES FACE CAMÉRA)             */
   /* ------------------------------------------------------------------------- */
   buildHeroCards() {
     // Carte 1 : As de Pique (A♠)
     const card1 = this.createCardObject('A', '♠', false);
-    card1.position.set(-0.25, 0.08, 1.08);
-    // Légère inclinaison vers la caméra pour une lisibilité optimale
-    card1.rotation.x = -Math.PI / 7.2; // ~ -25°
+    // Hauteur rehaussée à Y = 0.23 pour éliminer tout clipping dans le tapis
+    card1.position.set(-0.26, 0.23, 1.12);
+    // Inclinaison accentuée vers la caméra (~ -41°) pour une lisibilité directe façon Prominence Poker
+    card1.rotation.x = -Math.PI / 4.4;
     card1.rotation.y = 0.08;
-    card1.rotation.z = -0.05;
+    card1.rotation.z = -0.04;
     this.scene.add(card1);
     this.cards.hero.push(card1);
 
     // Carte 2 : Roi de Pique (K♠)
     const card2 = this.createCardObject('K', '♠', false);
-    card2.position.set(0.25, 0.09, 1.08);
-    card2.rotation.x = -Math.PI / 7.2;
+    card2.position.set(0.26, 0.24, 1.12);
+    card2.rotation.x = -Math.PI / 4.4;
     card2.rotation.y = -0.08;
-    card2.rotation.z = 0.05;
+    card2.rotation.z = 0.04;
     this.scene.add(card2);
     this.cards.hero.push(card2);
 
@@ -433,7 +435,7 @@ class Poker3DExperience {
 
       // C. Étiquette Nameplate 3D flottante (Sprite toujours face caméra)
       const nameplate = this.create3DNameplate(opp.name, opp.stack, opp.avatar, opp.status);
-      nameplate.position.set(0, 0.55, 0);
+      nameplate.position.set(0, 0.34, 0);
       oppGroup.add(nameplate);
 
       this.scene.add(oppGroup);
@@ -559,73 +561,77 @@ class Poker3DExperience {
   /* ------------------------------------------------------------------------- */
   /* 13. ÉTIQUETTE NAMEPLATE 3D FLOTTANTE (SPRITE TOUJOURS FACE CAMÉRA)        */
   /* ------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------- */
+  /* 13. ÉTIQUETTE NAMEPLATE 3D FLOTTANTE (COMPACTE, -45% DE TAILLE)           */
+  /* ------------------------------------------------------------------------- */
   create3DNameplate(name, stack, avatar = '👤', status = '🟢 Prêt') {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 140;
+    canvas.width = 384;
+    canvas.height = 96;
     const ctx = canvas.getContext('2d');
 
-    // Fond capsule arrondi sombre type Prominence Poker
+    // Fond capsule arrondi sombre discret type Prominence Poker
     ctx.fillStyle = 'rgba(10, 10, 16, 0.88)';
     ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 3;
     
-    // Dessin rectangle arrondi
-    const r = 28;
+    // Dessin rectangle arrondi compact
+    const r = 16;
     ctx.beginPath();
-    ctx.moveTo(10 + r, 10);
-    ctx.lineTo(502 - r, 10);
-    ctx.arcTo(502, 10, 502, 130, r);
-    ctx.lineTo(502, 130 - r);
-    ctx.arcTo(502, 130, 10, 130, r);
-    ctx.lineTo(10 + r, 130);
-    ctx.arcTo(10, 130, 10, 10, r);
-    ctx.lineTo(10, 10 + r);
-    ctx.arcTo(10, 10, 502, 10, r);
+    ctx.moveTo(6 + r, 6);
+    ctx.lineTo(378 - r, 6);
+    ctx.arcTo(378, 6, 378, 90, r);
+    ctx.lineTo(378, 90 - r);
+    ctx.arcTo(378, 90, 6, 90, r);
+    ctx.lineTo(6 + r, 90);
+    ctx.arcTo(6, 90, 6, 6, r);
+    ctx.lineTo(6, 6 + r);
+    ctx.arcTo(6, 6, 378, 6, r);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Badge Avatar
+    // Badge Avatar compact
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
-    ctx.arc(68, 70, 42, 0, Math.PI * 2);
+    ctx.arc(42, 48, 25, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.font = '40px sans-serif';
+    ctx.font = '26px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(avatar, 68, 72);
+    ctx.fillText(avatar, 42, 50);
 
-    // Nom du joueur
+    // Nom du joueur (taille équilibrée, ne déborde pas)
     ctx.textAlign = 'left';
-    ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, 130, 52);
+    ctx.fillText(name, 80, 36);
 
     // Stack en or avec jeton
-    ctx.font = 'bold 32px "JetBrains Mono", monospace';
+    ctx.font = 'bold 20px "JetBrains Mono", monospace';
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`🪙 ${stack.toLocaleString('fr-FR')} €`, 130, 98);
+    ctx.fillText(`🪙 ${stack.toLocaleString('fr-FR')} €`, 80, 68);
 
-    // Statut vert
-    ctx.font = 'bold 22px sans-serif';
+    // Statut
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillStyle = '#34d399';
     ctx.textAlign = 'right';
-    ctx.fillText(status, 480, 52);
+    ctx.fillText(status, 366, 36);
 
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(1.4, 0.40, 1);
+    // Échelle réduite de plus de 40% pour ne pas surcharger l'écran
+    sprite.scale.set(0.78, 0.20, 1);
     return sprite;
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 14. TEXTURES DES CARTES (DOS ORNÉ + FACES HAUTE DÉFINITION)               */
+  /* 14. TEXTURES DES CARTES (DOS ORNÉ + FACES ULTRA-LISIBLES ET CONTRASTÉES)  */
   /* ------------------------------------------------------------------------- */
   getCardBackTexture() {
     if (this.textureCache['card_back']) return this.textureCache['card_back'];
@@ -697,50 +703,42 @@ class Poker3DExperience {
     canvas.height = 720;
     const ctx = canvas.getContext('2d');
 
-    // Fond blanc ivoire feutré
-    ctx.fillStyle = '#fafaf9';
+    // Fond blanc pur et propre (non aveuglant grâce à MeshBasicMaterial)
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 512, 720);
 
-    // Bordure fine
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 8;
+    // Bordure sombre nette pour découper la carte
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 6;
     ctx.strokeRect(6, 6, 500, 708);
 
-    const isRed = suit === '♥' || suit === '♦';
-    const color = isRed ? '#dc2626' : '#0f172a';
+    // Couleurs pures et ultra-contrastées : Noir absolu et Rouge vif
+    const isRed = (suit === '♥' || suit === '♦');
+    const color = isRed ? '#FF0000' : '#000000';
 
-    // Rangs et symboles dans les coins (Haut-Gauche et Bas-Droite inversé)
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Coin Haut Gauche
-    ctx.font = 'bold 56px "Cinzel", "Plus Jakarta Sans", serif';
-    ctx.fillText(rank, 65, 75);
-    ctx.font = 'bold 44px serif';
-    ctx.fillText(suit, 65, 130);
+    // 1. Coin Haut Gauche : Valeur TRÈS GRANDE (104px) & Symbole TRÈS GRAND (82px)
+    ctx.font = '900 104px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(rank, 74, 82);
+    ctx.font = 'bold 82px serif';
+    ctx.fillText(suit, 74, 172);
 
-    // Coin Bas Droite (Inversé 180°)
+    // 2. Coin Bas Droite (Inversé 180°)
     ctx.save();
-    ctx.translate(447, 645);
+    ctx.translate(438, 638);
     ctx.rotate(Math.PI);
-    ctx.font = 'bold 56px "Cinzel", "Plus Jakarta Sans", serif';
+    ctx.font = '900 104px "Plus Jakarta Sans", sans-serif';
     ctx.fillText(rank, 0, 0);
-    ctx.font = 'bold 44px serif';
-    ctx.fillText(suit, 0, 55);
+    ctx.font = 'bold 82px serif';
+    ctx.fillText(suit, 0, 90);
     ctx.restore();
 
-    // Grand symbole central orné
-    ctx.font = 'bold 190px serif';
+    // 3. Grand symbole central géant ultra-lisible (285px)
+    ctx.font = 'bold 285px serif';
     ctx.fillText(suit, 256, 360);
-
-    // Décoration royale si carte à figure (A, K, Q, J)
-    if (['A', 'K', 'Q', 'J'].includes(rank)) {
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = isRed ? '#f87171' : '#64748b';
-      ctx.fillText(`★ VIP ${rank} ★`, 256, 210);
-      ctx.fillText(`★ VIP ${rank} ★`, 256, 510);
-    }
 
     const tex = new THREE.CanvasTexture(canvas);
     this.textureCache[key] = tex;
