@@ -371,7 +371,7 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - REMONTÉES LÉGÈREMENT À Z = -0.28 */
+  /* 9. CARTES COMMUNES (FLOP, TURN, RIVER) - POSITIONNÉES AU CENTRE Z = 0.05  */
   /* ------------------------------------------------------------------------- */
   buildCommunityCards() {
     const TABLE_Y = 0;
@@ -385,7 +385,7 @@ class Poker3DExperience {
 
     const spacing = 0.44;
     const startX = - (4 * spacing) / 2; // -0.88 pour centrage parfait horizontal autour de x = 0
-    const boardZ = -0.28;
+    const boardZ = 0.05; // Descendu vers le centre exact (z = 0.05)
 
     communitySetup.forEach((c, i) => {
       // Cartes communes réduites de 25% (scale = 0.75)
@@ -458,16 +458,43 @@ class Poker3DExperience {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* 11. JETONS DU POT AU CENTRE (REGROUPÉS JUSTE AU-DESSUS DU FLOP EN X = 0)   */
+  /* 11. JETONS DU POT AU CENTRE (ALIGNÉS HORIZONTALEMENT À Z = -Rz * 0.28)    */
   /* ------------------------------------------------------------------------- */
   buildCenterPotChips() {
-    // Pot central regroupé en un seul groupe compact AU-DESSUS des 5 cartes communes
-    // Centré en x = 0, entre le Flop et les cartes de Roxy (z = -0.62)
-    this.createRealisticChipStack(0, -0.62, [
-      { color: '#d97706', count: 4 }, // Or
-      { color: '#dc2626', count: 4 }, // Rouge
-      { color: '#16a34a', count: 4 }  // Vert
-    ]);
+    const Rz = 1.35;
+    const potZ = -Rz * 0.28; // ~ -0.38, parfaitement dégagé du Flop (z=0.05) et de Roxy (z=-1.13)
+    const potGroup = new THREE.Group();
+
+    // Jetons du pot réduits de 25% (rayon = 0.08, épaisseur = 0.015)
+    const chipRadius = 0.08;
+    const chipHeight = 0.015;
+    const chipGeo = new THREE.CylinderGeometry(chipRadius, chipRadius, chipHeight, 24);
+
+    // 3 piles alignées horizontalement sur une seule ligne serrée à z = potZ
+    const stacksData = [
+      { x: -0.17, color: '#d97706', count: 4 }, // Or
+      { x: 0.0,   color: '#dc2626', count: 4 }, // Rouge
+      { x: 0.17,  color: '#16a34a', count: 4 }  // Vert
+    ];
+
+    stacksData.forEach(st => {
+      const mats = this.getChipMaterials(st.color);
+      for (let h = 0; h < st.count; h++) {
+        const chip = new THREE.Mesh(chipGeo, mats);
+        chip.position.set(
+          st.x + (Math.random() - 0.5) * 0.002,
+          chipHeight / 2 + h * chipHeight,
+          potZ + (Math.random() - 0.5) * 0.002
+        );
+        chip.rotation.y = Math.random() * Math.PI;
+        chip.castShadow = true;
+        chip.receiveShadow = true;
+        potGroup.add(chip);
+      }
+    });
+
+    this.scene.add(potGroup);
+    this.chipStacks.push(potGroup);
   }
 
   /* ------------------------------------------------------------------------- */
