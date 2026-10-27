@@ -188,39 +188,33 @@
         </button>
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
-        <button onclick="openFriendsModal()" id="nav-friends" class="px-2.5 py-1.5 rounded-full font-bold text-purple-300 hover:text-white bg-purple-500/15 border border-purple-400/40">👥 Amis</button>
-        <button onclick="openNotificationsModal()" id="nav-notifications" class="relative px-2.5 py-1.5 rounded-full font-bold text-amber-300 hover:text-white bg-amber-500/15 border border-amber-400/40 flex items-center gap-1.5 transition" title="Centre de Notifications">
-          <span>🔔</span>
-          <span class="hidden 2xl:inline text-xs">Notifs</span>
-          <span id="notifBadgeDesktop" class="hidden px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
+        <button onclick="togglePlusMenu(event)" id="nav-plus-desktop" class="relative px-3 py-1.5 rounded-full font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 flex items-center gap-1.5 transition cursor-pointer select-none" title="Menu Plus">
+          <span class="text-sm leading-none font-black tracking-wider">•••</span>
+          <span class="text-xs font-bold">Plus</span>
+          <span id="plusNotifBadgeDesktop" class="hidden px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
         </button>
       </div>
 
-      <!-- Solde épuré + Profil -->
-      <div class="flex items-center gap-2">
-        <button onclick="openFriendsModal()" class="flex xl:hidden items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Amis">
-          <span>👥</span> <span class="hidden sm:inline">Amis</span>
-        </button>
-        <button onclick="openNotificationsModal()" id="nav-notifications-mobile" class="relative flex xl:hidden items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 rounded-full px-2.5 py-1.5 text-xs font-bold transition" title="Centre de Notifications">
-          <span>🔔</span>
-          <span id="notifBadgeMobile" class="hidden px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
-        </button>
-
-        <!-- Bouton Paramètres Son & Volume -->
-        <button onclick="openSoundModal()" class="flex items-center gap-1.5 bg-stone-900/95 hover:bg-stone-800 border border-white/20 rounded-full px-2.5 py-1.5 text-xs font-bold text-stone-200 transition shadow-inner" title="Réglage du Volume Sonore">
-          <span id="topSoundIcon">🔊</span>
-          <span id="topSoundVolText" class="hidden sm:inline font-mono-num text-[11px] text-amber-300">50%</span>
+      <!-- Solde épuré + Profil (et Plus sur smartphone en haut à gauche) -->
+      <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+        <!-- Bouton Plus Mobile (remplace Son, Amis et Notifications en haut à gauche) -->
+        <button onclick="togglePlusMenu(event)" id="btn-plus-mobile" class="relative flex xl:hidden items-center gap-1.5 bg-stone-900/95 hover:bg-stone-800 border border-white/20 rounded-full px-3 py-1.5 text-xs font-extrabold text-stone-200 transition shadow-inner active:scale-95 cursor-pointer select-none" title="Menu Plus">
+          <span class="text-sm leading-none font-black tracking-wider">•••</span>
+          <span class="text-xs font-bold">Plus</span>
+          <span id="plusNotifBadgeMobile" class="hidden px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
         </button>
 
-        <div class="flex items-center gap-1.5 bg-stone-900/95 border border-amber-500/40 rounded-full px-3.5 py-1.5 shadow-inner">
-          <span class="coin-slot"></span>
-          <span id="topBalance" class="font-mono-num font-extrabold text-amber-200 text-xs sm:text-sm">5 500</span>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-stone-900/95 border border-amber-500/40 rounded-full px-3.5 py-1.5 shadow-inner">
+            <span class="coin-slot"></span>
+            <span id="topBalance" class="font-mono-num font-extrabold text-amber-200 text-xs sm:text-sm">5 500</span>
+          </div>
+
+          <button onclick="openProfileModal()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/15 rounded-full px-2.5 py-1.5 transition">
+            <div id="topAvatar" class="w-6 h-6 rounded-full bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center">Y</div>
+            <span id="topUsername" class="text-xs font-bold text-white max-w-[80px] truncate">YSTROZ</span>
+          </button>
         </div>
-
-        <button onclick="openProfileModal()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/15 rounded-full px-2.5 py-1.5 transition">
-          <div id="topAvatar" class="w-6 h-6 rounded-full bg-emerald-600 text-black font-extrabold text-xs flex items-center justify-center">Y</div>
-          <span id="topUsername" class="text-xs font-bold text-white max-w-[80px] truncate">YSTROZ</span>
-        </button>
       </div>
     </div>
   </header>
@@ -1981,28 +1975,189 @@
   </div>
 
   <!-- ================================================================= -->
-  <!-- MODALE PARAMÈTRES SON & VOLUME CASINO                             -->
+  <!-- MENU DÉROULANT / TIROIR "PLUS" (MOBILE & PC)                      -->
   <!-- ================================================================= -->
-  <div id="soundModal" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
-    <div class="sound-modal-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-amber-400/30">
+  <div id="plusMenuBackdrop" class="fixed inset-0 z-[140] bg-black/60 backdrop-blur-sm hidden transition-opacity" onclick="closePlusMenu()"></div>
+  <div id="plusMenuDropdown" class="fixed z-[145] hidden transition-all duration-200 transform scale-95 opacity-0 select-none">
+    <div class="w-64 sm:w-72 rounded-3xl p-3 bg-stone-950/95 border border-white/15 backdrop-blur-xl shadow-2xl shadow-black/95 space-y-1">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-white/10 mb-1">
+        <div class="flex items-center gap-2">
+          <span class="text-base tracking-widest text-amber-300 font-black">•••</span>
+          <span class="font-serif-title font-bold text-sm text-amber-200">Menu Flambeur</span>
+        </div>
+        <button onclick="closePlusMenu()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-xs flex items-center justify-center transition">✕</button>
+      </div>
+
+      <!-- 1. Profil -->
+      <button onclick="handlePlusAction('profile')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">👤</span>
+          <span class="font-bold text-sm">Profil</span>
+        </div>
+        <span class="text-xs text-stone-500 group-hover:text-stone-300 transition">›</span>
+      </button>
+
+      <!-- 2. Amis -->
+      <button onclick="handlePlusAction('friends')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">👥</span>
+          <span class="font-bold text-sm">Amis</span>
+        </div>
+        <span id="plusFriendsCount" class="text-xs font-mono-num text-purple-300 bg-purple-500/20 border border-purple-400/30 px-2 py-0.5 rounded-full">0</span>
+      </button>
+
+      <!-- 3. Notifications -->
+      <button onclick="handlePlusAction('notifications')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">🔔</span>
+          <span class="font-bold text-sm">Notifications</span>
+        </div>
+        <span id="plusNotifBadgeMenu" class="hidden text-xs font-black text-white bg-rose-500 px-2 py-0.5 rounded-full animate-pulse">0</span>
+      </button>
+
+      <!-- 4. Succès (Pour une future mise à jour) -->
+      <button onclick="handlePlusAction('achievements')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">🏆</span>
+          <span class="font-bold text-sm">Succès</span>
+        </div>
+        <span class="text-[10px] uppercase font-extrabold text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">MàJ</span>
+      </button>
+
+      <!-- 5. Classement -->
+      <button onclick="handlePlusAction('leaderboard')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">🏅</span>
+          <span class="font-bold text-sm">Classement</span>
+        </div>
+        <span class="text-xs text-stone-500 group-hover:text-stone-300 transition">›</span>
+      </button>
+
+      <!-- 6. Paramètres (Son des jeux & volume) -->
+      <button onclick="handlePlusAction('settings')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-stone-200 hover:text-white hover:bg-white/10 transition group text-left border-t border-white/10 pt-3">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">⚙️</span>
+          <div>
+            <span class="font-bold text-sm block">Paramètres</span>
+            <span class="text-[10px] text-stone-400 font-medium">Son des jeux & volume</span>
+          </div>
+        </div>
+        <span id="plusSoundVolIndicator" class="text-xs font-mono-num text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">50%</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE SUCCÈS & TROPHÉES (POUR FUTURE MISE À JOUR)                -->
+  <!-- ================================================================= -->
+  <div id="achievementsModal" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-md rounded-3xl p-6 space-y-5 border border-amber-400/30 bg-stone-950/95 backdrop-blur-xl shadow-2xl text-center">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🏆</span>
+          <h3 class="font-serif-title font-extrabold text-base text-amber-300">Succès & Trophées</h3>
+        </div>
+        <button onclick="closeAchievementsModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+      </div>
+
+      <div class="w-16 h-16 mx-auto rounded-3xl bg-amber-500/20 border-2 border-amber-400/40 text-3xl flex items-center justify-center shadow-lg shadow-amber-500/10">
+        🏆
+      </div>
+
+      <div class="space-y-2">
+        <span class="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-extrabold uppercase tracking-wider">
+          🚀 Bientôt disponible
+        </span>
+        <h4 class="font-serif-title text-lg font-bold text-white pt-1">
+          Futur système de hauts faits
+        </h4>
+        <p class="text-stone-300 text-xs leading-relaxed max-w-sm mx-auto">
+          Cette fonctionnalité sera disponible dans une <strong>future mise à jour</strong> !
+        </p>
+        <p class="text-stone-400 text-xs leading-relaxed max-w-sm mx-auto pt-1">
+          Tu pourras débloquer des trophées exclusifs, des badges rares et des récompenses en pièces en accomplissant des défis au Poker, Blackjack, Crash, Gobelets et Machine à sous.
+        </p>
+      </div>
+
+      <div class="bg-black/50 border border-white/10 rounded-2xl p-4 text-left space-y-2.5">
+        <div class="flex items-center gap-3 text-xs text-stone-300">
+          <span class="text-base">🔒</span>
+          <span><strong>Maître des Cartes :</strong> Remporter 10 mains au Poker & Blackjack</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-stone-300">
+          <span class="text-base">🔒</span>
+          <span><strong>Fusée Stratosphérique :</strong> Cashout à plus de 10× au Crash</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-stone-300">
+          <span class="text-base">🔒</span>
+          <span><strong>Œil de Lynx :</strong> Série de 10 victoires consécutives aux Gobelets</span>
+        </div>
+      </div>
+
+      <button onclick="closeAchievementsModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
+        Compris !
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE CLASSEMENT GÉNÉRAL DES FLAMBEURS                          -->
+  <!-- ================================================================= -->
+  <div id="leaderboardModal" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-lg rounded-3xl p-6 space-y-4 border border-amber-400/30 bg-stone-950/95 backdrop-blur-xl shadow-2xl max-h-[85vh] flex flex-col">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <div class="flex items-center gap-2.5">
           <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xl flex items-center justify-center">
-            🔊
+            🏅
           </div>
           <div>
-            <h3 class="font-serif-title font-extrabold text-base text-amber-300">Paramètres Sonores</h3>
-            <p class="text-[11px] text-stone-400">Règle le volume des bruitages du casino</p>
+            <h3 class="font-serif-title font-extrabold text-base text-amber-300">Classement des Flambeurs</h3>
+            <p class="text-[11px] text-stone-400">Les plus gros comptes du casino anonyme</p>
           </div>
         </div>
-        <button onclick="closeSoundModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+        <button onclick="closeLeaderboardModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <div id="leaderboardModalList" class="divide-y divide-white/10 text-sm">
+          <!-- Rempli par renderLeaderboard() -->
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-white/10 flex gap-2">
+        <button onclick="closeLeaderboardModal(); switchRoom('cups');" class="flex-1 py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 text-xs font-bold transition">
+          🥤 Top Gobelets
+        </button>
+        <button onclick="closeLeaderboardModal()" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODALE PARAMÈTRES (MODIFIER LE SON DES JEUX & OPTIONS)            -->
+  <!-- ================================================================= -->
+  <div id="settingsModal" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div id="soundModal" class="sound-modal-card w-full max-w-md rounded-3xl p-6 space-y-5 border border-amber-400/30">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-xl flex items-center justify-center">
+            ⚙️
+          </div>
+          <div>
+            <h3 class="font-serif-title font-extrabold text-base text-amber-300">Paramètres</h3>
+            <p class="text-[11px] text-stone-400">Modifier le son des jeux & volume</p>
+          </div>
+        </div>
+        <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
       </div>
 
       <!-- Curseur de Volume Principal -->
       <div class="bg-black/50 border border-white/10 rounded-2xl p-4 space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-stone-300 flex items-center gap-2">
-            <span id="soundModalSpeakerIcon">🔊</span> Volume Général
+            <span id="soundModalSpeakerIcon">🔊</span> Volume des Jeux
           </span>
           <span id="soundModalVolPercent" class="font-mono-num font-extrabold text-sm text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2.5 py-0.5 rounded-full">50%</span>
         </div>
@@ -2019,13 +2174,13 @@
         <span class="text-[11px] uppercase tracking-wider font-extrabold text-stone-400">Tester les bruitages réalistes :</span>
         <div class="grid grid-cols-2 gap-2 text-xs font-bold">
           <button onclick="playPokerCardDealSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span>🃏</span> <span>Donne de carte</span>
+            <span>🃏</span> <span>Cartes & Poker</span>
           </button>
           <button onclick="playSlotMachineLeverSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span>🎰</span> <span>Levier & Roues</span>
+            <span>🎰</span> <span>Machine à sous</span>
           </button>
           <button onclick="playCupShuffleSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span>🥤</span> <span>Frottement gobelet</span>
+            <span>🥤</span> <span>Gobelets</span>
           </button>
           <button onclick="playCoinWinSound()" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
             <span>🪙</span> <span>Gain pièces</span>
@@ -2033,8 +2188,17 @@
         </div>
       </div>
 
+      <!-- Compte connecté -->
+      <div class="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-stone-400">Compte actif :</span>
+          <span id="settingsAccountName" class="font-extrabold text-white">YSTROZ</span>
+        </div>
+        <button onclick="openProfileModal(); closeSettingsModal();" class="text-amber-400 font-bold hover:underline">Modifier</button>
+      </div>
+
       <div class="pt-1">
-        <button onclick="closeSoundModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
+        <button onclick="closeSettingsModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
           Fermer & Enregistrer
         </button>
       </div>
@@ -2165,6 +2329,9 @@
       if (topIcon) topIcon.textContent = icon;
       if (topTxt) topTxt.textContent = `${pct}%`;
 
+      const plusSoundInd = document.getElementById('plusSoundVolIndicator');
+      if (plusSoundInd) plusSoundInd.textContent = vol === 0 ? 'Muet' : `${pct}%`;
+
       const modalIcon = document.getElementById('soundModalSpeakerIcon');
       const modalPct = document.getElementById('soundModalVolPercent');
       const modalSlider = document.getElementById('soundMasterRange');
@@ -2176,15 +2343,130 @@
       if (muteBtn) muteBtn.textContent = vol === 0 ? 'Activer le son' : 'Couper le son';
     }
 
-    function openSoundModal() {
+    /* ================= GESTION DES MODALES PARAMÈTRES / SON ================= */
+    function openSettingsModal() {
       updateSoundUI();
-      const modal = document.getElementById('soundModal');
+      const nameEl = document.getElementById('settingsAccountName');
+      if (nameEl) nameEl.textContent = state.username || 'Anonyme';
+      const modal = document.getElementById('settingsModal') || document.getElementById('soundModal');
       if (modal) modal.classList.remove('hidden');
     }
 
-    function closeSoundModal() {
-      const modal = document.getElementById('soundModal');
+    function closeSettingsModal() {
+      const modal = document.getElementById('settingsModal') || document.getElementById('soundModal');
       if (modal) modal.classList.add('hidden');
+    }
+
+    function openSoundModal() {
+      openSettingsModal();
+    }
+
+    function closeSoundModal() {
+      closeSettingsModal();
+    }
+
+    /* ================= MENU "PLUS" FLAMBEUR (PROFIL, AMIS, NOTIFS, SUCCÈS, CLASSEMENT, PARAMÈTRES) ================= */
+    let _isPlusMenuOpen = false;
+
+    function togglePlusMenu(event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      if (_isPlusMenuOpen) {
+        closePlusMenu();
+      } else {
+        openPlusMenu(event);
+      }
+    }
+
+    function openPlusMenu(event) {
+      _isPlusMenuOpen = true;
+      const dropdown = document.getElementById('plusMenuDropdown');
+      const backdrop = document.getElementById('plusMenuBackdrop');
+      if (!dropdown || !backdrop) return;
+
+      // Actualiser les informations dynamiques
+      const plusFriendsCount = document.getElementById('plusFriendsCount');
+      if (plusFriendsCount) {
+        const count = Array.isArray(state.friends) ? state.friends.length : 0;
+        plusFriendsCount.textContent = count;
+      }
+      updateSoundUI();
+      updateNotificationsBadge();
+
+      // Positionnement selon le bouton cliqué (Desktop ou Mobile)
+      const isDesktop = window.innerWidth >= 1280;
+      const triggerBtn = isDesktop ? document.getElementById('nav-plus-desktop') : document.getElementById('btn-plus-mobile');
+
+      if (triggerBtn) {
+        const rect = triggerBtn.getBoundingClientRect();
+        dropdown.style.top = `${Math.min(window.innerHeight - 380, Math.max(10, rect.bottom + 8))}px`;
+        if (isDesktop) {
+          dropdown.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, rect.left - 60))}px`;
+        } else {
+          dropdown.style.left = '12px';
+        }
+      } else {
+        dropdown.style.top = '60px';
+        dropdown.style.left = '12px';
+      }
+
+      backdrop.classList.remove('hidden');
+      dropdown.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        dropdown.classList.remove('scale-95', 'opacity-0');
+        dropdown.classList.add('scale-100', 'opacity-100');
+      });
+    }
+
+    function closePlusMenu() {
+      _isPlusMenuOpen = false;
+      const dropdown = document.getElementById('plusMenuDropdown');
+      const backdrop = document.getElementById('plusMenuBackdrop');
+      if (!dropdown || !backdrop) return;
+
+      dropdown.classList.remove('scale-100', 'opacity-100');
+      dropdown.classList.add('scale-95', 'opacity-0');
+      backdrop.classList.add('hidden');
+      setTimeout(() => {
+        if (!_isPlusMenuOpen) {
+          dropdown.classList.add('hidden');
+        }
+      }, 150);
+    }
+
+    function handlePlusAction(act) {
+      closePlusMenu();
+      setTimeout(() => {
+        if (act === 'profile') openProfileModal();
+        else if (act === 'friends') openFriendsModal();
+        else if (act === 'notifications') openNotificationsModal();
+        else if (act === 'achievements') openAchievementsModal();
+        else if (act === 'leaderboard') openLeaderboardModal();
+        else if (act === 'settings') openSettingsModal();
+      }, 100);
+    }
+
+    function openAchievementsModal() {
+      const m = document.getElementById('achievementsModal');
+      if (m) m.classList.remove('hidden');
+    }
+
+    function closeAchievementsModal() {
+      const m = document.getElementById('achievementsModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    function openLeaderboardModal() {
+      renderLeaderboard();
+      const m = document.getElementById('leaderboardModal');
+      if (m) m.classList.remove('hidden');
+    }
+
+    function closeLeaderboardModal() {
+      const m = document.getElementById('leaderboardModal');
+      if (m) m.classList.add('hidden');
     }
 
     function playCoinWinSound() {
@@ -4062,6 +4344,11 @@
           </div>
         `;
       }).join('');
+
+      const modalContainer = document.getElementById('leaderboardModalList');
+      if (modalContainer) {
+        modalContainer.innerHTML = container.innerHTML;
+      }
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
@@ -10324,15 +10611,15 @@
 
       const badgeD = document.getElementById('notifBadgeDesktop');
       const badgeM = document.getElementById('notifBadgeMobile');
+      const plusD = document.getElementById('plusNotifBadgeDesktop');
+      const plusM = document.getElementById('plusNotifBadgeMobile');
+      const plusMenu = document.getElementById('plusNotifBadgeMenu');
 
-      if (badgeD) {
-        badgeD.textContent = total;
-        badgeD.classList.toggle('hidden', total === 0);
-      }
-      if (badgeM) {
-        badgeM.textContent = total;
-        badgeM.classList.toggle('hidden', total === 0);
-      }
+      [badgeD, badgeM, plusD, plusM, plusMenu].forEach(b => {
+        if (!b) return;
+        b.textContent = total > 9 ? '9+' : total;
+        b.classList.toggle('hidden', total === 0);
+      });
 
       const countAll = document.getElementById('notifCountAll');
       const countGames = document.getElementById('notifCountGames');
@@ -10382,8 +10669,11 @@
 
       const dBadge = document.getElementById('notifBadgeDesktop');
       const mBadge = document.getElementById('notifBadgeMobile');
+      const plusD = document.getElementById('plusNotifBadgeDesktop');
+      const plusM = document.getElementById('plusNotifBadgeMobile');
+      const plusMenu = document.getElementById('plusNotifBadgeMenu');
 
-      [dBadge, mBadge].forEach(b => {
+      [dBadge, mBadge, plusD, plusM, plusMenu].forEach(b => {
         if (!b) return;
         if (total > 0) {
           b.textContent = total > 9 ? '9+' : total;
@@ -11524,6 +11814,26 @@
       updateCrashActionBtnText();
       syncCrashMultiplayer();
       drawCrashScene(false);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) closePlusMenu();
+        if (typeof closeAchievementsModal === 'function') closeAchievementsModal();
+        if (typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
+        if (typeof closeSettingsModal === 'function') closeSettingsModal();
+      }
+    });
+
+    window.addEventListener('click', (e) => {
+      if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) {
+        const dd = document.getElementById('plusMenuDropdown');
+        const btnM = document.getElementById('btn-plus-mobile');
+        const btnD = document.getElementById('nav-plus-desktop');
+        if (dd && !dd.contains(e.target) && (!btnM || !btnM.contains(e.target)) && (!btnD || !btnD.contains(e.target))) {
+          closePlusMenu();
+        }
+      }
     });
 
     window.addEventListener('beforeunload', () => {
