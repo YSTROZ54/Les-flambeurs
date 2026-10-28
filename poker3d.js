@@ -1090,7 +1090,7 @@ class Poker3DExperience {
     o.tableDepth = 2.7;
     o.railScale = 0.5;
     this.buildPokerTable();
-    o.railScale = 1;
+    o.railScale = 0.6;
     this.tableGroupPortrait = this.tableGroup;
     this.tableGroupPortrait.rotation.y = Math.PI / 2;
     this.tableGroupPortrait.visible = false;
@@ -1147,7 +1147,7 @@ class Poker3DExperience {
     this.tableGroup.add(ringLine);
 
     const woodRailShape = new THREE.Shape();
-    const rs = this.options.railScale || 1; // rebord plus fin sur la table verticale
+    const rs = this.options.railScale || 0.6; // rebord plus fin sur la table verticale
     const wrThickness = 0.18 * rs;
     const wrR = r + wrThickness;
     woodRailShape.moveTo(-straightLen / 2, wrR);
@@ -1193,8 +1193,8 @@ class Poker3DExperience {
     railOuterShape.holes.push(railHole);
 
     const railMesh = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.45, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
-      new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.35, metalness: 0.14 })
+      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.3, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
+      new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.8, metalness: 0.0 })
     );
     railMesh.rotation.x = -Math.PI / 2;
     railMesh.position.y = -0.04;
@@ -1606,8 +1606,8 @@ class Poker3DExperience {
   buildDealer() {
     const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true });
     dealer.scale.setScalar(0.62);
-    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    dealer.position.set(0, 0, -(outer + 0.4));
+    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
+    dealer.position.set(0, 0, -(outer + 0.5));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1623,8 +1623,8 @@ class Poker3DExperience {
   buildHeroFigure() {
     const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 });
     hero.scale.setScalar(0.62);
-    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    hero.position.set(0, 0, outer + 0.4);
+    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
+    hero.position.set(0, 0, outer + 0.5);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1705,13 +1705,13 @@ class Poker3DExperience {
     ];
     const SEAT_Y = 0;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
-    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
+    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
     this.seatedPlayers = [];
 
     this.thetas.forEach((theta, i) => {
       const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
-      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.4));
+      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.5));
       const sc = pos.z > 0 ? 0.5 : 0.62;
       const player = this.createSeatedPlayer(looks[i % looks.length], (-1.77 - SEAT_Y) / sc);
       player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
