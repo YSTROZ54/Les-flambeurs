@@ -1193,7 +1193,7 @@ class Poker3DExperience {
     railOuterShape.holes.push(railHole);
 
     const railMesh = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.14, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
+      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.45, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
       new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.35, metalness: 0.14 })
     );
     railMesh.rotation.x = -Math.PI / 2;
@@ -1336,7 +1336,7 @@ class Poker3DExperience {
   // Emplacements noirs des 5 cartes communes, zone du pot et bouton dealer (comme une vraie table)
   buildBoardSlots() {
     const grp = new THREE.Group();
-    const w = 0.5, l = 0.72, r = 0.05;
+    const w = 0.44, l = 0.64, r = 0.045;
     const rr = new THREE.Shape();
     rr.moveTo(-w / 2 + r, -l / 2);
     rr.lineTo(w / 2 - r, -l / 2); rr.quadraticCurveTo(w / 2, -l / 2, w / 2, -l / 2 + r);
@@ -1349,11 +1349,11 @@ class Poker3DExperience {
     for (let i = 0; i < 5; i++) {
       const slot = new THREE.Mesh(new THREE.ShapeGeometry(rr), fill);
       slot.rotation.x = -Math.PI / 2;
-      slot.position.set((i - 2) * 0.58, 0.004, 0.05);
+      slot.position.set((i - 2) * 0.5, 0.004, 0.05);
       grp.add(slot);
       const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
       edge.rotation.x = -Math.PI / 2;
-      edge.position.set((i - 2) * 0.58, 0.006, 0.05);
+      edge.position.set((i - 2) * 0.5, 0.006, 0.05);
       grp.add(edge);
     }
     // zone du pot devant le croupier
@@ -1510,7 +1510,7 @@ class Poker3DExperience {
   }
 
   // Un joueur assis, de face vers +Z local. Retourne le groupe (origine = centre de l'assise).
-  createSeatedPlayer(look) {
+  createSeatedPlayer(look, floorLocal = -2.85) {
     const std = (color, rough = 0.7, metal = 0.02) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
     const skin = std(look.skin, 0.55);
     const shirt = std(look.shirt, 0.65);
@@ -1525,15 +1525,16 @@ class Poker3DExperience {
     back.position.set(0, 0.8, -0.62);
     // Pied de chaise : colonne + base à 5 branches avec roulettes (le sol est à y = -1.47 en local)
     const metal = std(0x15151a, 0.35, 0.55);
-    const stem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.3, 14), metal));
-    stem.position.y = -0.72;
+    const stemLen = -0.06 - floorLocal;
+    const stem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, stemLen, 14), metal));
+    stem.position.y = -0.06 - stemLen / 2;
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2 + 0.3;
       const leg = add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.09), metal));
-      leg.position.set(Math.cos(a) * 0.31, -1.38, Math.sin(a) * 0.31);
+      leg.position.set(Math.cos(a) * 0.31, floorLocal + 0.09, Math.sin(a) * 0.31);
       leg.rotation.y = -a;
       const wheel = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), metal));
-      wheel.position.set(Math.cos(a) * 0.6, -1.42, Math.sin(a) * 0.6);
+      wheel.position.set(Math.cos(a) * 0.6, floorLocal + 0.07, Math.sin(a) * 0.6);
     }
 
     // Buste (se balance légèrement quand le joueur respire)
@@ -1606,7 +1607,7 @@ class Poker3DExperience {
     const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true });
     dealer.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    dealer.position.set(0, -0.3, -(outer + 0.4));
+    dealer.position.set(0, 0, -(outer + 0.4));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1623,7 +1624,7 @@ class Poker3DExperience {
     const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 });
     hero.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    hero.position.set(0, -0.3, outer + 0.4);
+    hero.position.set(0, 0, outer + 0.4);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1702,7 +1703,7 @@ class Poker3DExperience {
       { skin: 0xd9a066, shirt: 0x0f4c81, hair: 0x6b4423 },
       { skin: 0xf0c8a0, shirt: 0x111827, hair: 0xb89547 }
     ];
-    const SEAT_Y = -0.3;
+    const SEAT_Y = 0;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
     const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
     this.seatedPlayers = [];
@@ -1711,7 +1712,8 @@ class Poker3DExperience {
       const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
       const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.4));
-      const player = this.createSeatedPlayer(looks[i % looks.length]);
+      const sc = pos.z > 0 ? 0.5 : 0.62;
+      const player = this.createSeatedPlayer(looks[i % looks.length], (-1.77 - SEAT_Y) / sc);
       player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
       player.position.set(pos.x, SEAT_Y, pos.z);
       player.rotation.y = Math.atan2(c.x - pos.x, c.z - pos.z);
@@ -2639,7 +2641,7 @@ class Poker3DExperience {
       this.camera.position.copy(pos);
       this.camera.lookAt(pos.clone().add(dir));
       // remonte l'image : le panneau d'actions occupe le bas de l'écran sur PC
-      this.camera.setViewOffset(width, height, 0, Math.round(height * 0.09), width, height);
+      this.camera.setViewOffset(width, height, 0, Math.round(height * 0.03), width, height);
     }
     this.handWidget = !this.portraitMode && width >= 1000;
 
@@ -2709,8 +2711,8 @@ class Poker3DExperience {
         m.position.z = P.boardZ;
       } else {
         // PC : grandes cartes posées dans leurs emplacements
-        m.scale.setScalar(1.3);
-        m.position.x = (i - 2) * 0.58;
+        m.scale.setScalar(1.12);
+        m.position.x = (i - 2) * 0.5;
         m.position.z = 0.05;
       }
     });
