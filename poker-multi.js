@@ -431,7 +431,24 @@
     .pm-pcard.red { color:#dc2626; }
     .pm-pcard .rk { position:absolute; top:3px; left:5px; }
     .pm-pcard.empty { background:rgba(255,255,255,.06); border:1px dashed rgba(255,255,255,.25); box-shadow:none; }
-    @media (min-width: 768px) { #pmCards { display:none !important; } }
+    /* les cartes se jouent directement sur la table 3D : plus de doublon en HTML */
+    #pmCards { display:none !important; }
+    @media (max-width: 480px) {
+      /* HUD du haut compact : tout tient sur une ligne, boutons visibles */
+      #headerTableFormatTag, #headerTableFormatTag + span { display:none; }
+      .poker-hud-overlay span.text-base, .poker-hud-overlay span.animate-pulse { display:none; }
+      .poker-hud-overlay .hud-interactive { padding-left:.6rem; padding-right:.6rem; }
+      .poker-hud-overlay .hud-interactive button { padding-left:.5rem; padding-right:.5rem; }
+      .poker-hud-overlay .hud-interactive.flex { gap:.3rem; }
+      #headerBlindTag { white-space:nowrap; font-size:10px; }
+      #potCenterDisplay { white-space:nowrap; }
+      #tablePhaseDisplay { font-size:10px; white-space:nowrap; max-width:80px; overflow:hidden; text-overflow:ellipsis; }
+    }
+    @media (max-width: 767px) {
+      #pmReadyBox { top:47%; gap:.3rem; width:92%; }
+      #pmReadyBtn { padding:.55rem 1.3rem; font-size:.85rem; }
+      #pmReadyHint { font-size:.7rem; }
+    }
     @media (max-width: 767px) { .poker-hud-overlay { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)) !important; } }
     .pm-seg.on { border-color:#fbbf24; background:rgba(245,158,11,.2); color:#fcd34d; }
   `;

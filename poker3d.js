@@ -1411,6 +1411,19 @@ class Poker3DExperience {
     overlay.innerHTML = '';
     this.htmlNameplateElements = [];
 
+    // Plaques compactes en portrait : deux plaques tiennent côte à côte sur 360 px
+    if (!document.getElementById('pk-compact-css')) {
+      const st = document.createElement('style');
+      st.id = 'pk-compact-css';
+      st.textContent = `
+        .pk-compact { padding: 3px 7px !important; gap: 5px !important; }
+        .pk-compact .bot-avatar-box { display: none !important; }
+        .pk-compact .bot-name { font-size: 12px !important; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
+        .pk-compact .bot-status { font-size: 10px !important; }
+        .pk-compact .bot-stack { font-size: 13px !important; }`;
+      document.head.appendChild(st);
+    }
+
     const botProfiles = [
       { name: 'Viper (Bot)', avatar: '🐍' },
       { name: 'Le Baron (Bot)', avatar: '🎩' },
@@ -1424,6 +1437,7 @@ class Poker3DExperience {
       el.id = `botNameplate-${i}`;
       el.className = 'absolute pointer-events-none flex items-center gap-1.5 sm:gap-2 bg-[#0c0d14]/95 border border-amber-500/40 rounded-xl px-2 sm:px-2.5 py-1 sm:py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md whitespace-nowrap transition-transform duration-75';
       el.style.transform = 'translate(-50%, -100%)';
+      el.style.width = 'max-content'; // largeur indépendante de la position (pas d'écrasement près des bords)
       el.style.left = '0px';
       el.style.top = '0px';
 
@@ -1461,16 +1475,28 @@ class Poker3DExperience {
         continue;
       }
 
-      const anchor = this.botAnchors3D[i];
+      let anchor = this.botAnchors3D[i];
+      if (this.portraitMode) {
+        // Portrait : plaques alignées au-dessus du tapis, hors des cartes communes
+        // [côté gauche -1 / centre 0 / droite 1, profondeur z] : une rangée par plaque
+        const slots = [[-1, -0.9], [-1, -1.4], [0, -1.9], [1, -1.4], [1, -0.9]];
+        const s = slots[i] || [0, -1.9];
+        anchor = new THREE.Vector3(s[0] * 1.25, 0.05, s[1]);
+      }
       const v = anchor.clone().project(this.camera);
       if (v.z > 1) {
         el.style.display = 'none';
         continue;
       }
       el.style.display = 'flex';
+      el.classList.toggle('pk-compact', !!this.portraitMode);
 
       // Arrondi strict à l'entier avec Math.round pour éradiquer le flou de sous-pixel
-      const screenX = Math.round((v.x * 0.5 + 0.5) * width);
+      let screenX = Math.round((v.x * 0.5 + 0.5) * width);
+      if (this.portraitMode) {
+        const half = Math.ceil((el.offsetWidth || 150) / 2) + 4;
+        screenX = Math.max(half, Math.min(width - half, screenX));
+      }
       const screenY = Math.round((-v.y * 0.5 + 0.5) * height);
 
       el.style.left = `${screenX}px`;
@@ -2136,18 +2162,19 @@ class Poker3DExperience {
     const aspect = width / height;
     this.camera.aspect = aspect;
 
-    if (aspect < 0.85) {
-      // Écrans verticaux étroits (Portrait Smartphone) :
-      // Recul et élévation dynamique pour que toute la largeur de la table ovale
-      // et les Nameplates latérales (Viper à gauche et Kaiser à droite) rentrent parfaitement
-      const t = Math.max(0, Math.min(1, (0.85 - aspect) / 0.45)); // Facteur d'étroitesse
-      const posY = 5.8 + t * 2.2; // 5.8 à 8.0
-      const posZ = 5.2 + t * 2.0; // 5.2 à 7.2
-      const fov = 68 + t * 8;     // 68 à 76
+    this.portraitMode = aspect < 0.85;
 
+    if (this.portraitMode) {
+      // Portrait smartphone : caméra presque à la verticale, resserrée sur les cartes
+      // (cartes communes + main du joueur). Les plaques des adversaires sont ramenées
+      // au-dessus du tapis (voir updateHTMLNameplatesPosition).
+      const fov = 50;
+      const halfW = 1.5; // demi-largeur visible au niveau du tapis
+      const dist = halfW / (aspect * Math.tan((fov / 2) * Math.PI / 180));
+      const tilt = 0.3;  // inclinaison depuis la verticale (rad)
       this.camera.fov = fov;
-      this.camera.position.set(0, posY, posZ);
-      this.camera.lookAt(0, 0.2, 0.25);
+      this.camera.position.set(0, dist * Math.cos(tilt), 0.25 + dist * Math.sin(tilt));
+      this.camera.lookAt(0, 0, 0.25);
     } else {
       // PC & Mode Paysage
       this.camera.fov = 46;
@@ -2155,7 +2182,27 @@ class Poker3DExperience {
       this.camera.lookAt(0, 0.25, 0.15);
     }
 
+    this.applyCardLayout(this.portraitMode);
     this.camera.updateProjectionMatrix();
+  }
+
+  // Cartes de la table plus grandes en portrait (mises en page distinctes bureau / téléphone)
+  applyCardLayout(portrait) {
+    const key = portrait ? 'p' : 'd';
+    if (this._cardLayout === key) return;
+    this._cardLayout = key;
+    const boardScale = portrait ? 1.3 : 1;
+    const spacing = portrait ? 0.56 : 0.44;
+    (this.communityCardMeshes || []).forEach((m, i) => {
+      m.scale.setScalar(boardScale);
+      m.position.x = (i - 2) * spacing;
+    });
+    const heroScale = portrait ? 1.3 : 1;
+    const heroX = portrait ? 0.4 : 0.22;
+    (this.heroCards || []).forEach((m, i) => {
+      m.scale.setScalar(heroScale);
+      m.position.x = i === 0 ? -heroX : heroX;
+    });
   }
 
   handleResize() {
@@ -2164,8 +2211,8 @@ class Poker3DExperience {
 
     this.updateCameraForDevice(width, height);
     if (this.renderer) {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 768 ? 3 : 2));
       this.renderer.setSize(width, height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
     this.updateHTMLNameplatesPosition();
   }
