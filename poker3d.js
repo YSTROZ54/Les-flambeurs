@@ -1443,9 +1443,10 @@ class Poker3DExperience {
         .pk-compact .bot-avatar-box { display: none !important; }
         .pk-compact { border-radius: 10px !important; }
         .pk-compact > div > div:first-child { flex-direction: column; align-items: flex-start; gap: 0 !important; }
-        .pk-compact .bot-name { font-size: 11px !important; max-width: 86px; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
-        .pk-compact .bot-status { font-size: 9px !important; max-width: 86px; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
-        .pk-compact .bot-stack { font-size: 12px !important; line-height: 1.2; }`;
+        .pk-compact { padding: 2px 6px !important; border-radius: 8px !important; }
+        .pk-compact .bot-name { font-size: 10px !important; max-width: 70px; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+        .pk-compact .bot-status { font-size: 8px !important; max-width: 70px; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+        .pk-compact .bot-stack { font-size: 10px !important; line-height: 1.15; }`;
       document.head.appendChild(st);
     }
 
