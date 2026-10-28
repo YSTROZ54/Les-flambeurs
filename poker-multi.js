@@ -444,6 +444,9 @@
       #potCenterDisplay { white-space:nowrap; }
       #tablePhaseDisplay { font-size:10px; white-space:nowrap; max-width:62px; overflow:hidden; text-overflow:ellipsis; }
     }
+    @media (max-width: 380px) {
+      .poker-hud-overlay .hud-interactive:has(> #headerBlindTag) { display:none; }
+    }
     @media (max-width: 767px) {
       #pmReadyBox { top:47%; gap:.3rem; width:92%; }
       #pmReadyBtn { padding:.55rem 1.3rem; font-size:.85rem; }
