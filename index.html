@@ -10509,6 +10509,8 @@
         bj.active = true;
         bj.turn = 'player';
         bj.deck = createDeck();
+        bj.dealer = [];   // nouvelle manche : le croupier repart d'une main vide
+        bj.player = [];
         const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
         if (bjLuck > 55 && Math.random() * 100 < ((bjLuck - 45) * 1.5)) {
           // Main avantagée pour le joueur
