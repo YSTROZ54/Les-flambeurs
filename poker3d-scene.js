@@ -446,7 +446,7 @@
   /* ------------------------------------------------------------------------ */
   P.buildRoom = function () {
     const room = new THREE.Group();
-    const FLOOR = -1.77;
+    const FLOOR = -1.2;
     const R = 12;                 // rayon du mur
     const H = 7.6;                // hauteur du mur
     const TWO_PI = Math.PI * 2;

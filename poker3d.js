@@ -1075,7 +1075,7 @@ class Poker3DExperience {
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x070709, roughness: 0.95 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.8;
+    floor.position.y = -1.23;
     floor.receiveShadow = true;
     this.scene.add(floor);
   }
@@ -1203,9 +1203,9 @@ class Poker3DExperience {
     skirtOuter.lineTo(-straightLen / 2, -skR);
     skirtOuter.absarc(-straightLen / 2, 0, skR, -Math.PI / 2, Math.PI / 2, true);
     const skirtMat = new THREE.MeshStandardMaterial({ color: 0x1b100a, roughness: 0.5, metalness: 0.08 });
-    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 1.76, bevelEnabled: false }), skirtMat);
+    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 1.19, bevelEnabled: false }), skirtMat);
     skirt.rotation.x = -Math.PI / 2;
-    skirt.position.y = -1.77;
+    skirt.position.y = -1.2;
     skirt.castShadow = true;
     skirt.receiveShadow = true;
     this.tableGroup.add(skirt);
@@ -1217,12 +1217,12 @@ class Poker3DExperience {
     this.tableGroup.add(band);
 
     const pedMat = new THREE.MeshStandardMaterial({ color: 0x0f0b09, roughness: 0.45, metalness: 0.25 });
-    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.0, 1.0, 36), pedMat);
-    pedestal.position.y = -1.3;
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.0, 0.6, 36), pedMat);
+    pedestal.position.y = -0.9;
     pedestal.castShadow = true;
     this.tableGroup.add(pedestal);
     const baseDisc = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 2.1, 0.12, 48), pedMat);
-    baseDisc.position.y = -1.7;
+    baseDisc.position.y = -1.14;
     baseDisc.receiveShadow = true;
     this.tableGroup.add(baseDisc);
 
@@ -1504,7 +1504,7 @@ class Poker3DExperience {
   // Proportions réalistes : un joueur fait environ 0.9 unité d'échelle (la table paraît ainsi à sa vraie taille)
   figureFit(scale) {
     const seatY = 0.21 - 0.72 * scale; // les mains tombent exactement sur le boudin
-    return { seatY, floorLocal: (-1.77 - seatY) / scale };
+    return { seatY, floorLocal: (-1.2 - seatY) / scale };
   }
 
   // Le croupier : au bout de la table, face à la caméra, avec un geste de distribution
