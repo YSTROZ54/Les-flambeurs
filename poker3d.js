@@ -981,6 +981,7 @@ class Poker3DExperience {
     this.buildHeroCards();
     this.buildCommunityCards();
     this.buildOpponentsSeats();
+    this.buildSeatedPlayers();
     this.buildCenterPotChips();
     this.setupHTMLNameplates();
     this.setupEventListeners();
@@ -1378,6 +1379,131 @@ class Poker3DExperience {
     });
   }
 
+  /* ------------------------------------------------------------------------- */
+  /* JOUEURS ASSIS AUTOUR DE LA TABLE (PC UNIQUEMENT POUR L'INSTANT)           */
+  /* ------------------------------------------------------------------------- */
+  // Cylindre entre deux points (bras)
+  makeLimb(a, b, radius, mat) {
+    const dir = new THREE.Vector3().subVectors(b, a);
+    const len = dir.length();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.88, len, 14), mat);
+    mesh.position.copy(a).addScaledVector(dir, 0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    mesh.castShadow = true;
+    return mesh;
+  }
+
+  // Un joueur assis, de face vers +Z local. Retourne le groupe (origine = centre de l'assise).
+  createSeatedPlayer(look) {
+    const std = (color, rough = 0.7, metal = 0.02) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+    const skin = std(look.skin, 0.55);
+    const shirt = std(look.shirt, 0.65);
+    const hairMat = std(look.hair, 0.45);
+    const dark = std(0x16161c, 0.5);
+    const g = new THREE.Group();
+    const add = (mesh, parent = g) => { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; };
+
+    // Chaise : assise ronde + dossier arrondi
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 28), std(0x2a1d14, 0.4, 0.1)));
+    const back = add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.4, 0.14), std(0x2a1d14, 0.4, 0.1)));
+    back.position.set(0, 0.8, -0.62);
+
+    // Buste (se balance légèrement quand le joueur respire)
+    const upper = new THREE.Group();
+    upper.position.set(0, 0.06, -0.08);
+    g.add(upper);
+    const torso = add(new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.4, 1.0, 24), shirt), upper);
+    torso.position.y = 0.55;
+    torso.scale.z = 0.72;
+    const shoulders = add(new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 14), shirt), upper);
+    shoulders.position.y = 1.02;
+    shoulders.scale.set(1.05, 0.42, 0.72);
+    const neck = add(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.22, 14), skin), upper);
+    neck.position.y = 1.2;
+    // Col de chemise
+    const collar = add(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.045, 8, 20), std(0xf5f5f4, 0.6)), upper);
+    collar.position.y = 1.14;
+    collar.rotation.x = Math.PI / 2;
+
+    // Tête
+    const head = new THREE.Group();
+    head.position.set(0, 1.52, 0.03);
+    upper.add(head);
+    const skull = add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 20), skin), head);
+    skull.scale.set(0.95, 1.12, 1);
+    const hair = add(new THREE.Mesh(new THREE.SphereGeometry(0.315, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat), head);
+    hair.position.set(0, 0.03, -0.02);
+    hair.scale.set(0.97, 1.12, 1.02);
+    const nose = add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), skin), head);
+    nose.position.set(0, -0.02, 0.3);
+    [-1, 1].forEach((s) => {
+      const eye = add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), dark), head);
+      eye.position.set(s * 0.1, 0.05, 0.27);
+      const ear = add(new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), skin), head);
+      ear.position.set(s * 0.29, -0.01, 0);
+    });
+
+    // Bras : épaule -> coude -> main posée sur le rebord
+    [-1, 1].forEach((s) => {
+      const shoulder = new THREE.Vector3(s * 0.52, 1.02, -0.08);
+      const elbow = new THREE.Vector3(s * 0.62, 0.62, 0.3);
+      const hand = new THREE.Vector3(s * 0.34, 0.72, 0.78);
+      g.add(this.makeLimb(shoulder, elbow, 0.12, shirt));
+      g.add(this.makeLimb(elbow, hand, 0.1, shirt));
+      const h = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 10), skin));
+      h.position.copy(hand);
+    });
+
+    g.userData = { upper, head };
+    return g;
+  }
+
+  buildSeatedPlayers() {
+    // look : teint, chemise, cheveux (un style par adversaire)
+    const looks = [
+      { skin: 0xe0ac86, shirt: 0x1f6f50, hair: 0x2b1b12 },
+      { skin: 0xf1c9a5, shirt: 0x6d28d9, hair: 0x111111 },
+      { skin: 0x8d5a3b, shirt: 0xb91c1c, hair: 0x0f0f0f },
+      { skin: 0xd9a066, shirt: 0x0f4c81, hair: 0x6b4423 },
+      { skin: 0xf0c8a0, shirt: 0x111827, hair: 0xb89547 }
+    ];
+    const SEAT_Y = -0.3;
+    const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
+    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
+    this.seatedPlayers = [];
+
+    this.thetas.forEach((theta, i) => {
+      const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
+      const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
+      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.55));
+      const player = this.createSeatedPlayer(looks[i % looks.length]);
+      player.scale.setScalar(0.62);
+      player.position.set(pos.x, SEAT_Y, pos.z);
+      player.rotation.y = Math.atan2(c.x - pos.x, c.z - pos.z);
+      player.userData.phase = i * 1.7;
+      this.scene.add(player);
+      this.seatedPlayers.push(player);
+    });
+    this.updateSeatedPlayersVisibility();
+  }
+
+  // Visibles seulement sur grand écran et pour les sièges en jeu
+  updateSeatedPlayersVisibility() {
+    (this.seatedPlayers || []).forEach((p, i) => {
+      p.visible = !this.portraitMode && (this.activeBotIndices || []).includes(i);
+    });
+  }
+
+  animateSeatedPlayers(time) {
+    (this.seatedPlayers || []).forEach((p) => {
+      if (!p.visible) return;
+      const t = time + p.userData.phase;
+      p.userData.upper.scale.y = 1 + Math.sin(t * 1.6) * 0.012;
+      p.userData.head.rotation.y = Math.sin(t * 0.5) * 0.18;
+      p.userData.head.rotation.x = Math.sin(t * 0.37) * 0.05;
+    });
+  }
+
   buildCenterPotChips() {
     this.centerPotGroup = new THREE.Group();
     this.scene.add(this.centerPotGroup);
@@ -1401,6 +1527,7 @@ class Poker3DExperience {
   // Sièges adverses visibles (indices 0 à 4 = joueurs 1 à 5)
   applySeatLayout(botIndices) {
     this.activeBotIndices = botIndices.slice();
+    this.updateSeatedPlayersVisibility();
 
     // Afficher ou masquer les éléments 3D et Nameplates selon le format
     for (let i = 0; i < 5; i++) {
@@ -2240,6 +2367,7 @@ class Poker3DExperience {
     this._cardLayout = key;
     const P = Poker3DExperience.PORTRAIT;
 
+    this.updateSeatedPlayersVisibility();
     if (this.tableGroup) this.tableGroup.visible = !portrait;
     if (this.tableGroupPortrait) this.tableGroupPortrait.visible = !!portrait;
 
@@ -2309,6 +2437,7 @@ class Poker3DExperience {
         this.spotLight.intensity = 3.8 + Math.sin(time * 1.5) * 0.08;
       }
 
+      this.animateSeatedPlayers(time);
       this.updateHTMLNameplatesPosition();
       this.renderer.render(this.scene, this.camera);
     };
