@@ -3558,6 +3558,21 @@
       return h;
     }
 
+    // le blackjack exige la connexion : on ajoute automatiquement le jeton aux appels POST vers /api/blackjack
+    (function installBlackjackAuth() {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        try {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (url.indexOf('/api/blackjack') !== -1 && init && String(init.method || 'GET').toUpperCase() === 'POST') {
+            const t = getAuthToken();
+            if (t) init = { ...init, headers: { ...(init.headers || {}), 'X-Auth-Token': t } };
+          }
+        } catch (e) {}
+        return nativeFetch(input, init);
+      };
+    })();
+
     let _lastAuthExpiredAt = 0;
     function handleAuthExpired() {
       // jeton absent ou expiré alors qu'on est connecté : on redemande le mot de passe (une fois)
@@ -6376,7 +6391,8 @@
           const leavePayload = JSON.stringify({
             action: 'leave',
             tableId: tableId,
-            username: state.username
+            username: state.username,
+            token: getAuthToken()
           });
           if (navigator.sendBeacon) {
             navigator.sendBeacon(getBjApiUrl(), new Blob([leavePayload], { type: 'application/json' }));

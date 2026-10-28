@@ -1,4 +1,5 @@
 // Vercel Serverless Function pour l'API /api/blackjack reliée à Supabase Cloud
+import { actorOf } from './_auth.js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
 
@@ -422,6 +423,16 @@ export default async function handler(req, res) {
 
     let modified = cleanInactiveTables(tables, now);
 
+    // toute action autre que la simple liste exige un joueur connecté, et il ne peut agir que pour lui-même
+    if (body.action !== 'list_tables') {
+      const actor = actorOf(req, body);
+      if (!actor) return res.status(401).json({ ok: false, error: 'Connexion requise.' });
+      if (body.username && String(body.username).toLowerCase().trim() !== actor) {
+        return res.status(403).json({ ok: false, error: 'Tu ne peux jouer que pour toi.' });
+      }
+      if (!body.username) body.username = actor;
+    }
+
     // Endpoint list_tables en POST
     if (body.action === 'list_tables') {
       const publicSummaries = [1, 2, 3, 4, 5].map(num => {
@@ -682,12 +693,6 @@ export default async function handler(req, res) {
     // F. RESET / NOUVELLE PARTIE
     else if (action === 'reset') {
       table = getDefaultTable(tableId);
-      tables[tableId] = table;
-    }
-
-    // G. FUSION COMPLETE ENVOYEE PAR UN CLIENT
-    else if (body.tableState && typeof body.tableState === 'object') {
-      table = { ...table, ...body.tableState, updatedAt: now };
       tables[tableId] = table;
     }
 
