@@ -1526,32 +1526,21 @@
         </div>
       </div>
 
-      <!-- Accueil : créer ou rejoindre un salon -->
-      <div id="btHome" class="grid md:grid-cols-2 gap-4">
-        <div class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border border-fuchsia-500/40 space-y-3">
-          <h3 class="font-serif-title text-xl font-extrabold text-fuchsia-100">✨ Créer un salon</h3>
-          <p class="text-xs text-stone-300 leading-relaxed">Tu règles le mode, le type d'images et la difficulté, puis tu partages le code à tes amis. <strong class="text-emerald-300">Jouer est gratuit.</strong></p>
-          <button onclick="btCreate()" class="w-full py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-sm transition shadow-lg active:scale-95">✨ Créer un salon</button>
-        </div>
-        <div class="rounded-2xl p-6 bg-stone-950/90 border border-white/10 space-y-3">
-          <h3 class="font-serif-title text-xl font-extrabold text-white">🚪 Rejoindre un salon</h3>
-          <p class="text-xs text-stone-300">Entre le code à 4 lettres donné par le chef du salon.</p>
-          <input id="btJoinCode" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" onkeydown="if(event.key==='Enter')btJoin()" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-3 text-center text-2xl font-scifi tracking-[0.5em] uppercase text-white focus:outline-none focus:border-fuchsia-400">
-          <button onclick="btJoin()" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-sm transition active:scale-95">🚪 Rejoindre</button>
-        </div>
-        <div class="md:col-span-2 text-xs text-stone-400 leading-relaxed" id="btHomeNote"></div>
+      <!-- Accueil : les trois salons ouverts à tous (identiques) -->
+      <div id="btHome" class="space-y-4">
+        <div class="grid md:grid-cols-3 gap-4" id="btRooms"></div>
+        <div class="text-xs text-stone-400 leading-relaxed" id="btHomeNote"></div>
       </div>
 
       <!-- Salon d'attente -->
       <div id="btLobby" class="hidden space-y-4">
         <div class="rounded-2xl p-4 bg-stone-950/90 border border-fuchsia-500/30 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div class="text-[11px] uppercase tracking-wider text-stone-400">Code du salon</div>
-            <div id="btCodeBig" class="font-scifi text-4xl tracking-[0.3em] text-fuchsia-300">----</div>
+            <div class="text-[11px] uppercase tracking-wider text-stone-400">Tu es dans</div>
+            <div id="btCodeBig" class="font-scifi text-3xl text-fuchsia-300">Salon</div>
           </div>
           <div class="flex gap-2">
-            <button onclick="btCopyCode()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white">📋 Copier le code</button>
-            <button onclick="btLeave()" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-xs font-bold text-rose-200">🚪 Quitter</button>
+            <button onclick="btLeave()" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-xs font-bold text-rose-200">🚪 Quitter le salon</button>
           </div>
         </div>
         <div class="grid lg:grid-cols-3 gap-4">
@@ -1608,7 +1597,10 @@
             <span id="btModeLabel" class="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-stone-300"></span>
           </div>
           <div id="btRewardLabel" class="text-xs text-amber-300"></div>
-          <div id="btTimerText" class="font-mono-num text-2xl font-extrabold text-white">20</div>
+          <div class="flex items-center gap-3">
+            <button onclick="btLeave()" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-xs font-bold text-rose-200 active:scale-95">🚪 Quitter la partie</button>
+            <div id="btTimerText" class="font-mono-num text-2xl font-extrabold text-white">20</div>
+          </div>
         </div>
         <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div id="btTimerBar" class="h-full bg-gradient-to-r from-fuchsia-500 to-pink-400" style="width:100%"></div></div>
         <div class="grid lg:grid-cols-3 gap-3">
@@ -5224,6 +5216,9 @@
         if (prevRoom === 'poker' && window.pokerExp) {
           try { window.pokerExp.pause(); } catch (e) {}
         }
+        if (prevRoom === 'blindtest' && typeof btOnExit === 'function') {
+          try { btOnExit(); } catch (e) {}
+        }
         if (['poker', 'blackjack'].includes(prevRoom)) {
           try { handlePlayerLeavingGame(prevRoom); } catch (e) {}
         }
@@ -5369,10 +5364,12 @@
         title: '🎬 Comment jouer au Blind Test ?',
         html: `
           <p>🎯 <strong>Le but :</strong> Retrouver le nom du film, du dessin animé ou de la série à partir d'une scène.</p>
-          <p>🚪 <strong>Salon :</strong> Crée un salon (gratuit) et donne le code à 4 lettres à tes amis, ou rejoins le leur. Le chef du salon choisit le mode, le type d'images, la difficulté et le nombre d'images (15 à 20).</p>
+          <p>🚪 <strong>Les salons :</strong> trois salons ouverts à tous, 6 joueurs maximum chacun. Le premier arrivé dans un salon vide en devient le chef : il choisit le mode, le type d'images, la difficulté et le nombre d'images (15 à 20), puis lance la partie. Jouer est gratuit.</p>
           <p>⚡ <strong>Deux modes :</strong> « Tous répondent » : tout le monde cherche pendant 20 secondes, chaque bonne réponse rapporte un point. « Le premier gagne » : le premier qui écrit le bon nom gagne le point et on passe à l'image suivante.</p>
-          <p>✍️ <strong>Écrire le nom :</strong> les accents, majuscules, tirets et numéros de suite ne comptent pas (Spider-Man 3 → « spider man »), mais il faut écrire le titre en entier (« Le Roi Lion », pas « Lion »). Si tu es tout près, un message te le dit !</p>
+          <p>✍️ <strong>Écrire le nom :</strong> les accents, majuscules, tirets et numéros de suite ne comptent pas (Spider-Man 3 → « spider man »), mais il faut écrire le titre en entier (« Le Roi Lion », pas « Lion »).</p>
+          <p>🔊 <strong>Les petits bruits :</strong> une sonnerie joyeuse = bonne réponse ; deux notes douces = tu n'es pas loin (un message te le dit aussi) ; un « bzzt » grave = raté.</p>
           <p>💰 <strong>Gains :</strong> 20 🪙 par image trouvée (en « Le premier gagne », seul le premier est payé), à partir de 2 joueurs. Seul, c'est de l'entraînement sans gains.</p>
+          <p>🚪 <strong>Quitter :</strong> avec le bouton « Quitter ». Fermer la page, changer de jeu ou verrouiller le téléphone te fait aussi quitter le salon (au bout de 45 secondes si ton appareil ne répond plus).</p>
         `
       }
     };
@@ -12479,10 +12476,11 @@
       }
     });
 
+
+
     /* ================= BLIND TEST D'IMAGES : MULTIJOUEUR, SERVEUR AUTORITAIRE (api/blindtest.js) =================
        Le serveur garde les réponses, le chrono et les points : ici on affiche seulement l'état reçu. */
-    const BT = { code: '', st: null, offset: 0, polling: false, sending: false, screen: '', shownRound: -1, shownPhase: '', imgSrc: '', hintTimer: null };
-    const BT_KEY = 'flambeurs_blindtest_code';
+    const BT = { code: '', st: null, offset: 0, polling: false, sending: false, screen: '', shownRound: -1, shownPhase: '', imgSrc: '', hintTimer: null, rooms: null, listPolling: false };
     const btEl = (id) => document.getElementById(id);
     const BT_ON = 'border-fuchsia-400 bg-fuchsia-500/20 text-white';
     const BT_OFF = 'border-white/10 bg-black/40 text-stone-300 hover:bg-white/10';
@@ -12507,41 +12505,92 @@
       if (typeof isUserLoggedIn === 'function' && !isUserLoggedIn()) { showToast('🔐 Connecte-toi pour jouer au Blind Test.'); return true; }
       return false;
     }
-    function btRemember(code) { BT.code = code || ''; try { if (code) sessionStorage.setItem(BT_KEY, code); else sessionStorage.removeItem(BT_KEY); } catch (e) {} }
     function btShow(screen) {
       BT.screen = screen;
       ['Home', 'Lobby', 'Game', 'End'].forEach((s) => { const e = btEl('bt' + s); if (e) e.classList.toggle('hidden', s.toLowerCase() !== screen); });
+      if (screen === 'home') btPollRooms();
     }
     function btReset(msg) {
-      btRemember(''); BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = '';
+      BT.code = ''; BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = '';
       btShow('home'); if (msg) showToast(msg);
     }
 
     function btOnEnter() {
       const bal = btEl('btBalance'); if (bal) bal.textContent = fmt(state.balance);
       const note = btEl('btHomeNote');
-      if (note) note.innerHTML = '💰 Chaque image trouvée rapporte <strong class="text-amber-300">20 🪙</strong> (en « Le premier gagne », seul le premier est payé). Les gains sont versés dès qu\'on joue à <strong>2 joueurs ou plus</strong> ; seul, c\'est un entraînement. Écris le titre en entier : les accents, majuscules, tirets et numéros de suite (Spider-Man 3 → « spider man ») ne comptent pas.';
-      if (!BT.code) { try { BT.code = sessionStorage.getItem(BT_KEY) || ''; } catch (e) {} }
-      if (BT.code) { btShow(BT.screen || 'lobby'); btPoll(); } else btShow('home');
+      if (note) note.innerHTML = '💰 Trois salons ouverts à tous (6 joueurs maximum chacun), <strong class="text-emerald-300">jouer est gratuit</strong>. Chaque image trouvée rapporte <strong class="text-amber-300">20 🪙</strong> (en « Le premier gagne », seul le premier est payé), dès qu\'on joue à <strong>2 joueurs ou plus</strong> ; seul, c\'est un entraînement. Écris le titre en entier : les accents, majuscules, tirets et numéros de suite (Spider-Man 3 → « spider man ») ne comptent pas. Quitter la page te fait quitter le salon.';
+      if (BT.code) btPoll(); else btShow('home');
     }
 
-    async function btCreate() {
-      if (btNeedLogin()) return;
-      const r = await btCall({ action: 'create' });
-      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de créer le salon.'));
-      btRemember(r.data.code); btApply(r.data.state);
+    // liste des trois salons (tous pareils)
+    async function btPollRooms() {
+      if (BT.listPolling) return;
+      BT.listPolling = true;
+      try {
+        const r = await fetch(btUrl(), { cache: 'no-store' });
+        const d = await r.json();
+        if (d.ok && Array.isArray(d.rooms)) { BT.rooms = d; btRenderRooms(); }
+      } catch (e) {} finally { BT.listPolling = false; }
     }
-    async function btJoin() {
-      if (btNeedLogin()) return;
-      const code = (btEl('btJoinCode').value || '').toUpperCase().replace(/[^A-Z]/g, '');
-      if (code.length !== 4) return showToast('⚠️ Entre le code à 4 lettres du salon.');
-      const r = await btCall({ action: 'join', code });
-      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de rejoindre.'));
-      btRemember(code); btApply(r.data.state);
+    function btRenderRooms() {
+      const box = btEl('btRooms'); if (!box || !BT.rooms) return;
+      box.innerHTML = BT.rooms.rooms.map((r) => {
+        const full = r.players >= r.max, busy = r.status === 'playing';
+        const label = r.players === 0 ? '🟢 Libre' : busy ? '🔴 Partie en cours' : full ? '🟠 Complet' : r.status === 'finished' ? '🏁 Partie terminée' : '🟡 En attente de joueurs';
+        const can = !busy && !full;
+        return '<div class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border border-fuchsia-500/40 space-y-3 text-center">'
+          + '<div class="text-3xl">🎬</div><h3 class="font-serif-title text-xl font-extrabold text-fuchsia-100">' + escapeHtml(r.name) + '</h3>'
+          + '<div class="font-mono-num text-2xl font-extrabold text-white">' + r.players + '<span class="text-stone-400">/' + r.max + '</span> <span class="text-sm text-stone-300">joueurs</span></div>'
+          + '<div class="text-xs text-stone-300">' + label + '</div>'
+          + '<button ' + (can ? '' : 'disabled ') + 'onclick="btJoinRoom(\'' + r.id + '\')" class="w-full py-3 rounded-xl ' + (can ? 'bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black' : 'bg-white/10 text-stone-500 cursor-not-allowed') + ' font-extrabold text-sm transition shadow-lg active:scale-95">' + (can ? '🚪 Rejoindre' : 'Indisponible') + '</button></div>';
+      }).join('');
     }
+
+    async function btJoinRoom(id) {
+      if (btNeedLogin()) return;
+      const r = await btCall({ action: 'join', code: id });
+      if (!r.ok) { btPollRooms(); return showToast('⚠️ ' + (r.data.error || 'Impossible de rejoindre.')); }
+      BT.code = id; BT.shownRound = -1; BT.shownPhase = ''; btApply(r.data.state);
+    }
+    // bouton « Quitter » : on quitte vraiment le salon (en partie, on demande confirmation)
     async function btLeave() {
+      const playing = BT.st && BT.st.status === 'playing';
+      if (playing && !window.confirm('Quitter la partie en cours ? Tu perdras ta place dans le salon.')) return;
       const code = BT.code; btReset();
       if (code) await btCall({ action: 'leave', code });
+    }
+    // on quitte la page du blind test (autre jeu, fermeture, rechargement) : on quitte le salon
+    function btSendLeave() {
+      const code = BT.code; if (!code) return;
+      BT.code = '';
+      const body = JSON.stringify({ action: 'leave', code, token: getAuthToken() });
+      try {
+        if (navigator.sendBeacon && window.location.protocol !== 'file:' && navigator.sendBeacon(btUrl(), new Blob([body], { type: 'application/json' }))) return;
+      } catch (e) {}
+      try { fetch(btUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }); } catch (e) {}
+    }
+    function btOnExit() { btSendLeave(); BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = ''; }
+    window.addEventListener('pagehide', btSendLeave);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && currentRoomKey === 'blindtest') { if (BT.code) btPoll(); else btPollRooms(); } });
+
+    /* ----- petits bruitages : bonne réponse, presque, mauvaise réponse ----- */
+    function btSound(kind) {
+      const vol = getMasterVolume(); if (vol <= 0) return;
+      try {
+        const ctx = getAudioCtx(); if (!ctx) return;
+        const t0 = ctx.currentTime;
+        const note = (freq, at, dur, type, gainMax, slideTo) => {
+          const osc = ctx.createOscillator(), g = ctx.createGain();
+          osc.type = type; osc.frequency.setValueAtTime(freq, t0 + at);
+          if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + at + dur);
+          g.gain.setValueAtTime(gainMax * vol, t0 + at); g.gain.exponentialRampToValueAtTime(0.001, t0 + at + dur);
+          osc.connect(g); g.connect(ctx.destination); osc.start(t0 + at); osc.stop(t0 + at + dur + 0.02);
+        };
+        if (kind === 'ok') { note(660, 0, 0.14, 'triangle', 0.2); note(880, 0.09, 0.14, 'triangle', 0.2); note(1318.5, 0.18, 0.3, 'triangle', 0.22); }
+        else if (kind === 'near') { note(523.25, 0, 0.12, 'sine', 0.2); note(440, 0.13, 0.22, 'sine', 0.2); }
+        else if (kind === 'bad') { note(190, 0, 0.28, 'sawtooth', 0.13, 110); }
+        else if (kind === 'start') { note(880, 0, 0.1, 'sine', 0.12); }
+      } catch (e) {}
     }
     async function btSetCfg(field, value) {
       if (!BT.st || !BT.st.you || !BT.st.you.host) return;
@@ -12583,10 +12632,13 @@
       if (r.ok && r.data.correct) {
         inp.value = '';
         btHint('✅ Bien joué !' + (r.data.reward ? ' +' + r.data.reward + ' 🪙' : ''), 'ok');
-        if (r.data.reward) { try { playCoinWinSound(); } catch (e2) {} showToast('🎉 +' + r.data.reward + ' 🪙 pour cette image !'); }
+        btSound('ok');
+        if (r.data.reward) { try { setTimeout(playCoinWinSound, 330); } catch (e2) {} showToast('🎉 +' + r.data.reward + ' 🪙 pour cette image !'); }
       } else if (r.ok) {
+        btSound(r.data.near ? 'near' : 'bad');
         btHint(r.data.hint || 'Ce n\'est pas ça.', r.data.near ? 'near' : 'bad'); inp.select();
       } else {
+        if (r.status !== 429) btSound('bad');
         btHint(r.data.error || 'Erreur.', 'bad');
         if (r.status === 404 || r.status === 410) btReset(r.data.error);
       }
@@ -12632,7 +12684,7 @@
 
     function btRenderLobby(st) {
       btShow('lobby');
-      btEl('btCodeBig').textContent = st.code;
+      btEl('btCodeBig').textContent = st.name || ('Salon ' + st.code);
       const host = !!(st.you && st.you.host);
       const mark = (boxId, val) => document.querySelectorAll('#' + boxId + ' .bt-opt').forEach((b) => {
         b.className = 'bt-opt ' + (b.className.includes('text-left') ? 'text-left rounded-xl border px-3 py-2.5 transition ' : 'rounded-xl border px-2 py-2 text-xs font-bold transition ') + (b.dataset.v === String(val) ? BT_ON : BT_OFF) + (host ? '' : ' opacity-70 cursor-default');
@@ -12645,7 +12697,7 @@
         ? '<span class="text-rose-300">⚠️ Seulement ' + st.available + ' titre(s) avec ces réglages : élargis le type ou la difficulté.</span>'
         : n < st.cfg.rounds ? '⚠️ ' + st.available + ' titres disponibles : la partie fera ' + n + ' images.' : st.available + ' titres disponibles.';
       btEl('btConfigNote').textContent = host ? 'Tu es le chef du salon : tu choisis les réglages, puis tu lances la partie.' : 'Seul le chef du salon (' + st.hostName + ') peut modifier les réglages.';
-      btEl('btPlayerCount').textContent = '(' + st.players.length + '/12)';
+      btEl('btPlayerCount').textContent = '(' + st.players.length + '/' + st.max + ')';
       btEl('btLobbyPlayers').innerHTML = st.players.map((p) => '<div class="flex items-center gap-2 rounded-xl px-3 py-2 ' + (p.me ? 'bg-fuchsia-500/15 border border-fuchsia-400/40' : 'bg-black/40 border border-white/5') + '"><span class="text-lg">' + escapeHtml(p.avatar) + '</span><span class="truncate text-sm font-bold text-white">' + escapeHtml(p.name) + '</span>'
         + (p.host ? '<span class="text-[10px] px-1.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">chef</span>' : '') + '</div>').join('');
       const money = st.players.length >= st.rewardMinPlayers;
@@ -12683,7 +12735,7 @@
       const can = st.phase === 'question' && !(st.you && st.you.found);
       inp.disabled = !can; send.disabled = !can;
       if (st.round !== BT.shownRound || st.phase !== BT.shownPhase) {
-        if (st.phase === 'question') { inp.value = ''; btHint('', 'info'); setTimeout(() => { try { inp.focus(); } catch (e) {} }, 50); }
+        if (st.phase === 'question') { inp.value = ''; btHint('', 'info'); btSound('start'); setTimeout(() => { try { inp.focus(); } catch (e) {} }, 50); }
         if (reveal && st.you && st.you.found) btHint('✅ Tu as trouvé !', 'ok');
         else if (reveal) btHint('', 'info');
         BT.shownRound = st.round; BT.shownPhase = st.phase;
@@ -12725,6 +12777,7 @@
     }
 
     setInterval(() => { if (currentRoomKey === 'blindtest' && BT.code) btPoll(); }, 700);
+    setInterval(() => { if (currentRoomKey === 'blindtest' && !BT.code && BT.screen === 'home') btPollRooms(); }, 2000);
     setInterval(() => { if (currentRoomKey === 'blindtest') btTick(); }, 100);
   </script>
 </body>
