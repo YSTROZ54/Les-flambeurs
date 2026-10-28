@@ -1405,7 +1405,8 @@ class Poker3DExperience {
       box.id = 'pokerBoardWidget';
       root.appendChild(box);
     }
-    const cards = (this.game && this.game.communityCards) || [];
+    let cards = (this.game && this.game.communityCards) || [];
+    if (this._boardLanded != null) cards = cards.slice(0, this._boardLanded); // seulement les cartes déjà arrivées sur la table
     const show = !!this.handWidget && cards.length > 0 && this.viewMode !== 'first';
     box.style.display = show ? 'flex' : 'none';
     if (!show) return;
@@ -2509,7 +2510,7 @@ class Poker3DExperience {
       box.id = 'pokerHeroHandWidget';
       root.appendChild(box);
     }
-    const has = hero && hero.hand && hero.hand.length === 2 && !!this.handWidget && this.viewMode !== 'first';
+    const has = hero && hero.hand && hero.hand.length === 2 && !!this.handWidget && this.viewMode !== 'first' && !this.heroHandHold;
     box.style.display = has ? 'flex' : 'none';
     if (!has) return;
     const html = hero.hand.map((c) => `<div class="hh-card${c.suit === '♥' || c.suit === '♦' ? ' red' : ''}"><span class="rk">${c.rank}</span><span class="su">${c.suit}</span></div>`).join('');
@@ -2669,6 +2670,7 @@ class Poker3DExperience {
       }
 
       this.animateSeatedPlayers(time);
+      if (this.tickAnims) this.tickAnims(performance.now());
       this.updateHTMLNameplatesPosition();
       this.renderer.render(this.scene, this.camera);
     };
