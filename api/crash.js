@@ -1,6 +1,6 @@
 // Vercel Serverless Function pour l'API /api/crash reliée à Supabase Cloud
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
 
 let memoryCrashState = {
   id: Date.now(),
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
         current.countdownStartTime = now;
         current.countdownDuration = body.countdownDuration || 7000;
         current.launchTime = now + current.countdownDuration;
-        current.crashPoint = body.crashPoint || parseFloat((Math.min(500, Math.max(1.08, 0.96 / (1 - Math.random())))).toFixed(2));
+        current.crashPoint = body.crashPoint || parseFloat((Math.min(500, Math.max(1, Math.floor(95 / (1 - Math.random())) / 100))).toFixed(2));
         current.crashedAtTime = 0;
         current.updatedAt = now;
 

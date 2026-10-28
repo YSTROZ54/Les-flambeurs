@@ -35,5 +35,22 @@ Sans serveur, ouvrir `index.html` fonctionne toujours pour le mode solo.
 - Tests : `node --test tests/pokerEngine.test.mjs tests/pokerApi.test.mjs`.
 - `server.ps1` contient l'**ancien** poker : il n'est plus utilisé, préférez `serveur-local.mjs`.
 
+## 🔐 Comptes et sécurité
+Le navigateur ne parle plus directement à Supabase : tout passe par `api/accounts.js` (mots de passe hachés avec scrypt, jetons signés, règles d'écriture par champ, bannissements réservés au Patron).
+
+Variables d'environnement à définir sur Vercel (Settings → Environment Variables) :
+- `SUPABASE_SERVICE_KEY` : clé « service_role » de Supabase (jamais dans le navigateur).
+- `AUTH_SECRET` : longue chaîne aléatoire qui signe les jetons de connexion.
+- `ADMIN_PASSWORD` : mot de passe du Patron.
+
+Ensuite, dans Supabase (SQL Editor), retirer l'accès public à la table `accounts` :
+```sql
+alter table public.accounts enable row level security;
+revoke all on public.accounts from anon, authenticated;
+```
+Sans ces étapes le site fonctionne, mais la clé publique reste exploitable.
+
+Tests : `node --test tests/` (serveur) ; `node tests/e2e.cjs` et `node tests/auth-e2e.cjs` (navigateur, serveur local lancé, `BASE=http://localhost:8080`).
+
 ## ⚠️ Limites de sécurité connues
-Les soldes sont conservés côté navigateur et la clé Supabase publique est visible : un joueur technique pourrait donc modifier son solde. Pour un vrai anti-triche il faudrait des comptes avec mot de passe haché et des règles RLS Supabase.
+Les soldes et les tirages (machines, grattage, crash, mines) sont encore calculés dans le navigateur : un joueur très technique peut tricher sur son propre solde. Un vrai anti-triche demanderait des portefeuilles gérés entièrement par le serveur.

@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import * as E from './_pokerEngine.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
 const MEMORY_ONLY = process.env.POKER_STORAGE === 'memory';
 
 const TABLE_ROW_PREFIX = '__poker_t_';
@@ -16,7 +16,6 @@ const CASHOUT_ROW = '__poker_cashouts';
 const CACHE_TTL = 600;           // ms : fraîcheur du cache pour les lectures
 const HEARTBEAT_SAVE_MS = 15000; // un « signe de vie » est sauvegardé au plus toutes les 15 s
 const PRIVATE_TTL_MS = 15 * 60 * 1000;
-const MAX_PRIVATE_TABLES = 30;
 
 /* ------------------------------------------------------------------------- */
 /* STOCKAGE                                                                  */
@@ -140,12 +139,7 @@ function getTable(id, now, create) {
     store.tables[id] = E.createTable(E.PUBLIC_TABLES[id], now);
     return store.tables[id];
   }
-  if (create && E.PRIVATE_ID_RE.test(id)) {
-    const privateCount = Object.values(store.tables).filter((t) => t.isPrivate).length;
-    if (privateCount >= MAX_PRIVATE_TABLES) return null;
-    store.tables[id] = E.createTable(E.privateConfig(id, create.maxSeats, create.bigBlind), now);
-    return store.tables[id];
-  }
+  // les salons privés ont été retirés : seules les tables publiques existent
   return null;
 }
 
@@ -262,10 +256,9 @@ export default async function handler(req, res) {
           if (cashout > 0) cashChanged = true;
         }
       } else {
-        const createOpts = body.create ? { maxSeats: body.maxSeats, bigBlind: body.bigBlind } : null;
-        table = rawTableId ? getTable(rawTableId, now, createOpts) : null;
+        table = rawTableId ? getTable(rawTableId, now) : null;
         if (!table) {
-          error = rawTableId && E.PRIVATE_ID_RE.test(rawTableId) ? 'Salon introuvable (vérifie le code).' : 'Table inconnue.';
+          error = 'Table inconnue.';
         } else if (!userKey || !secretHash) {
           error = 'Identification impossible.';
         } else {

@@ -1,6 +1,6 @@
 // Vercel Serverless Function pour l'API /api/blackjack reliée à Supabase Cloud
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
 
 const SUITS = [
   { s: '♠', color: 'text-slate-900', type: 'suit-black' },

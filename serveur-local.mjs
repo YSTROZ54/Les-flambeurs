@@ -7,6 +7,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 process.env.POKER_STORAGE = process.env.POKER_STORAGE || 'memory';
+process.env.ACCOUNTS_STORAGE = process.env.ACCOUNTS_STORAGE || 'memory';
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const PORT = Number(process.env.PORT) || 8080;
