@@ -367,8 +367,8 @@
     const names = {};
     winners.forEach((w) => {
       const p = g.players[w];
-      if (p.hand && p.hand.length === 2 && comm.length >= 3 && typeof evaluateBestHand === 'function') {
-        const best = evaluateBestHand([...p.hand, ...comm]);
+      if (p.hand && p.hand.length === 2 && comm.length >= 3 && typeof evaluateBestHand3D === 'function') {
+        const best = evaluateBestHand3D([...p.hand, ...comm]);
         if (best && best.cards) {
           const used = new Set(best.cards.map(keyOf));
           comm.forEach((c) => { if (used.has(keyOf(c))) boardKeys.add(keyOf(c)); });

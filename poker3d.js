@@ -177,7 +177,7 @@ function evaluate5Cards(cards) {
   };
 }
 
-function evaluateBestHand(cards) {
+function evaluateBestHand3D(cards) {
   if (!cards || cards.length < 5) {
     if (cards && cards.length === 2) {
       if (cards[0].value === cards[1].value) {
@@ -607,7 +607,7 @@ class TexasHoldemGame {
 
     const toCall = this.currentMaxBet - bot.currentBet;
     const cards = [...bot.hand, ...this.communityCards];
-    const evaluated = evaluateBestHand(cards);
+    const evaluated = evaluateBestHand3D(cards);
 
     let strength = 0.3;
     if (this.phase === 'preflop') {
@@ -726,7 +726,7 @@ class TexasHoldemGame {
 
     remaining.forEach(p => {
       const cards = [...p.hand, ...this.communityCards];
-      p.bestHand = evaluateBestHand(cards);
+      p.bestHand = evaluateBestHand3D(cards);
     });
 
     // Répartition par pots (principal + annexes) : on ne gagne que ce qu'on a pu suivre
@@ -2045,7 +2045,7 @@ class Poker3DExperience {
         handName = `CARTE HAUTE ${RANK_NAMES[high].toUpperCase()}`;
       }
     } else {
-      const best = evaluateBestHand(allCards);
+      const best = evaluateBestHand3D(allCards);
       handName = best ? best.name.replace(/[👑🔥💣♦️⚡🎯✨]/g, '').trim().toUpperCase() : 'EN COURS...';
     }
 
@@ -2800,7 +2800,7 @@ function changeBlindLevel(level) {
 // Export global
 window.Poker3DExperience = Poker3DExperience;
 window.TexasHoldemGame = TexasHoldemGame;
-window.evaluateBestHand = evaluateBestHand;
+window.evaluateBestHand3D = evaluateBestHand3D;
 window.openTableConfigModal = openTableConfigModal;
 window.closeTableConfigModal = closeTableConfigModal;
 window.openPokerRulesModal = openPokerRulesModal;
