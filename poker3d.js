@@ -1406,7 +1406,7 @@ class Poker3DExperience {
       root.appendChild(box);
     }
     const cards = (this.game && this.game.communityCards) || [];
-    const show = !!this.handWidget && cards.length > 0;
+    const show = !!this.handWidget && cards.length > 0 && this.viewMode !== 'first';
     box.style.display = show ? 'flex' : 'none';
     if (!show) return;
     let html = '';
@@ -1955,8 +1955,8 @@ class Poker3DExperience {
         this.setCardOpacity(this.heroCards[1], 1.0);
       }
       // PC : la main s'affiche dans le coin de l'écran, plus sur la table
-      this.heroCards[0].visible = !this.handWidget;
-      this.heroCards[1].visible = !this.handWidget;
+      this.heroCards[0].visible = !this.handWidget || this.viewMode === 'first';
+      this.heroCards[1].visible = !this.handWidget || this.viewMode === 'first';
     } else {
       this.heroCards[0].visible = false;
       this.heroCards[1].visible = false;
@@ -2509,7 +2509,7 @@ class Poker3DExperience {
       box.id = 'pokerHeroHandWidget';
       root.appendChild(box);
     }
-    const has = hero && hero.hand && hero.hand.length === 2 && !!this.handWidget;
+    const has = hero && hero.hand && hero.hand.length === 2 && !!this.handWidget && this.viewMode !== 'first';
     box.style.display = has ? 'flex' : 'none';
     if (!has) return;
     const html = hero.hand.map((c) => `<div class="hh-card${c.suit === '♥' || c.suit === '♦' ? ' red' : ''}"><span class="rk">${c.rank}</span><span class="su">${c.suit}</span></div>`).join('');
@@ -2557,6 +2557,7 @@ class Poker3DExperience {
         m.position.z = 0.05;
       }
     });
+    if (!portrait) this.layoutHeroCardsForView();
     if (this.boardSlots) this.boardSlots.visible = !portrait;
     if (this.dealerButton) this.dealerButton.visible = !portrait;
     (this.heroCards || []).forEach((m, i) => {
@@ -2594,13 +2595,26 @@ class Poker3DExperience {
     this.updateHTMLNameplatesPosition();
   }
 
+  // Cartes du joueur sur la table : plus grandes et plus proches de toi en 1re personne
+  layoutHeroCardsForView() {
+    if (this.portraitMode) return;
+    const fp = this.viewMode === 'first';
+    (this.heroCards || []).forEach((m, i) => {
+      m.scale.setScalar(fp ? 1.5 : 1);
+      m.position.x = (i === 0 ? -1 : 1) * (fp ? 0.34 : 0.22);
+      m.position.z = fp ? 0.9 : 1.35 * 0.62;
+    });
+  }
+
   // Vue 3e / 1re personne (PC)
   toggleViewMode() {
     this.viewMode = this.viewMode === 'first' ? 'third' : 'first';
     this.viewYaw = 0;
     this.viewPitch = 0;
     this.updateSeatedPlayersVisibility();
+    this.layoutHeroCardsForView();
     this.handleResize();
+    if (this.game && this.game.players) this.syncTable3D();
     const b = document.getElementById('pokerViewBtn');
     if (b) b.querySelector('.pv-label').textContent = this.viewMode === 'first' ? '1re pers.' : '3e pers.';
   }
@@ -2626,6 +2640,11 @@ class Poker3DExperience {
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('dblclick', () => { this.viewYaw = 0; this.viewPitch = 0; this.handleResize(); });
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'v' || e.key === 'V') && !/INPUT|TEXTAREA/.test((e.target || {}).tagName || '') && el.offsetParent && !this.portraitMode) {
+        this.toggleViewMode();
+      }
+    });
   }
 
   setupEventListeners() {
