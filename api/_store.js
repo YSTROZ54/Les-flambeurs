@@ -50,6 +50,16 @@ export async function getRow(username) {
   if (r) return r;
   const lower = name.toLowerCase();
   if (lower !== name) { r = await getRowExact(lower); if (r) return r; }
+  // recherche insensible à la casse côté base (beaucoup plus rapide que de lire tous les comptes)
+  try {
+    const pattern = name.replace(/[\\%_*]/g, '_');
+    const res = await sb(`accounts?username=ilike.${encodeURIComponent(pattern)}&select=*`);
+    if (res.ok) {
+      const found = await res.json();
+      const hit = Array.isArray(found) && found.find((x) => String(x.username || '').toLowerCase() === lower);
+      if (hit) return hit;
+    }
+  } catch (e) { /* repli ci-dessous */ }
   const all = await listRows();
   return all.find((x) => String(x.username || '').toLowerCase() === lower) || null;
 }

@@ -7859,12 +7859,14 @@
     }
 
     // appel de l'API Crash (le serveur décide de tout : mise, décollage, gains)
+    let crashLastMutationAt = 0; // un état « en vol » demandé avant notre dernière action ne doit pas l'écraser
     async function crashCall(payload) {
       try {
         const res = await fetch(getCrashApiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let data = {};
         try { data = await res.json(); } catch (e) {}
         if (res.status === 401) handleAuthExpired();
+        crashLastMutationAt = Date.now();
         if (typeof data.balance === 'number') {
           state.balance = data.balance; state.lastBalanceChange = Date.now(); saveState(); showCrashBalance();
         }
@@ -7929,10 +7931,11 @@
       if (isCrashSyncing) return;
       isCrashSyncing = true;
       try {
+        const startedAt = Date.now();
         const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
         if (res.ok) {
           const st = await res.json();
-          if (st && (st.status || st.bets)) mergeCrashServerState(st);
+          if (startedAt >= crashLastMutationAt && !crashBusy && st && (st.status || st.bets)) mergeCrashServerState(st);
         }
       } catch (e) {
       } finally {
@@ -8445,9 +8448,20 @@
 
       document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
 
-      // Le résultat (rouleaux, gain) est tiré par le serveur, qui met aussi le solde à jour.
+      // Les rouleaux se mettent à tourner tout de suite ; le résultat est tiré par le serveur (qui met aussi le solde à jour).
+      [0, 1, 2].forEach((reelIdx) => {
+        const strip = document.getElementById(`slotStrip${reelIdx}`);
+        const spinItems = Array.from({ length: 40 }, () => `<div class="slot-item">${SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)]}</div>`);
+        strip.style.transition = 'none';
+        strip.style.transform = 'translateY(0px)';
+        strip.innerHTML = spinItems.join('');
+        void strip.offsetHeight;
+        strip.style.transition = 'transform 6s linear';
+        strip.style.transform = `translateY(-${39 * ITEM_HEIGHT}px)`;
+      });
       const srv = await serverGame({ action: 'slots_spin', bet }, { silent: true });
       if (!srv.ok || !Array.isArray(srv.finals)) {
+        [0, 1, 2].forEach((i) => { const st = document.getElementById(`slotStrip${i}`); st.style.transition = 'none'; });
         slotSpinning = false;
         document.getElementById('slotResultBanner').textContent = 'Prêt à jouer.';
         return showToast('❌ ' + (srv.error || 'Machine indisponible, réessaie.'));
@@ -8505,6 +8519,7 @@
         const bmb = mines.bombs.includes(i);
         let txt = '🔒', cls = 'bg-stone-900 border-emerald-500/30 hover:border-emerald-400';
         if (rev) { txt = '💎'; cls = 'bg-emerald-500/25 border-emerald-400'; }
+        else if (mines.pendingIdx === i) { txt = '⏳'; cls = 'bg-amber-500/20 border-amber-400 animate-pulse'; }
         else if (revealAll && bmb) { txt = '💣'; cls = 'bg-rose-950 border-rose-500'; }
         return `<button onclick="clickMineCell(${i})" class="h-12 sm:h-14 rounded-xl border text-lg sm:text-xl transition ${cls}">${txt}</button>`;
       }).join('');
@@ -8522,9 +8537,20 @@
       const cnt = mines.count || 3;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
       mines.pending = true;
+      // affichage immédiat : la grille s'ouvre tout de suite, le serveur confirme juste après
+      document.getElementById('minesStartBtn').classList.add('hidden');
+      document.getElementById('minesCashoutBtn').classList.remove('hidden');
+      mines.active = true; mines.bombs = []; mines.revealed = []; mines.bet = bet;
+      renderMinesGrid(false);
       const r = await serverGame({ action: 'mines_start', bet, count: cnt });
       mines.pending = false;
-      if (!r.ok) return showToast('❌ ' + (r.error || 'Partie impossible.'));
+      if (!r.ok) {
+        mines.active = false;
+        document.getElementById('minesStartBtn').classList.remove('hidden');
+        document.getElementById('minesCashoutBtn').classList.add('hidden');
+        renderMinesGrid(false);
+        return showToast('❌ ' + (r.error || 'Partie impossible.'));
+      }
       // les bombes restent sur le serveur : le navigateur ne connaît que les cases déjà retournées
       mines = { active: true, bet: r.game.bet, bombs: [], revealed: [], count: r.game.count, mult: 1, pending: false };
       document.getElementById('minesStartBtn').classList.add('hidden');
@@ -8542,9 +8568,12 @@
       if (!_AntiBotGuard.verify('Mines - Case', e)) return;
       if (!mines.active || mines.pending || mines.revealed.includes(idx)) return;
       mines.pending = true;
+      mines.pendingIdx = idx;
+      renderMinesGrid(false); // la case réagit tout de suite (⏳) pendant que le serveur répond
       const r = await serverGame({ action: 'mines_pick', idx });
       mines.pending = false;
-      if (!r.ok) return showToast('❌ ' + (r.error || 'Action impossible.'));
+      mines.pendingIdx = -1;
+      if (!r.ok) { renderMinesGrid(false); return showToast('❌ ' + (r.error || 'Action impossible.')); }
       if (r.boom) {
         mines.active = false;
         mines.bombs = r.bombs || [];
