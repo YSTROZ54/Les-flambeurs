@@ -404,6 +404,7 @@ class TexasHoldemGame {
     // Premier de parole en Pré-Flop : UTG
     this.currentTurn = this.getNextActiveSeat(bbSeat);
 
+    if (this.exp.dealerGesture) this.exp.dealerGesture();
     this.exp.syncTable3D();
     this.exp.updateHeroLiveHand();
     this.startTurn();
@@ -941,9 +942,9 @@ class Poker3DExperience {
 
     this.thetas = [
       Math.PI - 0.55,       // Bot 1 : Viper (Gauche bas ~148°)
-      -Math.PI + 1.05,      // Bot 2 : Le Baron (Gauche haut ~220°)
-      -Math.PI / 2,         // Bot 3 : Roxy (Top centre / En face 270°)
-      -1.05,                // Bot 4 : Montana (Droite haut ~320°)
+      Math.PI + 0.15,       // Bot 2 : Le Baron (Gauche ~189°)
+      Math.PI + 0.85,       // Bot 3 : Roxy (Haut gauche ~229°) — la place du haut (270°) est celle du croupier
+      -0.95,                // Bot 4 : Montana (Haut droite ~305°)
       0.55                  // Bot 5 : Kaiser (Droite bas ~32°)
     ];
 
@@ -1314,6 +1315,7 @@ class Poker3DExperience {
   animateDealCommunityCard(index, card) {
     const mesh = this.communityCardMeshes[index];
     if (!mesh) return;
+    this.dealerGesture();
     this.setCardFace(mesh, card.rank, card.suit);
     this.setCardOpacity(mesh, 1.0);
     mesh.visible = true;
@@ -1443,19 +1445,126 @@ class Poker3DExperience {
       ear.position.set(s * 0.29, -0.01, 0);
     });
 
-    // Bras : épaule -> coude -> main posée sur le rebord
+    // Gilet + noeud papillon (croupier)
+    if (look.vest) {
+      const vest = add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.75, 24), std(0x0b0b0f, 0.5)), upper);
+      vest.position.set(0, 0.5, 0.02);
+      vest.scale.z = 0.76;
+      const bow = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.05), std(0xb91c1c, 0.5)), upper);
+      bow.position.set(0, 1.12, 0.2);
+    }
+
+    // Bras (pivot à l'épaule pour pouvoir les animer) : épaule -> coude -> main posée sur le rebord
+    const arms = [];
     [-1, 1].forEach((s) => {
       const shoulder = new THREE.Vector3(s * 0.52, 1.02, -0.08);
-      const elbow = new THREE.Vector3(s * 0.62, 0.62, 0.3);
-      const hand = new THREE.Vector3(s * 0.34, 0.72, 0.78);
-      g.add(this.makeLimb(shoulder, elbow, 0.12, shirt));
-      g.add(this.makeLimb(elbow, hand, 0.1, shirt));
-      const h = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 10), skin));
+      const pivot = new THREE.Group();
+      pivot.position.copy(shoulder);
+      g.add(pivot);
+      const zero = new THREE.Vector3();
+      const elbow = new THREE.Vector3(s * 0.1, -0.4, 0.38);
+      const hand = new THREE.Vector3(-s * 0.18, -0.3, 0.86);
+      pivot.add(this.makeLimb(zero, elbow, 0.12, shirt));
+      pivot.add(this.makeLimb(elbow, elbow.clone().add(hand.clone().sub(elbow)), 0.1, shirt));
+      const h = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 10), skin), pivot);
       h.position.copy(hand);
+      arms.push(pivot);
     });
 
-    g.userData = { upper, head };
+    g.userData = { upper, head, arms };
     return g;
+  }
+
+  // Le croupier : au bout de la table, face à la caméra, avec un geste de distribution
+  buildDealer() {
+    const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true });
+    dealer.scale.setScalar(0.62);
+    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
+    dealer.position.set(0, -0.3, -(outer + 0.55));
+    dealer.userData.phase = 0.4;
+    dealer.userData.isDealer = true;
+    this.scene.add(dealer);
+    this.dealerFigure = dealer;
+  }
+
+  // Geste du croupier (bras droit qui lance une carte)
+  dealerGesture() {
+    this.dealerGestureStart = performance.now();
+  }
+
+  // Le joueur (toi) : vu de dos en vue 3e personne, il tourne la tête avec ta vue
+  buildHeroFigure() {
+    const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 });
+    hero.scale.setScalar(0.62);
+    const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
+    hero.position.set(0, -0.3, outer + 0.55);
+    hero.rotation.y = Math.PI;
+    hero.userData.phase = 2.1;
+    hero.userData.isHero = true;
+    this.scene.add(hero);
+    this.heroFigure = hero;
+  }
+
+  /* ------------------------------------------------------------------------- */
+  /* DÉCOR : SALON DE POKER (PC)                                               */
+  /* ------------------------------------------------------------------------- */
+  buildRoom() {
+    const room = new THREE.Group();
+    const std = (color, rough = 0.8, metal = 0.0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, side: THREE.DoubleSide });
+
+    // Moquette sombre sous la table
+    const carpet = new THREE.Mesh(new THREE.CircleGeometry(7.5, 64), std(0x1a0d12, 0.95));
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = -1.77;
+    carpet.receiveShadow = true;
+    room.add(carpet);
+
+    // Banquette rouge courbe derrière le croupier : assise + dossier
+    const arc = 3.0, start = Math.PI - arc / 2;
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 7.6, 0.8, 64, 1, true, start, arc), std(0x5a0f1c, 0.55));
+    seat.position.y = -1.35;
+    room.add(seat);
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 8.0, 3.2, 64, 1, true, start, arc), std(0x7a1224, 0.6));
+    wall.position.y = 0.1;
+    room.add(wall);
+    const trim = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 8.0, 0.12, 64, 1, true, start, arc), std(0xb08d3c, 0.35, 0.6));
+    trim.position.y = 1.72;
+    room.add(trim);
+
+    // Grandes baies vitrées avec la ville la nuit
+    const cv = document.createElement('canvas');
+    cv.width = 1024; cv.height = 256;
+    const cx = cv.getContext('2d');
+    const grad = cx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#05070f'); grad.addColorStop(1, '#101a2e');
+    cx.fillStyle = grad; cx.fillRect(0, 0, 1024, 256);
+    for (let i = 0; i < 520; i++) {
+      const x = Math.random() * 1024, y = 110 + Math.random() * 146;
+      cx.fillStyle = ['#ffd27a', '#fff1c4', '#9cc4ff', '#ff9d6b'][Math.floor(Math.random() * 4)];
+      cx.globalAlpha = 0.35 + Math.random() * 0.6;
+      cx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    cx.globalAlpha = 1;
+    const cityTex = new THREE.CanvasTexture(cv);
+    const city = new THREE.Mesh(new THREE.PlaneGeometry(40, 10), new THREE.MeshBasicMaterial({ map: cityTex, toneMapped: false, fog: false }));
+    city.position.set(0, 3.5, -13);
+    room.add(city);
+
+    // Grosse lampe suspendue au-dessus de la table
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff6e0, toneMapped: false, fog: false }));
+    lamp.position.set(0, 5.2, -0.5);
+    room.add(lamp);
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 3, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+    cord.position.set(0, 7.2, -0.5);
+    room.add(cord);
+
+    // Un peu de lumière chaude pour le décor
+    const warm = new THREE.PointLight(0xff8a70, 0.9, 16, 1.6);
+    warm.position.set(0, 2.2, -6.5);
+    room.add(warm);
+
+    this.roomGroup = room;
+    this.scene.add(room);
   }
 
   buildSeatedPlayers() {
@@ -1484,24 +1593,54 @@ class Poker3DExperience {
       this.scene.add(player);
       this.seatedPlayers.push(player);
     });
+    this.buildDealer();
+    this.buildHeroFigure();
+    this.buildRoom();
     this.updateSeatedPlayersVisibility();
   }
 
   // Visibles seulement sur grand écran et pour les sièges en jeu
   updateSeatedPlayersVisibility() {
+    const desk = !this.portraitMode;
     (this.seatedPlayers || []).forEach((p, i) => {
-      p.visible = !this.portraitMode && (this.activeBotIndices || []).includes(i);
+      p.visible = desk && (this.activeBotIndices || []).includes(i);
     });
+    if (this.dealerFigure) this.dealerFigure.visible = desk;
+    if (this.heroFigure) this.heroFigure.visible = desk && this.viewMode !== 'first';
+    if (this.roomGroup) this.roomGroup.visible = desk;
   }
 
   animateSeatedPlayers(time) {
-    (this.seatedPlayers || []).forEach((p) => {
+    const figures = (this.seatedPlayers || []).concat(this.dealerFigure || [], this.heroFigure || []);
+    figures.forEach((p) => {
       if (!p.visible) return;
       const t = time + p.userData.phase;
       p.userData.upper.scale.y = 1 + Math.sin(t * 1.6) * 0.012;
-      p.userData.head.rotation.y = Math.sin(t * 0.5) * 0.18;
-      p.userData.head.rotation.x = Math.sin(t * 0.37) * 0.05;
+      if (p.userData.isHero) {
+        // la tête du joueur suit sa vue (drag souris)
+        const target = Math.max(-0.85, Math.min(0.85, this.viewYaw || 0));
+        p.userData.head.rotation.y += (target - p.userData.head.rotation.y) * 0.15;
+        p.userData.head.rotation.x = (this.viewPitch || 0) * 0.5;
+      } else {
+        p.userData.head.rotation.y = Math.sin(t * 0.5) * 0.18;
+        p.userData.head.rotation.x = Math.sin(t * 0.37) * 0.05;
+      }
     });
+
+    // geste du croupier : le bras droit se lève et lance la carte
+    const d = this.dealerFigure;
+    if (d && this.dealerGestureStart) {
+      const k = (performance.now() - this.dealerGestureStart) / 650;
+      const arm = d.userData.arms[1];
+      if (k >= 1) {
+        arm.rotation.set(0, 0, 0);
+        this.dealerGestureStart = 0;
+      } else {
+        const s = Math.sin(k * Math.PI);
+        arm.rotation.x = -0.9 * s;
+        arm.rotation.z = -0.35 * s;
+      }
+    }
   }
 
   buildCenterPotChips() {
@@ -1838,12 +1977,14 @@ class Poker3DExperience {
         this.setCardOpacity(this.heroCards[0], 1.0);
         this.setCardOpacity(this.heroCards[1], 1.0);
       }
-      this.heroCards[0].visible = true;
-      this.heroCards[1].visible = true;
+      // PC : la main s'affiche dans le coin de l'écran, plus sur la table
+      this.heroCards[0].visible = !this.handWidget;
+      this.heroCards[1].visible = !this.handWidget;
     } else {
       this.heroCards[0].visible = false;
       this.heroCards[1].visible = false;
     }
+    this.updateHeroHandWidget(hero);
 
     for (let i = 1; i <= 5; i++) {
       const bot = g.players[i];
@@ -2322,6 +2463,7 @@ class Poker3DExperience {
     this.portraitMode = aspect < 0.85;
 
     if (this.portraitMode) {
+      this.camera.clearViewOffset();
       // Portrait smartphone : vraie table ovale verticale, vue presque de dessus.
       // Toute la table tient à l'écran, entre le bandeau du haut et le panneau d'actions.
       const fov = 50;
@@ -2334,22 +2476,66 @@ class Poker3DExperience {
       this.camera.lookAt(0, 0, tz);
     } else {
       // PC & Mode Paysage
-      // On recule la caméra jusqu'à ce que les joueurs assis sur les côtés entrent dans l'écran
-      this.camera.fov = 46;
+      // PC : caméra basse derrière ton siège (3e personne) ou à hauteur des yeux (1re personne).
+      // En 3e personne on recule jusqu'à ce que les joueurs des côtés entrent dans l'écran.
+      const first = this.viewMode === 'first';
+      this.camera.clearViewOffset();
+      this.camera.fov = first ? 64 : 50;
       this.camera.updateProjectionMatrix();
-      const target = new THREE.Vector3(0, 0.25, 0.15);
-      const base = new THREE.Vector3(0, 3.2, 3.5);
-      const edge = new THREE.Vector3(4.5, 0.3, 1.8);
-      for (let k = 1; k <= 2.2; k += 0.05) {
-        this.camera.position.copy(base).sub(target).multiplyScalar(k).add(target);
-        this.camera.lookAt(target);
-        this.camera.updateMatrixWorld(true);
-        if (Math.abs(edge.clone().project(this.camera).x) <= 0.94) break;
+      const target = first ? new THREE.Vector3(0, -0.05, -0.7) : new THREE.Vector3(0, -0.05, -0.4);
+      const base = first ? new THREE.Vector3(0, 0.95, 3.15) : new THREE.Vector3(0, 2.7, 5.4);
+      const pos = base.clone();
+      if (!first) {
+        const edge = new THREE.Vector3(4.3, 0.3, 1.9);
+        for (let k = 1; k <= 2.0; k += 0.05) {
+          pos.copy(base).sub(target).multiplyScalar(k).add(target);
+          this.camera.position.copy(pos);
+          this.camera.lookAt(target);
+          this.camera.updateMatrixWorld(true);
+          if (Math.abs(edge.clone().project(this.camera).x) <= 0.92) break;
+        }
       }
+      // vue libre : on tourne le regard autour de la position du joueur
+      const dir = target.clone().sub(pos);
+      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.viewYaw || 0);
+      const right = dir.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
+      dir.applyAxisAngle(right, this.viewPitch || 0);
+      this.camera.position.copy(pos);
+      this.camera.lookAt(pos.clone().add(dir));
+      // remonte l'image : le panneau d'actions occupe le bas de l'écran sur PC
+      this.camera.setViewOffset(width, height, 0, Math.round(height * 0.13), width, height);
     }
+    this.handWidget = !this.portraitMode && width >= 1000;
 
     this.applyCardLayout(this.portraitMode);
     this.camera.updateProjectionMatrix();
+  }
+
+  // Main du joueur affichée dans le coin (PC), comme dans les jeux de poker en ligne
+  updateHeroHandWidget(hero) {
+    let box = document.getElementById('pokerHeroHandWidget');
+    if (!box) {
+      const root = document.getElementById('view-poker');
+      if (!root) return;
+      const st = document.createElement('style');
+      st.textContent = `
+        #pokerHeroHandWidget { position:absolute; left:18px; bottom:22px; z-index:34; display:none; gap:8px; pointer-events:none; }
+        #pokerHeroHandWidget .hh-card { width:62px; height:88px; background:#fff; border-radius:8px; border:1px solid #d6d3d1; box-shadow:0 6px 18px rgba(0,0,0,.65); color:#111; font:900 22px Georgia,serif; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; position:relative; }
+        #pokerHeroHandWidget .hh-card.red { color:#dc2626; }
+        #pokerHeroHandWidget .hh-card .rk { position:absolute; top:5px; left:7px; font-size:19px; }
+        #pokerHeroHandWidget .hh-card .su { font-size:34px; }
+        #pokerHeroHandWidget.folded { opacity:.35; }`;
+      document.head.appendChild(st);
+      box = document.createElement('div');
+      box.id = 'pokerHeroHandWidget';
+      root.appendChild(box);
+    }
+    const has = hero && hero.hand && hero.hand.length === 2 && !!this.handWidget;
+    box.style.display = has ? 'flex' : 'none';
+    if (!has) return;
+    const html = hero.hand.map((c) => `<div class="hh-card${c.suit === '♥' || c.suit === '♦' ? ' red' : ''}"><span class="rk">${c.rank}</span><span class="su">${c.suit}</span></div>`).join('');
+    if (box.dataset.h !== html) { box.innerHTML = html; box.dataset.h = html; }
+    box.classList.toggle('folded', !!hero.folded);
   }
 
   // Disposition portrait (téléphone) : positions sur la table verticale, en unités 3D
@@ -2426,7 +2612,47 @@ class Poker3DExperience {
     this.updateHTMLNameplatesPosition();
   }
 
+  // Vue 3e / 1re personne (PC)
+  toggleViewMode() {
+    this.viewMode = this.viewMode === 'first' ? 'third' : 'first';
+    this.viewYaw = 0;
+    this.viewPitch = 0;
+    this.updateSeatedPlayersVisibility();
+    this.handleResize();
+    const b = document.getElementById('pokerViewBtn');
+    if (b) b.querySelector('.pv-label').textContent = this.viewMode === 'first' ? '1re pers.' : '3e pers.';
+  }
+
+  // Regarder autour : clic maintenu + glisser sur la scène (ton personnage tourne la tête)
+  setupLookControls() {
+    const el = this.container;
+    let drag = null;
+    el.addEventListener('pointerdown', (e) => {
+      if (this.portraitMode) return;
+      drag = { x: e.clientX, y: e.clientY };
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      this.viewYaw = Math.max(-0.9, Math.min(0.9, (this.viewYaw || 0) + dx * 0.004));
+      this.viewPitch = Math.max(-0.3, Math.min(0.3, (this.viewPitch || 0) + dy * 0.003));
+      this.handleResize();
+    });
+    const end = () => { drag = null; };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', () => { this.viewYaw = 0; this.viewPitch = 0; this.handleResize(); });
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'v' || e.key === 'V') && !/INPUT|TEXTAREA/.test((e.target || {}).tagName || '') && el.offsetParent) {
+        this.toggleViewMode();
+      }
+    });
+  }
+
   setupEventListeners() {
+    this.setupLookControls();
     window.addEventListener('resize', () => this.handleResize(), { passive: true });
     window.addEventListener('orientationchange', () => {
       setTimeout(() => this.handleResize(), 150);
