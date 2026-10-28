@@ -1477,7 +1477,7 @@ class Poker3DExperience {
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
       const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.55));
       const player = this.createSeatedPlayer(looks[i % looks.length]);
-      player.scale.setScalar(0.62);
+      player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
       player.position.set(pos.x, SEAT_Y, pos.z);
       player.rotation.y = Math.atan2(c.x - pos.x, c.z - pos.z);
       player.userData.phase = i * 1.7;
@@ -1643,7 +1643,7 @@ class Poker3DExperience {
         continue;
       }
       el.style.display = 'flex';
-      el.classList.toggle('pk-compact', !!this.portraitMode);
+      el.classList.toggle('pk-compact', !!this.portraitMode || width < 1200);
 
       // Arrondi strict à l'entier avec Math.round pour éradiquer le flou de sous-pixel
       let screenX = Math.round((v.x * 0.5 + 0.5) * width);
@@ -2334,9 +2334,18 @@ class Poker3DExperience {
       this.camera.lookAt(0, 0, tz);
     } else {
       // PC & Mode Paysage
+      // On recule la caméra jusqu'à ce que les joueurs assis sur les côtés entrent dans l'écran
       this.camera.fov = 46;
-      this.camera.position.set(0, 3.2, 3.5);
-      this.camera.lookAt(0, 0.25, 0.15);
+      this.camera.updateProjectionMatrix();
+      const target = new THREE.Vector3(0, 0.25, 0.15);
+      const base = new THREE.Vector3(0, 3.2, 3.5);
+      const edge = new THREE.Vector3(4.5, 0.3, 1.8);
+      for (let k = 1; k <= 2.2; k += 0.05) {
+        this.camera.position.copy(base).sub(target).multiplyScalar(k).add(target);
+        this.camera.lookAt(target);
+        this.camera.updateMatrixWorld(true);
+        if (Math.abs(edge.clone().project(this.camera).x) <= 0.94) break;
+      }
     }
 
     this.applyCardLayout(this.portraitMode);
