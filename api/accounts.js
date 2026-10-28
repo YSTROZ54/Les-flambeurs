@@ -18,27 +18,29 @@
 //   AUTH_SECRET           longue chaîne aléatoire qui signe les jetons de connexion
 //   ADMIN_PASSWORD        mot de passe du menu Patron
 // =============================================================================
-import { spinSlots, drawScratch, SLOT_MAX_BET, SCRATCH_PRICE } from './_games.js';
+import { runGameAction, GAME_ACTIONS } from './_games.js';
+import { runBankAction, BANK_ACTIONS } from './_bank.js';
+import { SERVICE_KEY, memory, GameError, listRows, getRowExact, getRow, putRow, deleteRow, updateAccount } from './_store.js';
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
-const SUPABASE_KEY = SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
-const MEMORY_ONLY = process.env.ACCOUNTS_STORAGE === 'memory';
 
+// Mode strict : le navigateur ne peut plus écrire un solde (le serveur est la seule source). WALLET_STRICT=0 pour le couper.
+const WALLET_STRICT = process.env.WALLET_STRICT !== '0';
 const ADMINS = ['ystroz', 'alex'];
 const START_BALANCE = 5500;
+const RENAME_COST = 50000;
 const TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
 const ADMIN_TTL_MS = 12 * 3600 * 1000;
 const CONFIG_ROW = '__casino_config__';
-const READABLE_RESERVED = ['__poker_game__', '__crash_game__', '__blackjack_game__'];
+const READABLE_RESERVED = [];
 const FAKE_NAMES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_corleone', 'karim'];
 // champs de la « boîte aux lettres » : modifiables par un autre joueur (virements, amis, invitations)
-const MAILBOX_FIELDS = ['friends', 'friendBalances', 'bankTransfers', 'pendingTransfers', 'pendingFriendRequests', 'outgoingFriendRequests', 'pendingGameInvites'];
+const MAILBOX_FIELDS = ['friends', 'friendBalances', 'pendingFriendRequests', 'outgoingFriendRequests', 'pendingGameInvites'];
+// données de virements : gérées uniquement par le serveur (data._srv), jamais lues ni écrites par le navigateur
+const SERVER_ONLY_FIELDS = ['_srv', '_ver', 'pendingTransfers', 'bankTransfers'];
 const DEFAULT_LUCK = { crash: 50, mines: 50, blackjack: 50, slots: 35, scratch: 35 };
 const LUCK_LIMITS = { crash: [5, 95], mines: [1, 99], blackjack: [1, 99], slots: [0, 100], scratch: [1, 95] };
 
-const memory = { rows: {} }; // clé = pseudo en minuscules
 
 /* ------------------------------------------------------------------------- */
 /* Secrets                                                                   */
@@ -103,67 +105,6 @@ function checkPassword(stored, given) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* Stockage (Supabase ou mémoire)                                            */
-/* ------------------------------------------------------------------------- */
-async function sb(path, opts = {}) {
-  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
-  });
-}
-
-async function listRows() {
-  if (MEMORY_ONLY) return Object.values(memory.rows).map((r) => ({ ...r }));
-  const res = await sb('accounts?select=*');
-  if (!res.ok) throw new Error('Supabase ' + res.status);
-  const rows = await res.json();
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function getRowExact(username) {
-  if (MEMORY_ONLY) { const r = memory.rows[String(username).toLowerCase()]; return r ? { ...r } : null; }
-  const res = await sb(`accounts?username=eq.${encodeURIComponent(username)}&select=*`);
-  if (!res.ok) throw new Error('Supabase ' + res.status);
-  const rows = await res.json();
-  return Array.isArray(rows) && rows[0] ? rows[0] : null;
-}
-
-// recherche insensible à la casse : essai direct, puis balayage de la table
-async function getRow(username) {
-  const name = String(username || '').trim();
-  if (!name) return null;
-  if (MEMORY_ONLY) return getRowExact(name);
-  let r = await getRowExact(name);
-  if (r) return r;
-  const lower = name.toLowerCase();
-  if (lower !== name) { r = await getRowExact(lower); if (r) return r; }
-  const all = await listRows();
-  return all.find((x) => String(x.username || '').toLowerCase() === lower) || null;
-}
-
-async function putRow(row) {
-  const clean = {
-    username: row.username,
-    password: row.password || '',
-    avatar: row.avatar || '🎭',
-    balance: Number.isFinite(Number(row.balance)) ? Math.floor(Number(row.balance)) : 0,
-    data: row.data && typeof row.data === 'object' ? row.data : {},
-    updated_at: new Date().toISOString()
-  };
-  if (MEMORY_ONLY) { memory.rows[clean.username.toLowerCase()] = clean; return true; }
-  const res = await sb('accounts', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(clean) });
-  if (!res.ok) throw new Error('Supabase ' + res.status);
-  return true;
-}
-
-async function deleteRow(username) {
-  if (MEMORY_ONLY) { delete memory.rows[String(username).toLowerCase()]; return; }
-  const row = await getRow(username);
-  if (!row) return;
-  await sb(`accounts?username=eq.${encodeURIComponent(row.username)}`, { method: 'DELETE' });
-}
-
-/* ------------------------------------------------------------------------- */
 /* Utilitaires                                                               */
 /* ------------------------------------------------------------------------- */
 const isReserved = (name) => String(name || '').trim().startsWith('__');
@@ -174,7 +115,8 @@ function cleanName(name) {
 }
 
 function publicRow(r) {
-  const data = r.data && typeof r.data === 'object' ? r.data : {};
+  const data = r.data && typeof r.data === 'object' ? { ...r.data } : {};
+  SERVER_ONLY_FIELDS.forEach((k) => { delete data[k]; });
   return { username: r.username, password: '', avatar: r.avatar || '🎭', balance: r.balance, data, updated_at: r.updated_at };
 }
 
@@ -264,28 +206,29 @@ async function applyUpsert(incoming, actor, isAdmin) {
   const oldData = existing.data && typeof existing.data === 'object' ? existing.data : {};
 
   if (self || isAdmin) {
-    const data = { ...inData };
-    // la liste des bannis ne peut être modifiée que par le Patron
-    if (!isAdmin) {
-      if (oldData.bannedUsers !== undefined) data.bannedUsers = oldData.bannedUsers; else delete data.bannedUsers;
-    }
-    // champs gérés par le serveur : jamais écrasés par le navigateur
-    ['_scratchTicket', '_wt'].forEach((k) => { if (oldData[k] !== undefined) data[k] = oldData[k]; else delete data[k]; });
-    await putRow({
-      username: existing.username,
-      password: existing.password,                           // jamais modifié ici
-      avatar: cleanAvatar(incoming.avatar, existing.avatar),
-      balance: cleanBalance(incoming.balance, existing.balance),
-      data
+    await updateAccount(existing.username, (d) => {
+      const old = d.data || {};
+      const data = { ...inData };
+      // la liste des bannis ne peut être modifiée que par le Patron
+      if (!isAdmin) {
+        if (old.bannedUsers !== undefined) data.bannedUsers = old.bannedUsers; else delete data.bannedUsers;
+      }
+      // champs gérés par le serveur : jamais écrasés par le navigateur
+      SERVER_ONLY_FIELDS.forEach((k) => { if (k === '_srv' || k === '_ver') { if (old[k] !== undefined) data[k] = old[k]; else delete data[k]; } else delete data[k]; });
+      d.data = data;
+      d.avatar = cleanAvatar(incoming.avatar, d.avatar);
+      if (!WALLET_STRICT) d.balance = cleanBalance(incoming.balance, d.balance);
     });
     return { code: 200, ok: true };
   }
 
   // compte d'un autre joueur : seulement la boîte aux lettres
-  const data = { ...oldData };
-  let changed = false;
-  MAILBOX_FIELDS.forEach((f) => { if (inData[f] !== undefined) { data[f] = inData[f]; changed = true; } });
-  if (changed) await putRow({ ...existing, data });
+  const hasMail = MAILBOX_FIELDS.some((f) => inData[f] !== undefined);
+  if (hasMail) {
+    await updateAccount(existing.username, (d) => {
+      MAILBOX_FIELDS.forEach((f) => { if (inData[f] !== undefined) d.data[f] = inData[f]; });
+    });
+  }
   return { code: 200, ok: true };
 }
 
@@ -371,9 +314,10 @@ export default async function handler(req, res) {
       if ((await getBanned()).has(lc(username))) return res.status(403).json({ ok: false, error: 'Ce blase a été banni par le Patron.' });
       const existing = await getRow(username);
       if (existing && existing.password) return res.status(409).json({ ok: false, error: 'Ce blase est déjà pris ! Choisis un autre pseudo ou connecte-toi.' });
+      const stamp = (data) => { const d = { ...(data || {}) }; d._srv = { ...(d._srv || {}), createdAt: Date.now() }; return d; };
       const row = existing
-        ? { ...existing, password: hashPassword(password), avatar: cleanAvatar(body.avatar, existing.avatar) }   // compte fantôme réclamé
-        : { username, password: hashPassword(password), avatar: cleanAvatar(body.avatar, '🎭'), balance: START_BALANCE, data: {} };
+        ? { ...existing, password: hashPassword(password), avatar: cleanAvatar(body.avatar, existing.avatar), data: stamp(existing.data) }   // compte fantôme réclamé
+        : { username, password: hashPassword(password), avatar: cleanAvatar(body.avatar, '🎭'), balance: START_BALANCE, data: stamp({}) };
       await putRow(row);
       return res.status(200).json({ ok: true, token: userToken(row.username), row: publicRow(row) });
     }
@@ -390,7 +334,7 @@ export default async function handler(req, res) {
       const chk = checkPassword(row.password, String(body.password || ''));
       if (!chk.ok) { addFail(failKey); return res.status(401).json({ ok: false, error: 'Mot de passe incorrect pour ce joueur.' }); }
       fails.delete(failKey);
-      if (chk.legacy) { row.password = hashPassword(body.password); await putRow(row); } // migration silencieuse
+      if (chk.legacy) { const h = hashPassword(body.password); await updateAccount(row.username, (d) => { d.password = h; }); } // migration silencieuse
       return res.status(200).json({ ok: true, token: userToken(row.username), row: publicRow(row) });
     }
 
@@ -414,8 +358,8 @@ export default async function handler(req, res) {
       if (!validPassword(body.password)) return res.status(400).json({ ok: false, error: 'Le mot de passe doit faire au moins 3 caractères.' });
       const row = await getRow(target);
       if (!row || isReserved(row.username)) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
-      row.password = hashPassword(body.password);
-      await putRow(row);
+      const hashed = hashPassword(body.password);
+      await updateAccount(row.username, (d) => { d.password = hashed; });
       return res.status(200).json({ ok: true });
     }
 
@@ -429,12 +373,31 @@ export default async function handler(req, res) {
       if ((await getBanned()).has(lc(newName))) return res.status(403).json({ ok: false, error: 'Ce blase est banni par le Patron.' });
       const clash = await getRow(newName);
       if (clash && lc(clash.username) !== actor) return res.status(409).json({ ok: false, error: 'Ce blase est déjà pris par un autre joueur.' });
+      {
+        const cur = await getRow(actor);
+        const hist = cur && cur.data && cur.data._srv && Array.isArray(cur.data._srv.history) ? cur.data._srv.history : [];
+        if (hist.some((h) => h && h.status === 'En attente' && lc(h.from) === lc(actor))) {
+          return res.status(409).json({ ok: false, error: 'Tu as un virement en attente : attends qu\'il soit traité avant de changer de pseudo.' });
+        }
+      }
+      const cost = lc(actor) === lc(newName) ? 0 : (ADMINS.includes(actor) ? 0 : RENAME_COST);
+      try {
+        if (cost > 0) {
+          await updateAccount(actor, (d) => {
+            if (d.balance < cost) throw new GameError(400, 'Solde insuffisant ! Le changement de pseudo coûte 50 000 €.', { balance: d.balance });
+            d.balance -= cost;
+          });
+        }
+      } catch (e) {
+        if (e instanceof GameError) return res.status(e.code).json({ ok: false, error: e.message, ...e.extra });
+        throw e;
+      }
       const row = await getRow(actor);
       if (!row) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
       const moved = { ...row, username: newName };
       await putRow(moved);
       if (lc(row.username) !== lc(newName)) await deleteRow(row.username);
-      return res.status(200).json({ ok: true, token: userToken(newName), row: publicRow(moved) });
+      return res.status(200).json({ ok: true, token: userToken(newName), row: publicRow(moved), balance: moved.balance, cost });
     }
 
     // --- réglages de chance du Patron (valables pour tous les joueurs) ---
@@ -451,45 +414,51 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, luck });
     }
 
-    // --- jeux gérés par le serveur : le solde et le résultat viennent d'ici, pas du navigateur ---
-    if (action === 'slots_spin' || action === 'scratch_buy' || action === 'scratch_claim') {
-      if (!actor) return res.status(401).json({ ok: false, error: 'Connexion requise.' });
-      const row = await getRow(actor);
-      if (!row || isReserved(row.username)) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
-      const luck = await getConfig();
-      const data = row.data && typeof row.data === 'object' ? { ...row.data } : {};
-      let balance = Math.max(0, Math.floor(Number(row.balance)) || 0);
-      const save = async () => { data._wt = Date.now(); await putRow({ ...row, balance, data }); };
-
-      if (action === 'slots_spin') {
-        const bet = Math.floor(Number(body.bet));
-        if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ ok: false, error: 'Mise invalide.' });
-        if (bet > SLOT_MAX_BET) return res.status(400).json({ ok: false, error: 'La mise maximale sur la machine est de 100 000 €.' });
-        if (bet > balance) return res.status(400).json({ ok: false, error: 'Solde insuffisant pour miser ce montant.', balance });
-        const r = spinSlots(bet, luck.slots);
-        balance = balance - bet + r.win;
-        await save();
-        return res.status(200).json({ ok: true, finals: r.finals, mult: r.mult, win: r.win, balance });
+    // --- outils du Patron sur les soldes (seule façon de modifier le solde d'un autre joueur) ---
+    if (action === 'admin_credit' || action === 'admin_set_balance' || action === 'admin_reset') {
+      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      const target = cleanName(body.username);
+      if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
+      const amount = Math.floor(Number(body.amount));
+      const value = Math.floor(Number(body.balance));
+      try {
+        const { row } = await updateAccount(target, (d) => {
+          if (action === 'admin_credit') {
+            if (!Number.isFinite(amount) || Math.abs(amount) > 1e12) throw new GameError(400, 'Montant invalide.');
+            d.balance = Math.max(0, d.balance + amount);
+          } else if (action === 'admin_set_balance') {
+            if (!Number.isFinite(value) || value < 0 || value > 1e12) throw new GameError(400, 'Solde invalide.');
+            d.balance = value;
+          } else {
+            d.balance = START_BALANCE;
+          }
+        });
+        return res.status(200).json({ ok: true, balance: row.balance });
+      } catch (e) {
+        if (e instanceof GameError) return res.status(e.code).json({ ok: false, error: e.message });
+        throw e;
       }
+    }
 
-      if (action === 'scratch_buy') {
-        // un ticket précédent jamais gratté est crédité avant d'en acheter un nouveau
-        const prev = data._scratchTicket;
-        if (prev && !prev.claimed && prev.win > 0) balance += prev.win;
-        if (balance < SCRATCH_PRICE) { data._scratchTicket = undefined; await save(); return res.status(400).json({ ok: false, error: 'Solde insuffisant ! Un ticket coûte 50 pièces.', balance }); }
-        balance -= SCRATCH_PRICE;
-        const win = drawScratch(luck.scratch);
-        const id = randomBytes(8).toString('hex');
-        data._scratchTicket = { id, win, claimed: false };
-        await save();
-        return res.status(200).json({ ok: true, ticketId: id, win, balance });
+    // --- virements entre joueurs ---
+    if (BANK_ACTIONS.includes(action)) {
+      try {
+        return res.status(200).json(await runBankAction(action, body, { actor }));
+      } catch (e) {
+        if (e instanceof GameError) return res.status(e.code).json({ ok: false, error: e.message, ...e.extra });
+        throw e;
       }
+    }
 
-      // scratch_claim : crédite le gain du ticket une seule fois
-      const t = data._scratchTicket;
-      if (!t || t.id !== body.ticketId) return res.status(400).json({ ok: false, error: 'Ticket introuvable.', balance });
-      if (!t.claimed) { t.claimed = true; balance += t.win; await save(); }
-      return res.status(200).json({ ok: true, win: t.win, balance });
+    // --- jeux et portefeuille gérés par le serveur : résultat et solde viennent d'ici, pas du navigateur ---
+    if (GAME_ACTIONS.includes(action)) {
+      try {
+        const out = await runGameAction(action, body, { actor, luck: await getConfig() });
+        return res.status(200).json(out);
+      } catch (e) {
+        if (e instanceof GameError) return res.status(e.code).json({ ok: false, error: e.message, ...e.extra });
+        throw e;
+      }
     }
 
     // --- écriture d'un compte (forme Supabase : ?sb=accounts, ligne ou tableau de lignes) ---

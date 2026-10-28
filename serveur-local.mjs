@@ -42,6 +42,15 @@ http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = decodeURIComponent(url.pathname);
 
+  // outil réservé aux tests automatiques (inactif sauf si E2E_TEST_HOOKS=1) : fixe un solde en mémoire
+  if (process.env.E2E_TEST_HOOKS === '1' && path === '/__test/balance') {
+    const mod = await import(pathToFileURL(join(ROOT, 'api', 'accounts.js')).href);
+    const row = mod.__test.memory.rows[String(url.searchParams.get('user') || '').toLowerCase()];
+    if (row) row.balance = Number(url.searchParams.get('value')) || 0;
+    res.end(row ? 'ok' : 'inconnu');
+    return;
+  }
+
   const m = path.match(/^\/api\/([a-z]+)$/);
   if (m && API.includes(m[1])) {
     try {

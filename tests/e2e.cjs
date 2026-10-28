@@ -31,12 +31,20 @@ async function newPlayer(browser, name, balance) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.addStyleTag({ content: '.hidden{display:none !important}' });
   await sleep(600);
-  await page.evaluate(([n, b]) => {
-    state.username = n;
+  // vrai compte créé sur le serveur (le solde est géré par le serveur)
+  const reg = await page.evaluate((n) => gatewayAction({ action: 'register', username: n, password: 'abc123', avatar: n === 'Alice' ? '🦊' : '🐺' }), name);
+  if (!reg.ok) throw new Error('inscription impossible : ' + JSON.stringify(reg));
+  await fetch(`${BASE}/__test/balance?user=${encodeURIComponent(name)}&value=${balance}`);
+  await page.evaluate(async ([r, b]) => {
+    _AntiBotGuard.verify = () => true;
+    setAuthToken(r.token);
+    state.username = r.row.username;
     state.balance = b;
-    state.avatarEmoji = n === 'Alice' ? '🦊' : '🐺';
+    state.avatarEmoji = r.row.avatar;
+    localStorage.setItem(STORAGE_KEY_SESSION, r.row.username);
     try { saveState(); } catch (e) {}
-  }, [name, balance]);
+    await refreshWallet();
+  }, [reg, balance]);
   return { ctx, page, name };
 }
 
@@ -172,6 +180,9 @@ const waitFor = async (fn, ms = 8000, step = 150) => {
     await sleep(800);
     const solo = await A.page.evaluate(() => ({ mode: PokerMulti.mode, hand: pokerGame.players[0].hand.length, bots: pokerGame.getActivePlayers().length, multi: !!pokerGame.isMulti }));
     ok(solo.mode === 'solo' && solo.hand === 2 && solo.bots === 4 && !solo.multi, `partie solo lancée (${JSON.stringify(solo)})`);
+    const soloBefore = await bal(A);
+    await sleep(2500);
+    ok((await bal(A)) === soloBefore && soloBefore === (await A.page.evaluate(async () => (await gatewayAction({ action: 'wallet_balance' })).balance)), 'poker solo = jetons d\'entraînement : le vrai solde ne bouge pas');
   } catch (e) {
     console.error('ERREUR TEST', e);
     errors.push(String(e));

@@ -3564,23 +3564,23 @@
       window.fetch = function (input, init) {
         try {
           const url = typeof input === 'string' ? input : (input && input.url) || '';
-          if (url.indexOf('/api/blackjack') !== -1 && init && String(init.method || 'GET').toUpperCase() === 'POST') {
+          if (/\/api\/(blackjack|crash|poker)/.test(url)) {
             const t = getAuthToken();
-            if (t) init = { ...init, headers: { ...(init.headers || {}), 'X-Auth-Token': t } };
+            if (t) init = { ...(init || {}), headers: { ...((init && init.headers) || {}), 'X-Auth-Token': t } };
           }
         } catch (e) {}
         return nativeFetch(input, init);
       };
     })();
 
-    // Jeux gérés par le serveur : on synchronise d'abord le solde, puis le serveur tire le résultat et renvoie le nouveau solde.
-    async function serverGame(payload) {
-      try { await pushRemoteAccount(state); } catch (e) {}
+    // Jeux et portefeuille gérés par le serveur : le navigateur demande, le serveur tire le résultat et renvoie le nouveau solde.
+    async function serverGame(payload, opts) {
       const r = await gatewayAction(payload);
       if (typeof r.balance === 'number') {
         state.balance = r.balance;
         state.lastBalanceChange = Date.now();
         saveState();
+        if (!(opts && opts.silent)) { try { updateGlobalUI(); } catch (e) {} }
       }
       return r;
     }
@@ -3883,11 +3883,13 @@
 
         if (existsInDb) {
           const myAcc = db[meKey];
-          const oldTransfersLen = (state.pendingTransfers || []).length;
+          const _prevPendingLen = (state.pendingTransfers || []).length;
+          await refreshBankState();   // virements : seul le serveur fait foi
+          const oldTransfersLen = _prevPendingLen;
           const oldFriendsReqLen = (state.pendingFriendRequests || []).length;
           const oldGameInvLen = (state.pendingGameInvites || []).length;
 
-          const newTransfers = Array.isArray(myAcc.pendingTransfers) ? myAcc.pendingTransfers : [];
+          const newTransfers = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
 
           // Déduplication stricte des demandes d'amis (exclure ceux déjà amis)
           const friendsSet = new Set((myAcc.friends || []).map(f => (f || '').toLowerCase().trim()));
@@ -3930,7 +3932,7 @@
           const newGameInvs = uniqueGameInvs;
 
           const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
-          const remoteBankTransfers = Array.isArray(myAcc.bankTransfers) ? myAcc.bankTransfers : [];
+          const remoteBankTransfers = [];  // l'historique des virements vient directement du serveur (refreshBankState)
 
           // Synchroniser les statuts des virements bancaires ('Accepté', 'Refusé', 'Expiré')
           let btChanged = false;
@@ -3974,23 +3976,15 @@
           const hasFriendsDiff = JSON.stringify(state.friends || []) !== JSON.stringify(newFriends);
           const hasBalanceDiff = typeof myAcc.balance === 'number' && myAcc.balance !== state.balance;
 
-          if (hasTransfersDiff || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff || hasOutgoingDiff || btChanged) {
+          if (hasTransfersDiff || newTransfers.length !== oldTransfersLen || hasBalanceDiff || hasFriendReqDiff || hasGameInvDiff || hasFriendsDiff || hasOutgoingDiff || btChanged) {
             state.pendingTransfers = newTransfers;
             state.pendingFriendRequests = newFriendReqs;
             state.outgoingFriendRequests = cleanedOutgoing;
             state.pendingGameInvites = newGameInvs;
             state.friends = newFriends;
             if (hasBalanceDiff) {
-              const localBalanceRecent = (Date.now() - (state.lastBalanceChange || 0) < 45000);
-              const localPlaying = (Boolean(slotSpinning) || (typeof bj !== 'undefined' && Boolean(bj.active)) || (typeof rouletteSpinning !== 'undefined' && Boolean(rouletteSpinning)));
-              if (localBalanceRecent || localPlaying) {
-                // Le solde local fait autorité (gain ou mise en cours). On protège state.balance et on synchronise vers Supabase
-                myAcc.balance = state.balance;
-                db[meKey].balance = state.balance;
-                pushRemoteAccount(state).catch(() => {});
-              } else {
-                state.balance = myAcc.balance;
-              }
+              // le serveur fait foi pour le solde (sauf juste après une action pour ne pas écraser un résultat tout frais)
+              if (Date.now() - (state.lastBalanceChange || 0) > 3000) state.balance = myAcc.balance;
             }
             saveState();
             // Ne jouer le carillon qu'UNE SEULE FOIS pour une NOUVELLE invitation non encore traitée
@@ -4675,12 +4669,13 @@
       const key = username.toLowerCase();
       if (!db[key]) return;
 
-      db[key].balance = Math.max(0, (db[key].balance || 0) + amount);
+      const ar = await gatewayAction({ action: 'admin_credit', username, amount });
+      if (!ar.ok) return showToast('❌ ' + (ar.error || 'Crédit refusé.'));
+      db[key].balance = ar.balance;
       saveAccountsDB(db);
-      await pushRemoteAccount(db[key]);
 
       if (key === (state.username || '').toLowerCase()) {
-        state.balance = db[key].balance;
+        state.balance = ar.balance;
         saveState();
       }
 
@@ -4700,12 +4695,13 @@
       const key = username.toLowerCase();
       if (!db[key]) return;
 
-      db[key].balance = num;
+      const ar = await gatewayAction({ action: 'admin_set_balance', username, balance: num });
+      if (!ar.ok) return showToast('❌ ' + (ar.error || 'Modification refusée.'));
+      db[key].balance = ar.balance;
       saveAccountsDB(db);
-      await pushRemoteAccount(db[key]);
 
       if (key === (state.username || '').toLowerCase()) {
-        state.balance = num;
+        state.balance = ar.balance;
         saveState();
       }
 
@@ -4732,12 +4728,13 @@
       const key = username.toLowerCase();
       if (!db[key]) return;
 
-      db[key].balance = 5500;
+      const ar = await gatewayAction({ action: 'admin_reset', username });
+      if (!ar.ok) return showToast('❌ ' + (ar.error || 'Réinitialisation refusée.'));
+      db[key].balance = ar.balance;
       saveAccountsDB(db);
-      await pushRemoteAccount(db[key]);
 
       if (key === (state.username || '').toLowerCase()) {
-        state.balance = 5500;
+        state.balance = ar.balance;
         saveState();
       }
 
@@ -4829,21 +4826,19 @@
       }
     }
 
-    function adminGiveMoney() {
+    async function adminGiveMoney() {
       const target = document.getElementById('adminTargetInput').value.trim() || state.username;
       const amount = parseInt(document.getElementById('adminAmountInput').value) || 0;
       if (amount === 0) return;
+      const ar = await gatewayAction({ action: 'admin_credit', username: target, amount });
+      if (!ar.ok) return showToast('❌ ' + (ar.error || 'Crédit refusé.'));
       if (target.toLowerCase() === (state.username || '').toLowerCase()) {
-        state.balance = Math.max(0, state.balance + amount);
+        state.balance = ar.balance;
       } else {
         const db = getAccountsDB();
         const key = target.toLowerCase();
-        if (db[key]) {
-          db[key].balance = Math.max(0, (db[key].balance || 5000) + amount);
-          saveAccountsDB(db);
-          pushRemoteAccount(db[key]);
-        }
-        state.friendBalances[target] = Math.max(0, (state.friendBalances[target] || 5000) + amount);
+        if (db[key]) { db[key].balance = ar.balance; saveAccountsDB(db); }
+        state.friendBalances[target] = ar.balance;
         poker.opponents.forEach(o => {
           if (o.name.toLowerCase() === target.toLowerCase()) o.stack = state.friendBalances[target];
         });
@@ -4853,7 +4848,7 @@
       renderAdminAccountsList();
       renderAdminPlayerPills();
       if (currentRoomKey === 'poker') renderPokerTable(false);
-      showToast(`👑 Patron : +${fmt(amount)} pièces ajoutées à ${target} !`);
+      showToast(`👑 Patron : ${amount > 0 ? '+' : ''}${fmt(amount)} pièces pour ${target} !`);
     }
 
     function saveAdminConfig() {
@@ -4898,29 +4893,28 @@
       if (elapsedHours > 30) state.chestStreak = 1;
     }
 
-    function claimDailyChest(e) {
+    async function claimDailyChest(e) {
       if (!_AntiBotGuard.verify('Coffre quotidien', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour ouvrir le coffre et recevoir tes jetons !');
         openAuthModal('login');
         return;
       }
-      checkStreakExpiry();
-      const now = Date.now();
-      const cooldown = CHEST_COOLDOWN_MS - (now - state.lastChestTime);
-      if (cooldown > 0) {
-        const h = Math.floor(cooldown / 3600000);
-        const m = Math.floor((cooldown % 3600000) / 60000);
-        showToast(`⏳ Coffre déjà récupéré ! Prochain disponible dans ${h}h ${m}m.`);
+      // le serveur garde l'heure du dernier coffre et la série : impossible de les remettre à zéro depuis le navigateur
+      const r = await serverGame({ action: 'chest_claim' });
+      if (typeof r.lastChestTime === 'number') { state.lastChestTime = r.lastChestTime; state.chestStreak = r.chestStreak; saveState(); }
+      if (!r.ok) {
+        if (r.waitMs > 0) {
+          const h = Math.floor(r.waitMs / 3600000);
+          const m = Math.floor((r.waitMs % 3600000) / 60000);
+          showToast(`⏳ Coffre déjà récupéré ! Prochain disponible dans ${h}h ${m}m.`);
+        } else showToast('❌ ' + (r.error || 'Coffre indisponible.'));
+        updateGlobalUI();
         return;
       }
-      const reward = getCurrentChestReward();
-      state.balance += reward;
-      state.lastChestTime = now;
-      state.chestStreak = (state.chestStreak || 1) + 1;
       playCoinWinSound();
-      saveState();
-      showToast(`🎁 Coffre ouvert : +${fmt(reward)} pièces !`);
+      updateGlobalUI();
+      showToast(`🎁 Coffre ouvert : +${fmt(r.reward)} pièces !`);
     }
 
     /* ================= MISE À JOUR DE L'INTERFACE GLOBALE ================= */
@@ -5339,7 +5333,7 @@
       }).join('');
     }
 
-    function buySkin(id) {
+    async function buySkin(id) {
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour acheter dans la boutique !');
         openAuthModal('login');
@@ -5348,7 +5342,8 @@
       const item = SHOP_CATALOG.find(i => i.id === id);
       if (!item) return;
       if (state.balance < item.price) return showToast('❌ Pas assez de pièces pour acheter cet article !');
-      state.balance -= item.price;
+      const sr = await serverGame({ action: 'shop_buy', id: item.id });
+      if (!sr.ok) return showToast('❌ ' + (sr.error || 'Achat impossible.'));
       if (!state.ownedSkins.includes(item.id)) state.ownedSkins.push(item.id);
       state.equipped[item.category] = item.id;
       if (item.category === 'avatar') {
@@ -5482,7 +5477,25 @@
       renderAdminPlayerPills();
     }
 
-    function sendBankDonation(e) {
+    // Virements : le serveur garde la boîte de réception et l'historique ; le navigateur ne fait qu'afficher.
+    function applyBankState(r) {
+      if (!r) return;
+      if (Array.isArray(r.inbox)) state.pendingTransfers = r.inbox;
+      if (Array.isArray(r.history)) state.bankTransfers = r.history;
+    }
+
+    async function refreshBankState() {
+      if (!isUserLoggedIn() || !getAuthToken()) return;
+      try {
+        const r = await gatewayAction({ action: 'bank_state' });
+        if (r.ok) {
+          applyBankState(r);
+          if (typeof r.balance === 'number' && Date.now() - (state.lastBalanceChange || 0) > 3000) state.balance = r.balance;
+        }
+      } catch (e) {}
+    }
+
+    async function sendBankDonation(e) {
       if (!_AntiBotGuard.verify('Virement bancaire', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour effectuer un virement bancaire !');
@@ -5498,53 +5511,10 @@
       if (amount < 5) return showToast('❌ Le don minimum est de 5 pièces.');
       if (amount > state.balance) return showToast('❌ Tu n\'as pas assez de pièces sur ton compte.');
 
-      // Déduction immédiate chez l'expéditeur
-      state.balance -= amount;
-
-      const transferId = 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-      const transferObj = {
-        id: transferId,
-        from: state.username,
-        to: recipient,
-        amount: amount,
-        note: note,
-        status: 'En attente',
-        timestamp: Date.now()
-      };
-
-      // Le don n'est PAS ajouté automatiquement au solde du destinataire :
-      // Il est enregistré dans ses virements en attente (pendingTransfers)
-      const db = getAccountsDB();
-      const recKey = recipient.toLowerCase();
-      if (db[recKey]) {
-        if (!Array.isArray(db[recKey].pendingTransfers)) db[recKey].pendingTransfers = [];
-        db[recKey].pendingTransfers.push(transferObj);
-        saveAccountsDB(db);
-        pushRemoteAccount(db[recKey]);
-      } else {
-        const placeholderAcc = {
-          ...DEFAULT_USER_STATE,
-          username: recipient,
-          balance: 5500,
-          pendingTransfers: [transferObj]
-        };
-        db[recKey] = placeholderAcc;
-        saveAccountsDB(db);
-        pushRemoteAccount(placeholderAcc);
-      }
-
-      // Historique chez l'expéditeur
-      if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
-      state.bankTransfers.unshift({
-        id: transferId,
-        from: state.username,
-        to: recipient,
-        amount: amount,
-        note: note,
-        status: 'En attente',
-        timestamp: Date.now()
-      });
-      state.bankTransfers = state.bankTransfers.slice(0, 15);
+      // Le serveur débite ton compte et dépose le virement dans la boîte du destinataire.
+      const sr = await serverGame({ action: 'bank_send', to: recipient, amount, note });
+      if (!sr.ok) return showToast('❌ ' + (sr.error || 'Virement impossible.'));
+      applyBankState(sr);
 
       const amtInp = document.getElementById('bankAmountInput');
       if (amtInp) amtInp.value = '';
@@ -5560,137 +5530,12 @@
 
     /* ================= GESTION DES VIREMENTS EXPIRÉS (REMBOURSEMENT AUTO SOUS 30 MIN) ================= */
     function processExpiredBankDonations() {
-      const now = Date.now();
-      const EXPIRATION_MS = 30 * 60 * 1000; // 30 minutes
-      const db = getAccountsDB();
-      let dbModified = false;
-
-      // 1. Virements en attente reçus par le joueur actif non acceptés sous 30 min
-      if (Array.isArray(state.pendingTransfers) && state.pendingTransfers.length > 0) {
-        const validTransfers = [];
-        state.pendingTransfers.forEach(tx => {
-          const txTime = Number(tx.timestamp) || 0;
-          if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
-            // Le don a expiré : rembourser immédiatement l'expéditeur
-            const sKey = (tx.from || '').toLowerCase().trim();
-            const refundAmt = Number(tx.amount) || 0;
-            if (db[sKey]) {
-              db[sKey].balance = (db[sKey].balance || 0) + refundAmt;
-              if (Array.isArray(db[sKey].bankTransfers)) {
-                const senderTx = db[sKey].bankTransfers.find(x => x.id === tx.id);
-                if (senderTx) senderTx.status = 'Expiré (Remboursé)';
-              }
-              pushRemoteAccount(db[sKey]);
-              dbModified = true;
-            }
-            if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
-            state.bankTransfers.unshift({
-              id: tx.id,
-              from: tx.from,
-              to: state.username,
-              amount: refundAmt,
-              note: tx.note,
-              status: 'Expiré (Non réclamé)',
-              timestamp: txTime
-            });
-            showToast(`⏱️ Le don de ${fmt(refundAmt)} € de ${tx.from} a expiré après 30 min sans acceptation et lui a été retourné.`);
-          } else {
-            validTransfers.push(tx);
-          }
-        });
-        if (validTransfers.length !== state.pendingTransfers.length) {
-          state.pendingTransfers = validTransfers;
-          saveState();
-        }
-      }
-
-      // 2. Virements envoyés par le joueur actif restés "En attente" plus de 30 minutes
-      if (Array.isArray(state.bankTransfers) && state.bankTransfers.length > 0) {
-        let refundedSender = false;
-        state.bankTransfers.forEach(tx => {
-          if (tx.status === 'En attente' && tx.from && tx.from.toLowerCase().trim() === (state.username || '').toLowerCase().trim()) {
-            const txTime = Number(tx.timestamp) || 0;
-            if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
-              const rKey = (tx.to || '').toLowerCase().trim();
-              const refundAmt = Number(tx.amount) || 0;
-              if (db[rKey] && Array.isArray(db[rKey].pendingTransfers)) {
-                db[rKey].pendingTransfers = db[rKey].pendingTransfers.filter(p => p.id !== tx.id);
-                pushRemoteAccount(db[rKey]);
-                dbModified = true;
-              }
-              state.balance = (state.balance || 0) + refundAmt;
-              tx.status = 'Expiré (Remboursé)';
-              refundedSender = true;
-              showToast(`💰 Ton don de ${fmt(refundAmt)} € à ${tx.to} n'a pas été accepté sous 30 min : Tu as été intégralement remboursé !`);
-            }
-          }
-        });
-        if (refundedSender) {
-          saveState();
-          updateGlobalUI();
-        }
-      }
-
-      // 3. Scan général sur toute la base
-      Object.keys(db).forEach(k => {
-        const acc = db[k];
-        if (acc && Array.isArray(acc.pendingTransfers)) {
-          const keep = [];
-          let accChanged = false;
-          acc.pendingTransfers.forEach(tx => {
-            const txTime = Number(tx.timestamp) || 0;
-            if (txTime > 0 && (now - txTime) > EXPIRATION_MS) {
-              accChanged = true;
-              const sKey = (tx.from || '').toLowerCase().trim();
-              const amt = Number(tx.amount) || 0;
-              if (db[sKey]) {
-                db[sKey].balance = (db[sKey].balance || 0) + amt;
-                if (Array.isArray(db[sKey].bankTransfers)) {
-                  const stx = db[sKey].bankTransfers.find(x => x.id === tx.id);
-                  if (stx) stx.status = 'Expiré (Remboursé)';
-                }
-                pushRemoteAccount(db[sKey]);
-              }
-            } else {
-              keep.push(tx);
-            }
-          });
-          if (accChanged) {
-            acc.pendingTransfers = keep;
-            dbModified = true;
-            pushRemoteAccount(acc);
-          }
-        }
-      });
-
-      if (dbModified) {
-        saveAccountsDB(db);
-      }
+      // Les virements expirés (30 min) sont remboursés par le serveur lors de la synchronisation (bank_state).
     }
 
     function renderBankHistory() {
       const box = document.getElementById('bankHistoryList');
       if (!box) return;
-
-      // Synchronisation immédiate des statuts 'En attente' si le destinataire a déjà accepté
-      const db = getAccountsDB();
-      let changed = false;
-      if (Array.isArray(state.bankTransfers)) {
-        state.bankTransfers.forEach(t => {
-          if (t.status === 'En attente' && t.to) {
-            const recKey = (t.to || '').toLowerCase().trim();
-            if (db[recKey]) {
-              const stillPending = (db[recKey].pendingTransfers || []).some(pt => pt.id === t.id);
-              if (!stillPending) {
-                const recTx = (db[recKey].bankTransfers || []).find(bt => bt.id === t.id);
-                t.status = (recTx && recTx.status) ? recTx.status : 'Accepté';
-                changed = true;
-              }
-            }
-          }
-        });
-        if (changed) saveState();
-      }
 
       if (!state.bankTransfers || state.bankTransfers.length === 0) {
         box.innerHTML = '<div class="p-4 rounded-xl bg-black/40 border border-white/10 text-stone-400 text-center text-xs">Aucun virement pour le moment. Fais un don à un joueur pour lancer l\'historique !</div>';
@@ -5752,85 +5597,13 @@
       }
       const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
       if (list.length === 0) return;
-
-      const cur = list[0];
-      const amount = Number(cur.amount) || 0;
-
-      // 1. Crédit direct et immédiat du solde
-      state.balance = (state.balance || 0) + amount;
-      state.pendingTransfers = list.slice(1);
-
-      // 2. Ajout à l'historique bancaire du destinataire
-      if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
-      state.bankTransfers.unshift({
-        id: cur.id,
-        from: cur.from,
-        to: state.username,
-        amount: amount,
-        note: cur.note,
-        status: 'Accepté',
-        timestamp: cur.timestamp || Date.now()
-      });
-      state.bankTransfers = state.bankTransfers.slice(0, 15);
-
-      // 3. Mettre à jour l'historique de l'expéditeur si présent dans la base
-      const db = getAccountsDB();
-      const senderKey = (cur.from || '').toLowerCase().trim();
-      if (db[senderKey]) {
-        if (!Array.isArray(db[senderKey].bankTransfers)) db[senderKey].bankTransfers = [];
-        const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
-        if (t) {
-          t.status = 'Accepté';
-        } else {
-          db[senderKey].bankTransfers.unshift({
-            id: cur.id,
-            from: cur.from,
-            to: state.username,
-            amount: amount,
-            note: cur.note,
-            status: 'Accepté',
-            timestamp: cur.timestamp || Date.now()
-          });
-        }
-        db[senderKey].bankTransfers = db[senderKey].bankTransfers.slice(0, 15);
-        saveAccountsDB(db);
-        pushRemoteAccount(db[senderKey]);
-      }
-
-      // 4. Sauvegarde locale + envoi immédiat vers Supabase
-      saveState();
-      playCoinWinSound();
-      updateGlobalUI();
-      checkPendingNotifications();
-      renderBankHistory();
-      showToast(`✅ Virement de +${fmt(amount)} € accepté avec succès !`);
+      await acceptTransferById(list[0].id);
     }
 
     async function declineCurrentPendingTransfer() {
       const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
       if (list.length === 0) return;
-
-      const cur = list[0];
-      const amount = Number(cur.amount) || 0;
-      state.pendingTransfers = list.slice(1);
-
-      // Remboursement de l'expéditeur
-      const db = getAccountsDB();
-      const senderKey = (cur.from || '').toLowerCase();
-      if (db[senderKey]) {
-        db[senderKey].balance = (db[senderKey].balance || 0) + amount;
-        if (Array.isArray(db[senderKey].bankTransfers)) {
-          const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
-          if (t) t.status = 'Refusé & Remboursé';
-        }
-        saveAccountsDB(db);
-        await pushRemoteAccount(db[senderKey]);
-      }
-
-      saveState();
-      updateGlobalUI();
-      checkPendingNotifications();
-      showToast(`❌ Don de ${fmt(amount)} € refusé (remboursé à ${cur.from}).`);
+      await declineTransferById(list[0].id);
     }
 
     /* ================= GESTION GLOBALE DES NOTIFICATIONS (VIREMENTS, AMIS, JEUX) ================= */
@@ -6362,24 +6135,7 @@
           poker.heroCards = [];
           poker.heroBet = 0;
 
-          // S'il ne reste qu'un seul adversaire, il remporte le pot
-          if (realPlayers.length === 1) {
-            const opp = realPlayers[0];
-            const db = getAccountsDB();
-            const oppKey = (opp.username || '').toLowerCase().trim();
-            if (db[oppKey]) {
-              db[oppKey].currentTable = db[oppKey].currentTable || {};
-              db[oppKey].currentTable.pokerForfeit = {
-                winner: opp.username,
-                pot: poker.pot,
-                loser: state.username,
-                timestamp: Date.now()
-              };
-              db[oppKey].balance = (db[oppKey].balance || 0) + poker.pot;
-              saveAccountsDB(db);
-              pushRemoteAccount(db[oppKey]);
-            }
-          }
+          // (le pot et les jetons de l'adversaire sont gérés par le serveur)
         }
 
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
@@ -6417,25 +6173,7 @@
           }).catch(() => {});
         } catch (e) {}
 
-        const realPlayers = getTableParticipants('blackjack');
-        if (wasActive && realPlayers.length > 0) {
-          const winPot = bj.bet * 2;
-          const opp = realPlayers[0];
-          const db = getAccountsDB();
-          const oppKey = (opp.username || '').toLowerCase().trim();
-          if (db[oppKey]) {
-            db[oppKey].currentTable = db[oppKey].currentTable || {};
-            db[oppKey].currentTable.bjForfeit = {
-              winner: opp.username,
-              pot: winPot,
-              loser: state.username,
-              timestamp: Date.now()
-            };
-            db[oppKey].balance = (db[oppKey].balance || 0) + winPot;
-            saveAccountsDB(db);
-            pushRemoteAccount(db[oppKey]);
-          }
-        }
+        // (le forfait et le paiement de l'adversaire sont gérés par le serveur)
         state.currentTable = { game: null, leftTable: true, updatedAt: Date.now() };
         bj.player = [];
         bj.dealer = [];
@@ -7208,6 +6946,8 @@
       }
     }
 
+    // Ancien poker solo 2D retiré : le poker solo se joue sur la table 3D avec des jetons d'entraînement,
+    // le poker en ligne est géré par le serveur (api/poker.js).
     function startPokerHand(e) {
       if (!_AntiBotGuard.verify('Poker - Distribuer', e)) return;
       if (!isUserLoggedIn()) {
@@ -7220,228 +6960,32 @@
         showToast('🤖 Le Croupier Automatique gère la table ! Dès que 2 joueurs sont assis et prêts, la donne démarre automatiquement.');
         return;
       }
-
-      // Mode Solo direct contre bots
-      const blind = Math.max(10, parseInt(document.getElementById('pokerBlindsInput')?.value) || 100);
-      if (state.balance < blind) return showToast(`❌ Pas assez de pièces (Blind ${blind} € requise) !`);
-      if (!poker.opponents.length) setupPokerSeats();
-
-      const activeOpps = poker.opponents.filter(o => !o.isEmpty);
-      if (activeOpps.length === 0) return showToast('❌ Aucun joueur à la table.');
-
-      poker.inProgress = true;
-      poker.phase = 'Pré-Flop';
-      poker.deck = createDeck();
-      poker.community = [];
-      updatePokerCommunityReveal(0);
-      poker.pot = blind;
-      poker.currentBet = blind;
-      state.balance -= blind;
-      poker.heroBet = blind;
-      poker.heroCards = [poker.deck.pop(), poker.deck.pop()];
-
-      poker.opponents.forEach(o => {
-        if (o.isEmpty) {
-          o.folded = true;
-          o.cards = [];
-          o.status = 'En attente';
-          return;
-        }
-        o.folded = false;
-        if (o.stack < blind * 3) o.stack = 5000;
-        o.cards = [poker.deck.pop(), poker.deck.pop()];
-        o.bet = blind;
-        o.stack -= blind;
-        poker.pot += blind;
-        o.status = `Mise ${blind}`;
-      });
-      playPokerCardDealSound();
-      const annEl = document.getElementById('pokerTableAnnouncement');
-      if (annEl) annEl.textContent = `Main lancée (${activeOpps.length + 1} joueurs). Choisis ton action !`;
-      const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-      if (mAnnEl) mAnnEl.textContent = `Main lancée (${activeOpps.length + 1} joueurs).`;
-      saveState();
-      updateGlobalUI();
-      renderPokerTable(false);
-      setPokerBtns(true);
+      showToast('🎓 Le poker solo se joue sur la table 3D, avec des jetons d\'entraînement.');
     }
 
     function playerPokerAction(act, e) {
       if (!_AntiBotGuard.verify('Poker - ' + act, e)) return;
       const isMulti = lobbies.poker && lobbies.poker.mode === 'multi';
-      if (isMulti) {
-        if (!pokerSyncTable || !['preflop', 'flop', 'turn', 'river'].includes(pokerSyncTable.status)) return;
-        const myKey = (state.username || '').toLowerCase().trim();
-        if ((pokerSyncTable.turn || '').toLowerCase().trim() !== myKey) {
-          return showToast('⏳ Ce n\'est pas encore ton tour de jouer !');
-        }
-
-        if (act === 'fold') {
-          sendPokerAction('fold');
-        } else if (act === 'call') {
-          const myPl = pokerSyncTable.players ? pokerSyncTable.players[myKey] : null;
-          const myRoundBet = myPl ? (myPl.roundBet || 0) : 0;
-          const toCall = Math.max(0, (pokerSyncTable.currentBet || 100) - myRoundBet);
-          if (toCall === 0) {
-            sendPokerAction('check');
-          } else {
-            sendPokerAction('call');
-          }
-        } else if (act === 'raise') {
-          const mobileInp = document.getElementById('pokerMobileRaiseInput');
-          const pcInp = document.getElementById('pokerRaiseInput');
-          const rawVal = mobileInp && mobileInp.value ? mobileInp.value : (pcInp?.value || 250);
-          const addRaise = Math.min(50000, Math.max(100, parseInt(rawVal) || 200));
-          sendPokerAction('raise', addRaise);
-        } else if (act === 'allin') {
-          sendPokerAction('allin');
-        }
-        return;
+      if (!isMulti) return;
+      if (!pokerSyncTable || !['preflop', 'flop', 'turn', 'river'].includes(pokerSyncTable.status)) return;
+      const myKey = (state.username || '').toLowerCase().trim();
+      if ((pokerSyncTable.turn || '').toLowerCase().trim() !== myKey) {
+        return showToast('⏳ Ce n\'est pas encore ton tour de jouer !');
       }
-
-      if (!poker.inProgress) return;
       if (act === 'fold') {
-        poker.inProgress = false;
-        setPokerBtns(false);
-        const winner = poker.opponents.find(o => !o.folded && !o.isEmpty) || poker.opponents.find(o => !o.isEmpty) || poker.opponents[0];
-        if (winner && !winner.isEmpty) {
-          winner.stack += poker.pot;
-          if (winner.isFriend) state.friendBalances[winner.name] = winner.stack;
-        }
-        saveState();
-        renderPokerTable(true);
-        const foldMsg = `Tu t'es couché. ${winner && !winner.isEmpty ? winner.name : 'La table'} récupère le pot.`;
-        const annEl = document.getElementById('pokerTableAnnouncement');
-        if (annEl) annEl.textContent = foldMsg;
-        const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-        if (mAnnEl) mAnnEl.textContent = foldMsg;
-        return;
-      }
-
-      const toCall = Math.max(0, poker.currentBet - poker.heroBet);
-      if (act === 'call') {
-        const pay = Math.min(state.balance, toCall);
-        state.balance -= pay; poker.heroBet += pay; poker.pot += pay;
+        sendPokerAction('fold');
+      } else if (act === 'call') {
+        const myPl = pokerSyncTable.players ? pokerSyncTable.players[myKey] : null;
+        const myRoundBet = myPl ? (myPl.roundBet || 0) : 0;
+        const toCall = Math.max(0, (pokerSyncTable.currentBet || 100) - myRoundBet);
+        sendPokerAction(toCall === 0 ? 'check' : 'call');
       } else if (act === 'raise') {
         const mobileInp = document.getElementById('pokerMobileRaiseInput');
         const pcInp = document.getElementById('pokerRaiseInput');
         const rawVal = mobileInp && mobileInp.value ? mobileInp.value : (pcInp?.value || 250);
-        const r = Math.min(50000, Math.max(10, parseInt(rawVal) || 250));
-        const pay = Math.min(state.balance, toCall + r);
-        state.balance -= pay; poker.heroBet += pay; poker.currentBet = poker.heroBet; poker.pot += pay;
+        sendPokerAction('raise', Math.min(50000, Math.max(100, parseInt(rawVal) || 200)));
       } else if (act === 'allin') {
-        const pay = Math.min(50000, state.balance);
-        state.balance -= pay; poker.heroBet += pay; poker.currentBet = Math.max(poker.currentBet, poker.heroBet); poker.pot += pay;
-      }
-
-      poker.opponents.forEach(o => {
-        if (o.folded || o.isEmpty) return;
-        const diff = Math.max(0, poker.currentBet - o.bet);
-        if (diff > 0) {
-          const ev = evaluateBestHand([...o.cards, ...poker.community]);
-          if (!o.isFriend && diff > 600 && ev.score < 100 && Math.random() < 0.35) {
-            o.folded = true;
-            o.status = 'Couché';
-            return;
-          }
-          const p = Math.min(o.stack, diff);
-          o.stack -= p; o.bet += p; poker.pot += p; o.status = `Suit (${o.bet})`;
-          if (o.isFriend) state.friendBalances[o.name] = o.stack;
-        } else {
-          o.status = 'Parole';
-        }
-      });
-
-      saveState();
-
-      // RÈGLE OFFICIELLE POKER : Si tapis général (héros ou tous adversaires à 0), dérouler directement toutes les cartes manquantes !
-      const activeOpps = poker.opponents.filter(o => !o.folded && !o.isEmpty);
-      const isSoloAllIn = (act === 'allin' || state.balance === 0 || activeOpps.every(o => o.stack <= 0));
-      if (isSoloAllIn) {
-        while (poker.community.length < 5 && poker.deck.length > 0) {
-          poker.community.push(poker.deck.pop());
-        }
-        updatePokerCommunityReveal(5);
-        poker.phase = 'Showdown';
-
-        poker.inProgress = false;
-        setPokerBtns(false);
-        const heroEv = evaluateBestHand([...poker.heroCards, ...poker.community]);
-        let best = heroEv.score, winHero = true, winOpp = null;
-        poker.opponents.forEach(o => {
-          if (o.folded || o.isEmpty) return;
-          const ev = evaluateBestHand([...o.cards, ...poker.community]);
-          o.status = ev.name;
-          if (ev.score > best) { best = ev.score; winHero = false; winOpp = o; }
-        });
-        if (winHero) {
-          state.balance += poker.pot;
-          playCoinWinSound();
-          const winMsg = `🔥 Tapis général ! Tu remportes le pot de ${fmt(poker.pot)} avec ${heroEv.name} !`;
-          const annEl = document.getElementById('pokerTableAnnouncement');
-          if (annEl) annEl.textContent = winMsg;
-          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-          if (mAnnEl) mAnnEl.textContent = winMsg;
-          showToast(`🏆 +${fmt(poker.pot)} pièces au Poker !`);
-        } else if (winOpp) {
-          winOpp.stack += poker.pot;
-          if (winOpp.isFriend) state.friendBalances[winOpp.name] = winOpp.stack;
-          const oppMsg = `🔥 Tapis général ! ${winOpp.name} remporte le pot de ${fmt(poker.pot)} (${winOpp.status}).`;
-          const annEl = document.getElementById('pokerTableAnnouncement');
-          if (annEl) annEl.textContent = oppMsg;
-          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-          if (mAnnEl) mAnnEl.textContent = oppMsg;
-        }
-        saveState();
-        renderPokerTable(true);
-        return;
-      }
-      if (poker.phase === 'Pré-Flop') {
-        poker.phase = 'Flop';
-        poker.community.push(poker.deck.pop(), poker.deck.pop(), poker.deck.pop());
-        updatePokerCommunityReveal(3);
-        renderPokerTable(false);
-      } else if (poker.phase === 'Flop') {
-        poker.phase = 'Turn';
-        poker.community.push(poker.deck.pop());
-        updatePokerCommunityReveal(4);
-        renderPokerTable(false);
-      } else if (poker.phase === 'Turn') {
-        poker.phase = 'River';
-        poker.community.push(poker.deck.pop());
-        updatePokerCommunityReveal(5);
-        renderPokerTable(false);
-      } else {
-        poker.inProgress = false;
-        setPokerBtns(false);
-        const heroEv = evaluateBestHand([...poker.heroCards, ...poker.community]);
-        let best = heroEv.score, winHero = true, winOpp = null;
-        poker.opponents.forEach(o => {
-          if (o.folded || o.isEmpty) return;
-          const ev = evaluateBestHand([...o.cards, ...poker.community]);
-          o.status = ev.name;
-          if (ev.score > best) { best = ev.score; winHero = false; winOpp = o; }
-        });
-        if (winHero) {
-          state.balance += poker.pot;
-          playCoinWinSound();
-          const winMsg = `🏆 Tu gagnes le pot de ${fmt(poker.pot)} avec ${heroEv.name} !`;
-          const annEl = document.getElementById('pokerTableAnnouncement');
-          if (annEl) annEl.textContent = winMsg;
-          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-          if (mAnnEl) mAnnEl.textContent = winMsg;
-          showToast(`🏆 +${fmt(poker.pot)} pièces au Poker !`);
-        } else if (winOpp) {
-          winOpp.stack += poker.pot;
-          if (winOpp.isFriend) state.friendBalances[winOpp.name] = winOpp.stack;
-          const oppMsg = `${winOpp.name} remporte le pot de ${fmt(poker.pot)} (${winOpp.status}).`;
-          const annEl = document.getElementById('pokerTableAnnouncement');
-          if (annEl) annEl.textContent = oppMsg;
-          const mAnnEl = document.getElementById('pokerMobileAnnouncement');
-          if (mAnnEl) mAnnEl.textContent = oppMsg;
-        }
-        saveState();
-        renderPokerTable(true);
+        sendPokerAction('allin');
       }
     }
 
@@ -7491,7 +7035,6 @@
             tableId: tableId,
             username: state.username,
             avatar: state.avatarEmoji || '👤',
-            stack: state.balance,
             amount: amount
           })
         });
@@ -7657,9 +7200,6 @@
           myDeductedPokerRoundId = srv.roundId;
           pokerRevealedCommunityCount = 0;
           if (myPl) {
-            state.balance = Math.max(0, state.balance - 100);
-            saveState();
-            updateGlobalUI();
             playPokerCardDealSound();
           }
         }
@@ -7676,10 +7216,7 @@
         if (srv.roundId && myProcessedPokerRoundId !== srv.roundId) {
           myProcessedPokerRoundId = srv.roundId;
           if (srv.winner && srv.winner.toLowerCase().trim() === myKey) {
-            state.balance += (srv.pot || 0);
             playCoinWinSound();
-            saveState();
-            updateGlobalUI();
             showToast(`🏆 Tu remportes le pot de ${fmt(srv.pot || 0)} € au Poker !`);
           }
         }
@@ -8283,43 +7820,13 @@
         return showToast('❌ Tu dois miser d\'abord avant de pouvoir faire décoller la fusée !');
       }
 
-      // Lancement du compte à rebours universel de 7s
-      const now = Date.now();
-      const countdownDuration = 7000;
-      const launchTime = now + countdownDuration;
-
-      // Tirage équitable : P(crash >= x) = RTP / x. Le curseur du Patron règle le rendement
-      // (5 % => 80 %, 50 % => 95 %, 95 % => 110 %). Avant : jusqu'à ~165 % en encaissant vers ×3,3.
-      const crashLuck = Math.max(5, Math.min(95, CONFIG_CASINO.CHANCE_CRASH ?? 50));
-      const crashRtp = 0.80 + ((crashLuck - 5) / 90) * 0.30;
-      const rawMultiplier = crashRtp / (1 - Math.random());
-      const crashPoint = Math.min(500, Math.max(1, Math.floor(rawMultiplier * 100) / 100));
-
-      crashSync.id = now;
-      if (myActiveCrashBet) {
-        myActiveCrashBet.roundId = now;
-      }
-      crashSync.status = 'countdown';
-      crashSync.countdownStartTime = now;
-      crashSync.countdownDuration = countdownDuration;
-      crashSync.launchTime = launchTime;
-      crashSync.crashPoint = crashPoint;
-      crashSync.crashedAtTime = 0;
-      crashSync.updatedAt = now;
-
-      // Feedback instantané local (0 lag)
-      updateCrashActionBtnText();
-      renderCrashLiveBets();
-      startCrashAnimLoop();
-      showToast(`🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.`);
-
-      // Synchronisation serveur & Supabase Cloud
-      pushCrashStateToServer({
-        action: 'launch',
-        id: now,
-        countdownDuration: countdownDuration,
-        crashPoint: crashPoint,
-        bet: myBet
+      // Le serveur lance le compte à rebours de 7 s et tire lui-même le point de crash (secret)
+      crashCall({ action: 'launch' }).then((r) => {
+        if (!r.ok) return showToast('⚠️ ' + (r.error || 'Décollage impossible.'));
+        showToast('🚀 Décollage lancé ! Compte à rebours de 7s activé pour tout le serveur.');
+        updateCrashActionBtnText();
+        renderCrashLiveBets();
+        startCrashAnimLoop();
       });
     }
 
@@ -8330,172 +7837,91 @@
       }
       const myBet = getMyCrashBet();
       if (!myBet) return;
-
-      state.balance += myBet.bet;
-      state.lastBalanceChange = Date.now();
-      saveState();
-
-      const balDisplay = document.getElementById('crashUserBalanceDisplay');
-      if (balDisplay) balDisplay.textContent = fmt(state.balance);
-
-      myActiveCrashBet = null;
-
-      const myKey = getCrashCurrentUsername().toLowerCase();
-      for (const k of Object.keys(crashSync.bets || {})) {
-        if (k.trim().toLowerCase() === myKey) {
-          delete crashSync.bets[k];
-          break;
+      crashCall({ action: 'cancel' }).then(async (r) => {
+        if (!r.ok) return showToast('⚠️ ' + (r.error || 'Impossible de se retirer.'));
+        myActiveCrashBet = null;
+        const myKey = getCrashCurrentUsername().toLowerCase();
+        for (const k of Object.keys(crashSync.bets || {})) {
+          if (k.trim().toLowerCase() === myKey) { delete crashSync.bets[k]; break; }
         }
-      }
-      crashSync.updatedAt = Date.now();
-
-      pushCrashStateToServer({ action: 'cancel', name: getCrashCurrentUsername() });
-      renderCrashLiveBets();
-      updateCrashActionBtnText();
-      showToast(`✖ Tu t'es retiré du vol. Mise de ${fmt(myBet.bet)} 🪙 remboursée.`);
+        await refreshWallet();
+        showCrashBalance();
+        renderCrashLiveBets();
+        updateCrashActionBtnText();
+        showToast(`✖ Tu t'es retiré du vol. Mise de ${fmt(myBet.bet)} 🪙 remboursée.`);
+      });
     }
 
-    function placeCrashBetInternal(startLaunchDirectly) {
+    function showCrashBalance() {
+      const balDisplay = document.getElementById('crashUserBalanceDisplay');
+      if (balDisplay) balDisplay.textContent = fmt(state.balance);
+      try { updateGlobalUI(); } catch (e) {}
+    }
+
+    // appel de l'API Crash (le serveur décide de tout : mise, décollage, gains)
+    async function crashCall(payload) {
+      try {
+        const res = await fetch(getCrashApiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        let data = {};
+        try { data = await res.json(); } catch (e) {}
+        if (res.status === 401) handleAuthExpired();
+        if (typeof data.balance === 'number') {
+          state.balance = data.balance; state.lastBalanceChange = Date.now(); saveState(); showCrashBalance();
+        }
+        if (data && data.state) mergeCrashServerState(data.state);
+        return { ...data, ok: res.ok && data.ok !== false };
+      } catch (e) {
+        return { ok: false, error: 'Serveur injoignable. Vérifie ta connexion.' };
+      }
+    }
+
+    let crashBusy = false;
+    async function placeCrashBetInternal(startLaunchDirectly) {
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour pouvoir miser !');
         openAuthModal('login');
         return;
       }
+      if (crashBusy) return;
       const betInput = document.getElementById('crashBetInput');
       const bet = parseInt(betInput ? betInput.value : '0') || 0;
       if (bet <= 0) return showToast('❌ Précise une mise valide (minimum 10 pièces).');
       if (bet > state.balance) return showToast('❌ Solde insuffisant pour cette mise.');
-
-      state.balance -= bet;
-      state.lastBalanceChange = Date.now();
-      saveState();
-
-      const balDisplay = document.getElementById('crashUserBalanceDisplay');
-      if (balDisplay) balDisplay.textContent = fmt(state.balance);
+      crashBusy = true;
+      const r = await crashCall({ action: 'bet', amount: bet, avatar: getCrashCurrentAvatar() });
+      crashBusy = false;
+      if (!r.ok) return showToast('⚠️ ' + (r.error || 'Mise refusée.'));
 
       const myKey = getCrashCurrentUsername();
-      const avatar = getCrashCurrentAvatar();
-
-      myActiveCrashBet = {
-        roundId: crashSync.id,
-        name: myKey,
-        bet: bet,
-        cashedOut: false,
-        cashMult: null,
-        win: 0,
-        avatar: avatar
-      };
-
-      if (!crashSync.bets) crashSync.bets = {};
-      crashSync.bets[myKey] = myActiveCrashBet;
-      crashSync.updatedAt = Date.now();
-
+      const mine = Object.values(crashSync.bets || {}).find((b) => (b.name || '').toLowerCase() === myKey.toLowerCase());
+      myActiveCrashBet = { ...(mine || { name: myKey, bet, cashedOut: false, cashMult: null, win: 0, avatar: getCrashCurrentAvatar() }), roundId: crashSync.id };
       if (crashSync.status === 'countdown') {
         const secLeft = Math.max(0, Math.ceil((crashSync.launchTime - Date.now()) / 1000));
         showToast(`🚀 Tu as rejoint le vol ! Décollage dans ${secLeft}s.`);
       } else {
         showToast(`💰 Mise de ${fmt(bet)} 🪙 enregistrée ! Ton blaze est prêt à bord.`);
       }
-
-      pushCrashStateToServer({ action: 'bet', bet: myActiveCrashBet });
       renderCrashLiveBets();
       updateCrashActionBtnText();
       startCrashAnimLoop();
     }
 
-    function performCrashCashout() {
+    async function performCrashCashout() {
       const myBet = getMyCrashBet();
-      if (!myBet || myBet.cashedOut || crashSync.status !== 'flying') return;
-
-      const now = Date.now();
-      const mult = getCrashMultiplierAt(now);
-      if (mult >= crashSync.crashPoint) return; // Trop tard
-
-      // Verrouillage instantané du gain en local (0ms lag)
-      myBet.cashedOut = true;
-      myBet.cashMult = parseFloat(mult.toFixed(2));
-      myBet.win = Math.floor(myBet.bet * myBet.cashMult);
-
-      if (myActiveCrashBet) {
-        myActiveCrashBet.cashedOut = true;
-        myActiveCrashBet.cashMult = myBet.cashMult;
-        myActiveCrashBet.win = myBet.win;
+      if (!myBet || myBet.cashedOut || crashSync.status !== 'flying' || crashBusy) return;
+      crashBusy = true;
+      const r = await crashCall({ action: 'cashout' });
+      crashBusy = false;
+      if (!r.ok) {
+        showToast('💥 ' + (r.error || 'Encaissement impossible.'));
+        return;
       }
-
-      state.balance += myBet.win;
+      myBet.cashedOut = true; myBet.cashMult = r.mult; myBet.win = r.win;
+      if (myActiveCrashBet) { myActiveCrashBet.cashedOut = true; myActiveCrashBet.cashMult = r.mult; myActiveCrashBet.win = r.win; }
       playCoinWinSound();
-      saveState();
-
-      const balDisplay = document.getElementById('crashUserBalanceDisplay');
-      if (balDisplay) balDisplay.textContent = fmt(state.balance);
-
-      crashSync.updatedAt = Date.now();
-
-      // Mise à jour immédiate de l'interface
       updateCrashActionBtnText();
       renderCrashLiveBets();
-      showToast(`🪂 Encaissé à ${myBet.cashMult.toFixed(2)}× : +${fmt(myBet.win)} pièces !`);
-
-      // Push serveur en arrière-plan
-      pushCrashStateToServer({
-        action: 'cashout',
-        name: myBet.name,
-        cashMult: myBet.cashMult,
-        win: myBet.win
-      });
-    }
-
-    async function pushCrashStateToServer(actionPayload) {
-      crashSync.updatedAt = Date.now();
-      const payload = actionPayload || {
-        ...crashSync,
-        updatedAt: crashSync.updatedAt
-      };
-
-      // 1. Envoi au serveur HTTP (/api/crash)
-      try {
-        fetch(getCrashApiUrl(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(r => r.ok ? r.json() : null)
-          .then(data => {
-            const st = data?.state || data;
-            if (st && (st.status || st.bets)) mergeCrashServerState(st);
-          })
-          .catch(() => {});
-      } catch (e) {}
-
-      // 2. Envoi direct à Supabase Cloud pour synchronisation universelle multi-appareils
-      try {
-        const crashToSave = {
-          id: crashSync.id,
-          status: crashSync.status,
-          countdownStartTime: crashSync.countdownStartTime,
-          countdownDuration: crashSync.countdownDuration,
-          launchTime: crashSync.launchTime,
-          crashPoint: crashSync.crashPoint,
-          crashedAtTime: crashSync.crashedAtTime,
-          bets: crashSync.bets || {},
-          history: crashSync.history || [],
-          updatedAt: Date.now()
-        };
-
-        const row = {
-          username: '__crash_game__',
-          password: 'sys',
-          avatar: '🚀',
-          balance: 0,
-          data: { crash: crashToSave },
-          updated_at: new Date().toISOString()
-        };
-
-        supabaseFetch('accounts', {
-          method: 'POST',
-          headers: { 'Prefer': 'resolution=merge-duplicates' },
-          body: JSON.stringify(row)
-        }).catch(() => {});
-      } catch (e) {}
+      showToast(`🪂 Encaissé à ${r.mult.toFixed(2)}× : +${fmt(r.win)} pièces !`);
     }
 
     let isCrashSyncing = false;
@@ -8503,35 +7929,10 @@
       if (isCrashSyncing) return;
       isCrashSyncing = true;
       try {
-        let serverState = null;
-
-        // 1. Essai API /api/crash
-        try {
-          const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
-          if (res.ok) {
-            const data = await res.json();
-            const st = data.state || data;
-            if (st && (st.status || st.bets)) {
-              serverState = st;
-            }
-          }
-        } catch (e) {}
-
-        // 2. Si pas de réponse serveur HTTP ou hors ligne, synchronisation directe Supabase Cloud
-        if (!serverState) {
-          try {
-            const sRes = await supabaseFetch('accounts?username=eq.__crash_game__');
-            if (sRes.ok) {
-              const rows = await sRes.json();
-              if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.crash) {
-                serverState = rows[0].data.crash;
-              }
-            }
-          } catch (e) {}
-        }
-
-        if (serverState) {
-          mergeCrashServerState(serverState);
+        const res = await fetch(getCrashApiUrl(), { cache: 'no-store' });
+        if (res.ok) {
+          const st = await res.json();
+          if (st && (st.status || st.bets)) mergeCrashServerState(st);
         }
       } catch (e) {
       } finally {
@@ -8539,9 +7940,16 @@
       }
     }
 
-    function mergeCrashServerState(srv) {
-      if (!srv || typeof srv !== 'object') return;
+    function mergeCrashServerState(srvIn) {
+      if (!srvIn || typeof srvIn !== 'object') return;
       const now = Date.now();
+      // les dates du serveur sont ramenées à l'horloge de ce navigateur
+      const srv = { ...srvIn };
+      if (typeof srv.serverNow === 'number') {
+        const delta = now - srv.serverNow;
+        ['launchTime', 'countdownStartTime', 'crashedAtTime'].forEach((k) => { if (srv[k]) srv[k] += delta; });
+      }
+      const prevStatus = crashSync.status;
       const myName = getCrashCurrentUsername();
       const myKey = myName.toLowerCase();
 
@@ -8563,17 +7971,12 @@
         crashSync.countdownStartTime = srv.countdownStartTime || 0;
         crashSync.countdownDuration = srv.countdownDuration || 7000;
         crashSync.launchTime = srv.launchTime || 0;
-        crashSync.crashPoint = srv.crashPoint || 2.0;
+        crashSync.crashPoint = srv.crashPoint || 0;
         crashSync.crashedAtTime = srv.crashedAtTime || 0;
         
-        // Préserver le pari actif pour ce vol sans forcer à re-cliquer sur rejoindre
         if (srvHasMyBet) {
           myActiveCrashBet = { ...(myActiveCrashBet || {}), ...srvHasMyBet, roundId: srv.id };
-        } else if (srv.status === 'countdown' || srv.status === 'waiting') {
-          if (myActiveCrashBet && !myActiveCrashBet.cashedOut) {
-            myActiveCrashBet.roundId = srv.id;
-          }
-        } else {
+        } else if (!crashBusy) {
           myActiveCrashBet = null;
         }
 
@@ -8609,13 +8012,11 @@
         hasChange = true;
       }
 
-      // 3. Gestion des paris reçus du serveur
+      // 3. Gestion des paris reçus du serveur (le serveur fait foi : pas de mise chez lui = pas de mise)
       if (srvHasMyBet) {
         myActiveCrashBet = { ...(myActiveCrashBet || {}), ...srvHasMyBet, roundId: crashSync.id };
-      } else if (srv.status === 'waiting' || srv.status === 'countdown') {
-        if (myActiveCrashBet && !myActiveCrashBet.cashedOut) {
-          myActiveCrashBet.roundId = crashSync.id;
-        }
+      } else if (!crashBusy) {
+        myActiveCrashBet = null;
       }
 
       crashSync.bets = srv.bets || {};
@@ -8632,6 +8033,13 @@
 
       if (Array.isArray(srv.history) && srv.history.length > 0) {
         crashSync.history = srv.history;
+      }
+
+      // la fusée vient d'exploser (annoncé par le serveur)
+      if (srv.status === 'crashed' && prevStatus !== 'crashed' && prevStatus !== undefined) {
+        try { playBoomSound(); } catch (e) {}
+        const mb = getMyCrashBet();
+        if (mb && !mb.cashedOut) showToast(`💥 Trop tard ! La fusée a explosé à ${Number(srv.crashPoint || 0).toFixed(2)}×.`);
       }
 
       if (hasChange) {
@@ -8656,6 +8064,9 @@
       }
     }, 400);
 
+    // pendant le vol on interroge le serveur plus souvent pour que l'explosion s'affiche sans retard
+    setInterval(() => { if (currentRoomKey === 'crash' && crashSync.status === 'flying') syncCrashMultiplayer(); }, 150);
+
     let crashAnimReqId = null;
     function startCrashAnimLoop() {
       if (crashAnimReqId) return;
@@ -8675,11 +8086,6 @@
           if (now >= crashSync.launchTime) {
             crashSync.status = 'flying';
             crashSync.updatedAt = now;
-            pushCrashStateToServer({
-              status: 'flying',
-              launchTime: crashSync.launchTime,
-              crashPoint: crashSync.crashPoint
-            });
             if (subText) {
               subText.textContent = '🚀 DÉCOLLAGE IMMÉDIAT !';
               subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-sky-500/30 backdrop-blur-md text-xs uppercase tracking-widest text-sky-200 font-scifi border border-sky-400/40 text-center';
@@ -8702,96 +8108,42 @@
           // Retrait automatique
           const autoInput = document.getElementById('crashAutoInput');
           const autoVal = autoInput ? parseFloat(autoInput.value) : NaN;
-          if (myBet && !myBet.cashedOut && autoVal >= 1.1 && curMult >= autoVal && curMult < crashSync.crashPoint) {
+          if (myBet && !myBet.cashedOut && autoVal >= 1.1 && curMult >= autoVal) {
             performCrashCashout();
           }
 
-          // Crash atteint !
-          if (curMult >= crashSync.crashPoint) {
-            curMult = crashSync.crashPoint;
-            crashSync.status = 'crashed';
-            crashSync.crashedAtTime = now;
-            crashSync.updatedAt = now;
-            playBoomSound();
-
-            if (!crashSync.history) crashSync.history = [];
-            crashSync.history.unshift(parseFloat(crashSync.crashPoint.toFixed(2)));
-            if (crashSync.history.length > 8) crashSync.history.pop();
-
-            if (multText) {
-              multText.textContent = `${crashSync.crashPoint.toFixed(2)}×`;
-              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-rose-500 drop-shadow-[0_4px_25px_rgba(244,63,94,0.7)]';
-            }
-            if (subText) {
-              subText.textContent = `💥 EXPLOSION À ${crashSync.crashPoint.toFixed(2)}× !`;
-              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-rose-950/90 backdrop-blur-md text-xs uppercase tracking-widest text-rose-300 font-scifi border border-rose-500/50 text-center';
-            }
-
-            drawCrashScene(true, crashSync.crashPoint);
-            renderCrashHistoryPills();
-            renderCrashLiveBets();
-            updateCrashActionBtnText();
-            pushCrashStateToServer({
-              status: 'crashed',
-              crashPoint: crashSync.crashPoint,
-              crashedAtTime: now
-            });
-
+          // Le crash n'est connu que du serveur : on continue de monter jusqu'à son annonce
+          if (multText) {
+            multText.textContent = `${curMult.toFixed(2)}×`;
+            multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
+          }
+          if (subText) {
             if (myBet && !myBet.cashedOut) {
-              showToast(`💥 Trop tard ! La fusée a explosé à ${crashSync.crashPoint.toFixed(2)}×.`);
+              const curGain = Math.floor(myBet.bet * curMult);
+              subText.textContent = `GAIN ACTUEL : ${fmt(curGain)} 🪙`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-emerald-950/80 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-300 font-scifi border border-emerald-400/40 text-center';
+            } else if (myBet && myBet.cashedOut) {
+              subText.textContent = `✅ ENCAISSÉ À ${myBet.cashMult.toFixed(2)}× (+${fmt(myBet.win)} 🪙)`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-400 font-scifi border border-emerald-500/30 text-center';
+            } else {
+              subText.textContent = `👀 VOL MULTIJOUEUR EN DIRECT`;
+              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-sky-400/30 text-center';
             }
-          } else {
-            // Affichage normal du vol
-            if (multText) {
-              multText.textContent = `${curMult.toFixed(2)}×`;
-              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
-            }
-            if (subText) {
-              if (myBet && !myBet.cashedOut) {
-                const curGain = Math.floor(myBet.bet * curMult);
-                subText.textContent = `GAIN ACTUEL : ${fmt(curGain)} 🪙`;
-                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-emerald-950/80 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-300 font-scifi border border-emerald-400/40 text-center';
-              } else if (myBet && myBet.cashedOut) {
-                subText.textContent = `✅ ENCAISSÉ À ${myBet.cashMult.toFixed(2)}× (+${fmt(myBet.win)} 🪙)`;
-                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-emerald-400 font-scifi border border-emerald-500/30 text-center';
-              } else {
-                subText.textContent = `👀 VOL MULTIJOUEUR EN DIRECT`;
-                subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-sky-400/30 text-center';
-              }
-            }
-            drawCrashScene(false, curMult);
-            updateCrashActionBtnText();
           }
+          drawCrashScene(false, curMult);
+          updateCrashActionBtnText();
         } else if (crashSync.status === 'crashed') {
-          // Affichage de l'explosion pendant 4s puis réinitialisation
-          drawCrashScene(true, crashSync.crashPoint);
-          if (now - (crashSync.crashedAtTime || 0) >= 4000) {
-            myActiveCrashBet = null;
-            crashSync.id = now;
-            crashSync.status = 'waiting';
-            crashSync.launchTime = 0;
-            crashSync.countdownStartTime = 0;
-            crashSync.crashedAtTime = 0;
-            crashSync.bets = {};
-            crashSync.updatedAt = now;
-
-            if (multText) {
-              multText.textContent = '1.00×';
-              multText.className = 'font-scifi text-5xl md:text-7xl font-black text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.95)]';
-            }
-            if (subText) {
-              subText.textContent = "EN ATTENTE D'UNE MISE";
-              subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-black/75 backdrop-blur-md text-xs uppercase tracking-widest text-sky-300 font-scifi border border-white/15 text-center';
-            }
-
-            drawCrashScene(false, 1.0);
-            renderCrashLiveBets();
-            updateCrashActionBtnText();
-            pushCrashStateToServer({
-              status: 'waiting',
-              bets: {}
-            });
+          // Explosion annoncée par le serveur ; il relance lui-même une manche d'attente après 4 s
+          const cp = crashSync.crashPoint || 1;
+          if (multText) {
+            multText.textContent = `${cp.toFixed(2)}×`;
+            multText.className = 'font-scifi text-5xl md:text-7xl font-black text-rose-500 drop-shadow-[0_4px_25px_rgba(244,63,94,0.7)]';
           }
+          if (subText) {
+            subText.textContent = `💥 EXPLOSION À ${cp.toFixed(2)}× !`;
+            subText.className = 'mt-2.5 px-4 py-1.5 rounded-full bg-rose-950/90 backdrop-blur-md text-xs uppercase tracking-widest text-rose-300 font-scifi border border-rose-500/50 text-center';
+          }
+          drawCrashScene(true, cp);
         } else if (crashSync.status === 'waiting') {
           if (multText) {
             multText.textContent = '1.00×';
@@ -9094,7 +8446,7 @@
       document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
 
       // Le résultat (rouleaux, gain) est tiré par le serveur, qui met aussi le solde à jour.
-      const srv = await serverGame({ action: 'slots_spin', bet });
+      const srv = await serverGame({ action: 'slots_spin', bet }, { silent: true });
       if (!srv.ok || !Array.isArray(srv.finals)) {
         slotSpinning = false;
         document.getElementById('slotResultBanner').textContent = 'Prêt à jouer.';
@@ -9158,59 +8510,44 @@
       }).join('');
     }
 
-    function startMinesGame(e) {
+    async function startMinesGame(e) {
       if (!_AntiBotGuard.verify('Mines - Lancer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer à la Chambre Forte !');
         openAuthModal('login');
         return;
       }
+      if (mines.pending) return;
       const bet = parseInt(document.getElementById('minesBetInput').value) || 0;
       const cnt = mines.count || 3;
       if (bet <= 0 || bet > state.balance) return showToast('❌ Mise invalide.');
-      state.balance -= bet;
-      saveState();
-
-      const bombs = [];
-      while (bombs.length < cnt) { const r = Math.floor(Math.random() * 20); if (!bombs.includes(r)) bombs.push(r); }
-      mines = { active: true, bet, bombs, revealed: [], count: cnt };
+      mines.pending = true;
+      const r = await serverGame({ action: 'mines_start', bet, count: cnt });
+      mines.pending = false;
+      if (!r.ok) return showToast('❌ ' + (r.error || 'Partie impossible.'));
+      // les bombes restent sur le serveur : le navigateur ne connaît que les cases déjà retournées
+      mines = { active: true, bet: r.game.bet, bombs: [], revealed: [], count: r.game.count, mult: 1, pending: false };
       document.getElementById('minesStartBtn').classList.add('hidden');
       document.getElementById('minesCashoutBtn').classList.remove('hidden');
       document.getElementById('minesCurrentMult').textContent = '1.00×';
-      document.getElementById('minesCurrentWin').textContent = fmt(bet);
+      document.getElementById('minesCurrentWin').textContent = fmt(mines.bet);
       renderMinesGrid(false);
     }
 
     function getMinesMult() {
-      let m = 1;
-      for (let i = 0; i < mines.revealed.length; i++) m *= (20 - i) / (20 - mines.count - i);
-      return Math.max(1, m * 0.97);
+      return mines.mult || 1;
     }
 
-    function clickMineCell(idx, e) {
+    async function clickMineCell(idx, e) {
       if (!_AntiBotGuard.verify('Mines - Case', e)) return;
-      if (!mines.active || mines.revealed.includes(idx)) return;
-
-      // Influence bidirectionnelle stricte du curseur CHANCE_MINES du Patron (1% - 100%)
-      const minesLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_MINES ?? 50));
-      if (mines.bombs.includes(idx)) {
-        if (minesLuck > 50 && Math.random() * 100 < ((minesLuck - 50) * 1.6)) {
-          const freeSafe = Array.from({ length: 20 }, (_, k) => k).find(k => !mines.bombs.includes(k) && !mines.revealed.includes(k) && k !== idx);
-          if (freeSafe !== undefined) {
-            mines.bombs = mines.bombs.map(b => b === idx ? freeSafe : b);
-          }
-        }
-      } else {
-        if (minesLuck < 50 && Math.random() * 100 < ((50 - minesLuck) * 1.5)) {
-          const unrevealedBombIdx = mines.bombs.findIndex(b => !mines.revealed.includes(b));
-          if (unrevealedBombIdx !== -1) {
-            mines.bombs[unrevealedBombIdx] = idx;
-          }
-        }
-      }
-
-      if (mines.bombs.includes(idx)) {
+      if (!mines.active || mines.pending || mines.revealed.includes(idx)) return;
+      mines.pending = true;
+      const r = await serverGame({ action: 'mines_pick', idx });
+      mines.pending = false;
+      if (!r.ok) return showToast('❌ ' + (r.error || 'Action impossible.'));
+      if (r.boom) {
         mines.active = false;
+        mines.bombs = r.bombs || [];
         playBoomSound();
         document.getElementById('minesStartBtn').classList.remove('hidden');
         document.getElementById('minesCashoutBtn').classList.add('hidden');
@@ -9218,26 +8555,28 @@
         showToast('💥 BOOM ! Bombe touchée !');
         return;
       }
-      mines.revealed.push(idx);
+      mines.revealed = r.game.revealed;
+      mines.mult = r.game.mult;
       playCoinWinSound();
-      const m = getMinesMult();
-      document.getElementById('minesCurrentMult').textContent = `${m.toFixed(2)}×`;
-      document.getElementById('minesCurrentWin').textContent = fmt(mines.bet * m);
+      document.getElementById('minesCurrentMult').textContent = `${mines.mult.toFixed(2)}×`;
+      document.getElementById('minesCurrentWin').textContent = fmt(mines.bet * mines.mult);
       renderMinesGrid(false);
     }
 
-    function cashoutMines(e) {
+    async function cashoutMines(e) {
       if (!_AntiBotGuard.verify('Mines - Retrait', e)) return;
-      if (!mines.active || !mines.revealed.length) return;
-      const win = Math.floor(mines.bet * getMinesMult());
-      state.balance += win;
+      if (!mines.active || mines.pending || !mines.revealed.length) return;
+      mines.pending = true;
+      const r = await serverGame({ action: 'mines_cashout' });
+      mines.pending = false;
+      if (!r.ok) return showToast('❌ ' + (r.error || 'Retrait impossible.'));
       mines.active = false;
+      mines.bombs = r.bombs || [];
       playCoinWinSound();
-      saveState();
       document.getElementById('minesStartBtn').classList.remove('hidden');
       document.getElementById('minesCashoutBtn').classList.add('hidden');
       renderMinesGrid(true);
-      showToast(`💰 +${fmt(win)} pièces récupérées !`);
+      showToast(`💰 +${fmt(r.win)} pièces récupérées !`);
     }
 
     /* ================= JEUX À VENIR (GRATTAGE & COURSE DE CHEVAUX) ================= */
@@ -10486,54 +9825,8 @@
         return showToast('👉 Choisis d\'abord une table parmi les 5 salons ci-dessus pour t\'asseoir !');
       }
       if (!isMulti) {
-        // --- MODE SOLO DIRECT VS CROUPIER IA ---
-        state.balance -= bet; saveState(); updateGlobalUI();
-        bj.active = true;
-        bj.turn = 'player';
-        bj.deck = createDeck();
-        bj.dealer = [];   // nouvelle manche : le croupier repart d'une main vide
-        bj.player = [];
-        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
-        if (bjLuck > 55 && Math.random() * 100 < ((bjLuck - 45) * 1.5)) {
-          // Main avantagée pour le joueur
-          const aces = bj.deck.filter(c => c.r === 'A');
-          const tens = bj.deck.filter(c => ['10', 'J', 'Q', 'K'].includes(c.r));
-          if (aces.length > 0 && tens.length > 0) {
-            bj.player = [aces[0], tens[0]];
-            bj.deck = bj.deck.filter(c => c !== aces[0] && c !== tens[0]);
-          } else {
-            bj.player = [bj.deck.pop(), bj.deck.pop()];
-          }
-        } else if (bjLuck < 45 && Math.random() * 100 < ((50 - bjLuck) * 1.5)) {
-          // Main délicate pour le joueur (14-16) et croupier fort
-          const tens = bj.deck.filter(c => ['10', 'J', 'Q', 'K'].includes(c.r));
-          const weaks = bj.deck.filter(c => ['5', '6'].includes(c.r));
-          if (tens.length >= 2 && weaks.length >= 1) {
-            bj.player = [tens[0], weaks[0]];
-            bj.dealer = [tens[1], bj.deck.find(c => ['8', '9', '10'].includes(c.r)) || bj.deck.pop()];
-            bj.deck = bj.deck.filter(c => !bj.player.includes(c) && !bj.dealer.includes(c));
-          } else {
-            bj.player = [bj.deck.pop(), bj.deck.pop()];
-          }
-        } else {
-          bj.player = [bj.deck.pop(), bj.deck.pop()];
-        }
-        if (!bj.dealer || bj.dealer.length < 2) {
-          bj.dealer = [bj.deck.pop(), bj.deck.pop()];
-        }
-        bj.hasRealOpponent = false;
-        bj.coPlayer = [];
-        bj.bet = bet;
-
-        const dealBtn = document.getElementById('bjDealBtn');
-        if (dealBtn) dealBtn.classList.add('hidden');
-        document.getElementById('bjActionControls').classList.remove('hidden');
-        setBjButtonsDisabled(false);
-        document.getElementById('bjDoubleBtn').disabled = false;
-        playCardFlipSound();
-        renderBlackjack(true);
-        startBjTurnTimer();
-        if (bjScore(bj.player) === 21) bjStand(null, true);
+        // --- MODE SOLO DIRECT VS CROUPIER : tout est tiré et réglé par le serveur ---
+        bjSoloStart(bet);
         return;
       }
 
@@ -10563,90 +9856,74 @@
     let myDeductedRoundId = null;
 
     async function startBjMultiHand(bet) {
-      state.balance -= bet;
-      saveState();
-      updateGlobalUI();
+      // En multijoueur, la manche démarre toute seule quand les deux joueurs cliquent « Prêt ? » ;
+      // la mise est alors prélevée par le serveur.
+      showToast('👍 Clique sur « Prêt ? » : la manche démarre quand les deux joueurs sont prêts.');
+    }
 
+    /* ---- Blackjack solo : le navigateur ne fait que demander, le serveur tire les cartes et règle la mise ---- */
+    let bjSoloBusy = false;
+    function bjApplySolo(r) {
+      bj.player = Array.isArray(r.player) ? r.player : [];
+      bj.dealer = Array.isArray(r.dealer) ? r.dealer : [];
+      if (typeof r.bet === 'number') bj.bet = r.bet;
+    }
+    function bjSoloFinish(r) {
+      bjApplySolo(r);
+      bj.active = false;
+      renderBlackjack(false);
+      const p = r.pScore, d = r.dScore;
+      if (r.result === 'bust') endBj('💥 Tu as dépassé 21 !', 0);
+      else if (r.result === 'win') endBj(`🏆 Gagné (${p} vs ${d}) ! +${fmt(r.win)} 🪙`, r.win);
+      else if (r.result === 'push') endBj('🤝 Égalité avec le Croupier ! Mise remboursée.', r.win);
+      else endBj(`Perdu (${d} vs ${p}).`, 0);
+    }
+    async function bjSoloStart(bet) {
+      if (bjSoloBusy) return;
+      bjSoloBusy = true;
+      const dealBtn = document.getElementById('bjDealBtn');
+      if (dealBtn) dealBtn.disabled = true;
+      const r = await serverGame({ action: 'bj_start', bet });
+      bjSoloBusy = false;
+      if (dealBtn) dealBtn.disabled = false;
+      if (!r.ok) { showToast('❌ ' + (r.error || 'Impossible de distribuer.')); return; }
       bj.active = true;
-      bj.bet = bet;
-      bj.wasInitiator = true;
+      bj.turn = 'player';
+      bj.hasRealOpponent = false;
+      bj.coPlayer = [];
+      bjApplySolo(r);
+      if (dealBtn) dealBtn.classList.add('hidden');
+      document.getElementById('bjActionControls').classList.remove('hidden');
+      setBjButtonsDisabled(false);
+      document.getElementById('bjDoubleBtn').disabled = false;
       playCardFlipSound();
-
-      const tableId = getBjCurrentTableId();
-      const realPlayers = getTableParticipants('blackjack');
-      
-      const participants = [
-        { username: state.username, avatar: state.avatarEmoji || '👤', bet: bet }
-      ];
-
-      if (realPlayers.length > 0) {
-        const opp = realPlayers[0];
-        const oppKey = (opp.username || '').toLowerCase().trim();
-        let oppChosenBet = (bjSyncTable?.readyBets && bjSyncTable.readyBets[oppKey]) 
-          ? bjSyncTable.readyBets[oppKey] 
-          : (opp.bjBet || 100);
-        oppChosenBet = Math.min(50000, Math.max(10, parseInt(oppChosenBet) || 100));
-        if (typeof opp.balance === 'number' && opp.balance > 0) {
-          oppChosenBet = Math.min(oppChosenBet, opp.balance);
-        }
-
-        participants.push({
-          username: opp.username,
-          avatar: opp.avatarEmoji || '👤',
-          bet: oppChosenBet
-        });
-      } else {
-        showToast('👥 En multijoueur, attends un co-joueur ou invite un ami !');
-        state.balance += bet;
-        saveState();
-        updateGlobalUI();
-        bj.active = false;
-        renderBlackjack();
+      renderBlackjack(true);
+      if (r.done) { bjSoloFinish(r); return; }
+      startBjTurnTimer();
+    }
+    async function bjSoloAction(action) {
+      if (!bj.active || bjSoloBusy) return;
+      bjSoloBusy = true;
+      stopBjTurnTimer();
+      setBjButtonsDisabled(true);
+      const r = await serverGame({ action });
+      bjSoloBusy = false;
+      if (!r.ok) {
+        showToast('⚠️ ' + (r.error || 'Action impossible.'));
+        if (r.status === 400 && /Aucune manche/.test(r.error || '')) { bj.active = false; document.getElementById('bjActionControls').classList.add('hidden'); renderBlackjack(false); return; }
+        setBjButtonsDisabled(false);
+        startBjTurnTimer();
         return;
       }
+      bjApplySolo(r);
+      renderBlackjack(true);
+      if (r.done) bjSoloFinish(r);
+      else { setBjButtonsDisabled(false); startBjTurnTimer(); }
+    }
 
-      const dealBtn = document.getElementById('bjDealBtn');
-      if (dealBtn) {
-        dealBtn.classList.add('hidden');
-        dealBtn.disabled = true;
-      }
-      document.getElementById('bjStatusBanner').textContent = '🃏 Distribution des cartes en direct...';
-
-      try {
-        const res = await fetch(getBjApiUrl(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'deal',
-            tableId: tableId,
-            username: state.username,
-            avatar: state.avatarEmoji || '👤',
-            bet: bet,
-            host: state.currentTable?.host || (isBjHost() ? state.username : undefined),
-            participants: participants
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.ok === false && data.error) {
-            state.balance += bet;
-            saveState();
-            updateGlobalUI();
-            showToast(`⚠️ ${data.error}`);
-            bj.active = false;
-            renderBlackjack();
-            return;
-          }
-          if (data && data.table) {
-            if (data.table.roundId) myDeductedRoundId = data.table.roundId;
-            mergeBjServerState(data.table);
-          }
-        }
-      } catch (e) {
-        console.warn('Erreur startBjMultiHand:', e);
-      }
-      setTimeout(syncBjMultiplayer, 100);
-      setTimeout(syncBjMultiplayer, 250);
+    // solde du serveur (après une manche multijoueur : mise prélevée ou gain versé)
+    async function refreshWallet() {
+      try { await serverGame({ action: 'wallet_balance' }); } catch (e) {}
     }
 
     function setBjButtonsDisabled(val) {
@@ -10663,43 +9940,7 @@
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        if (!bj.active) return;
-        const curScore = bjScore(bj.player);
-        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
-        let drawnCard = null;
-        if (curScore >= 12 && curScore <= 20) {
-          const maxSafe = 21 - curScore;
-          if (bjLuck > 50 && Math.random() * 100 < ((bjLuck - 45) * 1.6)) {
-            // Tirer une carte qui ne dépasse pas 21
-            drawnCard = bj.deck.find(c => {
-              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 1 : parseInt(c.r));
-              return val <= maxSafe;
-            });
-          } else if (bjLuck < 50 && Math.random() * 100 < ((50 - bjLuck) * 1.5)) {
-            // Tirer une carte qui dépasse 21
-            drawnCard = bj.deck.find(c => {
-              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 11 : parseInt(c.r));
-              return val > maxSafe;
-            });
-          }
-        }
-        if (drawnCard) {
-          const idx = bj.deck.indexOf(drawnCard);
-          bj.deck.splice(idx, 1);
-          bj.player.push(drawnCard);
-        } else {
-          bj.player.push(bj.deck.pop());
-        }
-        renderBlackjack(true);
-        if (bjScore(bj.player) > 21) {
-          stopBjTurnTimer();
-          endBj('💥 Tu as dépassé 21 !', 0);
-        } else if (bjScore(bj.player) === 21) {
-          stopBjTurnTimer();
-          bjStand(null, true);
-        } else {
-          startBjTurnTimer();
-        }
+        bjSoloAction('bj_hit');
         return;
       }
 
@@ -10741,13 +9982,8 @@
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        if (!bj.active) return;
-        if (bj.turn !== 'player' || state.balance < bj.bet) return;
-        state.balance -= bj.bet; bj.bet *= 2; saveState(); updateGlobalUI();
-        bj.player.push(bj.deck.pop());
-        renderBlackjack(true);
-        if (bjScore(bj.player) > 21) endBj('💥 Tu as dépassé 21 !', 0);
-        else bjStand(null, true);
+        if (!bj.active || bj.turn !== 'player' || bj.player.length !== 2 || state.balance < bj.bet) return;
+        bjSoloAction('bj_double');
         return;
       }
 
@@ -10758,11 +9994,6 @@
       const curTurn = (bjSyncTable?.turn || '').toLowerCase().trim();
       const myBet = (bjSyncTable?.players?.[myKey]?.bet) || bj.bet;
       if (!bjSyncTable || bjSyncTable.status !== 'playing' || curTurn !== myKey || state.balance < myBet) return;
-
-      state.balance -= myBet;
-      bj.bet = myBet * 2;
-      saveState();
-      updateGlobalUI();
 
       setBjButtonsDisabled(true);
       try {
@@ -10777,9 +10008,11 @@
         });
         if (res.ok) {
           const data = await res.json();
+          if (data && data.ok === false && data.error) showToast('⚠️ ' + data.error);
           if (data && data.table) {
             mergeBjServerState(data.table);
           }
+          refreshWallet();
         }
       } catch (e) {
       } finally {
@@ -10795,27 +10028,7 @@
       playCardFlipSound();
       const isMulti = (lobbies.bj && lobbies.bj.mode === 'multi');
       if (!isMulti) {
-        const bjLuck = Math.max(1, Math.min(99, CONFIG_CASINO.CHANCE_BLACKJACK ?? 50));
-        while (bjScore(bj.dealer) < 17) {
-          if (bjLuck > 55 && bjScore(bj.dealer) >= 12 && Math.random() * 100 < ((bjLuck - 45) * 1.5)) {
-            const bustCard = bj.deck.find(c => {
-              const val = ['K','Q','J','10'].includes(c.r) ? 10 : (c.r === 'A' ? 11 : parseInt(c.r));
-              return (bjScore(bj.dealer) + val) > 21;
-            });
-            if (bustCard) {
-              const idx = bj.deck.indexOf(bustCard);
-              bj.deck.splice(idx, 1);
-              bj.dealer.push(bustCard);
-              continue;
-            }
-          }
-          bj.dealer.push(bj.deck.pop());
-        }
-        renderBlackjack(false);
-        const p = bjScore(bj.player), d = bjScore(bj.dealer);
-        if (d > 21 || p > d) endBj(`🏆 Gagné (${p} vs ${d}) ! +${fmt(bj.bet * 2)} 🪙`, bj.bet * 2);
-        else if (p === d) endBj(`🤝 Égalité avec le Croupier ! Mise remboursée.`, bj.bet);
-        else endBj(`Perdu (${d} vs ${p}).`, 0);
+        bjSoloAction('bj_stand');
         return;
       }
 
@@ -10860,11 +10073,7 @@
       stopBjTurnTimer();
       bj.active = false;
       bj.wasInitiator = false;
-      if (win > 0) {
-        state.balance += win;
-        playCoinWinSound();
-      }
-      saveState();
+      if (win > 0) playCoinWinSound();
       updateGlobalUI();
       document.getElementById('bjStatusBanner').textContent = `${msg} — Change ta mise ou clique sur Distribuer pour rejouer.`;
       document.getElementById('bjActionControls').classList.add('hidden');
@@ -10894,17 +10103,11 @@
           bj.active = true;
           bj.bet = myPl.bet || bj.bet || 100;
 
-          // Déduction de la mise pour le co-joueur non initiateur
+          // nouvelle manche : la mise a été prélevée par le serveur, on relit le solde
           if (srv.roundId && myDeductedRoundId !== srv.roundId) {
             myDeductedRoundId = srv.roundId;
-            if (!bj.wasInitiator) {
-              const betAmt = myPl.bet || 100;
-              state.balance = Math.max(0, state.balance - betAmt);
-              bj.bet = betAmt;
-              saveState();
-              updateGlobalUI();
-              playCardFlipSound();
-            }
+            refreshWallet();
+            playCardFlipSound();
           }
 
           if (isMyTurn && myPl.status === 'playing') {
@@ -10956,12 +10159,9 @@
           myProcessedBjRoundId = srv.roundId;
           myBjReady = false;
           if (myPl) {
-            if (myPl.payout > 0) {
-              state.balance += myPl.payout;
-              playCoinWinSound();
-              saveState();
-              updateGlobalUI();
-            }
+            if (myPl.payout > 0) playCoinWinSound();
+            refreshWallet();
+            setTimeout(refreshWallet, 1500);
 
             if (myPl.result === 'win') {
               const profit = myPl.payout - (myPl.bet || 100);
@@ -11043,38 +10243,10 @@
           }
         } catch (e) {}
 
-        // 2. Fallback Supabase Cloud direct
-        if (!srvTable) {
-          try {
-            const sRes = await supabaseFetch('accounts?username=eq.__blackjack_game__');
-            if (sRes.ok) {
-              const rows = await sRes.json();
-              if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.tables?.[tableId]) {
-                srvTable = rows[0].data.tables[tableId];
-              }
-            }
-          } catch (e) {}
-        }
-
         if (srvTable) {
           mergeBjServerState(srvTable);
         }
 
-        // Forfait direct signalé dans les comptes
-        const db = getAccountsDB();
-        const myKey = (state.username || '').toLowerCase().trim();
-        const myAcc = db[myKey];
-        if (myAcc && myAcc.currentTable && myAcc.currentTable.bjForfeit) {
-          const bjf = myAcc.currentTable.bjForfeit;
-          if (bjf.winner && bjf.winner.toLowerCase().trim() === myKey) {
-            const winAmount = bjf.pot || (bj.bet * 2);
-            delete myAcc.currentTable.bjForfeit;
-            saveAccountsDB(db);
-            pushRemoteAccount(myAcc);
-            endBj(`🏆 ${bjf.loser} a quitté le jeu ! Tu gagnes ce qui était parié (+${fmt(winAmount)} 🪙) !`, winAmount);
-            showToast(`🏆 Victoire par forfait au Blackjack (+${fmt(winAmount)} €) !`);
-          }
-        }
       } catch (err) {
       } finally {
         isBjSyncing = false;
@@ -11136,7 +10308,7 @@
       if (ball) ball.style.left = CUP_PERCENTS[ballPosIndex];
     }
 
-    function startCupsGame(e) {
+    async function startCupsGame(e) {
       if (!_AntiBotGuard.verify('Gobelets - Lancer', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer aux Gobelets !');
@@ -11160,12 +10332,16 @@
       cupsGame.positions = [0, 1, 2];
       cupsGame.hider = 'opponent';
 
-      // Le ( Bot ) déduit la mise et dissimule la bille dorée
-      state.balance -= bet;
-      saveState();
-      updateGlobalUI();
+      // Le serveur déduit la mise et choisit le gobelet qui cache la bille
+      cupsGame.isShuffling = true;
+      const srv = await serverGame({ action: 'cups_start', bet });
+      if (!srv.ok || typeof srv.ballCup !== 'number') {
+        cupsGame.isShuffling = false;
+        return showToast('❌ ' + (srv.error || 'Partie impossible, réessaie.'));
+      }
+      cupsGame.bet = srv.bet;
 
-      const startPos = Math.floor(Math.random() * 3);
+      const startPos = srv.ballCup;
       cupsGame.ballCupId = startPos;
       cupsGame.isShuffling = true;
       updateCupVisualPositions();
@@ -11228,10 +10404,17 @@
       }, interval);
     }
 
-    function pickCup(clickedCupId, e) {
+    async function pickCup(clickedCupId, e) {
       if (!_AntiBotGuard.verify('Gobelets - Choix', e)) return;
       if (!cupsGame.canPick) return;
       cupsGame.canPick = false;
+
+      // le serveur vérifie le choix et crédite le gain
+      const srv = await serverGame({ action: 'cups_pick', cup: clickedCupId });
+      if (!srv.ok) {
+        cupsGame.canPick = /pas terminé/.test(srv.error || '');
+        return showToast('❌ ' + (srv.error || 'Choix impossible.'));
+      }
 
       const ball = document.getElementById('cupGoldenBall');
       updateCupVisualPositions();
@@ -11240,10 +10423,8 @@
       document.getElementById(`cupSlot${clickedCupId}`)?.classList.add('lifted');
       document.getElementById(`cupSlot${cupsGame.ballCupId}`)?.classList.add('lifted');
 
-      const isCorrect = (clickedCupId === cupsGame.ballCupId);
-      if (isCorrect) {
-        const win = Math.floor(cupsGame.bet * 1.25);
-        state.balance += win;
+      if (srv.correct) {
+        const win = srv.win;
         state.cupsStreak = (state.cupsStreak || 0) + 1;
         if (!state.cupsBestStreak || state.cupsStreak > state.cupsBestStreak) {
           state.cupsBestStreak = state.cupsStreak;
@@ -12371,91 +11552,46 @@
         openAuthModal('login');
         return;
       }
-      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
-      const cur = list.find(t => t.id === tId);
-      if (!cur) return;
-      state.pendingTransfers = list.filter(t => t.id !== tId);
-
-      const amount = Number(cur.amount) || 0;
-      state.balance = (state.balance || 0) + amount;
-
-      if (!Array.isArray(state.bankTransfers)) state.bankTransfers = [];
-      state.bankTransfers.unshift({
-        id: cur.id,
-        from: cur.from,
-        to: state.username,
-        amount: amount,
-        note: cur.note,
-        status: 'Accepté',
-        timestamp: cur.timestamp || Date.now()
-      });
-      state.bankTransfers = state.bankTransfers.slice(0, 15);
-
-      const db = getAccountsDB();
-      const senderKey = (cur.from || '').toLowerCase().trim();
-      if (db[senderKey]) {
-        if (!Array.isArray(db[senderKey].bankTransfers)) db[senderKey].bankTransfers = [];
-        const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
-        if (t) t.status = 'Accepté';
-        saveAccountsDB(db);
-        pushRemoteAccount(db[senderKey]);
+      const r = await serverGame({ action: 'bank_accept', id: tId });
+      if (!r.ok) {
+        await refreshBankState();
+        showToast('❌ ' + (r.error || 'Virement impossible à encaisser.'));
+      } else {
+        applyBankState(r);
+        playCoinWinSound();
+        showToast(`✅ Virement de +${fmt(r.amount)} € encaissé !`);
       }
-
-      saveState();
-      playCoinWinSound();
       updateGlobalUI();
       renderBankHistory();
       updateNotificationsBadge();
       checkPendingNotifications();
       renderNotificationsModal();
-      showToast(`✅ Virement de +${fmt(amount)} € encaissé !`);
     }
 
     async function declineTransferById(tId) {
-      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
-      const cur = list.find(t => t.id === tId);
-      if (!cur) return;
-      state.pendingTransfers = list.filter(t => t.id !== tId);
-
-      const amount = Number(cur.amount) || 0;
-      const db = getAccountsDB();
-      const senderKey = (cur.from || '').toLowerCase().trim();
-      if (db[senderKey]) {
-        db[senderKey].balance = (db[senderKey].balance || 0) + amount;
-        if (Array.isArray(db[senderKey].bankTransfers)) {
-          const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
-          if (t) t.status = 'Refusé & Remboursé';
-        }
-        saveAccountsDB(db);
-        pushRemoteAccount(db[senderKey]);
+      const r = await serverGame({ action: 'bank_decline', id: tId });
+      if (!r.ok) {
+        await refreshBankState();
+        showToast('❌ ' + (r.error || 'Impossible de refuser ce virement.'));
+      } else {
+        applyBankState(r);
+        showToast(`❌ Don de ${fmt(r.refunded || 0)} € refusé (remboursé à l'expéditeur).`);
       }
-
-      saveState();
       updateGlobalUI();
+      renderBankHistory();
       updateNotificationsBadge();
       checkPendingNotifications();
       renderNotificationsModal();
-      showToast(`❌ Don de ${fmt(amount)} € refusé (remboursé à ${cur.from}).`);
     }
 
-    function clearAllDismissedNotifs() {
+    async function clearAllDismissedNotifs() {
       state.pendingGameInvites = [];
       state.pendingFriendRequests = [];
-      const list = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
-      const db = getAccountsDB();
-      list.forEach(cur => {
-        const amount = Number(cur.amount) || 0;
-        const senderKey = (cur.from || '').toLowerCase().trim();
-        if (db[senderKey]) {
-          db[senderKey].balance = (db[senderKey].balance || 0) + amount;
-          if (Array.isArray(db[senderKey].bankTransfers)) {
-            const t = db[senderKey].bankTransfers.find(x => x.id === cur.id);
-            if (t) t.status = 'Refusé & Remboursé';
-          }
-        }
-      });
-      state.pendingTransfers = [];
-      saveAccountsDB(db);
+      // les virements en attente sont refusés (et remboursés à leurs expéditeurs) par le serveur
+      if ((state.pendingTransfers || []).length) {
+        const r = await serverGame({ action: 'bank_decline_all' });
+        if (r.ok) applyBankState(r);
+      }
       saveState();
       pushRemoteAccount(state);
       updateGlobalUI();
@@ -13047,10 +12183,7 @@
       const rn = await gatewayAction({ action: 'rename', newName: cleanNew });
       if (!rn.ok) return showToast('❌ ' + (rn.error || 'Changement de pseudo impossible.'));
       if (rn.token) setAuthToken(rn.token);
-
-      if (!isAdmin) {
-        state.balance -= cost;
-      }
+      if (typeof rn.balance === 'number') state.balance = rn.balance;
 
       const currentAcc = db[oldKey] || { ...state };
       delete db[oldKey];
@@ -13119,10 +12252,7 @@
           const rn = await gatewayAction({ action: 'rename', newName: v });
           if (!rn.ok) return showToast('❌ ' + (rn.error || 'Changement de pseudo impossible.'));
           if (rn.token) setAuthToken(rn.token);
-
-          if (!isAdmin) {
-            state.balance -= cost;
-          }
+          if (typeof rn.balance === 'number') state.balance = rn.balance;
 
           const currentAcc = db[oldKey] || { ...state };
           delete db[oldKey];

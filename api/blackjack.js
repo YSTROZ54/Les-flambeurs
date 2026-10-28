@@ -1,5 +1,8 @@
 // Vercel Serverless Function pour l'API /api/blackjack reliée à Supabase Cloud
 import { actorOf } from './_auth.js';
+import { updateAccount } from './_store.js';
+import { walletCharge, walletPay } from './_wallet.js';
+import { randomInt } from 'node:crypto';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
 
@@ -17,7 +20,7 @@ const RANKS = [
   { r: 'A', v: 11 }
 ];
 
-function createShuffledDeck() {
+export function createShuffledDeck() {
   const deck = [];
   SUITS.forEach(st => {
     RANKS.forEach(rk => {
@@ -31,13 +34,13 @@ function createShuffledDeck() {
     });
   });
   for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(0, i + 1);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
 }
 
-function calcScore(hand) {
+export function calcScore(hand) {
   if (!Array.isArray(hand)) return 0;
   let t = 0;
   let a = 0;
@@ -162,6 +165,78 @@ async function saveSupabaseTables(tables) {
   } catch (e) {
     console.warn('Erreur POST Supabase Blackjack:', e);
   }
+}
+
+
+/* ============================ PORTEFEUILLE (serveur) ============================
+   Toutes les mises et tous les gains passent par ces fonctions. Chaque opération porte une
+   clé unique : rejouée, elle ne s'applique jamais deux fois (pas de double paiement). */
+const BJ_MAX_BET = 50000;
+const BJ_MIN_BET = 10;
+const clampBet = (v, fallback) => Math.min(BJ_MAX_BET, Math.max(BJ_MIN_BET, Math.floor(Number(v)) || fallback || 100));
+
+export async function bjCharge(username, key, amount) { await walletCharge(username, key, amount); }
+export async function bjPay(username, key, amount) { await walletPay(username, key, amount); }
+
+// Règle la table : paie les gains d'une manche terminée, ou rembourse une manche interrompue.
+// Sans danger si elle est appelée plusieurs fois (clés uniques).
+export async function settleTable(table) {
+  if (!table || !table.charged || table.settled) return;
+  const tid = table.tableId;
+  const rid = table.roundId;
+  const finished = table.status === 'finished';
+  for (const pKey of Object.keys(table.charged)) {
+    const p = table.players && table.players[pKey];
+    const name = (p && p.username) || pKey;
+    if (finished) {
+      const amount = p && p.payout > 0 ? p.payout : 0;
+      if (amount > 0) await bjPay(name, `p:${tid}:${rid}:${pKey}`, amount);
+    } else {
+      const spent = table.charged[pKey] || 0;
+      if (spent > 0) await bjPay(name, `rf:${tid}:${rid}:${pKey}`, spent);
+    }
+  }
+  table.settled = true;
+}
+
+// vue envoyée aux navigateurs : jamais le paquet de cartes, jamais la carte cachée du croupier
+const BACK_CARD = { r: '?', v: 0, s: '♠', color: 'text-slate-900', type: 'suit-black' };
+export function publicTable(table) {
+  const t = { ...table };
+  delete t.deck;
+  delete t.charged;
+  if (t.dealer) {
+    const hide = t.status === 'playing' || t.status === 'dealer_turn';
+    t.dealer = { ...t.dealer };
+    if (hide && Array.isArray(t.dealer.cards)) {
+      t.dealer.cards = t.dealer.cards.map((c, i) => (i === 0 ? c : BACK_CARD));
+      t.dealer.score = t.dealer.cards[0] ? calcScore([t.dealer.cards[0]]) : 0;
+      t.dealer.hidden = true;
+    }
+  }
+  return t;
+}
+
+const startingTables = new Set();
+async function startRound(table, participants, now) {
+  const roundId = now;
+  const done = [];
+  const list = participants.map((p) => ({ ...p, bet: clampBet(p.bet) }));
+  try {
+    for (const p of list) {
+      await bjCharge(p.username, `c:${table.tableId}:${roundId}:${p.username.toLowerCase().trim()}`, p.bet);
+      done.push(p);
+    }
+  } catch (e) {
+    for (const p of done) {
+      await bjPay(p.username, `cf:${table.tableId}:${roundId}:${p.username.toLowerCase().trim()}`, p.bet).catch(() => {});
+    }
+    throw e;
+  }
+  startServerDeal(table, list, now);
+  table.charged = {};
+  list.forEach((p) => { table.charged[p.username.toLowerCase().trim()] = p.bet; });
+  table.settled = false;
 }
 
 function advanceTurnOrFinish(table) {
@@ -337,6 +412,7 @@ export default async function handler(req, res) {
 
     // 1. Auto-nettoyage d'une manche finie depuis plus de 3.2 secondes -> retour table propre en attente
     if (table.status === 'finished' && table.finishedAt && (now - table.finishedAt > 3200)) {
+      await settleTable(table);
       const prevBets = table.readyBets || {};
       const prevHost = table.host || null;
       const prevKnown = table.knownPlayers || {};
@@ -366,7 +442,9 @@ export default async function handler(req, res) {
             bet: rp.bet || (table.readyBets && table.readyBets[k]) || 100
           };
         });
-        startServerDeal(table, participants, now);
+        try { await startRound(table, participants, now); } catch (e) {
+          if (e && e.extra && e.extra.who) delete table.readyPlayers[e.extra.who];
+        }
       }
     }
 
@@ -397,7 +475,8 @@ export default async function handler(req, res) {
           table.updatedAt = now;
           modified = true;
         } else {
-          // Aucun adversaire ou table abandonnée depuis plus de 45s -> Fermeture et remise à zéro totale
+          // Aucun adversaire ou table abandonnée depuis plus de 45s -> manche remboursée, puis remise à zéro totale
+          await settleTable(table);
           table = getDefaultTable(tableId);
           tables[tableId] = table;
           modified = true;
@@ -405,12 +484,14 @@ export default async function handler(req, res) {
       }
     }
 
+    if (table.status === 'finished') await settleTable(table);
+
     if (modified) {
       memoryTables = tables;
       saveSupabaseTables(tables).catch(() => {});
     }
 
-    return res.status(200).json(table);
+    return res.status(200).json(publicTable(table));
   }
 
   // POST
@@ -488,13 +569,13 @@ export default async function handler(req, res) {
       if (body.host && !table.host) table.host = body.host.toLowerCase().trim();
       table.updatedAt = now;
       memoryTables = tables;
-      return res.status(200).json({ ok: true, readyBets: table.readyBets, table });
+      return res.status(200).json({ ok: true, readyBets: table.readyBets, table: publicTable(table) });
     }
 
     // R. ÉTAT PRÊT JOUEUR & RELANCE AUTO (SET_READY)
     if (action === 'set_ready' && body.username) {
       const pKey = body.username.toLowerCase().trim();
-      const betVal = Math.min(50000, Math.max(10, parseInt(body.bet) || 100));
+      const betVal = clampBet(body.bet, 100);
 
       if (body.host && !table.host) {
         table.host = body.host.toLowerCase().trim();
@@ -509,6 +590,10 @@ export default async function handler(req, res) {
       if (!table.readyPlayers) table.readyPlayers = {};
       const isReady = body.ready !== false;
       if (isReady) {
+        const acc = await updateAccount(pKey, (d) => ({ bal: d.balance })).catch(() => null);
+        if (!acc || acc.result.bal < betVal) {
+          return res.status(200).json({ ok: false, error: 'Solde insuffisant pour cette mise.', table: publicTable(table) });
+        }
         table.readyPlayers[pKey] = {
           username: body.username,
           avatar: body.avatar || '👤',
@@ -524,7 +609,7 @@ export default async function handler(req, res) {
       if (table.status === 'playing' || table.status === 'dealer_turn') {
         table.updatedAt = now;
         memoryTables = tables;
-        return res.status(200).json({ ok: true, table });
+        return res.status(200).json({ ok: true, table: publicTable(table) });
       }
 
       // Vérifier si les 2 vrais joueurs invités sont prêts (AUCUN BOT EN MULTI)
@@ -546,44 +631,30 @@ export default async function handler(req, res) {
           };
         });
 
-        startServerDeal(table, participants, now);
+        if (startingTables.has(tableId)) return res.status(200).json({ ok: true, table: publicTable(table) });
+        startingTables.add(tableId);
+        try {
+          await startRound(table, participants, now);
+        } catch (e) {
+          if (e && e.extra && e.extra.who && table.readyPlayers) delete table.readyPlayers[e.extra.who];
+          memoryTables = tables;
+          return res.status(200).json({ ok: false, error: e.message || 'Impossible de lancer la manche.', table: publicTable(table) });
+        } finally {
+          startingTables.delete(tableId);
+        }
         memoryTables = tables;
         saveSupabaseTables(tables).catch(() => {});
-        return res.status(200).json({ ok: true, started: true, table });
+        return res.status(200).json({ ok: true, started: true, table: publicTable(table) });
       }
 
       table.updatedAt = now;
       memoryTables = tables;
-      return res.status(200).json({ ok: true, readyPlayers: table.readyPlayers, table });
+      return res.status(200).json({ ok: true, readyPlayers: table.readyPlayers, table: publicTable(table) });
     }
 
-    // A. DISTRIBUER (DEAL)
+    // A. DISTRIBUER (DEAL) : la manche démarre uniquement quand les deux joueurs ont cliqué « Prêt »
     if (action === 'deal') {
-      if (table.status === 'playing' || table.status === 'dealer_turn') {
-        return res.status(200).json({ ok: false, error: 'Une partie est déjà en cours', table });
-      }
-
-      const pKey = (body.username || '').toLowerCase().trim();
-
-      // Enregistrer l'hôte si transmis ou premier joueur
-      if (body.host && !table.host) {
-        table.host = body.host.toLowerCase().trim();
-      } else if (!table.host && pKey) {
-        table.host = pKey;
-      }
-
-      let participants = Array.isArray(body.participants) && body.participants.length > 0
-        ? body.participants.filter(p => !((p.username || '').toLowerCase().includes('bot') || (p.username || '').toLowerCase().includes('roxy')))
-        : [{ username: body.username || 'Joueur 1', avatar: body.avatar || '👤', bet: Math.min(50000, Math.max(10, parseInt(body.bet) || 100)) }];
-
-      if (participants.length < 2) {
-        return res.status(200).json({ ok: false, error: "En multijoueur, tu ne peux jouer qu'avec une personne invitée (aucun bot autorisé) !", table });
-      }
-
-      startServerDeal(table, participants, now);
-      memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
-      return res.status(200).json({ ok: true, table });
+      return res.status(200).json({ ok: false, error: 'Clique sur « Prêt ? » : la manche démarre quand les deux joueurs sont prêts.', table: publicTable(table) });
     }
 
     // B. TIRER (HIT)
@@ -625,7 +696,13 @@ export default async function handler(req, res) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
       const curTurn = (table.turn || '').toLowerCase().trim();
-      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
+      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing' && !p.double && p.cards.length === 2) {
+        try {
+          await bjCharge(p.username, `d:${tableId}:${table.roundId}:${pKey}`, p.bet);
+        } catch (e) {
+          return res.status(200).json({ ok: false, error: 'Solde insuffisant pour doubler.', table: publicTable(table) });
+        }
+        if (table.charged) table.charged[pKey] = (table.charged[pKey] || 0) + p.bet;
         p.bet *= 2;
         p.double = true;
         if (!Array.isArray(table.deck) || table.deck.length === 0) table.deck = createShuffledDeck();
@@ -665,12 +742,15 @@ export default async function handler(req, res) {
             winner: winner.username,
             pot: totalPot
           };
-          delete table.players[pKey];
-          table.playerOrder = [winnerKey];
+          // le joueur parti reste dans `players` jusqu'au règlement (sa mise fait partie de la cagnotte)
           table.finishedAt = now;
           table.updatedAt = now;
+          await settleTable(table);
+          delete table.players[pKey];
+          table.playerOrder = [winnerKey];
         } else {
-          // Si plus personne ou partie abandonnée -> le lobby se ferme et se réinitialise
+          // Si plus personne ou partie abandonnée -> mises remboursées, le lobby se réinitialise
+          await settleTable(table);
           table = getDefaultTable(tableId);
           tables[tableId] = table;
         }
@@ -692,14 +772,20 @@ export default async function handler(req, res) {
 
     // F. RESET / NOUVELLE PARTIE
     else if (action === 'reset') {
-      table = getDefaultTable(tableId);
-      tables[tableId] = table;
+      const pk = (body.username || '').toLowerCase().trim();
+      const busy = (table.status === 'playing' || table.status === 'dealer_turn');
+      if (!busy || (table.players && table.players[pk])) {
+        await settleTable(table);
+        table = getDefaultTable(tableId);
+        tables[tableId] = table;
+      }
     }
 
+    if (table.status === 'finished') await settleTable(table);
     memoryTables = tables;
     saveSupabaseTables(tables).catch(() => {});
 
-    return res.status(200).json({ ok: true, table });
+    return res.status(200).json({ ok: true, table: publicTable(table) });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

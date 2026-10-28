@@ -274,7 +274,8 @@ class TexasHoldemGame {
     this.actedThisRound = new Set();
 
     // 6 Sièges : Joueur principal (0) + 5 Bots (1 à 5)
-    const initialHeroStack = (typeof state !== 'undefined' && typeof state.balance === 'number') ? state.balance : 25400;
+    // Poker solo = entraînement : jetons fictifs, le vrai solde du joueur n'est jamais touché
+    const initialHeroStack = 10000;
     const initialHeroName = (typeof state !== 'undefined' && state.username) ? state.username : 'Flambeur (Toi)';
     const initialHeroAvatar = (typeof getAvatarDisplay === 'function') ? getAvatarDisplay(state) : '😎';
 
@@ -289,24 +290,12 @@ class TexasHoldemGame {
   }
 
   syncHeroBalance() {
-    const hero = this.players[0];
-    if (typeof state !== 'undefined') {
-      state.balance = Math.max(0, hero.stack);
-      if (typeof saveState === 'function') {
-        saveState();
-      }
-      if (typeof updateGlobalUI === 'function') {
-        updateGlobalUI();
-      }
-    }
+    // jetons d'entraînement : rien à synchroniser avec le solde réel (géré uniquement par le serveur)
   }
 
   updateHeroIdentity() {
     const hero = this.players[0];
     if (typeof state !== 'undefined') {
-      if (typeof state.balance === 'number') {
-        hero.stack = state.balance;
-      }
       if (state.username) {
         hero.name = state.username;
       }
@@ -351,12 +340,8 @@ class TexasHoldemGame {
     if (modal) modal.classList.add('hidden');
 
     // Recharges de stack et synchronisation avec state.balance du site principal
-    if (typeof state !== 'undefined' && typeof state.balance === 'number') {
-      if (state.balance <= 0) {
-        state.balance = 500; // Secours de table si ruiné
-        this.syncHeroBalance();
-      }
-      this.players[0].stack = state.balance;
+    if (typeof state !== 'undefined') {
+      if (this.players[0].stack <= 0) this.players[0].stack = 10000; // recharge d'entraînement
       this.players[0].name = state.username || 'Flambeur (Toi)';
       if (typeof getAvatarDisplay === 'function') {
         this.players[0].avatar = getAvatarDisplay(state);

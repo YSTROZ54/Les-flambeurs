@@ -6,6 +6,9 @@
 //   - exposer l'API HTTP.
 import { createHash } from 'node:crypto';
 import * as E from './_pokerEngine.js';
+import { actorOf } from './_auth.js';
+import { getRow, GameError } from './_store.js';
+import { walletCharge, walletPay } from './_wallet.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
@@ -143,23 +146,40 @@ function getTable(id, now, create) {
   return null;
 }
 
+// Jetons à rendre à un joueur : inscrits dans un registre durable, puis versés sur son solde par le serveur
 function addCashout(secretHash, username, key, amount) {
   if (!amount || amount <= 0) return false;
-  const cur = store.cashouts.items[key];
-  store.cashouts.items[key] = { secretHash, username, amount: (cur ? cur.amount : 0) + amount, at: Date.now() };
+  store.cashouts.seq = (store.cashouts.seq || 0) + 1;
+  const id = `${key}#${Date.now().toString(36)}${store.cashouts.seq}${Math.random().toString(36).slice(2, 6)}`;
+  store.cashouts.items[id] = { username, key, amount: Math.floor(amount), at: Date.now() };
   return true;
 }
 
-function claimCashout(key, secretHash) {
-  const c = store.cashouts.items[key];
-  if (!c || c.secretHash !== secretHash) return 0;
-  delete store.cashouts.items[key];
-  return Math.floor(c.amount || 0);
+// verse tout ce qui est dû (clé unique par ligne : jamais deux fois). Renvoie le total versé par joueur.
+async function settleCashouts() {
+  const paid = {};
+  let changed = false;
+  for (const id of Object.keys(store.cashouts.items)) {
+    const c = store.cashouts.items[id];
+    if (!c || !c.username) { delete store.cashouts.items[id]; changed = true; continue; }
+    try {
+      await walletPay(c.username, 'pco:' + id, c.amount);
+      const k = String(c.key || c.username).toLowerCase();
+      paid[k] = (paid[k] || 0) + c.amount;
+      delete store.cashouts.items[id];
+      changed = true;
+    } catch (e) {
+      if (e && e.code === 404) { delete store.cashouts.items[id]; changed = true; } // compte supprimé
+      else console.warn('poker: versement reporté', e && e.message);
+    }
+  }
+  return { paid, changed };
 }
 
-function pendingFor(key, secretHash) {
-  const c = store.cashouts.items[key];
-  return c && c.secretHash === secretHash ? Math.floor(c.amount || 0) : 0;
+function pendingFor(key) {
+  let total = 0;
+  Object.values(store.cashouts.items).forEach((c) => { if (c && String(c.key || '').toLowerCase() === key) total += Math.floor(c.amount || 0); });
+  return total;
 }
 
 function findSeat(key, secretHash) {
@@ -235,10 +255,14 @@ export default async function handler(req, res) {
     const changedIds = new Set(store.dirty);
     let cashChanged = false;
 
+    // l'identité vient du jeton de connexion, jamais du navigateur
+    const actor = actorOf(req, body);
     const rawUser = isPost ? body.username : q.user;
-    const username = E.cleanUsername(rawUser);
-    const userKey = E.normalizeKey(username);
-    const secretHash = hashDevice(isPost ? body.device : q.device);
+    let username = E.cleanUsername(rawUser);
+    if (!actor) username = '';
+    else if (E.normalizeKey(username) !== actor) username = E.cleanUsername(actor);
+    const userKey = actor ? E.normalizeKey(username) : '';
+    const secretHash = actor ? hashDevice('flambeurs-user|' + actor) : null;
     const rawTableId = String((isPost ? body.tableId : (q.table || q.tableId)) || '').toLowerCase().trim();
 
     let error = null;
@@ -250,17 +274,14 @@ export default async function handler(req, res) {
       const action = String(body.action || '');
 
       if (action === 'claim') {
-        if (!userKey || !secretHash) error = 'Identification impossible.';
-        else {
-          cashout = claimCashout(userKey, secretHash);
-          if (cashout > 0) cashChanged = true;
-        }
+        if (!userKey || !secretHash) error = 'Connexion requise.';
+        // (les jetons dus sont versés plus bas par le serveur)
       } else {
         table = rawTableId ? getTable(rawTableId, now) : null;
         if (!table) {
           error = 'Table inconnue.';
         } else if (!userKey || !secretHash) {
-          error = 'Identification impossible.';
+          error = 'Connexion requise.';
         } else {
           cashChanged = runStep(table, now, changedIds) || cashChanged;
           const me = table.players[userKey];
@@ -285,9 +306,27 @@ export default async function handler(req, res) {
             if (blocked) {
               error = `Ce pseudo est déjà assis à « ${blocked.name} » sur un autre appareil.`;
             } else {
-              const r = E.seatPlayer(table, { username, avatar: body.avatar, buyIn: body.buyIn, secretHash }, now);
-              if (!r.ok) error = r.error;
-              else { changedIds.add(table.tableId); joined = !r.already; }
+              // la mise de départ est prélevée par le serveur avant de s'asseoir
+              const existing = table.players[userKey];
+              const buyIn = Math.floor(Number(body.buyIn));
+              const chargeKey = `pj:${table.tableId}:${userKey}:${now}`;
+              let charged = false;
+              if (!existing) {
+                if (!Number.isFinite(buyIn) || buyIn < table.minBuyIn) error = `Mise de départ minimum : ${table.minBuyIn} €.`;
+                else if (buyIn > table.maxBuyIn) error = `Mise de départ maximum : ${table.maxBuyIn} €.`;
+                else if (!table.seats.some((k) => !k)) error = 'Table complète.';
+                else {
+                  try { await walletCharge(userKey, chargeKey, buyIn); charged = true; }
+                  catch (e) { error = e instanceof GameError ? e.message : 'Paiement impossible, réessaie.'; }
+                }
+              }
+              if (!error) {
+                const r = E.seatPlayer(table, { username, avatar: body.avatar, buyIn, secretHash }, now);
+                if (!r.ok) {
+                  error = r.error;
+                  if (charged) await walletPay(userKey, 'pjr:' + chargeKey, buyIn).catch(() => {});
+                } else { changedIds.add(table.tableId); joined = !r.already; }
+              }
             }
           } else if (action === 'ping') {
             if (authed) me.lastSeen = now;
@@ -300,7 +339,6 @@ export default async function handler(req, res) {
           } else if (action === 'leave') {
             const amount = E.removePlayer(table, userKey, 'leave', now);
             if (addCashout(secretHash, username, userKey, amount)) cashChanged = true;
-            if (!body.beacon) cashout = claimCashout(userKey, secretHash); // balise : le client ne lira pas la réponse, l'argent reste en attente
             changedIds.add(table.tableId);
             cashChanged = runStep(table, now, changedIds) || cashChanged;
           } else if (['fold', 'check', 'call', 'raise', 'allin'].includes(action)) {
@@ -332,6 +370,17 @@ export default async function handler(req, res) {
     await cleanupPrivate(now, changedIds);
     if (changedIds.size || cashChanged) await persist(changedIds, cashChanged);
 
+    // le serveur verse lui-même les jetons rendus (départs, éliminations, déconnexions)
+    let balance;
+    if (Object.keys(store.cashouts.items).length) {
+      const st = await settleCashouts();
+      if (userKey && st.paid[userKey]) cashout = st.paid[userKey];
+      if (st.changed) await persist(new Set(), true);
+    }
+    if (userKey && isPost) {
+      try { const row = await getRow(username); if (row) balance = row.balance; } catch (e) { /* facultatif */ }
+    }
+
     const authed = !!(table && userKey && secretHash && table.players[userKey]
       && !table.players[userKey].left && table.players[userKey].secretHash === secretHash);
     const payload = {
@@ -340,11 +389,12 @@ export default async function handler(req, res) {
       serverTime: now,
       tables: summaries(now),
       table: table ? E.publicView(table, userKey, authed, now) : null,
-      pendingCashout: userKey && secretHash ? pendingFor(userKey, secretHash) : 0,
+      pendingCashout: userKey ? pendingFor(userKey) : 0,
       mySeat: userKey && secretHash ? findSeat(userKey, secretHash) : null
     };
     if (error) payload.error = error;
     if (cashout) payload.cashout = cashout;
+    if (typeof balance === 'number') payload.balance = balance;
     if (joined) payload.joined = true;
     return respond(res, 200, payload);
   });

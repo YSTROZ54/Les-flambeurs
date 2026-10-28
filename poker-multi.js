@@ -68,12 +68,14 @@
 
   const getBalance = () => (typeof state !== 'undefined' && state ? Math.floor(state.balance || 0) : 0);
 
-  function addBalance(delta) {
-    if (typeof state === 'undefined' || !state || !delta) return;
-    state.balance = Math.max(0, Math.floor((state.balance || 0) + delta));
+  // Le solde réel est géré par le serveur : le navigateur ne fait que l'afficher (valeur renvoyée par l'API).
+  function addBalance() { /* volontairement vide */ }
+  function applyServerBalance(value) {
+    if (typeof state === 'undefined' || !state || typeof value !== 'number') return;
+    state.balance = Math.max(0, Math.floor(value));
+    state.lastBalanceChange = Date.now();
     try { if (typeof saveState === 'function') saveState(); } catch (e) {}
     try { if (typeof updateGlobalUI === 'function') updateGlobalUI(); } catch (e) {}
-    try { if (typeof pushRemoteAccount === 'function') pushRemoteAccount(state); } catch (e) {}
   }
 
   function apiUrl() {
@@ -96,12 +98,15 @@
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!data || data.v !== 2) throw new LegacyServerError('serveur ancien');
+    if (typeof data.balance === 'number') applyServerBalance(data.balance);
     return data;
   }
 
   const base = () => {
     const id = identity();
-    return { username: id.name, avatar: id.avatar, device: deviceId() };
+    let token = '';
+    try { token = typeof getAuthToken === 'function' ? getAuthToken() : ''; } catch (e) {}
+    return { username: id.name, avatar: id.avatar, device: deviceId(), token };
   };
 
   /* ----------------------------------------------------------------------- */
@@ -587,6 +592,7 @@
     /* ----- ouverture de la salle ----- */
     async open() {
       buildDom();
+      try { if (typeof refreshWallet === 'function') refreshWallet(); } catch (e) {} // jetons éventuellement rendus par le serveur
       if (!this.ensureExp()) return;
       this.hideSoloOnlyUi(false);
       if (this.mode === 'solo') { this.exp.resume(); return; }

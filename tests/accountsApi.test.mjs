@@ -70,16 +70,16 @@ test('écritures : jeton obligatoire, on ne modifie que son propre solde', async
   // propre compte
   r = await post({ username: 'Alice', avatar: '🐱', balance: 6000, data: { friends: ['bob'] } }, auth(ta), { sb: 'accounts' });
   assert.equal(r.code, 200);
-  assert.equal(__test.memory.rows.alice.balance, 6000);
+  assert.equal(__test.memory.rows.alice.balance, 5500);   // mode strict : le navigateur ne peut plus écrire un solde
   // Bob essaie de modifier le solde et le mot de passe d'Alice
   const before = __test.memory.rows.alice.password;
   r = await post({ username: 'Alice', password: 'pirate', balance: 1, avatar: '💀', data: { pendingTransfers: [{ id: 'tx1', from: 'Bob', amount: 50 }], bannedUsers: ['alice'] } }, auth(tb), { sb: 'accounts' });
   assert.equal(r.code, 200);
   const a = __test.memory.rows.alice;
-  assert.equal(a.balance, 6000);
+  assert.equal(a.balance, 5500);
   assert.equal(a.password, before);
   assert.equal(a.avatar, '🐱');
-  assert.equal(a.data.pendingTransfers.length, 1);   // la boîte aux lettres, oui
+  assert.equal(a.data.pendingTransfers, undefined);  // la boîte aux lettres n'est plus modifiable depuis le navigateur
   assert.equal(a.data.bannedUsers, undefined);       // les bannissements, non
   // personne ne peut écrire une ligne réservée
   r = await post({ username: '__crash_game__', balance: 0, data: {} }, auth(ta), { sb: 'accounts' });
@@ -104,7 +104,11 @@ test('suppression, mot de passe et pseudo', async () => {
   r = await post({ action: 'rename', newName: 'Bob' }, auth(ta));
   assert.equal(r.code, 409);
   r = await post({ action: 'rename', newName: 'Alicia' }, auth(ta));
+  assert.equal(r.code, 400);                          // changer de pseudo coûte 50 000 €
+  __test.memory.rows.alice.balance = 60000;
+  r = await post({ action: 'rename', newName: 'Alicia' }, auth(ta));
   assert.equal(r.code, 200);
+  assert.equal(__test.memory.rows.alicia.balance, 10000);
   assert.ok(__test.memory.rows.alicia && !__test.memory.rows.alice);
   r = await call('DELETE', { query: { username: 'Alicia' }, headers: auth(r.data.token) });
   assert.equal(r.code, 200);
@@ -134,9 +138,11 @@ test('Patron : mot de passe vérifié côté serveur, réglages de chance globau
   assert.equal(cfg.data.luck.slots, 20);
   assert.equal(cfg.data.luck.crash, 95);
   // le Patron peut créditer un joueur, mais pas lire de mot de passe
-  r = await post({ username: 'Bob', balance: 12345, data: {} }, { ...auth(t), 'x-admin-token': at }, { sb: 'accounts' });
+  r = await post({ action: 'admin_set_balance', username: 'Bob', balance: 12345 }, { ...auth(t), 'x-admin-token': at });
   assert.equal(r.code, 200);
   assert.equal(__test.memory.rows.bob.balance, 12345);
+  r = await post({ action: 'admin_set_balance', username: 'Bob', balance: 1 }, auth(tb));
+  assert.equal(r.code, 403);
   // le Patron fixe la liste des bannis ; un banni ne peut ni se connecter ni s'inscrire
   await post({ username: 'YSTROZ', balance: 100, data: { bannedUsers: ['bob', 'troll'] } }, { ...auth(t), 'x-admin-token': at }, { sb: 'accounts' });
   r = await post({ action: 'login', username: 'Bob', password: 'secret1' });
@@ -151,16 +157,23 @@ test('Patron : mot de passe vérifié côté serveur, réglages de chance globau
 test('compte fantôme : créé pour un virement puis réclamé par inscription', async () => {
   reset();
   const ta = await signup('Alice');
-  let r = await post({ username: 'Zoe', avatar: '🎭', balance: 999999, data: { pendingTransfers: [{ id: 'tx9', from: 'Alice', amount: 200 }] } }, auth(ta), { sb: 'accounts' });
+  __test.memory.rows.alice.data._srv = { createdAt: Date.now() - 48 * 3600 * 1000 };
+  let r = await post({ username: 'Zoe', avatar: '🎭', balance: 999999, data: {} }, auth(ta), { sb: 'accounts' });
   assert.equal(r.code, 200);
   assert.equal(__test.memory.rows.zoe.balance, 5500);   // le solde n'est pas choisi par l'expéditeur
   assert.equal(__test.memory.rows.zoe.password, '');
+  r = await post({ action: 'bank_send', to: 'Zoe', amount: 200 }, auth(ta));
+  assert.equal(r.code, 200, JSON.stringify(r.data));
   r = await post({ action: 'register', username: 'Zoe', password: 'zoezoe' });
   assert.equal(r.code, 200);
-  assert.equal(r.data.row.data.pendingTransfers.length, 1); // le virement l'attend
+  assert.equal(__test.memory.rows.zoe.data._srv.inbox.length, 1); // le virement l'attend
+  const zt = r.data.token;
+  const bs = await post({ action: 'bank_state' }, auth(zt));
+  assert.equal(bs.data.inbox.length, 1);
+  assert.equal(JSON.stringify(r.data.row.data).includes('_srv'), false);
 });
 
-test('lignes réservées : invisibles, sauf les anciennes lignes de jeu en lecture', async () => {
+test('lignes réservées : toutes invisibles (cartes et points de crash secrets)', async () => {
   reset();
   __test.memory.rows.__poker_t_x = { username: '__poker_t_x', password: '', balance: 0, data: { deck: [1, 2, 3] } };
   __test.memory.rows.__crash_game__ = { username: '__crash_game__', password: 'sys', balance: 0, data: { crash: { status: 'waiting' } } };
@@ -169,5 +182,5 @@ test('lignes réservées : invisibles, sauf les anciennes lignes de jeu en lectu
   let r = await call('GET', { query: { sb: 'accounts?username=eq.__poker_t_x' } });
   assert.deepEqual(r.data, []);
   r = await call('GET', { query: { sb: 'accounts?username=eq.__crash_game__' } });
-  assert.equal(r.data.length, 1);
+  assert.deepEqual(r.data, []);   // le point de crash est secret : plus de lecture directe
 });
