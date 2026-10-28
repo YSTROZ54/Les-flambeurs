@@ -1146,16 +1146,15 @@ class Poker3DExperience {
     ringLine.position.y = 0.002;
     this.tableGroup.add(ringLine);
 
+    // Plateau en bois autour du tapis : de la limite du tapis jusqu'au bord extérieur de la table
+    const deckR = r + 0.44;
+    const roR = deckR;
     const woodRailShape = new THREE.Shape();
-    const rs = this.options.railScale || 0.6; // rebord plus fin sur la table verticale
-    const wrThickness = 0.18 * rs;
-    const wrR = r + wrThickness;
-    woodRailShape.moveTo(-straightLen / 2, wrR);
-    woodRailShape.lineTo(straightLen / 2, wrR);
-    woodRailShape.absarc(straightLen / 2, 0, wrR, Math.PI / 2, -Math.PI / 2, true);
-    woodRailShape.lineTo(-straightLen / 2, -wrR);
-    woodRailShape.absarc(-straightLen / 2, 0, wrR, -Math.PI / 2, Math.PI / 2, true);
-
+    woodRailShape.moveTo(-straightLen / 2, deckR);
+    woodRailShape.lineTo(straightLen / 2, deckR);
+    woodRailShape.absarc(straightLen / 2, 0, deckR, Math.PI / 2, -Math.PI / 2, true);
+    woodRailShape.lineTo(-straightLen / 2, -deckR);
+    woodRailShape.absarc(-straightLen / 2, 0, deckR, -Math.PI / 2, Math.PI / 2, true);
     const wrHole = new THREE.Path();
     wrHole.moveTo(-straightLen / 2, r);
     wrHole.lineTo(straightLen / 2, r);
@@ -1163,65 +1162,58 @@ class Poker3DExperience {
     wrHole.lineTo(-straightLen / 2, -r);
     wrHole.absarc(-straightLen / 2, 0, r, -Math.PI / 2, Math.PI / 2, true);
     woodRailShape.holes.push(wrHole);
-
-    const woodRailMat = new THREE.MeshStandardMaterial({
-      color: this.options.woodColor,
-      roughness: 0.38,
-      metalness: 0.12
-    });
-    const woodRailMesh = new THREE.Mesh(new THREE.ShapeGeometry(woodRailShape, 48), woodRailMat);
+    const woodRailMesh = new THREE.Mesh(
+      new THREE.ShapeGeometry(woodRailShape, 48),
+      new THREE.MeshStandardMaterial({ color: this.options.woodColor, roughness: 0.45, metalness: 0.08 })
+    );
     woodRailMesh.rotation.x = -Math.PI / 2;
-    woodRailMesh.position.y = 0.001;
+    woodRailMesh.position.y = 0.002;
     woodRailMesh.receiveShadow = true;
     this.tableGroup.add(woodRailMesh);
 
-    const railOuterShape = new THREE.Shape();
-    const railThickness = 0.38 * rs;
-    const roR = wrR + railThickness;
-    railOuterShape.moveTo(-straightLen / 2, roR);
-    railOuterShape.lineTo(straightLen / 2, roR);
-    railOuterShape.absarc(straightLen / 2, 0, roR, Math.PI / 2, -Math.PI / 2, true);
-    railOuterShape.lineTo(-straightLen / 2, -roR);
-    railOuterShape.absarc(-straightLen / 2, 0, roR, -Math.PI / 2, Math.PI / 2, true);
-
-    const railHole = new THREE.Path();
-    railHole.moveTo(-straightLen / 2, wrR);
-    railHole.lineTo(straightLen / 2, wrR);
-    railHole.absarc(straightLen / 2, 0, wrR, Math.PI / 2, -Math.PI / 2, true);
-    railHole.lineTo(-straightLen / 2, -wrR);
-    railHole.absarc(-straightLen / 2, 0, wrR, -Math.PI / 2, Math.PI / 2, true);
-    railOuterShape.holes.push(railHole);
-
+    // Boudin rembourré : un tube lisse posé sur le plateau, au ras du tapis (aucun jour dessous)
+    const rc = r + 0.22;
+    const pathPts = [];
+    const arcN = 48;
+    for (let i = 0; i <= arcN; i++) { // arc droit (de +Z vers -Z en passant par +X)
+      const a = Math.PI / 2 - (i / arcN) * Math.PI;
+      pathPts.push(new THREE.Vector3(straightLen / 2 + Math.cos(a) * rc, 0, Math.sin(a) * rc));
+    }
+    for (let i = 0; i <= arcN; i++) { // arc gauche
+      const a = -Math.PI / 2 - (i / arcN) * Math.PI;
+      pathPts.push(new THREE.Vector3(-straightLen / 2 + Math.cos(a) * rc, 0, Math.sin(a) * rc));
+    }
+    const curve = new THREE.CatmullRomCurve3(pathPts, true, 'catmullrom', 0);
     const railMesh = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.2, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
-      new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.8, metalness: 0.0 })
+      new THREE.TubeGeometry(curve, 360, 0.2, 20, true),
+      new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.6, metalness: 0.02 })
     );
-    railMesh.rotation.x = -Math.PI / 2;
-    railMesh.position.y = -0.1;
+    railMesh.scale.y = 0.8;
+    railMesh.position.y = 0.05;
     railMesh.castShadow = true;
     railMesh.receiveShadow = true;
     this.tableGroup.add(railMesh);
 
-    // Flanc plein sous le rebord (on ne voit plus à travers la table) + pied central
+    // Flanc plein sous le plateau (on ne voit plus à travers la table) + pied central
     const skirtOuter = new THREE.Shape();
-    const skR = roR * 0.98;
+    const skR = roR;
     skirtOuter.moveTo(-straightLen / 2, skR);
     skirtOuter.lineTo(straightLen / 2, skR);
     skirtOuter.absarc(straightLen / 2, 0, skR, Math.PI / 2, -Math.PI / 2, true);
     skirtOuter.lineTo(-straightLen / 2, -skR);
     skirtOuter.absarc(-straightLen / 2, 0, skR, -Math.PI / 2, Math.PI / 2, true);
     const skirtMat = new THREE.MeshStandardMaterial({ color: 0x1b100a, roughness: 0.5, metalness: 0.08 });
-    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 1.7, bevelEnabled: false }), skirtMat);
+    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 1.76, bevelEnabled: false }), skirtMat);
     skirt.rotation.x = -Math.PI / 2;
-    skirt.position.y = -1.75;
+    skirt.position.y = -1.77;
     skirt.castShadow = true;
     skirt.receiveShadow = true;
     this.tableGroup.add(skirt);
-    // fine bande dorée au bas du flanc
+    // fine bande dorée sous le plateau
     const band = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 0.05, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xb08d3c, roughness: 0.35, metalness: 0.6 }));
     band.rotation.x = -Math.PI / 2;
     band.position.y = -0.2;
-    band.scale.set(0.99, 0.99, 1);
+    band.scale.set(1.005, 1.005, 1);
     this.tableGroup.add(band);
 
     const pedMat = new THREE.MeshStandardMaterial({ color: 0x0f0b09, roughness: 0.45, metalness: 0.25 });
@@ -1537,6 +1529,21 @@ class Poker3DExperience {
       wheel.position.set(Math.cos(a) * 0.6, floorLocal + 0.07, Math.sin(a) * 0.6);
     }
 
+    // Bassin, cuisses et jambes (pantalon) : le joueur n'a plus le bas du corps « coupé » net
+    const pants = std(0x15161d, 0.7);
+    const pelvis = add(new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.44, 0.34, 24), pants));
+    pelvis.position.set(0, 0.14, -0.08);
+    pelvis.scale.z = 0.85;
+    const shinLen = 0.2 - (floorLocal + 0.14);
+    [-1, 1].forEach((s) => {
+      const thigh = add(new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.24, 0.86), pants));
+      thigh.position.set(s * 0.22, 0.17, 0.32);
+      const shin = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, shinLen, 0.22), pants));
+      shin.position.set(s * 0.22, 0.2 - shinLen / 2, 0.7);
+      const shoe = add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.42), std(0x0b0b0e, 0.4, 0.2)));
+      shoe.position.set(s * 0.22, floorLocal + 0.1, 0.78);
+    });
+
     // Buste (se balance légèrement quand le joueur respire)
     const upper = new THREE.Group();
     upper.position.set(0, 0.06, -0.08);
@@ -1606,8 +1613,8 @@ class Poker3DExperience {
   buildDealer() {
     const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true }, -2.47);
     dealer.scale.setScalar(0.62);
-    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
-    dealer.position.set(0, -0.24, -(outer + 0.5));
+    const outer = this.options.tableDepth / 2 + 0.44;
+    dealer.position.set(0, -0.24, -(outer + 0.45));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1623,8 +1630,8 @@ class Poker3DExperience {
   buildHeroFigure() {
     const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 }, -2.47);
     hero.scale.setScalar(0.62);
-    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
-    hero.position.set(0, -0.24, outer + 0.5);
+    const outer = this.options.tableDepth / 2 + 0.44;
+    hero.position.set(0, -0.24, outer + 0.45);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1705,13 +1712,13 @@ class Poker3DExperience {
     ];
     const SEAT_Y = -0.24;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
-    const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
+    const outer = this.options.tableDepth / 2 + 0.44;
     this.seatedPlayers = [];
 
     this.thetas.forEach((theta, i) => {
       const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
-      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.5));
+      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.45));
       const sc = pos.z > 0 ? 0.5 : 0.62;
       const player = this.createSeatedPlayer(looks[i % looks.length], (-1.77 - SEAT_Y) / sc);
       player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
