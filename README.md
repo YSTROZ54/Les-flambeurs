@@ -3,7 +3,7 @@
 Application web complète de casino virtuel entre potes, conçue avec une interface moderne, sombre et dynamique.
 
 ## 🎰 Jeux inclus
-- **♠️ Poker Texas Hold'em :** Mode solo contre les bots, ou salon multijoueur (table publique / table privée par code) avec option pour combler les places vides par des bots.
+- **♠️ Poker Texas Hold'em :** Mode solo contre les bots, ou salons multijoueur par type (Duel, Table de 4, Table de 6 : « Salon 1, 2, 3 », mêmes blindes 50/100 et même mise de départ pour tous).
 - **🃏 Blackjack :** Solo contre le croupier ou table multijoueur.
 - **🥤 Jeu des Gobelets :** Trouvez la bille cachée sous les gobelets avec animation et choix de vitesse.
 - **🎡 Roulette Française :** Tapis complet de mises (numéros pleins, rouge/noir, pair/impair, manqué/passé, douzaines, colonnes).
@@ -30,7 +30,7 @@ Sans serveur, ouvrir `index.html` fonctionne toujours pour le mode solo.
 ## ♠️ Poker multijoueur (architecture)
 - `api/_pokerEngine.js` : moteur de poker pur, **autoritaire côté serveur** (blindes, relances minimales, pots annexes, mélange cryptographique, chrono de 120 s).
 - `api/poker.js` : API (`GET` = état de la table, `POST` = actions). Chaque joueur est reconnu par un secret d'appareil ; les cartes adverses ne sont jamais envoyées.
-- `poker-multi.js` : lobby (9 tables publiques + salons privés par code) et adaptateur qui affiche l'état serveur dans la scène 3D de `poker3d.js`.
+- `poker-multi.js` : lobby en deux étapes (choix du type de salon, puis Salon 1/2/3 ; mêmes blindes pour tous, réglables dans `api/_pokerEngine.js`) et adaptateur qui affiche l'état serveur dans la scène 3D de `poker3d.js`.
 - Si un joueur ferme son onglet, sa mise reste en attente côté serveur et lui est rendue à sa prochaine ouverture du poker.
 - Tests : `node --test tests/pokerEngine.test.mjs tests/pokerApi.test.mjs`.
 - `server.ps1` contient l'**ancien** poker : il n'est plus utilisé, préférez `serveur-local.mjs`.

@@ -87,18 +87,15 @@ test('départ par balise (réponse perdue) : récupération via claim', async ()
   assert.equal(again.data.cashout || 0, 0);
 });
 
-test('salons privés : création par code, introuvable sinon', async () => {
+test('salons : mêmes blindes et même mise partout, plus de salon privé', async () => {
   __test.reset();
-  let r = await post({ action: 'join', tableId: 'priv_ab12cd', username: 'A', device: dev('a'), buyIn: 1000 });
-  assert.equal(r.data.ok, false);
-  r = await post({ action: 'join', tableId: 'priv_ab12cd', username: 'A', device: dev('a'), buyIn: 1000, create: true, maxSeats: 3, bigBlind: 100 });
-  assert.ok(r.data.ok, r.data.error);
-  assert.equal(r.data.table.maxSeats, 3);
-  assert.equal(r.data.table.isPrivate, true);
-  r = await post({ action: 'join', tableId: 'priv_ab12cd', username: 'B', device: dev('b'), buyIn: 1000 });
-  assert.ok(r.data.ok);
-  r = await post({ action: 'join', tableId: '../etc/passwd', username: 'B', device: dev('b'), buyIn: 1000, create: true });
-  assert.equal(r.data.ok, false);
+  const r = await get({});
+  assert.ok(r.data.tables.every((t) => t.bigBlind === 100 && t.minBuyIn === 1000 && t.maxBuyIn === 20000));
+  assert.deepEqual(r.data.tables.filter((t) => t.category === '1v1').map((t) => t.name), ['Salon 1', 'Salon 2', 'Salon 3']);
+  let j = await post({ action: 'join', tableId: 'priv_ab12cd', username: 'A', device: dev('a'), buyIn: 1000, create: true, maxSeats: 3, bigBlind: 100 });
+  assert.equal(j.data.ok, false);
+  j = await post({ action: 'join', tableId: '../etc/passwd', username: 'B', device: dev('b'), buyIn: 1000 });
+  assert.equal(j.data.ok, false);
 });
 
 test('un seul siège par joueur : déplacement entre tables', async () => {
@@ -113,7 +110,7 @@ test('un seul siège par joueur : déplacement entre tables', async () => {
 
 test('actions invalides : message d\'erreur clair', async () => {
   __test.reset();
-  const T = 'poker_1v1_2'; // gros blindes 500
+  const T = 'poker_1v1_2'; // gros blinde 100
   await post({ action: 'join', tableId: T, username: 'A', device: dev('a'), buyIn: 10000 });
   await post({ action: 'join', tableId: T, username: 'B', device: dev('b'), buyIn: 10000 });
   await post({ action: 'ready', tableId: T, username: 'A', device: dev('a') });
@@ -127,10 +124,10 @@ test('actions invalides : message d\'erreur clair', async () => {
   assert.equal(r.data.ok, false);
   assert.match(r.data.error, /tour/);
   r = await post({ action: 'check', tableId: T, username: mover[0], device: dev(mover[1]) });
-  assert.equal(r.data.ok, false); // il reste 250 € à suivre
-  r = await post({ action: 'raise', tableId: T, username: mover[0], device: dev(mover[1]), amount: 600 });
+  assert.equal(r.data.ok, false); // il reste 50 € à suivre
+  r = await post({ action: 'raise', tableId: T, username: mover[0], device: dev(mover[1]), amount: 150 });
   assert.equal(r.data.ok, false);
-  r = await post({ action: 'raise', tableId: T, username: mover[0], device: dev(mover[1]), amount: 1500 });
+  r = await post({ action: 'raise', tableId: T, username: mover[0], device: dev(mover[1]), amount: 400 });
   assert.ok(r.data.ok, r.data.error);
 });
 

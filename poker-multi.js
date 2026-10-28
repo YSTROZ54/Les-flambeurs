@@ -4,7 +4,7 @@
  * -----------------------------------------------------------------------------
  * Le serveur (/api/poker, protocole v2) est l'unique source de vérité :
  * cartes, mises, tours, pots. Ce module :
- *   - affiche le lobby (solo, tables publiques, salons privés par code),
+ *   - affiche le lobby (solo, tables publiques, salons par type),
  *   - gère la mise de départ (jetons pris sur le solde, rendus en quittant),
  *   - interroge le serveur et projette son état dans la scène 3D existante
  *     (via un objet « jeu » qui remplace le moteur solo tant qu'on est en ligne).
@@ -403,8 +403,23 @@
     .pm-chip { display:inline-flex; align-items:center; justify-content:center; width:1.55rem; height:1.55rem; border-radius:9999px; font-size:.85rem; background:#1c1917; border:1px solid rgba(251,191,36,.5); }
     .pm-chip.empty { border-style:dashed; opacity:.4; border-color: rgba(255,255,255,.3); }
     .pm-seg { padding:.45rem .5rem; border-radius:.75rem; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#d6d3d1; font-weight:700; font-size:.75rem; }
+    #pmReadyBox { position:fixed; left:50%; top:42%; transform:translate(-50%,-50%); z-index:45; display:none; flex-direction:column; align-items:center; gap:.5rem; text-align:center; pointer-events:none; }
+    #pmReadyBox.show { display:flex; }
+    #pmReadyBtn { pointer-events:auto; padding:.9rem 2.2rem; border-radius:9999px; border:2px solid #fde68a; background:linear-gradient(90deg,#f59e0b,#34d399); color:#000; font-weight:900; font-size:1.05rem; letter-spacing:.04em; text-transform:uppercase; box-shadow:0 0 35px rgba(251,191,36,.55); cursor:pointer; }
+    #pmReadyBtn.pm-pulse { animation: pmPulse 1.2s ease-in-out infinite; }
+    #pmReadyBtn:disabled { cursor:default; background:#292524; color:#d6d3d1; border-color:rgba(255,255,255,.2); box-shadow:none; animation:none; }
+    #pmReadyHint { font-size:.8rem; font-weight:700; color:#fde68a; text-shadow:0 1px 6px #000; }
+    @keyframes pmPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.06); } }
+    .pm-tile { cursor:pointer; text-align:left; transition:transform .12s, border-color .15s, background .15s; }
+    .pm-tile:hover { border-color:#fbbf24; background:rgba(245,158,11,.1); transform:translateY(-2px); }
     .pm-seg.on { border-color:#fbbf24; background:rgba(245,158,11,.2); color:#fcd34d; }
   `;
+
+  // « Duel • Salon 1 », « Table de 4 • Salon 2 »… (les noms « Salon n » se répètent d'un type à l'autre)
+  function fullName(v) {
+    const kind = v.maxSeats === 2 ? 'Duel' : v.maxSeats === 4 ? 'Table de 4' : v.maxSeats === 6 ? 'Table de 6' : '';
+    return kind ? `${kind} • ${v.name}` : v.name;
+  }
 
   function buildDom(view) {
     if ($('pmLobby')) return;
@@ -421,7 +436,7 @@
           <span class="text-2xl">♠️</span>
           <div class="min-w-0">
             <div class="font-black text-white text-base sm:text-lg tracking-wide uppercase truncate">Poker • Salons</div>
-            <div class="text-[11px] text-stone-400">Choisis ta table, une partie seul contre les bots, ou crée un salon privé.</div>
+            <div class="text-[11px] text-stone-400">Choisis ton type de salon, ou joue seul contre les bots.</div>
           </div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -472,12 +487,10 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5 min-w-0">
             <span id="pmTableName" class="font-black text-[11px] sm:text-xs text-white truncate"></span>
-            <button id="pmCodeBtn" onclick="PokerMulti.copyCode()" class="hidden px-1.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono text-[10px] font-black"></button>
           </div>
           <div id="pmAnnounce" class="text-[11px] text-amber-200/90 leading-tight truncate"></div>
         </div>
         <div id="pmTimer" class="font-mono text-xs font-black text-sky-300 whitespace-nowrap"></div>
-        <button id="pmReadyBtn" onclick="PokerMulti.ready()" class="pm-btn hidden px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-black font-black text-[11px] uppercase tracking-wide shadow-lg animate-pulse">👍 Je suis prêt</button>
         <button id="pmLeaveBtn" onclick="PokerMulti.leave()" class="pm-btn px-2.5 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 border border-rose-300/40 text-white font-black text-[11px] uppercase tracking-wide">Quitter</button>
       </div>`;
 
@@ -485,6 +498,10 @@
     root.appendChild(lobby);
     root.appendChild(buyin);
     root.appendChild(bar);
+    const readyBox = document.createElement('div');
+    readyBox.id = 'pmReadyBox';
+    readyBox.innerHTML = '<button id="pmReadyBtn" onclick="PokerMulti.ready()">👍 Je suis prêt</button><div id="pmReadyHint"></div>';
+    root.appendChild(readyBox);
 
     // bouton « Salons » dans la barre du haut
     const topButtons = root.querySelector('.hud-interactive button[title="Options de Table & Blindes"]');
@@ -519,8 +536,7 @@
     soloBlind: 100,
     lobbyTables: [],
     code: '',
-    privSeats: 4,
-    privBlind: 100,
+    lobbyView: 'home',       // home | solo | 1v1 | 4max | 6max
     lastView: null,
     leaving: false,
 
@@ -531,6 +547,7 @@
       this.hideSoloOnlyUi(false);
       if (this.mode === 'solo') { this.exp.resume(); return; }
       if (this.mode === 'multi' && this.tableId) { this.exp.resume(); this.startPolling(); return; }
+      this.lobbyView = 'home';
       this.showLobby();
       try {
         const data = await api('GET', Object.assign({}, { user: base().username, device: deviceId() }));
@@ -627,44 +644,21 @@
     renderLobby() {
       const body = $('pmLobbyBody');
       if (!body) return;
-      // ne pas écraser la saisie en cours du code de salon
-      const codeVal = ($('pmJoinCode') && $('pmJoinCode').value) || '';
-      const focused = document.activeElement && document.activeElement.id === 'pmJoinCode';
       const bal = $('pmLobbyBalance');
       if (bal) bal.textContent = money(getBalance());
 
-      const groups = [
-        ['1v1', '⚔️ Duels (2 joueurs)'],
-        ['4max', '👥 Tables de 4'],
-        ['6max', '👑 Tables de 6']
-      ];
-      const statusLabel = { waiting: 'En attente', countdown: 'Départ imminent', playing: 'Main en cours', showdown: 'Abattage' };
-      const tableCard = (t) => {
-        const seats = [];
-        for (let i = 0; i < t.maxSeats; i++) {
-          const p = t.players[i];
-          seats.push(p ? `<span class="pm-chip" title="${esc(p.username)}">${esc(p.avatar)}</span>` : '<span class="pm-chip empty">·</span>');
-        }
-        const full = t.count >= t.maxSeats;
-        const canAfford = getBalance() >= t.minBuyIn;
-        return `<div class="pm-card p-3 flex flex-col gap-2">
-          <div class="flex items-start justify-between gap-2">
-            <div class="font-black text-white text-sm leading-tight">${esc(t.name)}</div>
-            <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${t.status === 'waiting' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-amber-500/15 text-amber-300 border border-amber-400/30'}">${statusLabel[t.status] || ''}</span>
-          </div>
-          <div class="text-[11px] text-stone-400">Blindes <b class="text-amber-300">${t.smallBlind.toLocaleString('fr-FR')}/${t.bigBlind.toLocaleString('fr-FR')} €</b> · Départ ${t.minBuyIn.toLocaleString('fr-FR')} – ${t.maxBuyIn.toLocaleString('fr-FR')} €</div>
-          <div class="flex items-center gap-1 flex-wrap">${seats.join('')}<span class="ml-1 text-[11px] text-stone-400">${t.count}/${t.maxSeats}</span></div>
-          <button ${full || !canAfford ? 'disabled' : ''} onclick="PokerMulti.askJoin('${t.id}')" class="mt-auto py-2 rounded-xl font-black text-xs uppercase tracking-wide ${full || !canAfford ? 'bg-stone-800 text-stone-500 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:brightness-110 shadow'}">${full ? 'Table complète' : (!canAfford ? 'Solde insuffisant' : 'Rejoindre')}</button>
-        </div>`;
+      const FORMATS = {
+        '1v1': { icon: '⚔️', title: 'Duel', sub: '2 joueurs' },
+        '4max': { icon: '👥', title: 'Table de 4', sub: '4 joueurs' },
+        '6max': { icon: '👑', title: 'Table de 6', sub: '6 joueurs' }
       };
+      const statusLabel = { waiting: 'En attente', countdown: 'Départ imminent', playing: 'Main en cours', showdown: 'Abattage' };
+      const tables = this.lobbyTables || [];
+      const view = this.lobbyView;
+      const seg = (arr, cur, fn) => arr.map(([v, label]) => `<button class="pm-seg ${v === cur ? 'on' : ''}" onclick="${fn}(${typeof v === 'string' ? `'${v}'` : v})">${label}</button>`).join('');
+      const backBtn = '<button onclick="PokerMulti.setLobbyView(\'home\')" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold">← Retour</button>';
 
-      const publicHtml = groups.map(([cat, title]) => {
-        const list = (this.lobbyTables || []).filter((t) => t.category === cat);
-        if (!list.length) return '';
-        return `<div><div class="text-[11px] font-black tracking-widest text-amber-400/90 uppercase mb-2">${title}</div>
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${list.map(tableCard).join('')}</div></div>`;
-      }).join('') || '<div class="text-stone-400 text-sm">Chargement des tables…</div>';
-
+      // suspension d'une partie solo
       let suspendedHtml = '';
       if (this.soloSuspended && this.exp && this.exp.soloGame) {
         const g = this.exp.soloGame;
@@ -675,49 +669,78 @@
           <button onclick="PokerMulti.resumeSolo()" class="mt-2 w-full py-2 rounded-lg bg-amber-500 text-black font-black text-xs uppercase tracking-wide">↩ Reprendre la partie</button></div>`;
       }
 
-      const seg = (arr, cur, fn) => arr.map(([v, label]) => `<button class="pm-seg ${v === cur ? 'on' : ''}" onclick="${fn}(${typeof v === 'string' ? `'${v}'` : v})">${label}</button>`).join('');
+      if (view === 'solo') {
+        body.innerHTML = `
+          <div class="max-w-xl mx-auto space-y-4">
+            <div class="flex items-center gap-3">${backBtn}<div class="font-black text-white text-sm uppercase tracking-wide">🤖 Seul contre les bots</div></div>
+            <div class="pm-card p-4 space-y-3">
+              <div class="text-[11px] text-stone-400">Ta mise de départ est ton solde complet, comme avant.</div>
+              <div class="grid grid-cols-3 gap-2">${seg([['1v1', '⚔️ Duel'], ['4max', '👥 Table de 4'], ['6max', '👑 6-Max']], this.soloFormat, 'PokerMulti.setSoloFormat')}</div>
+              <div class="grid grid-cols-3 gap-2">${seg([[100, 'Blindes 50/100'], [500, '250/500'], [1000, '500/1 000']], this.soloBlind, 'PokerMulti.setSoloBlind')}</div>
+              ${suspendedHtml}
+              <button onclick="PokerMulti.startSolo()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-sky-400 hover:brightness-110 font-black text-black text-xs uppercase tracking-wider shadow">${this.soloSuspended ? 'Nouvelle partie solo' : 'Lancer la partie solo'}</button>
+            </div>
+          </div>`;
+        return;
+      }
 
+      if (FORMATS[view]) {
+        const f = FORMATS[view];
+        const list = tables.filter((t) => t.category === view);
+        const card = (t) => {
+          const seats = [];
+          for (let i = 0; i < t.maxSeats; i++) {
+            const p = t.players[i];
+            seats.push(p ? `<span class="pm-chip" title="${esc(p.username)}">${esc(p.avatar)}</span>` : '<span class="pm-chip empty">·</span>');
+          }
+          const full = t.count >= t.maxSeats;
+          const canAfford = getBalance() >= t.minBuyIn;
+          const off = full || !canAfford;
+          return `<div class="pm-card p-3 flex flex-col gap-2">
+            <div class="flex items-start justify-between gap-2">
+              <div class="font-black text-white text-sm leading-tight">${esc(t.name)}</div>
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${t.status === 'waiting' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-amber-500/15 text-amber-300 border border-amber-400/30'}">${statusLabel[t.status] || ''}</span>
+            </div>
+            <div class="flex items-center gap-1 flex-wrap">${seats.join('')}<span class="ml-1 text-[11px] text-stone-400">${t.count}/${t.maxSeats}</span></div>
+            <button ${off ? 'disabled' : ''} onclick="PokerMulti.askJoin('${t.id}')" class="mt-auto py-2 rounded-xl font-black text-xs uppercase tracking-wide ${off ? 'bg-stone-800 text-stone-500 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:brightness-110 shadow'}">${full ? 'Salon complet' : (!canAfford ? 'Solde insuffisant' : 'Rejoindre')}</button>
+          </div>`;
+        };
+        const ref = list[0];
+        body.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">${backBtn}<div class="font-black text-white text-sm uppercase tracking-wide">${f.icon} ${f.title}</div></div>
+            ${ref ? `<div class="text-[11px] text-stone-400">Blindes <b class="text-amber-300">${ref.smallBlind.toLocaleString('fr-FR')}/${ref.bigBlind.toLocaleString('fr-FR')} €</b> · Mise de départ ${ref.minBuyIn.toLocaleString('fr-FR')} – ${ref.maxBuyIn.toLocaleString('fr-FR')} €</div>` : ''}
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${list.map(card).join('') || '<div class="text-stone-400 text-sm">Chargement des salons…</div>'}</div>
+          </div>`;
+        return;
+      }
+
+      // accueil : choix du type de salon
+      const tile = (key, icon, title, sub, extra) => `<button class="pm-card pm-tile p-4 flex flex-col gap-1" onclick="PokerMulti.setLobbyView('${key}')">
+          <span class="text-3xl">${icon}</span>
+          <span class="font-black text-white text-sm uppercase tracking-wide">${title}</span>
+          <span class="text-[11px] text-stone-400">${sub}</span>
+          ${extra ? `<span class="text-[11px] font-bold text-emerald-300">${extra}</span>` : ''}
+        </button>`;
+      const online = (cat) => tables.filter((t) => t.category === cat).reduce((n, t) => n + (t.count || 0), 0);
+      const onl = (cat) => { const n = online(cat); return n ? `${n} joueur${n > 1 ? 's' : ''} en ligne` : 'Aucun joueur pour l\'instant'; };
       body.innerHTML = `
-        <div class="pm-card p-4 space-y-3">
-          <div class="flex items-center gap-2"><span class="text-xl">🤖</span><div><div class="font-black text-white text-sm uppercase tracking-wide">Jouer seul contre les bots</div><div class="text-[11px] text-stone-400">Ta mise de départ est ton solde complet, comme avant.</div></div></div>
-          <div class="grid grid-cols-3 gap-2">${seg([['1v1', '⚔️ Duel'], ['4max', '👥 Table de 4'], ['6max', '👑 6-Max']], this.soloFormat, 'PokerMulti.setSoloFormat')}</div>
-          <div class="grid grid-cols-3 gap-2">${seg([[100, 'Blindes 50/100'], [500, '250/500'], [1000, '500/1 000']], this.soloBlind, 'PokerMulti.setSoloBlind')}</div>
+        <div class="max-w-3xl mx-auto space-y-4">
+          <div class="text-[11px] font-black tracking-widest text-amber-400/90 uppercase">Choisis ton type de salon</div>
           ${suspendedHtml}
-          <button onclick="PokerMulti.startSolo()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-sky-400 hover:brightness-110 font-black text-black text-xs uppercase tracking-wider shadow">${this.soloSuspended ? 'Nouvelle partie solo' : 'Lancer la partie solo'}</button>
-        </div>
-
-        <div class="space-y-4">
-          <div class="flex items-center gap-2"><span class="text-xl">🌐</span><div class="font-black text-white text-sm uppercase tracking-wide">Tables publiques — avec tes amis</div></div>
-          ${publicHtml}
-        </div>
-
-        <div class="pm-card p-4 space-y-4">
-          <div class="flex items-center gap-2"><span class="text-xl">🔒</span><div><div class="font-black text-white text-sm uppercase tracking-wide">Salon privé</div><div class="text-[11px] text-stone-400">Crée un salon et donne le code à tes amis, ou entre avec un code.</div></div></div>
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="space-y-2">
-              <div class="text-[10px] font-black tracking-widest text-amber-400/90 uppercase">Créer un salon</div>
-              <div class="grid grid-cols-5 gap-1.5">${seg([[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], this.privSeats, 'PokerMulti.setPrivSeats')}</div>
-              <div class="grid grid-cols-3 gap-1.5">${seg([[100, '50/100'], [500, '250/500'], [1000, '500/1k']], this.privBlind, 'PokerMulti.setPrivBlind')}</div>
-              <button onclick="PokerMulti.createPrivate()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:brightness-110 font-black text-black text-xs uppercase tracking-wider shadow">Créer le salon</button>
-            </div>
-            <div class="space-y-2">
-              <div class="text-[10px] font-black tracking-widest text-amber-400/90 uppercase">Rejoindre avec un code</div>
-              <input id="pmJoinCode" maxlength="8" autocomplete="off" placeholder="CODE DU SALON" class="w-full bg-black/70 border border-white/20 focus:border-amber-400 rounded-xl px-3 py-2.5 text-white font-mono font-black tracking-widest uppercase outline-none" onkeydown="if(event.key==='Enter')PokerMulti.joinPrivate()">
-              <button onclick="PokerMulti.joinPrivate()" class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-black text-xs uppercase tracking-wider">Entrer dans le salon</button>
-            </div>
+          <div class="grid grid-cols-2 gap-3">
+            ${tile('1v1', '⚔️', 'Duel', '2 joueurs', onl('1v1'))}
+            ${tile('4max', '👥', 'Table de 4', '4 joueurs', onl('4max'))}
+            ${tile('6max', '👑', 'Table de 6', '6 joueurs', onl('6max'))}
+            ${tile('solo', '🤖', 'Seul contre les bots', 'Sans attendre personne', '')}
           </div>
         </div>`;
-      const input = $('pmJoinCode');
-      if (input) {
-        input.value = codeVal;
-        if (focused) { input.focus(); try { input.setSelectionRange(codeVal.length, codeVal.length); } catch (e) {} }
-      }
     },
+
+    setLobbyView(v) { this.lobbyView = v; this.renderLobby(); const sc = document.querySelector('#pmLobby .pm-scroll'); if (sc) sc.scrollTop = 0; },
 
     setSoloFormat(f) { this.soloFormat = f; this.renderLobby(); },
     setSoloBlind(b) { this.soloBlind = b; this.renderLobby(); },
-    setPrivSeats(n) { this.privSeats = n; this.renderLobby(); },
-    setPrivBlind(b) { this.privBlind = b; this.renderLobby(); },
 
     openRules() { if (typeof openPokerRulesModal === 'function') openPokerRulesModal(); },
 
@@ -769,37 +792,9 @@
     askJoin(tableId) {
       const t = (this.lobbyTables || []).find((x) => x.id === tableId);
       if (!t) return;
-      this.openBuyIn({ tableId, name: t.name, min: t.minBuyIn, max: t.maxBuyIn, bb: t.bigBlind, create: null });
+      this.openBuyIn({ tableId, name: fullName(t), min: t.minBuyIn, max: t.maxBuyIn, bb: t.bigBlind, create: null });
     },
 
-    createPrivate() {
-      let code = '';
-      for (let i = 0; i < 6; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-      const bb = this.privBlind;
-      this.openBuyIn({
-        tableId: 'priv_' + code.toLowerCase(),
-        name: `Salon privé ${code}`,
-        min: bb * 10,
-        max: Math.min(50000, bb * 200),
-        bb,
-        create: { maxSeats: this.privSeats, bigBlind: bb }
-      });
-    },
-
-    async joinPrivate() {
-      const input = $('pmJoinCode');
-      const code = ((input && input.value) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (code.length < 4) return toast('❌ Entre le code du salon (4 à 8 caractères).');
-      const tableId = 'priv_' + code.toLowerCase();
-      try {
-        const data = await api('GET', { table: tableId, user: base().username, device: deviceId() });
-        if (!data.table) return toast('❌ Salon introuvable. Vérifie le code.');
-        const t = data.table;
-        if (data.table.me) { this.enterMulti(tableId, null); return; }
-        if (t.seats.filter(Boolean).length >= t.maxSeats) return toast('🚫 Ce salon est complet.');
-        this.openBuyIn({ tableId, name: t.name, min: t.minBuyIn, max: t.maxBuyIn, bb: t.bigBlind, create: null });
-      } catch (e) { this.lobbyError(e); }
-    },
 
     openBuyIn(info) {
       this.pending = info;
@@ -978,30 +973,33 @@
     renderBar(view) {
       const me = view.me;
       const set = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
-      set('pmTableName', view.name);
+      set('pmTableName', fullName(view));
       set('pmAnnounce', view.announcement || '');
-      const codeBtn = $('pmCodeBtn');
-      if (codeBtn) {
-        if (view.isPrivate) {
-          this.code = view.tableId.slice(5).toUpperCase();
-          codeBtn.textContent = `Code : ${this.code} 📋`;
-          codeBtn.classList.remove('hidden');
-        } else codeBtn.classList.add('hidden');
-      }
       const tag = $('headerTableFormatTag');
-      if (tag) tag.textContent = view.isPrivate ? `Privé ${view.maxSeats} places` : (view.maxSeats === 2 ? '1v1 (Duel)' : `${view.maxSeats}-Max`);
+      if (tag) tag.textContent = (view.maxSeats === 2 ? '1v1 (Duel)' : `${view.maxSeats}-Max`);
       const bt = $('headerBlindTag');
       if (bt) bt.textContent = `${view.smallBlind.toLocaleString('fr-FR')}/${view.bigBlind.toLocaleString('fr-FR')} €`;
 
+      const box = $('pmReadyBox');
       const ready = $('pmReadyBtn');
-      if (ready) {
-        const seated = view.seats.filter(Boolean).length;
-        const show = view.status === 'waiting' && !me.ready && seated >= 1;
-        ready.classList.toggle('hidden', !show);
-        ready.disabled = seated < 2;
-        ready.style.opacity = seated < 2 ? '.55' : '1';
-        ready.textContent = seated < 2 ? '⏳ Attente d\'un joueur' : '👍 Je suis prêt';
-        ready.classList.toggle('animate-pulse', seated >= 2);
+      const hint = $('pmReadyHint');
+      if (box && ready) {
+        const seated = view.seats.filter(Boolean);
+        const readyCount = seated.filter((x) => x.ready).length;
+        box.classList.toggle('show', view.status === 'waiting');
+        if (seated.length < 2) {
+          ready.disabled = true; ready.classList.remove('pm-pulse');
+          ready.textContent = '⏳ En attente d\'un joueur';
+          if (hint) hint.textContent = 'Partage le salon à tes amis pour qu\'ils te rejoignent.';
+        } else if (!me.ready) {
+          ready.disabled = false; ready.classList.add('pm-pulse');
+          ready.textContent = '👍 Je suis prêt';
+          if (hint) hint.textContent = `${readyCount}/${seated.length} joueurs prêts`;
+        } else {
+          ready.disabled = true; ready.classList.remove('pm-pulse');
+          ready.textContent = '✓ Tu es prêt';
+          if (hint) hint.textContent = `${readyCount}/${seated.length} joueurs prêts — la partie démarre quand tout le monde est prêt`;
+        }
       }
       this.renderTimer();
     },
@@ -1045,14 +1043,6 @@
 
     async ready() {
       await this.sendAction('ready');
-    },
-
-    copyCode() {
-      const text = this.code;
-      if (!text) return;
-      const done = () => toast(`📋 Code du salon copié : ${text}`);
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, done);
-      else done();
     },
 
     async leave() {
@@ -1133,7 +1123,7 @@
     invitePayload() {
       if (this.mode !== 'multi' || !this.tableId || !this.lastView) return null;
       const v = this.lastView;
-      return { tableId: this.tableId, name: v.name, isPrivate: !!v.isPrivate, code: v.isPrivate ? this.tableId.slice(5).toUpperCase() : '' };
+      return { tableId: this.tableId, name: fullName(v), isPrivate: false, code: '' };
     },
 
     async joinFromInvite(tableId) {
@@ -1150,16 +1140,6 @@
       if (!id) return;
       const known = (this.lobbyTables || []).find((t) => t.id === id);
       if (known) { this.askJoin(id); return; }
-      if (/^priv_[a-z0-9]{4,8}$/.test(id)) {
-        try {
-          const data = await api('GET', { table: id, user: base().username, device: deviceId() });
-          const t = data.table;
-          if (!t) return toast('❌ Le salon de ton ami n\'existe plus.');
-          if (t.me) { this.enterMulti(id, null); return; }
-          if (t.seats.filter(Boolean).length >= t.maxSeats) return toast('🚫 Ce salon est complet.');
-          this.openBuyIn({ tableId: id, name: t.name, min: t.minBuyIn, max: t.maxBuyIn, bb: t.bigBlind, create: null });
-        } catch (e) { this.lobbyError(e); }
-      }
     },
 
     async claim(silent) {

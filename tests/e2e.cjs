@@ -57,11 +57,18 @@ const waitFor = async (fn, ms = 8000, step = 150) => {
 
     for (const p of [A, B]) {
       await p.page.evaluate(() => switchRoom('poker'));
-      const shown = await waitFor(() => p.page.evaluate(() => !document.getElementById('pmLobby').classList.contains('hidden') && document.querySelectorAll('#pmLobbyBody .pm-card').length > 3));
-      ok(shown, `${p.name} voit le lobby avec les tables`);
+      const shown = await waitFor(() => p.page.evaluate(() => !document.getElementById('pmLobby').classList.contains('hidden') && document.querySelectorAll('#pmLobbyBody .pm-tile').length === 4));
+      ok(shown, `${p.name} voit d'abord le choix du type de salon (4 cartes)`);
     }
-    const nCards = await A.page.evaluate(() => document.querySelectorAll('#pmLobbyBody button[onclick^="PokerMulti.askJoin"]').length);
-    ok(nCards === 9, `9 tables publiques affichées (${nCards})`);
+    ok(await A.page.evaluate(() => !/priv/i.test(document.getElementById('pmLobby').innerText) && !document.getElementById('pmJoinCode')), 'plus aucune trace de salon privé dans le lobby');
+    ok((await A.page.evaluate(() => document.querySelectorAll('#pmLobbyBody button[onclick^="PokerMulti.askJoin"]').length)) === 0, 'aucun salon affiché tant qu\'un type n\'est pas choisi');
+    for (const cat of ['1v1', '4max', '6max']) {
+      await A.page.evaluate((c) => PokerMulti.setLobbyView(c), cat);
+      const names = await A.page.evaluate(() => [...document.querySelectorAll('#pmLobbyBody .pm-card .font-black.text-white')].map((e) => e.textContent.trim()));
+      ok(JSON.stringify(names) === JSON.stringify(['Salon 1', 'Salon 2', 'Salon 3']), `type ${cat} : Salon 1, 2, 3 (${names})`);
+    }
+    await A.page.evaluate(() => PokerMulti.setLobbyView('1v1'));
+    await B.page.evaluate(() => PokerMulti.setLobbyView('1v1'));
 
     console.log('— Alice rejoint le duel (mise 5 000 €)');
     await A.page.evaluate(() => PokerMulti.askJoin('poker_1v1_1'));
@@ -80,8 +87,10 @@ const waitFor = async (fn, ms = 8000, step = 150) => {
     ok(await A.page.evaluate(() => PokerMulti.game.players[3].name.includes('Bob')), 'Bob apparaît sur le siège en face (1v1)');
 
     console.log('— Les deux se déclarent prêts');
-    await A.page.evaluate(() => PokerMulti.ready());
-    await B.page.evaluate(() => PokerMulti.ready());
+    ok(await waitFor(() => A.page.evaluate(() => { const b = document.getElementById('pmReadyBtn'); const r = document.getElementById('pmReadyBox'); return r.classList.contains('show') && !b.disabled && /prêt/i.test(b.textContent); })), 'le gros bouton « Je suis prêt » est affiché au centre');
+    await A.page.evaluate(() => document.getElementById('pmReadyBtn').click());
+    ok(await waitFor(() => A.page.evaluate(() => /Tu es prêt/.test(document.getElementById('pmReadyBtn').textContent))), 'après clic : « Tu es prêt » (1/2 prêts)');
+    await B.page.evaluate(() => document.getElementById('pmReadyBtn').click());
     ok(await waitFor(async () => { const v = await view(A); return v && v.status === 'playing'; }, 12000), 'la main démarre après le décompte');
     await sleep(1200);
 
@@ -139,28 +148,14 @@ const waitFor = async (fn, ms = 8000, step = 150) => {
     const total = (await bal(A)) + (await bal(B));
     ok(total === 40000, `argent total conservé : ${total} (Alice ${await bal(A)}, Bob ${await bal(B)})`);
 
-    console.log('— Salon privé par code');
-    await A.page.evaluate(() => { PokerMulti.setPrivSeats(3); PokerMulti.setPrivBlind(100); PokerMulti.createPrivate(); });
+    console.log('— Table de 6 : sièges libres');
+    await A.page.evaluate(() => { PokerMulti.setLobbyView('6max'); PokerMulti.askJoin('poker_6max_1'); });
     await A.page.evaluate(() => { document.getElementById('pmBuyInInput').value = '3000'; });
     await A.page.evaluate(() => PokerMulti.confirmBuyIn());
-    ok(await waitFor(async () => (await A.page.evaluate(() => PokerMulti.mode)) === 'multi'), 'Alice a créé un salon privé');
-    const code = await A.page.evaluate(() => PokerMulti.tableId.slice(5).toUpperCase());
-    ok(/^[A-Z0-9]{6}$/.test(code), `code du salon : ${code}`);
-    ok(await waitFor(() => A.page.evaluate(() => !document.getElementById('pmCodeBtn').classList.contains('hidden'))), 'le code est affiché dans la barre');
-    await B.page.evaluate((c) => { document.getElementById('pmJoinCode').value = c; PokerMulti.joinPrivate(); }, code);
-    ok(await waitFor(() => B.page.evaluate(() => !document.getElementById('pmBuyIn').classList.contains('hidden'))), 'Bob entre le code et choisit sa mise');
-    await B.page.evaluate(() => { document.getElementById('pmBuyInInput').value = '2000'; });
-    await B.page.evaluate(() => PokerMulti.confirmBuyIn());
-    ok(await waitFor(async () => { const v = await view(B); return v && v.seats.filter(Boolean).length === 2; }), 'Bob est dans le salon privé');
-    const vp = await view(B);
-    ok(vp.isPrivate && vp.maxSeats === 3, 'salon privé de 3 places');
-    ok(await waitFor(() => B.page.evaluate(() => PokerMulti.game.players.filter((p) => p.empty && p.name === 'Siège libre').length >= 1)), 'les sièges libres sont indiqués');
-    // mauvais code
-    await B.page.evaluate(() => PokerMulti.leave());
-    await waitFor(async () => (await B.page.evaluate(() => PokerMulti.mode)) === 'lobby');
-    await B.page.evaluate(() => { document.getElementById('pmJoinCode').value = 'ZZZZZZ'; PokerMulti.joinPrivate(); });
-    await sleep(700);
-    ok(await B.page.evaluate(() => document.getElementById('pmBuyIn').classList.contains('hidden')), 'un code inconnu n\'ouvre pas de table');
+    ok(await waitFor(async () => (await A.page.evaluate(() => PokerMulti.mode)) === 'multi'), 'Alice rejoint le Salon 1 de la table de 6');
+    ok(await waitFor(() => A.page.evaluate(() => /Table de 6 • Salon 1/.test(document.getElementById('pmTableName').textContent))), 'la barre affiche « Table de 6 • Salon 1 »');
+    ok(await waitFor(() => A.page.evaluate(() => PokerMulti.game.players.filter((p) => p.empty && p.name === 'Siège libre').length >= 4)), 'les sièges libres sont indiqués');
+    ok(await A.page.evaluate(() => document.getElementById('pmReadyBox').classList.contains('show') && document.getElementById('pmReadyBtn').disabled), 'seul : bouton « en attente d\'un joueur » (grisé)');
 
     console.log('— Fermeture brutale de l\'onglet d\'Alice : sa mise est récupérable');
     const balBefore = await bal(A);
