@@ -81,12 +81,12 @@
     pelvis.scale.z = 0.85;
     const shinLen = 0.2 - (floorLocal + 0.14);
     [-1, 1].forEach((s) => {
-      const thigh = add(new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.24, 0.86), pants));
-      thigh.position.set(s * 0.22, 0.17, 0.32);
+      const thigh = add(new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.24, 0.6), pants));
+      thigh.position.set(s * 0.22, 0.17, 0.2);
       const shin = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, shinLen, 0.22), pants));
-      shin.position.set(s * 0.22, 0.2 - shinLen / 2, 0.7);
-      const shoe = add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.44), mat(0x0a0a0d, 0.35, 0.2)));
-      shoe.position.set(s * 0.22, floorLocal + 0.1, 0.8);
+      shin.position.set(s * 0.22, 0.2 - shinLen / 2, 0.46);
+      const shoe = add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.34), mat(0x0a0a0d, 0.35, 0.2)));
+      shoe.position.set(s * 0.22, floorLocal + 0.1, 0.46);
     });
 
     /* ---- Buste ---- */
@@ -299,8 +299,8 @@
       pivot.position.copy(shoulder);
       g.add(pivot);
       const zero = new THREE.Vector3();
-      const elbow = new THREE.Vector3(s * 0.1, -0.4, 0.38);
-      const hand = new THREE.Vector3(-s * 0.18, -0.3, 0.86);
+      const elbow = new THREE.Vector3(s * 0.1, -0.4, 0.45);
+      const hand = new THREE.Vector3(-s * 0.18, -0.3, 1.0);
       const jt = add(new THREE.Mesh(new THREE.SphereGeometry(0.125, 14, 10), sleeve), pivot);
       jt.position.copy(zero);
       pivot.add(this.makeLimb(zero, elbow, 0.12, sleeve));
