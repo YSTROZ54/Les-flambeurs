@@ -12,7 +12,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="poker3d.js?v=4.3"></script>
+  <script src="poker3d.js?v=5.0"></script>
+  <script src="poker-multi.js?v=1.0"></script>
 </head>
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
 
@@ -5141,8 +5142,10 @@
       updateCurrentTable(room);
 
       if (room === 'poker') {
-        // Initialisation ou reprise du moteur 3D Three.js
-        if (!window.pokerExp) {
+        // Lobby (solo / tables publiques / salons privés) puis moteur 3D Three.js
+        if (window.PokerMulti) {
+          window.PokerMulti.open();
+        } else if (!window.pokerExp) {
           const container = document.getElementById('poker3dContainer');
           if (container && typeof Poker3DExperience !== 'undefined') {
             window.pokerExp = new Poker3DExperience(container);
@@ -6002,15 +6005,12 @@
       const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
 
       if (lobbies[lobbyKey]) {
-        lobbies[lobbyKey].mode = 'multi';
+        if (roomKey !== 'poker') lobbies[lobbyKey].mode = 'multi';
         if (roomKey === 'blackjack') {
           lobbies.bj.tableType = 'public';
           lobbies.bj.publicTableId = cur.publicTableId || 'bj_pub_1';
         } else if (roomKey === 'poker') {
-          lobbies.poker.tableType = 'public';
-          lobbies.poker.publicTableId = cur.publicTableId || 'poker_4max_1';
-          const tObj = POKER_PUBLIC_TABLES.find(t => t.id === lobbies.poker.publicTableId) || POKER_PUBLIC_TABLES[0];
-          poker.seatCount = tObj.maxSeats - 1;
+          // Poker : la table est rejointe via PokerMulti.joinFromInvite (plus bas)
         } else if (cur.roomCode) {
           lobbies[lobbyKey].tableType = cur.tableType || 'private';
           lobbies[lobbyKey].roomCode = cur.roomCode;
@@ -6059,7 +6059,7 @@
       switchRoom(cur.room);
       updateLobbyUI(lobbyKey);
 
-      if (cur.room === 'poker') setupPokerSeats();
+      if (cur.room === 'poker' && window.PokerMulti) window.PokerMulti.joinFromInvite(cur.publicTableId || '');
       if (cur.room === 'blackjack') {
         renderBlackjack();
         syncBjMultiplayer();
@@ -6294,6 +6294,9 @@
     }
 
     function handlePlayerLeavingGame(game) {
+      if (game === 'poker' && window.PokerMulti) {
+        try { window.PokerMulti.onLeaveRoom(); } catch (e) { console.warn(e); }
+      }
       if (!game || !state.username) return;
 
       // ==============================================================
@@ -7729,6 +7732,8 @@
     let lastPokerSummaryFetch = 0;
 
     async function syncPokerMultiplayer() {
+      // Ancien multijoueur poker (2D) remplacé par poker-multi.js : plus rien à synchroniser ici.
+      return;
       if (currentRoomKey !== 'poker' || !lobbies.poker || lobbies.poker.mode !== 'multi') return;
       if (isPokerSyncing) return;
       isPokerSyncing = true;
@@ -12206,15 +12211,12 @@
       const lobbyKey = roomKey === 'blackjack' ? 'bj' : roomKey;
 
       if (lobbies[lobbyKey]) {
-        lobbies[lobbyKey].mode = 'multi';
+        if (roomKey !== 'poker') lobbies[lobbyKey].mode = 'multi';
         if (roomKey === 'blackjack') {
           lobbies.bj.tableType = 'public';
           lobbies.bj.publicTableId = cur.publicTableId || 'bj_pub_1';
         } else if (roomKey === 'poker') {
-          lobbies.poker.tableType = 'public';
-          lobbies.poker.publicTableId = cur.publicTableId || 'poker_4max_1';
-          const tObj = POKER_PUBLIC_TABLES.find(t => t.id === lobbies.poker.publicTableId) || POKER_PUBLIC_TABLES[0];
-          poker.seatCount = tObj.maxSeats - 1;
+          // Poker : la table est rejointe via PokerMulti.joinFromInvite (plus bas)
         } else if (cur.roomCode) {
           lobbies[lobbyKey].tableType = cur.tableType || 'private';
           lobbies[lobbyKey].roomCode = cur.roomCode;
@@ -12265,7 +12267,7 @@
       switchRoom(cur.room);
       updateLobbyUI(lobbyKey);
 
-      if (cur.room === 'poker') setupPokerSeats();
+      if (cur.room === 'poker' && window.PokerMulti) window.PokerMulti.joinFromInvite(cur.publicTableId || '');
       if (cur.room === 'blackjack') {
         renderBlackjack();
         syncBjMultiplayer();
@@ -12723,7 +12725,19 @@
 
       const lobbyKey = room === 'blackjack' ? 'bj' : room;
       const currentLobby = lobbies[lobbyKey];
-      if (currentLobby) currentLobby.mode = 'multi';
+
+      let pokerInvite = null;
+      if (room === 'poker') {
+        pokerInvite = window.PokerMulti ? window.PokerMulti.invitePayload() : null;
+        if (!pokerInvite) {
+          showToast('♠️ Assieds-toi d\'abord à une table en ligne (ou crée un salon privé), puis invite tes amis !');
+          closeFriendsModal();
+          switchRoom('poker');
+          return;
+        }
+      } else if (currentLobby) {
+        currentLobby.mode = 'multi';
+      }
 
       let lobbyExtra = '';
       if (room === 'blackjack') {
@@ -12733,9 +12747,7 @@
         const tNum = currentLobby.publicTableId.replace('bj_pub_', 'Table ');
         lobbyExtra = ` (${tNum} Publique)`;
       } else if (room === 'poker') {
-        if (!currentLobby.publicTableId) currentLobby.publicTableId = 'poker_4max_1';
-        const curT = POKER_PUBLIC_TABLES.find(t => t.id === currentLobby.publicTableId) || POKER_PUBLIC_TABLES[0];
-        lobbyExtra = ` (${curT?.name || 'Table 4'} Publique)`;
+        lobbyExtra = pokerInvite.isPrivate ? ` (${pokerInvite.name} — code : ${pokerInvite.code})` : ` (${pokerInvite.name})`;
       } else if (currentLobby && currentLobby.mode === 'multi') {
         lobbyExtra = currentLobby.tableType === 'private'
           ? ` (Table Privée Code : ${currentLobby.roomCode})`
@@ -12750,7 +12762,7 @@
         room: room,
         gameName: roomNames[room] || room,
         tableType: (room === 'blackjack' || room === 'poker') ? 'public' : (currentLobby?.tableType || 'public'),
-        publicTableId: room === 'blackjack' ? (currentLobby?.publicTableId || 'bj_pub_1') : (room === 'poker' ? (currentLobby?.publicTableId || 'poker_4max_1') : null),
+        publicTableId: room === 'blackjack' ? (currentLobby?.publicTableId || 'bj_pub_1') : (room === 'poker' ? pokerInvite.tableId : null),
         roomCode: (room === 'blackjack' || room === 'poker') ? '' : (currentLobby?.roomCode || ''),
         host: state.username,
         timestamp: Date.now()
@@ -12784,9 +12796,8 @@
       state.currentTable.host = state.username;
       saveState();
       pushRemoteAccount(state);
-      updateLobbyUI(lobbyKey);
+      if (room !== 'poker') updateLobbyUI(lobbyKey);
 
-      if (room === 'poker') setupPokerSeats();
       if (room === 'blackjack') renderBlackjack();
 
       const siteUrl = window.location.origin + window.location.pathname;

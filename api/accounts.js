@@ -4,6 +4,10 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qs
 
 let inMemoryFallback = {};
 
+// Les lignes dont le nom commence par "__" sont réservées au serveur (tables de poker, jetons en attente) :
+// elles ne doivent jamais être lues, écrites ou supprimées depuis un navigateur.
+const isReserved = (name) => String(name || '').trim().startsWith('__');
+
 export default async function handler(req, res) {
   // En-têtes CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,7 +34,7 @@ export default async function handler(req, res) {
           const map = {};
           if (Array.isArray(rows)) {
             rows.forEach(r => {
-              if (r && r.username) {
+              if (r && r.username && !isReserved(r.username)) {
                 map[r.username.toLowerCase()] = {
                   username: r.username,
                   password: r.password || '',
@@ -47,6 +51,9 @@ export default async function handler(req, res) {
 
       if (req.method === 'POST') {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        if (body && body.username && isReserved(body.username)) {
+          return res.status(400).json({ ok: false, error: 'Nom réservé.' });
+        }
         if (body && body.username) {
           const row = {
             username: body.username,
@@ -92,6 +99,7 @@ export default async function handler(req, res) {
 
       if (req.method === 'DELETE') {
         const target = req.query.username;
+        if (isReserved(target)) return res.status(400).json({ ok: false, error: 'Nom réservé.' });
         if (target) {
           try {
             await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.${encodeURIComponent(target)}`, {
@@ -119,7 +127,7 @@ export default async function handler(req, res) {
   }
   if (req.method === 'POST') {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    if (body && body.username) {
+    if (body && body.username && !isReserved(body.username)) {
       inMemoryFallback[body.username.toLowerCase()] = body;
     }
     return res.status(200).json({ ok: true });

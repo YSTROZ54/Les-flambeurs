@@ -1,2 +1,5 @@
 push_git.ps1
 blackjack_state.json
+poker_state.json
+crash_state.json
+node_modules/

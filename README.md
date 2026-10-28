@@ -18,4 +18,22 @@ Application web complète de casino virtuel entre potes, conçue avec une interf
 - **Panneau Admin (Le Patron) :** Ajustez les probabilités de la maison et gérez les comptes.
 
 ## 🚀 Lancement rapide
-Ouvrez simplement `index.html` ou `Les_Flambeurs.html` dans n'importe quel navigateur moderne (Opera, Chrome, Edge, Firefox).
+Pour le **multijoueur**, lancez le serveur local (Node.js 18+ requis) :
+
+```
+node serveur-local.mjs
+```
+
+puis ouvrez http://localhost:8080 . Les tables de poker sont alors gardées en mémoire. En ligne (Vercel), elles sont stockées dans Supabase.
+Sans serveur, ouvrir `index.html` fonctionne toujours pour le mode solo.
+
+## ♠️ Poker multijoueur (architecture)
+- `api/_pokerEngine.js` : moteur de poker pur, **autoritaire côté serveur** (blindes, relances minimales, pots annexes, mélange cryptographique, chrono de 120 s).
+- `api/poker.js` : API (`GET` = état de la table, `POST` = actions). Chaque joueur est reconnu par un secret d'appareil ; les cartes adverses ne sont jamais envoyées.
+- `poker-multi.js` : lobby (9 tables publiques + salons privés par code) et adaptateur qui affiche l'état serveur dans la scène 3D de `poker3d.js`.
+- Si un joueur ferme son onglet, sa mise reste en attente côté serveur et lui est rendue à sa prochaine ouverture du poker.
+- Tests : `node --test tests/pokerEngine.test.mjs tests/pokerApi.test.mjs`.
+- `server.ps1` contient l'**ancien** poker : il n'est plus utilisé, préférez `serveur-local.mjs`.
+
+## ⚠️ Limites de sécurité connues
+Les soldes sont conservés côté navigateur et la clé Supabase publique est visible : un joueur technique pourrait donc modifier son solde. Pour un vrai anti-triche il faudrait des comptes avec mot de passe haché et des règles RLS Supabase.

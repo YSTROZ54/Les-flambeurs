@@ -1,787 +1,366 @@
-// Vercel Serverless Function pour l'API /api/poker reliée à Supabase Cloud
-// Moteur de Poker Texas Hold'em Multijoueur avec Croupier / Dealer Bot Automatique
+// Vercel Serverless Function : /api/poker  (protocole v2)
+// Poker Texas Hold'em multijoueur, serveur autoritaire.
+// Toute la logique de jeu est dans _pokerEngine.js ; ce fichier ne fait que :
+//   - charger / sauvegarder les tables (Supabase ou mémoire),
+//   - authentifier les joueurs (secret d'appareil),
+//   - exposer l'API HTTP.
+import { createHash } from 'node:crypto';
+import * as E from './_pokerEngine.js';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
+const MEMORY_ONLY = process.env.POKER_STORAGE === 'memory';
 
-const SUITS = [
-  { s: '♠', color: 'text-slate-900', type: 'suit-black' },
-  { s: '♣', color: 'text-slate-900', type: 'suit-black' },
-  { s: '♥', color: 'text-red-500', type: 'suit-red' },
-  { s: '♦', color: 'text-red-500', type: 'suit-red' }
-];
+const TABLE_ROW_PREFIX = '__poker_t_';
+const CASHOUT_ROW = '__poker_cashouts';
+const CACHE_TTL = 600;           // ms : fraîcheur du cache pour les lectures
+const HEARTBEAT_SAVE_MS = 15000; // un « signe de vie » est sauvegardé au plus toutes les 15 s
+const PRIVATE_TTL_MS = 15 * 60 * 1000;
+const MAX_PRIVATE_TABLES = 30;
 
-const RANKS = [
-  { r: '2', v: 2 }, { r: '3', v: 3 }, { r: '4', v: 4 }, { r: '5', v: 5 },
-  { r: '6', v: 6 }, { r: '7', v: 7 }, { r: '8', v: 8 }, { r: '9', v: 9 },
-  { r: '10', v: 10 }, { r: 'J', v: 11 }, { r: 'Q', v: 12 }, { r: 'K', v: 13 },
-  { r: 'A', v: 14 }
-];
-
-function createShuffledDeck() {
-  const deck = [];
-  SUITS.forEach(st => {
-    RANKS.forEach(rk => {
-      deck.push({
-        r: rk.r,
-        v: rk.v,
-        s: st.s,
-        color: st.color,
-        type: st.type
-      });
-    });
-  });
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-}
-
-// Évaluateur de combinaisons Texas Hold'em à 7 cartes
-function evaluateBestHand(cards) {
-  if (!cards || cards.length < 2) return { score: 0, name: 'Carte Haute' };
-  const counts = {}, suits = {}, vals = cards.map(c => c.v).sort((a, b) => b - a);
-  cards.forEach(c => {
-    counts[c.v] = (counts[c.v] || 0) + 1;
-    suits[c.s] = (suits[c.s] || 0) + 1;
-  });
-
-  const isFlush = Object.values(suits).some(n => n >= 5);
-  const uniq = [...new Set(vals)];
-  let isStraight = false, sHigh = 0;
-  // Cas classique de quinte
-  for (let i = 0; i <= uniq.length - 5; i++) {
-    if (uniq[i] - uniq[i + 4] === 4) {
-      isStraight = true;
-      sHigh = uniq[i];
-      break;
-    }
-  }
-  // Cas as-low straight (A, 5, 4, 3, 2)
-  if (!isStraight && uniq.includes(14) && uniq.includes(2) && uniq.includes(3) && uniq.includes(4) && uniq.includes(5)) {
-    isStraight = true;
-    sHigh = 5;
-  }
-
-  const groups = Object.entries(counts).map(([v, c]) => ({ v: +v, c })).sort((a, b) => b.c - a.c || b.v - a.v);
-
-  if (isFlush && isStraight) return { score: 800 + sHigh, name: 'Quinte Flush 🔥' };
-  if (groups[0].c === 4) return { score: 700 + groups[0].v, name: 'Carré 💣' };
-  if (groups[0].c === 3 && groups[1] && groups[1].c >= 2) return { score: 600 + groups[0].v, name: 'Full House 👑' };
-  if (isFlush) return { score: 500 + vals[0], name: 'Couleur ♦️' };
-  if (isStraight) return { score: 400 + sHigh, name: 'Suite ⚡' };
-  if (groups[0].c === 3) return { score: 300 + groups[0].v, name: 'Brelan 🎯' };
-  if (groups[0].c === 2 && groups[1] && groups[1].c === 2) return { score: 200 + groups[0].v, name: 'Double Paire ✨' };
-  if (groups[0].c === 2) return { score: 100 + groups[0].v, name: 'Paire' };
-  return { score: vals[0], name: 'Carte Haute' };
-}
-
-const PUBLIC_TABLE_CONFIGS = {
-  'poker_1v1_1': { id: 'poker_1v1_1', name: 'Table 1 • Duel des As', maxSeats: 2, blind: 100, category: '1v1' },
-  'poker_1v1_2': { id: 'poker_1v1_2', name: 'Table 2 • Heads-Up Flambeur', maxSeats: 2, blind: 100, category: '1v1' },
-  'poker_1v1_3': { id: 'poker_1v1_3', name: 'Table 3 • Showdown VIP', maxSeats: 2, blind: 100, category: '1v1' },
-  'poker_4max_1': { id: 'poker_4max_1', name: 'Table 4 • Texas Flambeur', maxSeats: 4, blind: 100, category: '4max' },
-  'poker_4max_2': { id: 'poker_4max_2', name: 'Table 5 • Vegas VIP Club', maxSeats: 4, blind: 100, category: '4max' },
-  'poker_4max_3': { id: 'poker_4max_3', name: 'Table 6 • Cercle Privilège', maxSeats: 4, blind: 100, category: '4max' },
-  'poker_6max_1': { id: 'poker_6max_1', name: 'Table 7 • 6-Max Royale', maxSeats: 6, blind: 100, category: '6max' },
-  'poker_6max_2': { id: 'poker_6max_2', name: 'Table 8 • Grand Tournoi Cash', maxSeats: 6, blind: 100, category: '6max' },
-  'poker_6max_3': { id: 'poker_6max_3', name: 'Table 9 • Table des Maîtres', maxSeats: 6, blind: 100, category: '6max' }
+/* ------------------------------------------------------------------------- */
+/* STOCKAGE                                                                  */
+/* ------------------------------------------------------------------------- */
+const store = {
+  tables: {},              // tableId -> table
+  cashouts: { items: {}, seq: 0 },
+  fetchedAt: 0,
+  lastSaved: {},           // tableId -> timestamp de dernière sauvegarde
+  dirty: new Set()
 };
 
-function getDefaultTable(tableId) {
-  const cfg = PUBLIC_TABLE_CONFIGS[tableId] || PUBLIC_TABLE_CONFIGS['poker_4max_1'];
+function sbHeaders(extra = {}) {
   return {
-    tableId: cfg.id,
-    name: cfg.name,
-    maxSeats: cfg.maxSeats,
-    blind: 100,
-    roundId: 0,
-    status: 'waiting', // 'waiting' | 'countdown' | 'preflop' | 'flop' | 'turn' | 'river' | 'finished'
-    countdownEndsAt: 0,
-    pot: 0,
-    currentBet: 100,
-    community: [],
-    deck: [],
-    dealerIndex: 0,
-    turn: null,
-    turnEndsAt: 0,
-    actionCount: 0,
-    lastAggressor: null,
-    players: {}, // usernameKey -> player object
-    playerOrder: [], // array of usernameKey
-    winner: null,
-    finishedAt: 0,
-    nextRoundAt: 0,
-    announcement: '🤖 Croupier : En attente d\'au moins 2 joueurs assis...',
-    updatedAt: Date.now()
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    ...extra
   };
 }
 
-let memoryTables = {};
-let lastSupabaseFetchTime = 0;
-const SUPABASE_CACHE_TTL = 700; // ms
-
-async function fetchSupabaseTables() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+async function loadRemote() {
+  if (MEMORY_ONLY || !SUPABASE_URL || !SUPABASE_KEY) return;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.__poker_game__`, {
-      cache: 'no-store',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    });
-    if (res.ok) {
-      const rows = await res.json();
-      if (Array.isArray(rows) && rows.length > 0 && rows[0]?.data?.tables) {
-        return rows[0].data.tables;
+    const url = `${SUPABASE_URL}/rest/v1/accounts?username=like.__poker_*&select=username,data`;
+    const res = await fetch(url, { headers: sbHeaders(), cache: 'no-store' });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return;
+    for (const row of rows) {
+      if (!row || !row.username || !row.data) continue;
+      if (row.username === CASHOUT_ROW) {
+        const remote = row.data.cashouts;
+        if (remote && (remote.seq || 0) >= (store.cashouts.seq || 0)) store.cashouts = remote;
+      } else if (row.username.startsWith(TABLE_ROW_PREFIX) && row.data.table && row.data.table.v === E.PROTOCOL) {
+        const t = row.data.table;
+        const local = store.tables[t.tableId];
+        if (!local || (t.seq || 0) >= (local.seq || 0)) store.tables[t.tableId] = t;
+        else store.dirty.add(t.tableId);
       }
     }
   } catch (e) {
-    console.warn('Erreur GET Supabase Poker:', e);
+    console.warn('poker: lecture Supabase impossible', e && e.message);
   }
-  return null;
 }
 
-async function saveSupabaseTables(tables) {
-  if (!SUPABASE_URL || !SUPABASE_KEY || !tables) return;
+async function saveRow(username, data) {
+  if (MEMORY_ONLY || !SUPABASE_URL || !SUPABASE_KEY) return true;
   try {
-    const row = {
-      username: '__poker_game__',
-      password: 'sys',
-      avatar: '♠️',
-      balance: 0,
-      data: { tables },
-      updated_at: new Date().toISOString()
-    };
-    await fetch(`${SUPABASE_URL}/rest/v1/accounts`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/accounts`, {
       method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify(row)
+      headers: sbHeaders({ Prefer: 'resolution=merge-duplicates' }),
+      body: JSON.stringify({
+        username,
+        password: 'sys',
+        avatar: '♠️',
+        balance: 0,
+        data,
+        updated_at: new Date().toISOString()
+      })
     });
+    return res.ok;
   } catch (e) {
-    console.warn('Erreur POST Supabase Poker:', e);
+    console.warn('poker: écriture Supabase impossible', e && e.message);
+    return false;
   }
 }
 
-async function getFreshTables(force = false) {
-  const now = Date.now();
-  if (!force && memoryTables && Object.keys(memoryTables).length > 0 && (now - lastSupabaseFetchTime < SUPABASE_CACHE_TTL)) {
-    return memoryTables;
-  }
-  const remote = await fetchSupabaseTables();
-  if (remote && typeof remote === 'object') {
-    Object.keys(remote).forEach(k => {
-      if (!memoryTables[k] || (remote[k].updatedAt || 0) >= (memoryTables[k].updatedAt || 0)) {
-        memoryTables[k] = remote[k];
-      }
+async function deleteRow(username) {
+  if (MEMORY_ONLY || !SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/accounts?username=eq.${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+      headers: sbHeaders()
     });
-    lastSupabaseFetchTime = now;
+  } catch (e) { /* sans importance */ }
+}
+
+async function ensureLoaded(force) {
+  const now = Date.now();
+  if (!force && now - store.fetchedAt < CACHE_TTL) return;
+  await loadRemote();
+  store.fetchedAt = Date.now();
+}
+
+async function persist(changedIds, cashoutsChanged) {
+  const jobs = [];
+  for (const id of changedIds) {
+    const t = store.tables[id];
+    if (!t) continue;
+    store.lastSaved[id] = Date.now();
+    store.dirty.delete(id);
+    jobs.push(saveRow(TABLE_ROW_PREFIX + id, { table: t }).then((ok) => { if (!ok) store.dirty.add(id); }));
   }
-  return memoryTables;
+  if (cashoutsChanged) {
+    store.cashouts.seq = (store.cashouts.seq || 0) + 1;
+    jobs.push(saveRow(CASHOUT_ROW, { cashouts: store.cashouts }));
+  }
+  await Promise.all(jobs); // important sur Vercel : on attend avant de répondre
 }
 
-// Active players in current hand (non-folded)
-function getActivePlayers(table) {
-  return (table.playerOrder || []).filter(k => table.players[k] && !table.players[k].folded);
+// Une seule requête à la fois par instance (évite les écritures entrelacées)
+let chain = Promise.resolve();
+function withLock(fn) {
+  const run = chain.then(fn, fn);
+  chain = run.catch(() => {});
+  return run;
 }
 
-// Next active player in circular order
-function getNextActiveTurnKey(table, fromKey) {
-  const order = table.playerOrder || [];
-  if (order.length === 0) return null;
-  const startIdx = order.indexOf(fromKey);
-  for (let i = 1; i <= order.length; i++) {
-    const idx = (startIdx + i) % order.length;
-    const k = order[idx];
-    const p = table.players[k];
-    if (p && !p.folded && !p.allIn) {
-      return k;
-    }
+/* ------------------------------------------------------------------------- */
+/* OUTILS                                                                    */
+/* ------------------------------------------------------------------------- */
+const hashDevice = (d) => (typeof d === 'string' && d.length >= 16 && d.length <= 128)
+  ? createHash('sha256').update('flambeurs:' + d).digest('hex')
+  : null;
+
+function getTable(id, now, create) {
+  if (store.tables[id]) return store.tables[id];
+  if (E.PUBLIC_TABLES[id]) {
+    store.tables[id] = E.createTable(E.PUBLIC_TABLES[id], now);
+    return store.tables[id];
+  }
+  if (create && E.PRIVATE_ID_RE.test(id)) {
+    const privateCount = Object.values(store.tables).filter((t) => t.isPrivate).length;
+    if (privateCount >= MAX_PRIVATE_TABLES) return null;
+    store.tables[id] = E.createTable(E.privateConfig(id, create.maxSeats, create.bigBlind), now);
+    return store.tables[id];
   }
   return null;
 }
 
-// Terminer le tour ou passer à la phase suivante
-function advancePokerPhaseOrTurn(table, now) {
-  const activeKeys = getActivePlayers(table);
-
-  // 1. Un seul joueur restant -> Victoire immédiate
-  if (activeKeys.length <= 1) {
-    const winnerKey = activeKeys[0] || (table.playerOrder && table.playerOrder[0]);
-    const winner = table.players[winnerKey];
-    if (winner) {
-      winner.stack = (winner.stack || 0) + table.pot;
-      table.winner = {
-        username: winner.username,
-        pot: table.pot,
-        handName: 'Tous les adversaires se sont couchés'
-      };
-      table.announcement = `🏆 ${winner.username} remporte le pot de ${table.pot} € (adversaires couchés) !`;
-    }
-    table.status = 'finished';
-    table.finishedAt = now;
-    table.nextRoundAt = now + 5000;
-    table.updatedAt = now;
-    return;
-  }
-
-  // 2. Vérifier si tous les joueurs actifs (non all-in) ont égalisé la mise
-  const nonAllInActive = activeKeys.filter(k => !table.players[k].allIn);
-  const allMatched = nonAllInActive.every(k => (table.players[k].roundBet || 0) === table.currentBet);
-  const minActionsRequired = nonAllInActive.length;
-  const roundSettled = (table.actionCount >= minActionsRequired && allMatched) || nonAllInActive.length <= 1;
-
-  if (!roundSettled) {
-    // Passer la main au joueur suivant
-    const nextTurn = getNextActiveTurnKey(table, table.turn);
-    if (nextTurn) {
-      table.turn = nextTurn;
-      table.turnEndsAt = now + 120000; // 2 minutes (120s)
-      table.announcement = `Au tour de ${table.players[nextTurn].username} (2 min).`;
-      table.updatedAt = now;
-      return;
-    }
-  }
-
-  // 3. CAS DOUBLE TAPIS / SHOWDOWN TOUS ALL-IN : RÈGLES OFFICIELLES DU POKER
-  // Si au moins 2 joueurs sont en lice et qu'il ne reste plus qu'un seul joueur avec des jetons (ou aucun),
-  // plus aucune mise n'est possible : le croupier dévoile immédiatement toutes les cartes manquantes (Flop/Turn/River) !
-  const isAllInShowdown = (activeKeys.length >= 2) && (nonAllInActive.length <= 1);
-  if (isAllInShowdown) {
-    while (table.community.length < 5 && table.deck && table.deck.length > 0) {
-      table.community.push(table.deck.pop());
-    }
-
-    table.status = 'finished';
-    table.turn = null;
-    table.turnEndsAt = 0;
-    table.finishedAt = now;
-    table.nextRoundAt = now + 5000;
-
-    let bestScore = -1;
-    let winners = [];
-    activeKeys.forEach(k => {
-      const p = table.players[k];
-      const ev = evaluateBestHand([...p.cards, ...table.community]);
-      p.status = ev.name;
-      p.handRank = ev.name;
-      p.score = ev.score;
-      if (ev.score > bestScore) {
-        bestScore = ev.score;
-        winners = [p];
-      } else if (ev.score === bestScore) {
-        winners.push(p);
-      }
-    });
-
-    const splitPot = Math.floor(table.pot / winners.length);
-    winners.forEach(w => {
-      w.stack += splitPot;
-      w.payout = splitPot;
-    });
-
-    const wNames = winners.map(w => w.username).join(' & ');
-    table.winner = {
-      username: wNames,
-      pot: table.pot,
-      handName: winners[0]?.handRank || 'Paire'
-    };
-    table.announcement = `🔥 Tapis général ! Cartes dévoilées, ${wNames} remporte le pot (${table.pot} €) avec ${winners[0]?.handRank || 'Meilleure main'} !`;
-    table.updatedAt = now;
-    return;
-  }
-
-  // 4. Tour de mise bouclé -> Passer à la phase suivante
-  table.actionCount = 0;
-  table.currentBet = 0;
-  table.lastAggressor = null;
-  Object.values(table.players).forEach(p => { p.roundBet = 0; });
-
-  if (table.status === 'preflop') {
-    // Distribuer le FLOP (3 cartes)
-    table.status = 'flop';
-    table.community.push(table.deck.pop(), table.deck.pop(), table.deck.pop());
-    table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 120000;
-    table.announcement = `🃏 Flop dévoilé ! Au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
-  } else if (table.status === 'flop') {
-    // Distribuer la TURN (1 carte)
-    table.status = 'turn';
-    table.community.push(table.deck.pop());
-    table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 120000;
-    table.announcement = `⚡ Turn dévoilée ! Au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
-  } else if (table.status === 'turn') {
-    // Distribuer la RIVER (1 carte)
-    table.status = 'river';
-    table.community.push(table.deck.pop());
-    table.turn = getNextActiveTurnKey(table, table.playerOrder[table.dealerIndex] || activeKeys[0]);
-    table.turnEndsAt = now + 120000;
-    table.announcement = `🌊 River dévoilée ! Dernier tour, au tour de ${table.players[table.turn]?.username || 'joueur'} (2 min).`;
-  } else if (table.status === 'river') {
-    // SHOWDOWN !
-    table.status = 'finished';
-    table.finishedAt = now;
-    table.nextRoundAt = now + 5000; // Relance automatique dans 5 secondes
-
-    let bestScore = -1;
-    let winners = [];
-    activeKeys.forEach(k => {
-      const p = table.players[k];
-      const ev = evaluateBestHand([...p.cards, ...table.community]);
-      p.status = ev.name;
-      p.handRank = ev.name;
-      p.score = ev.score;
-      if (ev.score > bestScore) {
-        bestScore = ev.score;
-        winners = [p];
-      } else if (ev.score === bestScore) {
-        winners.push(p);
-      }
-    });
-
-    const splitPot = Math.floor(table.pot / winners.length);
-    winners.forEach(w => {
-      w.stack = (w.stack || 0) + splitPot;
-    });
-
-    const winNames = winners.map(w => w.username).join(' & ');
-    table.winner = {
-      username: winNames,
-      pot: table.pot,
-      handName: winners[0]?.handRank || 'Meilleure main',
-      split: winners.length > 1
-    };
-    table.announcement = winners.length > 1
-      ? `🤝 Égalité (${winners[0].handRank}) ! Pot partagé entre ${winNames} (+${splitPot} € chacun).`
-      : `🏆 ${winNames} remporte le pot de ${table.pot} € avec ${winners[0].handRank} !`;
-  }
-
-  table.updatedAt = now;
+function addCashout(secretHash, username, key, amount) {
+  if (!amount || amount <= 0) return false;
+  const cur = store.cashouts.items[key];
+  store.cashouts.items[key] = { secretHash, username, amount: (cur ? cur.amount : 0) + amount, at: Date.now() };
+  return true;
 }
 
-// Lancement automatique d'une donne par le Croupier
-function startDealerDeal(table, now) {
-  const pKeys = table.playerOrder.filter(k => Boolean(table.players[k]));
-  if (pKeys.length < 2) {
-    table.status = 'waiting';
-    table.announcement = '🤖 Croupier : En attente d\'au moins 2 joueurs assis...';
-    table.updatedAt = now;
-    return;
+function claimCashout(key, secretHash) {
+  const c = store.cashouts.items[key];
+  if (!c || c.secretHash !== secretHash) return 0;
+  delete store.cashouts.items[key];
+  return Math.floor(c.amount || 0);
+}
+
+function pendingFor(key, secretHash) {
+  const c = store.cashouts.items[key];
+  return c && c.secretHash === secretHash ? Math.floor(c.amount || 0) : 0;
+}
+
+function findSeat(key, secretHash) {
+  for (const t of Object.values(store.tables)) {
+    const p = t.players[key];
+    if (p && !p.left && p.secretHash === secretHash) return { tableId: t.tableId, name: t.name, isPrivate: t.isPrivate };
   }
+  return null;
+}
 
-  table.roundId = now;
-  table.deck = createShuffledDeck();
-  table.community = [];
-  table.blind = 100;
-  table.pot = 100 * pKeys.length;
-  table.currentBet = 100;
-  table.winner = null;
-  table.actionCount = 0;
-  table.lastAggressor = null;
-  table.dealerIndex = (table.dealerIndex + 1) % pKeys.length;
-
-  pKeys.forEach((k) => {
-    const p = table.players[k];
-    p.waitingNextRound = false;
-    p.ready = true;
-    if (p.stack < 100) p.stack = 5000;
-    p.stack -= 100;
-    p.bet = 100;
-    p.roundBet = 100;
-    p.cards = [table.deck.pop(), table.deck.pop()];
-    p.folded = false;
-    p.allIn = false;
-    p.status = 'Blind 100 €';
-    p.updatedAt = now;
+function summaries(now) {
+  const list = Object.keys(E.PUBLIC_TABLES).map((id) => {
+    const t = getTable(id, now);
+    const s = E.tableSummary(t);
+    s.players = s.players.slice(0, t.maxSeats);
+    return s;
   });
-
-  // Premier joueur à parler
-  const firstTurnIdx = (pKeys.length === 2) ? table.dealerIndex : ((table.dealerIndex + 1) % pKeys.length);
-  table.turn = pKeys[firstTurnIdx];
-  table.turnEndsAt = now + 120000; // 2 minutes (120s)
-  table.status = 'preflop';
-  table.announcement = `🤖 Croupier : Cartes distribuées ! Au tour de ${table.players[table.turn].username} (2 min).`;
-  table.updatedAt = now;
+  return list;
 }
 
-// Bot Croupier : Gestion de cycle de vie automatique
-function stepDealerBot(table, now) {
-  let changed = false;
-
-  // 1. Nettoyer les joueurs réellement déconnectés (> 180s / 3 minutes sans heartbeat)
-  const order = table.playerOrder || [];
-  order.forEach(k => {
-    const p = table.players[k];
-    if (p && p.updatedAt && (now - p.updatedAt > 180000)) {
-      if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
-        p.folded = true;
-        p.status = 'A quitté';
-      }
-      delete table.players[k];
-      table.playerOrder = table.playerOrder.filter(x => x !== k);
-      changed = true;
-    }
+function runStep(table, now, changedIds) {
+  const out = E.step(table, now);
+  if (out.changed) changedIds.add(table.tableId);
+  let cashChanged = false;
+  out.cashouts.forEach((c) => {
+    if (addCashout(c.secretHash, c.username, c.key, c.amount)) cashChanged = true;
   });
-
-  if (table.playerOrder.length === 0 && table.status !== 'waiting') {
-    table.status = 'waiting';
-    table.community = [];
-    table.pot = 0;
-    table.winner = null;
-    table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis...";
-    changed = true;
-  }
-
-  const activeSeated = table.playerOrder.filter(k => Boolean(table.players[k]));
-
-  // 2. Gestion de l'état WAITING -> COUNTDOWN (Tous les joueurs assis doivent être prêts, min 2)
-  if (table.status === 'waiting') {
-    const readyPlayers = activeSeated.filter(k => table.players[k]?.ready === true);
-    if (activeSeated.length >= 2 && readyPlayers.length === activeSeated.length) {
-      table.status = 'countdown';
-      table.countdownEndsAt = now + 4000;
-      table.announcement = `🤖 Croupier : Tous les joueurs sont prêts (${activeSeated.length} joueurs) ! La donne commence dans 4s...`;
-      table.updatedAt = now;
-      changed = true;
-    } else if (activeSeated.length >= 2) {
-      table.announcement = `🤖 Croupier : ${readyPlayers.length}/${activeSeated.length} joueurs prêts. Clique sur "JE SUIS PRÊT" pour lancer !`;
-    }
-  }
-
-  // 3. Gestion COUNTDOWN -> PREFLOP (Lancement automatique)
-  else if (table.status === 'countdown') {
-    const readyPlayers = activeSeated.filter(k => table.players[k]?.ready === true);
-    if (activeSeated.length < 2 || readyPlayers.length < activeSeated.length) {
-      table.status = 'waiting';
-      table.announcement = '🤖 Croupier : Un joueur n\'est plus prêt ou a quitté la table.';
-      table.updatedAt = now;
-      changed = true;
-    } else if (now >= (table.countdownEndsAt || 0)) {
-      startDealerDeal(table, now);
-      changed = true;
-    }
-  }
-
-  // 4. Gestion du temps de tour expiré (120s / 2 minutes)
-  else if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
-    if (table.turn && table.turnEndsAt && (now > table.turnEndsAt)) {
-      const turnPlayer = table.players[table.turn];
-      if (turnPlayer) {
-        const toCall = Math.max(0, table.currentBet - (turnPlayer.roundBet || 0));
-        if (toCall === 0) {
-          turnPlayer.status = 'Parole (Auto)';
-          turnPlayer.lastAction = 'check';
-        } else {
-          turnPlayer.folded = true;
-          turnPlayer.status = 'Couché (Temps)';
-          turnPlayer.lastAction = 'fold';
-        }
-        table.actionCount = (table.actionCount || 0) + 1;
-        advancePokerPhaseOrTurn(table, now);
-        changed = true;
-      }
-    }
-  }
-
-  // 5. Gestion de la relance automatique après fin de manche (5 secondes)
-  else if (table.status === 'finished') {
-    if (table.nextRoundAt && now >= table.nextRoundAt) {
-      if (activeSeated.length >= 2) {
-        // Relance automatique directe : pas besoin de recliquer sur prêt, tous les joueurs assis participent
-        activeSeated.forEach(k => {
-          if (table.players[k]) {
-            table.players[k].ready = true;
-            table.players[k].waitingNextRound = false;
-          }
-        });
-        startDealerDeal(table, now);
-      } else {
-        table.status = 'waiting';
-        table.announcement = '🤖 Croupier : En attente d\'autres flambeurs pour la prochaine main...';
-        table.community = [];
-        table.pot = 0;
-        table.winner = null;
-      }
-      table.updatedAt = now;
-      changed = true;
-    }
-  }
-
-  return changed;
+  return cashChanged;
 }
 
-// Obscurcir les cartes privées des adversaires pour sécuriser la table
-function sanitizeTableForUser(table, username) {
-  const myKey = (username || '').toLowerCase().trim();
-  const copy = JSON.parse(JSON.stringify(table));
-  const isFinished = copy.status === 'finished';
-
-  if (!isFinished && copy.players) {
-    Object.keys(copy.players).forEach(k => {
-      if (k !== myKey) {
-        // Remplacer les cartes de l'adversaire par des cartes cachées
-        const p = copy.players[k];
-        if (Array.isArray(p.cards)) {
-          p.cards = p.cards.map(() => ({ hidden: true }));
-        }
-      }
-    });
-  }
-  // Ne pas exposer le sabot restant
-  delete copy.deck;
-  return copy;
-}
-
-function buildTablesSummary(allTables) {
-  const summary = {};
-  Object.keys(PUBLIC_TABLE_CONFIGS).forEach(tId => {
-    const t = allTables[tId];
-    if (!t || !t.players) {
-      summary[tId] = { count: 0, players: [] };
-    } else {
-      const seated = (t.playerOrder || []).filter(k => Boolean(t.players[k])).map(k => ({
-        username: t.players[k].username,
-        avatar: t.players[k].avatar || '👤'
-      }));
-      summary[tId] = { count: seated.length, players: seated };
+async function cleanupPrivate(now, changedIds) {
+  for (const id of Object.keys(store.tables)) {
+    const t = store.tables[id];
+    if (t.isPrivate && Object.keys(t.players).length === 0 && now - t.lastActivityAt > PRIVATE_TTL_MS) {
+      delete store.tables[id];
+      changedIds.delete(id);
+      await deleteRow(TABLE_ROW_PREFIX + id);
     }
-  });
-  return summary;
+  }
 }
 
+function parseBody(req) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  return body && typeof body === 'object' ? body : {};
+}
+
+function respond(res, status, payload) {
+  res.status(status).json(payload);
+}
+
+/* ------------------------------------------------------------------------- */
+/* HANDLER                                                                   */
+/* ------------------------------------------------------------------------- */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET' && req.method !== 'POST') return respond(res, 405, { ok: false, error: 'Méthode non autorisée' });
 
-  const tables = await getFreshTables(false);
-  const now = Date.now();
+  return withLock(async () => {
+    const isPost = req.method === 'POST';
+    const body = isPost ? parseBody(req) : {};
+    const q = req.query || {};
 
-  // GET
-  if (req.method === 'GET') {
-    const uKey = (req.query.user || '').toLowerCase().trim();
-    let rawTableId = (req.query.table || req.query.tableId || 'poker_4max_1').toLowerCase().trim();
-    if (!PUBLIC_TABLE_CONFIGS[rawTableId]) rawTableId = 'poker_4max_1';
-    const tableId = rawTableId;
+    await ensureLoaded(isPost);
+    const now = Date.now();
+    const changedIds = new Set(store.dirty);
+    let cashChanged = false;
 
-    let table = tables[tableId];
-    if (!table) {
-      table = getDefaultTable(tableId);
-      tables[tableId] = table;
-    }
+    const rawUser = isPost ? body.username : q.user;
+    const username = E.cleanUsername(rawUser);
+    const userKey = E.normalizeKey(username);
+    const secretHash = hashDevice(isPost ? body.device : q.device);
+    const rawTableId = String((isPost ? body.tableId : (q.table || q.tableId)) || '').toLowerCase().trim();
 
-    // Refresh heartbeat pour éviter qu'un joueur assis soit éjecté pour inactivité
-    if (uKey && table.players[uKey]) {
-      table.players[uKey].updatedAt = now;
-    }
+    let error = null;
+    let cashout = 0;
+    let joined = false;
+    let table = null;
 
-    const changed = stepDealerBot(table, now);
-    if (changed) {
-      memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
-    }
+    if (isPost) {
+      const action = String(body.action || '');
 
-    const clientView = sanitizeTableForUser(table, req.query.user || '');
-    clientView.tablesSummary = buildTablesSummary(tables);
-    return res.status(200).json(clientView);
-  }
-
-  // POST
-  if (req.method === 'POST') {
-    let body = req.body;
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (e) { body = {}; }
-    }
-    if (!body || typeof body !== 'object') body = {};
-
-    let rawTableId = (body.tableId || 'poker_4max_1').toLowerCase().trim();
-    if (!PUBLIC_TABLE_CONFIGS[rawTableId]) rawTableId = 'poker_4max_1';
-    const tableId = rawTableId;
-
-    let table = tables[tableId];
-    if (!table) {
-      table = getDefaultTable(tableId);
-      tables[tableId] = table;
-    }
-
-    const action = body.action;
-    const user = (body.username || '').trim();
-    const uKey = user.toLowerCase();
-
-    let modified = stepDealerBot(table, now);
-
-    // ACTION : S'ASSEOIR (JOIN)
-    if (action === 'join' && user) {
-      if (!table.players[uKey]) {
-        if (table.playerOrder.length < table.maxSeats) {
-          const seatIdx = table.playerOrder.length;
-          const isMidHand = ['countdown', 'preflop', 'flop', 'turn', 'river'].includes(table.status);
-          table.players[uKey] = {
-            username: user,
-            avatar: body.avatar || '👤',
-            seatIndex: seatIdx,
-            stack: Math.max(100, parseInt(body.balance) || 5500),
-            bet: 0,
-            roundBet: 0,
-            cards: [],
-            folded: isMidHand,
-            allIn: false,
-            ready: false,
-            waitingNextRound: isMidHand,
-            status: isMidHand ? 'Attend la prochaine main' : 'Assis (Non prêt)',
-            updatedAt: now
-          };
-          table.playerOrder.push(uKey);
-          table.announcement = isMidHand
-            ? `👤 ${user} a rejoint la table en observateur (jouera la prochaine main) !`
-            : `👤 ${user} s'est assis à la table !`;
-          table.updatedAt = now;
-          modified = true;
-          stepDealerBot(table, now);
+      if (action === 'claim') {
+        if (!userKey || !secretHash) error = 'Identification impossible.';
+        else {
+          cashout = claimCashout(userKey, secretHash);
+          if (cashout > 0) cashChanged = true;
         }
       } else {
-        table.players[uKey].updatedAt = now;
-        if (body.avatar) table.players[uKey].avatar = body.avatar;
-      }
-    }
+        const createOpts = body.create ? { maxSeats: body.maxSeats, bigBlind: body.bigBlind } : null;
+        table = rawTableId ? getTable(rawTableId, now, createOpts) : null;
+        if (!table) {
+          error = rawTableId && E.PRIVATE_ID_RE.test(rawTableId) ? 'Salon introuvable (vérifie le code).' : 'Table inconnue.';
+        } else if (!userKey || !secretHash) {
+          error = 'Identification impossible.';
+        } else {
+          cashChanged = runStep(table, now, changedIds) || cashChanged;
+          const me = table.players[userKey];
+          const authed = me && !me.left && me.secretHash === secretHash;
 
-    // ACTION : SE DÉCLARER PRÊT (READY)
-    else if (action === 'ready' && user) {
-      if (table.players[uKey]) {
-        table.players[uKey].ready = true;
-        table.players[uKey].status = 'Prêt';
-        table.players[uKey].updatedAt = now;
-        table.announcement = `👍 ${user} est prêt !`;
-        table.updatedAt = now;
-        modified = true;
-        stepDealerBot(table, now);
-      }
-    }
-
-    // ACTION : QUITTER (LEAVE)
-    else if (action === 'leave' && user) {
-      if (table.players[uKey]) {
-        if (['preflop', 'flop', 'turn', 'river'].includes(table.status)) {
-          table.players[uKey].folded = true;
-          table.players[uKey].status = 'A quitté';
-        }
-        delete table.players[uKey];
-        table.playerOrder = table.playerOrder.filter(k => k !== uKey);
-        table.announcement = `🚪 ${user} a quitté la table.`;
-        if (table.playerOrder.length === 0) {
-          table.status = 'waiting';
-          table.community = [];
-          table.pot = 0;
-          table.winner = null;
-          table.announcement = "🤖 Croupier : En attente d'au moins 2 joueurs assis...";
-        }
-        table.updatedAt = now;
-        modified = true;
-        advancePokerPhaseOrTurn(table, now);
-        stepDealerBot(table, now);
-      }
-    }
-
-    // ACTION : HEARTBEAT (PING)
-    else if (action === 'ping' && user) {
-      if (table.players[uKey]) {
-        table.players[uKey].updatedAt = now;
-      }
-    }
-
-    // ACTIONS DE JEU (Tour actif requis)
-    else if (['fold', 'check', 'call', 'raise', 'allin'].includes(action) && user) {
-      const isMyTurn = table.turn === uKey;
-      const isPlaying = ['preflop', 'flop', 'turn', 'river'].includes(table.status);
-
-      if (isPlaying && isMyTurn && table.players[uKey] && !table.players[uKey].folded) {
-        const p = table.players[uKey];
-        const toCall = Math.max(0, table.currentBet - (p.roundBet || 0));
-
-        if (action === 'fold') {
-          p.folded = true;
-          p.status = 'Couché';
-          p.lastAction = 'fold';
-        } else if (action === 'check') {
-          if (toCall === 0) {
-            p.status = 'Parole';
-            p.lastAction = 'check';
+          if (action === 'join') {
+            // un joueur ne peut être assis qu'à une seule table
+            let blocked = null;
+            for (const t of Object.values(store.tables)) {
+              if (t.tableId === table.tableId) continue;
+              const o = t.players[userKey];
+              if (!o || o.left) continue;
+              if (o.secretHash === secretHash || now - o.lastSeen > E.TAKEOVER_MS) {
+                // même appareil (ou ancien siège fantôme) : on le déplace proprement
+                const amount = E.removePlayer(t, userKey, 'leave', now);
+                if (addCashout(o.secretHash, o.username, userKey, amount)) cashChanged = true;
+                changedIds.add(t.tableId);
+              } else {
+                blocked = t;
+              }
+            }
+            if (blocked) {
+              error = `Ce pseudo est déjà assis à « ${blocked.name} » sur un autre appareil.`;
+            } else {
+              const r = E.seatPlayer(table, { username, avatar: body.avatar, buyIn: body.buyIn, secretHash }, now);
+              if (!r.ok) error = r.error;
+              else { changedIds.add(table.tableId); joined = !r.already; }
+            }
+          } else if (action === 'ping') {
+            if (authed) me.lastSeen = now;
+          } else if (!authed) {
+            error = "Tu n'es pas assis à cette table.";
+          } else if (action === 'ready') {
+            const r = E.setReady(table, userKey, now);
+            if (!r.ok) error = r.error; else changedIds.add(table.tableId);
+            cashChanged = runStep(table, now, changedIds) || cashChanged;
+          } else if (action === 'leave') {
+            const amount = E.removePlayer(table, userKey, 'leave', now);
+            if (addCashout(secretHash, username, userKey, amount)) cashChanged = true;
+            if (!body.beacon) cashout = claimCashout(userKey, secretHash); // balise : le client ne lira pas la réponse, l'argent reste en attente
+            changedIds.add(table.tableId);
+            cashChanged = runStep(table, now, changedIds) || cashChanged;
+          } else if (['fold', 'check', 'call', 'raise', 'allin'].includes(action)) {
+            const r = E.act(table, userKey, action, body.amount, now);
+            if (!r.ok) error = r.error; else changedIds.add(table.tableId);
           } else {
-            // Si une mise est requise et check demandé -> force fold
-            p.folded = true;
-            p.status = 'Couché';
-            p.lastAction = 'fold';
+            error = 'Action inconnue.';
           }
-        } else if (action === 'call') {
-          const pay = Math.min(p.stack, toCall);
-          p.stack -= pay;
-          p.bet += pay;
-          p.roundBet += pay;
-          table.pot += pay;
-          p.status = `Suit (${p.roundBet})`;
-          p.lastAction = 'call';
-          if (p.stack <= 0) p.allIn = true;
-        } else if (action === 'raise') {
-          const maxAllowedRaise = Math.max(100, 50000 - (p.roundBet || 0));
-          const addRaise = Math.min(maxAllowedRaise, Math.max(100, parseInt(body.amount) || 200));
-          const pay = Math.min(p.stack, toCall + addRaise);
-          p.stack -= pay;
-          p.bet += pay;
-          p.roundBet += pay;
-          table.currentBet = p.roundBet;
-          table.pot += pay;
-          table.lastAggressor = uKey;
-          p.status = `Relance ${table.currentBet}`;
-          p.lastAction = 'raise';
-          if (p.stack <= 0) p.allIn = true;
-        } else if (action === 'allin') {
-          const maxAllIn = Math.min(50000, p.stack);
-          const pay = maxAllIn;
-          p.stack -= pay;
-          p.bet += pay;
-          p.roundBet += pay;
-          table.pot += pay;
-          if (p.roundBet > table.currentBet) {
-            table.currentBet = p.roundBet;
-            table.lastAggressor = uKey;
-          }
-          p.allIn = true;
-          p.status = `Tapis (${pay} €) ! 🔥`;
-          p.lastAction = 'allin';
         }
-
-        p.updatedAt = now;
-        table.actionCount = (table.actionCount || 0) + 1;
-        advancePokerPhaseOrTurn(table, now);
-        modified = true;
+      }
+    } else {
+      // GET : on fait avancer le croupier sur toutes les tables en cours puis on lit
+      for (const id of Object.keys(store.tables)) {
+        const t = store.tables[id];
+        if (Object.keys(t.players).length || t.status !== 'waiting') {
+          cashChanged = runStep(t, now, changedIds) || cashChanged;
+        }
+      }
+      if (rawTableId) table = getTable(rawTableId, now, null);
+      if (table && userKey && secretHash) {
+        const me = table.players[userKey];
+        if (me && !me.left && me.secretHash === secretHash) {
+          me.lastSeen = now;
+          if (now - (store.lastSaved[table.tableId] || 0) > HEARTBEAT_SAVE_MS) changedIds.add(table.tableId);
+        }
       }
     }
 
-    if (modified) {
-      memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
-    }
+    await cleanupPrivate(now, changedIds);
+    if (changedIds.size || cashChanged) await persist(changedIds, cashChanged);
 
-    const clientView = sanitizeTableForUser(table, user);
-    clientView.tablesSummary = buildTablesSummary(tables);
-    return res.status(200).json(clientView);
-  }
-
-  return res.status(405).json({ error: 'Méthode non autorisée' });
+    const authed = !!(table && userKey && secretHash && table.players[userKey]
+      && !table.players[userKey].left && table.players[userKey].secretHash === secretHash);
+    const payload = {
+      ok: !error,
+      v: E.PROTOCOL,
+      serverTime: now,
+      tables: summaries(now),
+      table: table ? E.publicView(table, userKey, authed, now) : null,
+      pendingCashout: userKey && secretHash ? pendingFor(userKey, secretHash) : 0,
+      mySeat: userKey && secretHash ? findSeat(userKey, secretHash) : null
+    };
+    if (error) payload.error = error;
+    if (cashout) payload.cashout = cashout;
+    if (joined) payload.joined = true;
+    return respond(res, 200, payload);
+  });
 }
+
+// Utilitaires exposés pour les tests (ignorés par Vercel)
+export const __test = {
+  reset() {
+    store.tables = {}; store.cashouts = { items: {}, seq: 0 }; store.fetchedAt = 0; store.lastSaved = {}; store.dirty = new Set();
+  },
+  store
+};

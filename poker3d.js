@@ -225,6 +225,28 @@ function createShuffledDeck() {
 }
 
 /* ------------------------------------------------------------------------- */
+/* B2. POTS ANNEXES (SIDE POTS) — partage correct quand un joueur est à tapis */
+/* ------------------------------------------------------------------------- */
+// entries : [{ id, total, folded }]  =>  [{ amount, eligible:[id] }]
+function buildSidePots(entries) {
+  const levels = [...new Set(entries.filter(e => e.total > 0).map(e => e.total))].sort((a, b) => a - b);
+  const pots = [];
+  let prev = 0;
+  for (const level of levels) {
+    let amount = 0;
+    for (const e of entries) amount += Math.max(0, Math.min(e.total, level) - Math.min(e.total, prev));
+    const eligible = entries.filter(e => !e.folded && e.total >= level).map(e => e.id);
+    if (amount > 0) {
+      const last = pots[pots.length - 1];
+      if ((eligible.length === 0 || (last && last.eligible.join('|') === eligible.join('|'))) && last) last.amount += amount;
+      else pots.push({ amount, eligible });
+    }
+    prev = level;
+  }
+  return pots;
+}
+
+/* ------------------------------------------------------------------------- */
 /* C. MOTEUR DE JEU TEXAS HOLD'EM (FORMATS DYNAMIQUES & BLINDES)             */
 /* ------------------------------------------------------------------------- */
 class TexasHoldemGame {
@@ -358,6 +380,9 @@ class TexasHoldemGame {
       p.folded = !isActive;
       p.allIn = false;
       p.currentBet = 0;
+      p.handTotal = 0;
+      p.empty = false;
+      p.noCards = false;
       p.status = isActive ? '🟢 Prêt' : '';
       p.bestHand = null;
       p.hand = isActive ? [this.deck.pop(), this.deck.pop()] : [];
@@ -376,12 +401,14 @@ class TexasHoldemGame {
     const sbAmount = Math.min(this.smallBlind, sbPlayer.stack);
     sbPlayer.stack -= sbAmount;
     sbPlayer.currentBet = sbAmount;
+    sbPlayer.handTotal = (sbPlayer.handTotal || 0) + sbAmount;
     if (sbPlayer.stack === 0) sbPlayer.allIn = true;
     if (sbPlayer.isHero) this.syncHeroBalance();
 
     const bbAmount = Math.min(this.bigBlind, bbPlayer.stack);
     bbPlayer.stack -= bbAmount;
     bbPlayer.currentBet = bbAmount;
+    bbPlayer.handTotal = (bbPlayer.handTotal || 0) + bbAmount;
     if (bbPlayer.stack === 0) bbPlayer.allIn = true;
     if (bbPlayer.isHero) this.syncHeroBalance();
 
@@ -667,6 +694,7 @@ class TexasHoldemGame {
     const amount = Math.min(toCall, p.stack);
     p.stack -= amount;
     p.currentBet += amount;
+    p.handTotal = (p.handTotal || 0) + amount;
     this.pot += amount;
     if (p.stack === 0) p.allIn = true;
     if (p.isHero) this.syncHeroBalance();
@@ -680,6 +708,7 @@ class TexasHoldemGame {
     const amount = Math.min(needed, p.stack);
     p.stack -= amount;
     p.currentBet += amount;
+    p.handTotal = (p.handTotal || 0) + amount;
     this.pot += amount;
 
     if (p.currentBet > this.currentMaxBet) {
@@ -714,21 +743,38 @@ class TexasHoldemGame {
       p.bestHand = evaluateBestHand(cards);
     });
 
-    const maxScore = Math.max(...remaining.map(p => p.bestHand.score));
-    const winners = remaining.filter(p => p.bestHand.score === maxScore);
+    // Répartition par pots (principal + annexes) : on ne gagne que ce qu'on a pu suivre
+    const entries = this.players
+      .filter(p => (p.handTotal || 0) > 0)
+      .map(p => ({ id: p.id, total: p.handTotal, folded: p.folded || !this.activeSeatIndices.includes(p.id) }));
+    const pots = buildSidePots(entries);
+    const winnerIds = new Set();
+    const won = {};
+    pots.forEach(pot => {
+      const contenders = pot.eligible.map(id => this.players[id]).filter(p => p && p.bestHand);
+      if (!contenders.length) return;
+      const best = Math.max(...contenders.map(p => p.bestHand.score));
+      const potWinners = contenders.filter(p => p.bestHand.score === best);
+      const share = Math.floor(pot.amount / potWinners.length);
+      const remainder = pot.amount - share * potWinners.length;
+      potWinners.forEach((w, idx) => {
+        const gain = share + (idx === 0 ? remainder : 0);
+        w.stack += gain;
+        won[w.id] = (won[w.id] || 0) + gain;
+        winnerIds.add(w.id);
+      });
+    });
 
-    const share = Math.floor(this.pot / winners.length);
-    const remainder = this.pot - (share * winners.length);
-
-    winners.forEach((w, idx) => {
-      w.stack += share + (idx === 0 ? remainder : 0);
+    const winners = remaining.filter(p => winnerIds.has(p.id));
+    winners.forEach(w => {
       w.status = '👑 Vainqueur !';
       if (w.isHero) this.syncHeroBalance();
     });
+    this.lastWon = won;
 
     this.exp.syncTable3D();
     this.exp.updateHeroLiveHand();
-    this.showWinnerBanner(winners);
+    this.showWinnerBanner(winners.length ? winners : remaining);
   }
 
   finishHandWithSoleWinner(soleWinner) {
@@ -773,7 +819,10 @@ class TexasHoldemGame {
       if (winnerName) {
         winnerName.textContent = winners.map(w => `${w.avatar} ${w.name}`).join(' & ');
       }
-      if (potWon) potWon.textContent = `+ ${this.pot.toLocaleString('fr-FR')} €`;
+      if (potWon) {
+        const gained = winners.reduce((sum, w) => sum + ((this.lastWon && this.lastWon[w.id]) || 0), 0);
+        potWon.textContent = `+ ${(gained || this.pot).toLocaleString('fr-FR')} €`;
+      }
       if (handDesc) handDesc.textContent = winners[0].bestHand ? winners[0].bestHand.name : 'Meilleure combinaison';
 
       if (details) {
@@ -815,6 +864,14 @@ class TexasHoldemGame {
     }, 1000);
   }
 
+  // Bornes de la relance (en « mise totale visée » pour le tour en cours)
+  getRaiseBounds() {
+    const hero = this.players[0];
+    const maxTo = hero.stack + hero.currentBet;
+    const minTo = Math.min(maxTo, this.currentMaxBet + Math.max(this.bigBlind, this.lastRaiseSize));
+    return { min: minTo, max: maxTo };
+  }
+
   heroFold() {
     if (!this.isHeroTurn) return;
     this.isHeroTurn = false;
@@ -853,13 +910,12 @@ class TexasHoldemGame {
   }
 
   setQuickRaise(type) {
-    const hero = this.players[0];
-    const minRaise = Math.min(hero.stack, this.currentMaxBet + Math.max(this.bigBlind, this.lastRaiseSize));
-    let val = minRaise;
+    const b = this.getRaiseBounds();
+    let val = b.min;
 
-    if (type === 'min') val = minRaise;
-    else if (type === 'allin') val = hero.stack;
-    else if (typeof type === 'number') val = Math.min(hero.stack, Math.max(minRaise, type));
+    if (type === 'min') val = b.min;
+    else if (type === 'allin') val = b.max;
+    else if (typeof type === 'number') val = Math.min(b.max, Math.max(b.min, type));
 
     const slider = document.getElementById('demoRaiseSlider');
     if (slider) slider.value = val;
@@ -920,6 +976,7 @@ class Poker3DExperience {
     this.centerPotGroup = null;
 
     this.game = null;
+    this.soloGame = null;
 
     this.init();
   }
@@ -945,7 +1002,10 @@ class Poker3DExperience {
     this.startRenderLoop();
 
     this.game = new TexasHoldemGame(this);
-    this.game.startNewHand();
+    this.soloGame = this.game;
+    if (this.options.autoStart !== false) {
+      this.game.startNewHand();
+    }
 
     console.log('♠️ [Poker3D] Scène texturée et moteur Texas Hold\'em initialisés.');
   }
@@ -1318,15 +1378,21 @@ class Poker3DExperience {
   /* ------------------------------------------------------------------------- */
   /* GESTION DYNAMIQUE DU FORMAT DE TABLE (1v1, 4-MAX, 6-MAX)                 */
   /* ------------------------------------------------------------------------- */
-  setTableFormat(format) {
+  // Affichage seul du format (sièges visibles), sans toucher à la partie en cours
+  applyFormat(format) {
     this.tableFormat = format;
     if (format === '1v1') {
-      this.activeBotIndices = [2]; // Roxy en face
+      this.applySeatLayout([2]); // Roxy en face
     } else if (format === '4max') {
-      this.activeBotIndices = [0, 2, 4]; // Viper, Roxy, Kaiser
+      this.applySeatLayout([0, 2, 4]); // Viper, Roxy, Kaiser
     } else {
-      this.activeBotIndices = [0, 1, 2, 3, 4]; // Les 5 bots
+      this.applySeatLayout([0, 1, 2, 3, 4]); // Les 5 bots
     }
+  }
+
+  // Sièges adverses visibles (indices 0 à 4 = joueurs 1 à 5)
+  applySeatLayout(botIndices) {
+    this.activeBotIndices = botIndices.slice();
 
     // Afficher ou masquer les éléments 3D et Nameplates selon le format
     for (let i = 0; i < 5; i++) {
@@ -1342,8 +1408,11 @@ class Poker3DExperience {
         this.htmlNameplateElements[i].style.display = isActive ? 'flex' : 'none';
       }
     }
+  }
 
-    if (this.game) {
+  setTableFormat(format) {
+    this.applyFormat(format);
+    if (this.game && this.game.setTableFormat) {
       this.game.setTableFormat(format);
     }
   }
@@ -1435,7 +1504,14 @@ class Poker3DExperience {
     const avatarBox = el.querySelector('.bot-avatar-box');
 
     if (nameEl) nameEl.textContent = name;
-    if (stackEl) stackEl.textContent = `🪙 ${stack.toLocaleString('fr-FR')} €`;
+    if (stackEl) {
+      if (stack === null || stack === undefined) {
+        stackEl.style.display = 'none';
+      } else {
+        stackEl.style.display = '';
+        stackEl.textContent = `🪙 ${stack.toLocaleString('fr-FR')} €`;
+      }
+    }
     if (avatarEl) avatarEl.textContent = avatar;
 
     if (statusEl) {
@@ -1478,7 +1554,8 @@ class Poker3DExperience {
   syncChips3D(potAmount, players) {
     const chipRadius = 0.08;
     const chipHeight = 0.015;
-    const chipGeo = new THREE.CylinderGeometry(chipRadius, chipRadius, chipHeight, 24);
+    if (!this._chipGeo) this._chipGeo = new THREE.CylinderGeometry(chipRadius, chipRadius, chipHeight, 24);
+    const chipGeo = this._chipGeo;
     const Rz = 1.35;
     const potZ = -Rz * 0.28;
 
@@ -1595,6 +1672,9 @@ class Poker3DExperience {
       }
       this.heroCards[0].visible = true;
       this.heroCards[1].visible = true;
+    } else {
+      this.heroCards[0].visible = false;
+      this.heroCards[1].visible = false;
     }
 
     for (let i = 1; i <= 5; i++) {
@@ -1608,13 +1688,19 @@ class Poker3DExperience {
         continue;
       }
 
+      if (bot.empty || bot.noCards) {
+        cards[0].visible = false;
+        cards[1].visible = false;
+        continue;
+      }
+
       cards[0].visible = true;
       cards[1].visible = true;
 
       if (bot.folded) {
         this.setCardOpacity(cards[0], 0.20);
         this.setCardOpacity(cards[1], 0.20);
-      } else if (g.phase === 'showdown' && bot.hand && bot.hand.length === 2) {
+      } else if (g.phase === 'showdown' && bot.hand && bot.hand.length === 2 && !bot.hand[0].hidden) {
         this.setCardFace(cards[0], bot.hand[0].rank, bot.hand[0].suit);
         this.setCardFace(cards[1], bot.hand[1].rank, bot.hand[1].suit);
         this.setCardOpacity(cards[0], 1.0);
@@ -1630,7 +1716,7 @@ class Poker3DExperience {
     for (let i = 1; i <= 5; i++) {
       const bot = g.players[i];
       const isTurn = (g.currentTurn === i && g.phase !== 'showdown' && g.phase !== 'finished');
-      this.updateHTMLNameplate(i - 1, bot.name, bot.stack, bot.avatar, bot.status, isTurn);
+      this.updateHTMLNameplate(i - 1, bot.name, bot.empty ? null : bot.stack, bot.avatar, bot.status, isTurn);
     }
 
     this.syncChips3D(g.pot, g.players);
@@ -1693,6 +1779,11 @@ class Poker3DExperience {
       if (g.phase === 'showdown' || g.phase === 'finished') {
         phaseEl.textContent = 'Abattage';
         phaseEl.className = 'text-[11px] sm:text-xs font-extrabold text-amber-300';
+      } else if (g.phaseLabel) {
+        phaseEl.textContent = g.phaseLabel;
+        phaseEl.className = g.isHeroTurn
+          ? 'text-[11px] sm:text-xs font-extrabold text-emerald-400'
+          : 'text-[11px] sm:text-xs font-extrabold text-stone-300';
       } else if (g.phase.startsWith('dealing_')) {
         phaseEl.textContent = 'Distribution...';
         phaseEl.className = 'text-[11px] sm:text-xs font-extrabold text-cyan-300';
@@ -1772,8 +1863,9 @@ class Poker3DExperience {
         if (checkCallSubText) checkCallSubText.textContent = `${Math.min(toCall, hero.stack).toLocaleString('fr-FR')} €`;
       }
 
-      const minRaise = Math.min(hero.stack, g.currentMaxBet + Math.max(g.bigBlind, g.lastRaiseSize));
-      const maxRaise = hero.stack;
+      const bounds = g.getRaiseBounds();
+      const minRaise = bounds.min;
+      const maxRaise = bounds.max;
 
       if (raiseSlider) {
         raiseSlider.min = minRaise;
@@ -1785,7 +1877,7 @@ class Poker3DExperience {
         if (btnRaiseAmount) btnRaiseAmount.textContent = `${parseInt(raiseSlider.value, 10).toLocaleString('fr-FR')} €`;
       }
 
-      if (hero.stack <= toCall) {
+      if (hero.stack <= toCall || maxRaise <= g.currentMaxBet) {
         if (raiseBtn) {
           raiseBtn.style.opacity = '0.35';
           raiseBtn.style.pointerEvents = 'none';
@@ -2196,6 +2288,7 @@ function closePokerRulesModal() {
 }
 
 function changeTableFormat(fmt) {
+  if (window.pokerGame && window.pokerGame.isMulti) { closeTableConfigModal(); return; }
   if (window.pokerExp) {
     window.pokerExp.setTableFormat(fmt);
   }
@@ -2217,6 +2310,7 @@ function changeTableFormat(fmt) {
 }
 
 function changeBlindLevel(level) {
+  if (window.pokerGame && window.pokerGame.isMulti) { closeTableConfigModal(); return; }
   if (window.pokerGame) {
     window.pokerGame.setBigBlind(level);
   }
