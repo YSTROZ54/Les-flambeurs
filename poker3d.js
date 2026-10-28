@@ -1193,11 +1193,11 @@ class Poker3DExperience {
     railOuterShape.holes.push(railHole);
 
     const railMesh = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.3, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
+      new THREE.ExtrudeGeometry(railOuterShape, { depth: 0.2, bevelEnabled: true, bevelSegments: 4, bevelSize: 0.08, bevelThickness: 0.08 }),
       new THREE.MeshStandardMaterial({ color: this.options.railColor, roughness: 0.8, metalness: 0.0 })
     );
     railMesh.rotation.x = -Math.PI / 2;
-    railMesh.position.y = -0.04;
+    railMesh.position.y = -0.1;
     railMesh.castShadow = true;
     railMesh.receiveShadow = true;
     this.tableGroup.add(railMesh);
@@ -1604,10 +1604,10 @@ class Poker3DExperience {
 
   // Le croupier : au bout de la table, face à la caméra, avec un geste de distribution
   buildDealer() {
-    const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true });
+    const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true }, -2.47);
     dealer.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
-    dealer.position.set(0, 0, -(outer + 0.5));
+    dealer.position.set(0, -0.24, -(outer + 0.5));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1621,10 +1621,10 @@ class Poker3DExperience {
 
   // Le joueur (toi) : vu de dos en vue 3e personne, il tourne la tête avec ta vue
   buildHeroFigure() {
-    const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 });
+    const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 }, -2.47);
     hero.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
-    hero.position.set(0, 0, outer + 0.5);
+    hero.position.set(0, -0.24, outer + 0.5);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1703,7 +1703,7 @@ class Poker3DExperience {
       { skin: 0xd9a066, shirt: 0x0f4c81, hair: 0x6b4423 },
       { skin: 0xf0c8a0, shirt: 0x111827, hair: 0xb89547 }
     ];
-    const SEAT_Y = 0;
+    const SEAT_Y = -0.24;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
     const outer = this.options.tableDepth / 2 + (0.18 + 0.38) * 0.6 + 0.16;
     this.seatedPlayers = [];
