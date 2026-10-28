@@ -3573,6 +3573,18 @@
       };
     })();
 
+    // Jeux gérés par le serveur : on synchronise d'abord le solde, puis le serveur tire le résultat et renvoie le nouveau solde.
+    async function serverGame(payload) {
+      try { await pushRemoteAccount(state); } catch (e) {}
+      const r = await gatewayAction(payload);
+      if (typeof r.balance === 'number') {
+        state.balance = r.balance;
+        state.lastBalanceChange = Date.now();
+        saveState();
+      }
+      return r;
+    }
+
     let _lastAuthExpiredAt = 0;
     function handleAuthExpired() {
       // jeton absent ou expiré alors qu'on est connecté : on redemande le mot de passe (une fois)
@@ -9056,7 +9068,7 @@
       el.value = Math.min(target, state.balance > 0 ? state.balance : target);
     }
 
-    function pullSlotLever(e) {
+    async function pullSlotLever(e) {
       if (!_AntiBotGuard.verify('Machine à sous', e)) return;
       if (!isUserLoggedIn()) {
         showToast('🔒 Tu dois être connecté pour jouer à la machine à sous !');
@@ -9073,10 +9085,6 @@
       if (bet > state.balance) return showToast('❌ Solde insuffisant pour miser ce montant.');
 
       slotSpinning = true;
-      state.balance -= bet;
-      state.lastBalanceChange = Date.now();
-      saveState();
-      pushRemoteAccount(state).catch(() => {});
 
       const rod = document.getElementById('slotLeverRod');
       rod.classList.add('pulled');
@@ -9085,32 +9093,14 @@
 
       document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
 
-      // La chance de gain est STRICTEMENT régie par le curseur admin CONFIG_CASINO.CHANCE_MACHINE_A_SOUS
-      const winChance = Math.max(0, Math.min(100, CONFIG_CASINO.CHANCE_MACHINE_A_SOUS ?? 35));
-      const isWin = (Math.random() * 100 < winChance);
-
-      let finals = [];
-      if (!isWin) {
-        // PERTE STRICTE : 3 symboles strictement différents. AUCUN doublon, AUCUN gain !
-        const shuffled = [...SLOT_SYMS].sort(() => Math.random() - 0.5);
-        finals = [shuffled[0], shuffled[1], shuffled[2]];
-      } else {
-        // VICTOIRE : Répartition entre doublon modéré et triplé
-        const isTriplet = Math.random() < 0.045; // les triples (gros gains) restent rares
-        const winPool = ['🍒', '🍒', '🍒', '🍋', '🍋', '🍋', '🔔', '🔔', '💎', '7️⃣', '👑', '🔥'];
-        const winSym = winPool[Math.floor(Math.random() * winPool.length)];
-
-        if (isTriplet) {
-          finals = [winSym, winSym, winSym];
-        } else {
-          // Doublon : 2 symboles identiques, 1 différent
-          const otherSyms = SLOT_SYMS.filter(s => s !== winSym);
-          const thirdSym = otherSyms[Math.floor(Math.random() * otherSyms.length)];
-          const thirdPos = Math.floor(Math.random() * 3);
-          finals = [winSym, winSym, winSym];
-          finals[thirdPos] = thirdSym;
-        }
+      // Le résultat (rouleaux, gain) est tiré par le serveur, qui met aussi le solde à jour.
+      const srv = await serverGame({ action: 'slots_spin', bet });
+      if (!srv.ok || !Array.isArray(srv.finals)) {
+        slotSpinning = false;
+        document.getElementById('slotResultBanner').textContent = 'Prêt à jouer.';
+        return showToast('❌ ' + (srv.error || 'Machine indisponible, réessaie.'));
       }
+      const finals = srv.finals;
 
       [0, 1, 2].forEach((reelIdx) => {
         const strip = document.getElementById(`slotStrip${reelIdx}`);
@@ -9132,22 +9122,12 @@
       });
 
       setTimeout(() => {
-        let mult = 0;
-        if (finals[0] === finals[1] && finals[1] === finals[2]) {
-          mult = SLOT_PAY_3[finals[0]] || 5;
-        } else if (finals[0] === finals[1] || finals[1] === finals[2] || finals[0] === finals[2]) {
-          const pairSym = (finals[0] === finals[1] || finals[0] === finals[2]) ? finals[0] : finals[1];
-          mult = SLOT_PAY_2[pairSym] || 0;
-        }
-
+        const mult = srv.mult || 0;
+        updateGlobalUI();
         const banner = document.getElementById('slotResultBanner');
         if (mult > 0) {
-          const win = Math.round(bet * mult);
-          state.balance += win;
-          state.lastBalanceChange = Date.now();
+          const win = srv.win;
           playCoinWinSound();
-          saveState();
-          pushRemoteAccount(state).catch(() => {});
           banner.textContent = `🎉 GAGNÉ ! ${finals.join(' ')} → +${fmt(win)} pièces (×${String(mult).replace('.', ',')})`;
           showToast(`🎰 +${fmt(win)} pièces (×${String(mult).replace('.', ',')}) !`);
         } else {
@@ -11669,7 +11649,8 @@
       }
     }
 
-    function buyScratchCard() {
+    let scratchBuying = false;
+    async function buyScratchCard() {
       if (scratchTicket && scratchTicket.active && !scratchTicket.isRevealed) {
         showToast('⚠️ Tu as déjà un ticket en cours ! Gratte-le complètement avant d\'en acheter un nouveau.');
         return;
@@ -11678,30 +11659,26 @@
         showToast('❌ Solde insuffisant ! Un ticket coûte 50 pièces.');
         return;
       }
+      if (scratchBuying) return;
+      scratchBuying = true;
 
-      state.balance -= 50;
+      // Le serveur débite le ticket et tire le résultat ; le gain n'est crédité qu'au grattage complet.
+      const srv = await serverGame({ action: 'scratch_buy' });
+      scratchBuying = false;
+      if (!srv.ok || typeof srv.win !== 'number') {
+        showToast('❌ ' + (srv.error || 'Ticket indisponible, réessaie.'));
+        updateScratchUI();
+        return;
+      }
       state.scratchCardsPlayed = (state.scratchCardsPlayed || 0) + 1;
       saveState();
-
-      const winChance = (CONFIG_CASINO.CHANCE_SCRATCH || 35) / 100;
-      const isWin = Math.random() < winChance;
-      let winAmount = 0;
-
-      if (isWin) {
-        // Rééquilibré (rendement ~96 % avec 35 % de tickets gagnants) : avant, ~330 % de la mise.
-        const roll = Math.random() * 100;
-        if (roll < 90.02) winAmount = 100;       // 2x
-        else if (roll < 97.02) winAmount = 200;  // 4x
-        else if (roll < 99.02) winAmount = 500;  // 10x
-        else if (roll < 99.77) winAmount = 1000; // 20x
-        else if (roll < 99.97) winAmount = 5000; // 100x
-        else winAmount = 20000;                  // 400x (JACKPOT SUPRÊME)
-      }
+      const winAmount = srv.win;
 
       scratchTicket = {
         active: true,
         cost: 50,
         winAmount: winAmount,
+        ticketId: srv.ticketId,
         isRevealed: false,
         serial: '№ ' + Math.floor(1000000 + Math.random() * 9000000)
       };
@@ -11774,7 +11751,8 @@
 
       if (scratchTicket.winAmount > 0) {
         const win = scratchTicket.winAmount;
-        state.balance += win;
+        // crédit fait par le serveur (une seule fois par ticket)
+        serverGame({ action: 'scratch_claim', ticketId: scratchTicket.ticketId }).then(() => { updateGlobalUI(); updateScratchUI(); });
         state.scratchTotalWon = (state.scratchTotalWon || 0) + win;
         state.scratchBestWin = Math.max(state.scratchBestWin || 0, win);
 
@@ -11788,7 +11766,6 @@
       }
 
       saveState();
-      pushRemoteAccount(state);
       updateScratchUI();
       renderScratchLeaderboard();
     }

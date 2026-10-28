@@ -18,6 +18,7 @@
 //   AUTH_SECRET           longue chaîne aléatoire qui signe les jetons de connexion
 //   ADMIN_PASSWORD        mot de passe du menu Patron
 // =============================================================================
+import { spinSlots, drawScratch, SLOT_MAX_BET, SCRATCH_PRICE } from './_games.js';
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gyjyncljhlatomnbmwxa.supabase.co';
@@ -268,6 +269,8 @@ async function applyUpsert(incoming, actor, isAdmin) {
     if (!isAdmin) {
       if (oldData.bannedUsers !== undefined) data.bannedUsers = oldData.bannedUsers; else delete data.bannedUsers;
     }
+    // champs gérés par le serveur : jamais écrasés par le navigateur
+    ['_scratchTicket', '_wt'].forEach((k) => { if (oldData[k] !== undefined) data[k] = oldData[k]; else delete data[k]; });
     await putRow({
       username: existing.username,
       password: existing.password,                           // jamais modifié ici
@@ -446,6 +449,47 @@ export default async function handler(req, res) {
       });
       await putRow({ username: CONFIG_ROW, password: '', avatar: '⚙️', balance: 0, data: { luck } });
       return res.status(200).json({ ok: true, luck });
+    }
+
+    // --- jeux gérés par le serveur : le solde et le résultat viennent d'ici, pas du navigateur ---
+    if (action === 'slots_spin' || action === 'scratch_buy' || action === 'scratch_claim') {
+      if (!actor) return res.status(401).json({ ok: false, error: 'Connexion requise.' });
+      const row = await getRow(actor);
+      if (!row || isReserved(row.username)) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
+      const luck = await getConfig();
+      const data = row.data && typeof row.data === 'object' ? { ...row.data } : {};
+      let balance = Math.max(0, Math.floor(Number(row.balance)) || 0);
+      const save = async () => { data._wt = Date.now(); await putRow({ ...row, balance, data }); };
+
+      if (action === 'slots_spin') {
+        const bet = Math.floor(Number(body.bet));
+        if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ ok: false, error: 'Mise invalide.' });
+        if (bet > SLOT_MAX_BET) return res.status(400).json({ ok: false, error: 'La mise maximale sur la machine est de 100 000 €.' });
+        if (bet > balance) return res.status(400).json({ ok: false, error: 'Solde insuffisant pour miser ce montant.', balance });
+        const r = spinSlots(bet, luck.slots);
+        balance = balance - bet + r.win;
+        await save();
+        return res.status(200).json({ ok: true, finals: r.finals, mult: r.mult, win: r.win, balance });
+      }
+
+      if (action === 'scratch_buy') {
+        // un ticket précédent jamais gratté est crédité avant d'en acheter un nouveau
+        const prev = data._scratchTicket;
+        if (prev && !prev.claimed && prev.win > 0) balance += prev.win;
+        if (balance < SCRATCH_PRICE) { data._scratchTicket = undefined; await save(); return res.status(400).json({ ok: false, error: 'Solde insuffisant ! Un ticket coûte 50 pièces.', balance }); }
+        balance -= SCRATCH_PRICE;
+        const win = drawScratch(luck.scratch);
+        const id = randomBytes(8).toString('hex');
+        data._scratchTicket = { id, win, claimed: false };
+        await save();
+        return res.status(200).json({ ok: true, ticketId: id, win, balance });
+      }
+
+      // scratch_claim : crédite le gain du ticket une seule fois
+      const t = data._scratchTicket;
+      if (!t || t.id !== body.ticketId) return res.status(400).json({ ok: false, error: 'Ticket introuvable.', balance });
+      if (!t.claimed) { t.claimed = true; balance += t.win; await save(); }
+      return res.status(200).json({ ok: true, win: t.win, balance });
     }
 
     // --- écriture d'un compte (forme Supabase : ?sb=accounts, ligne ou tableau de lignes) ---
