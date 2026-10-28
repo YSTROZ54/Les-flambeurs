@@ -1775,6 +1775,10 @@ class Poker3DExperience {
         const slot = Poker3DExperience.PORTRAIT.bots[i];
         const s = slot ? slot.plate : [0, -1.75];
         anchor = new THREE.Vector3(s[0] * 1.1, 0.05, s[1]);
+      } else if (this.seatedPlayers && this.seatedPlayers[i]) {
+        // PC : la plaque flotte juste au-dessus de la tête du personnage
+        const sp = this.seatedPlayers[i];
+        anchor = new THREE.Vector3(sp.position.x, sp.position.y + 2.0 * sp.scale.x + 0.12, sp.position.z);
       }
       const v = anchor.clone().project(this.camera);
       if (v.z > 1) {
@@ -1789,6 +1793,10 @@ class Poker3DExperience {
       if (this.portraitMode) {
         const half = Math.ceil((el.offsetWidth || 150) / 2) + 4;
         screenX = Math.max(half, Math.min(width - half, screenX));
+      } else if (width >= 1000) {
+        // PC : on évite la barre latérale du site à gauche
+        const half = Math.ceil((el.offsetWidth || 150) / 2) + 4;
+        screenX = Math.max(half + 70, Math.min(width - half, screenX));
       }
       const screenY = Math.round((-v.y * 0.5 + 0.5) * height);
 
@@ -2519,7 +2527,7 @@ class Poker3DExperience {
       if (!root) return;
       const st = document.createElement('style');
       st.textContent = `
-        #pokerHeroHandWidget { position:absolute; left:18px; bottom:22px; z-index:34; display:none; gap:8px; pointer-events:none; }
+        #pokerHeroHandWidget { position:absolute; left:84px; bottom:24px; z-index:34; display:none; gap:8px; pointer-events:none; }
         #pokerHeroHandWidget .hh-card { width:62px; height:88px; background:#fff; border-radius:8px; border:1px solid #d6d3d1; box-shadow:0 6px 18px rgba(0,0,0,.65); color:#111; font:900 22px Georgia,serif; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; position:relative; }
         #pokerHeroHandWidget .hh-card.red { color:#dc2626; }
         #pokerHeroHandWidget .hh-card .rk { position:absolute; top:5px; left:7px; font-size:19px; }
