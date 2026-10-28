@@ -10243,6 +10243,8 @@
           }
         }
 
+        // la carte cachée du croupier ne l'est que pendant la manche : une fois terminée, tout est visible
+        hide = hide && bj.active;
         const pCardsHtml = bj.player.map(c => renderCardHTML(c, 'lg', false, 'blackjack')).join('');
         const dCardsHtml = bj.dealer.map((c, i) => renderCardHTML(c, 'lg', hide && i === 1, 'blackjack')).join('');
         updateCardSlot(document.getElementById('bjPlayerCards'), pCardsHtml);
