@@ -1501,12 +1501,20 @@ class Poker3DExperience {
     return mesh;
   }
 
+  // Proportions réalistes : un joueur fait environ 0.9 unité d'échelle (la table paraît ainsi à sa vraie taille)
+  figureFit(scale) {
+    const seatY = 0.21 - 0.72 * scale; // les mains tombent exactement sur le boudin
+    return { seatY, floorLocal: (-1.77 - seatY) / scale };
+  }
+
   // Le croupier : au bout de la table, face à la caméra, avec un geste de distribution
   buildDealer() {
-    const dealer = this.createSeatedPlayer(Poker3DExperience.DEALER_LOOK, -2.47);
-    dealer.scale.setScalar(0.62);
+    const sc = 0.9;
+    const fit = this.figureFit(sc);
+    const dealer = this.createSeatedPlayer(Poker3DExperience.DEALER_LOOK, fit.floorLocal);
+    dealer.scale.setScalar(sc);
     const outer = this.options.tableDepth / 2 + 0.44;
-    dealer.position.set(0, -0.24, -(outer + 0.45));
+    dealer.position.set(0, fit.seatY, -(outer + 0.6 * sc + 0.1));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1520,10 +1528,12 @@ class Poker3DExperience {
 
   // Le joueur (toi) : vu de dos en vue 3e personne, il tourne la tête avec ta vue
   buildHeroFigure() {
-    const hero = this.createSeatedPlayer(Poker3DExperience.HERO_LOOK, -2.47);
-    hero.scale.setScalar(0.62);
+    const sc = 0.72;
+    const fit = this.figureFit(sc);
+    const hero = this.createSeatedPlayer(Poker3DExperience.HERO_LOOK, fit.floorLocal);
+    hero.scale.setScalar(sc);
     const outer = this.options.tableDepth / 2 + 0.44;
-    hero.position.set(0, -0.24, outer + 0.45);
+    hero.position.set(0, fit.seatY, outer + 0.6 * sc + 0.1);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1533,7 +1543,6 @@ class Poker3DExperience {
 
   buildSeatedPlayers() {
     const looks = Poker3DExperience.PLAYER_LOOKS; // apparences définies dans poker3d-scene.js
-    const SEAT_Y = -0.24;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
     const outer = this.options.tableDepth / 2 + 0.44;
     this.seatedPlayers = [];
@@ -1541,11 +1550,13 @@ class Poker3DExperience {
     this.thetas.forEach((theta, i) => {
       const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
-      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.45));
-      const sc = pos.z > 0 ? 0.5 : 0.62;
-      const player = this.createSeatedPlayer(looks[i % looks.length], (-1.77 - SEAT_Y) / sc);
-      player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
-      player.position.set(pos.x, SEAT_Y, pos.z);
+      const near = p.z > 0; // sièges proches de la caméra : un peu plus petits pour garder une perspective naturelle
+      const sc = near ? 0.76 : 0.9;
+      const fit = this.figureFit(sc);
+      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.6 * sc + 0.1));
+      const player = this.createSeatedPlayer(looks[i % looks.length], fit.floorLocal);
+      player.scale.setScalar(sc);
+      player.position.set(pos.x, fit.seatY, pos.z);
       player.rotation.y = Math.atan2(c.x - pos.x, c.z - pos.z);
       player.userData.phase = i * 1.7;
       this.scene.add(player);
@@ -2454,7 +2465,7 @@ class Poker3DExperience {
       const base = first ? new THREE.Vector3(0, 1.3, 3.05) : new THREE.Vector3(0, 3.4, 5.0);
       const pos = base.clone();
       if (!first) {
-        const edge = new THREE.Vector3(4.3, 0.3, 1.9);
+        const edge = new THREE.Vector3(5.0, 0.3, 2.0);
         for (let k = 1; k <= 2.0; k += 0.05) {
           pos.copy(base).sub(target).multiplyScalar(k).add(target);
           this.camera.position.copy(pos);
