@@ -1202,17 +1202,37 @@ class Poker3DExperience {
     railMesh.receiveShadow = true;
     this.tableGroup.add(railMesh);
 
-    const legGeo = new THREE.CylinderGeometry(0.35, 0.45, 1.6, 24);
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x110b06, roughness: 0.7 });
-    const leg1 = new THREE.Mesh(legGeo, legMat);
-    leg1.position.set(-1.5, -0.9, 0);
-    leg1.castShadow = true;
-    this.tableGroup.add(leg1);
+    // Flanc plein sous le rebord (on ne voit plus à travers la table) + pied central
+    const skirtOuter = new THREE.Shape();
+    const skR = roR * 0.98;
+    skirtOuter.moveTo(-straightLen / 2, skR);
+    skirtOuter.lineTo(straightLen / 2, skR);
+    skirtOuter.absarc(straightLen / 2, 0, skR, Math.PI / 2, -Math.PI / 2, true);
+    skirtOuter.lineTo(-straightLen / 2, -skR);
+    skirtOuter.absarc(-straightLen / 2, 0, skR, -Math.PI / 2, Math.PI / 2, true);
+    const skirtMat = new THREE.MeshStandardMaterial({ color: 0x1b100a, roughness: 0.5, metalness: 0.08 });
+    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 0.75, bevelEnabled: false }), skirtMat);
+    skirt.rotation.x = -Math.PI / 2;
+    skirt.position.y = -0.8;
+    skirt.castShadow = true;
+    skirt.receiveShadow = true;
+    this.tableGroup.add(skirt);
+    // fine bande dorée au bas du flanc
+    const band = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 0.05, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xb08d3c, roughness: 0.35, metalness: 0.6 }));
+    band.rotation.x = -Math.PI / 2;
+    band.position.y = -0.83;
+    band.scale.set(0.99, 0.99, 1);
+    this.tableGroup.add(band);
 
-    const leg2 = new THREE.Mesh(legGeo, legMat);
-    leg2.position.set(1.5, -0.9, 0);
-    leg2.castShadow = true;
-    this.tableGroup.add(leg2);
+    const pedMat = new THREE.MeshStandardMaterial({ color: 0x0f0b09, roughness: 0.45, metalness: 0.25 });
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.0, 1.0, 36), pedMat);
+    pedestal.position.y = -1.3;
+    pedestal.castShadow = true;
+    this.tableGroup.add(pedestal);
+    const baseDisc = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 2.1, 0.12, 48), pedMat);
+    baseDisc.position.y = -1.7;
+    baseDisc.receiveShadow = true;
+    this.tableGroup.add(baseDisc);
 
     this.scene.add(this.tableGroup);
   }
@@ -1310,12 +1330,106 @@ class Poker3DExperience {
       this.scene.add(card);
       this.communityCardMeshes.push(card);
     }
+    this.buildBoardSlots();
+  }
+
+  // Emplacements noirs des 5 cartes communes, zone du pot et bouton dealer (comme une vraie table)
+  buildBoardSlots() {
+    const grp = new THREE.Group();
+    const w = 0.78, l = 1.1, r = 0.07;
+    const rr = new THREE.Shape();
+    rr.moveTo(-w / 2 + r, -l / 2);
+    rr.lineTo(w / 2 - r, -l / 2); rr.quadraticCurveTo(w / 2, -l / 2, w / 2, -l / 2 + r);
+    rr.lineTo(w / 2, l / 2 - r); rr.quadraticCurveTo(w / 2, l / 2, w / 2 - r, l / 2);
+    rr.lineTo(-w / 2 + r, l / 2); rr.quadraticCurveTo(-w / 2, l / 2, -w / 2, l / 2 - r);
+    rr.lineTo(-w / 2, -l / 2 + r); rr.quadraticCurveTo(-w / 2, -l / 2, -w / 2 + r, -l / 2);
+    const fill = new THREE.MeshBasicMaterial({ color: 0x040b07, transparent: true, opacity: 0.85 });
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.45 });
+    const pts = rr.getPoints(12);
+    for (let i = 0; i < 5; i++) {
+      const slot = new THREE.Mesh(new THREE.ShapeGeometry(rr), fill);
+      slot.rotation.x = -Math.PI / 2;
+      slot.position.set((i - 2) * 0.8, 0.004, 0.05);
+      grp.add(slot);
+      const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
+      edge.rotation.x = -Math.PI / 2;
+      edge.position.set((i - 2) * 0.8, 0.006, 0.05);
+      grp.add(edge);
+    }
+    // zone du pot devant le croupier
+    const potRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.53, 48), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
+    potRing.rotation.x = -Math.PI / 2;
+    potRing.position.set(0, 0.005, -1.05);
+    grp.add(potRing);
+    this.boardSlots = grp;
+    this.scene.add(grp);
+
+    // bouton dealer (« D »)
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#f8fafc'; cx.fillRect(0, 0, 128, 128);
+    cx.fillStyle = '#b91c1c'; cx.font = '900 90px Georgia, serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('D', 64, 70);
+    const tex = new THREE.CanvasTexture(cv);
+    const top = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
+    const side = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+    this.dealerButton = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 28), [side, top, side]);
+    this.dealerButton.position.set(0, 0.02, 1.0);
+    this.dealerButton.castShadow = true;
+    this.scene.add(this.dealerButton);
+  }
+
+  // Place le bouton dealer devant le joueur qui a la main de donneur
+  updateDealerButton() {
+    const g = this.game;
+    if (!g || !this.dealerButton || this.portraitMode) return;
+    const idx = g.dealerIndex || 0;
+    if (idx === 0) {
+      this.dealerButton.position.set(1.15, 0.02, 1.05);
+    } else {
+      const th = this.thetas[idx - 1];
+      if (th === undefined) return;
+      this.dealerButton.position.set(Math.cos(th) * 2.75, 0.02, Math.sin(th) * 1.25);
+    }
+  }
+
+  // Cartes communes en grand dans le coin de l'écran (PC), pour les lire quelle que soit la vue
+  updateBoardWidget() {
+    let box = document.getElementById('pokerBoardWidget');
+    if (!box) {
+      const root = document.getElementById('view-poker');
+      if (!root) return;
+      const st = document.createElement('style');
+      st.textContent = `
+        #pokerBoardWidget { position:absolute; left:84px; bottom:128px; z-index:34; display:none; gap:6px; pointer-events:none; padding:6px 8px; border-radius:12px; background:rgba(0,0,0,.45); border:1px solid rgba(245,158,11,.3); }
+        #pokerBoardWidget .hh-card { width:50px; height:72px; background:#fff; border-radius:7px; border:1px solid #d6d3d1; color:#111; font:900 18px Georgia,serif; display:flex; align-items:center; justify-content:center; position:relative; }
+        #pokerBoardWidget .hh-card.red { color:#dc2626; }
+        #pokerBoardWidget .hh-card .rk { position:absolute; top:3px; left:5px; font-size:15px; }
+        #pokerBoardWidget .hh-card .su { font-size:28px; }
+        #pokerBoardWidget .hh-card.empty { background:rgba(255,255,255,.05); border:1px dashed rgba(255,255,255,.25); }`;
+      document.head.appendChild(st);
+      box = document.createElement('div');
+      box.id = 'pokerBoardWidget';
+      root.appendChild(box);
+    }
+    const cards = (this.game && this.game.communityCards) || [];
+    const show = !!this.handWidget && cards.length > 0;
+    box.style.display = show ? 'flex' : 'none';
+    if (!show) return;
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+      const c = cards[i];
+      html += c ? `<div class="hh-card${c.suit === '♥' || c.suit === '♦' ? ' red' : ''}"><span class="rk">${c.rank}</span><span class="su">${c.suit}</span></div>` : '<div class="hh-card empty"></div>';
+    }
+    if (box.dataset.h !== html) { box.innerHTML = html; box.dataset.h = html; }
   }
 
   animateDealCommunityCard(index, card) {
     const mesh = this.communityCardMeshes[index];
     if (!mesh) return;
     this.dealerGesture();
+    this.updateBoardWidget();
     this.setCardFace(mesh, card.rank, card.suit);
     this.setCardOpacity(mesh, 1.0);
     mesh.visible = true;
@@ -1409,6 +1523,18 @@ class Poker3DExperience {
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 28), std(0x2a1d14, 0.4, 0.1)));
     const back = add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.4, 0.14), std(0x2a1d14, 0.4, 0.1)));
     back.position.set(0, 0.8, -0.62);
+    // Pied de chaise : colonne + base à 5 branches avec roulettes (le sol est à y = -1.47 en local)
+    const metal = std(0x15151a, 0.35, 0.55);
+    const stem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.3, 14), metal));
+    stem.position.y = -0.72;
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 + 0.3;
+      const leg = add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.09), metal));
+      leg.position.set(Math.cos(a) * 0.31, -1.38, Math.sin(a) * 0.31);
+      leg.rotation.y = -a;
+      const wheel = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), metal));
+      wheel.position.set(Math.cos(a) * 0.6, -1.42, Math.sin(a) * 0.6);
+    }
 
     // Buste (se balance légèrement quand le joueur respire)
     const upper = new THREE.Group();
@@ -1871,7 +1997,7 @@ class Poker3DExperience {
     const Rz = 1.35;
     const P = Poker3DExperience.PORTRAIT;
     const portrait = !!this.portraitMode;
-    const potZ = portrait ? P.potZ : -Rz * 0.28;
+    const potZ = portrait ? P.potZ : -1.05;
 
     while (this.centerPotGroup.children.length > 0) {
       this.centerPotGroup.remove(this.centerPotGroup.children[0]);
@@ -1993,6 +2119,8 @@ class Poker3DExperience {
       this.heroCards[1].visible = false;
     }
     this.updateHeroHandWidget(hero);
+    this.updateBoardWidget();
+    this.updateDealerButton();
 
     for (let i = 1; i <= 5; i++) {
       const bot = g.players[i];
@@ -2491,7 +2619,7 @@ class Poker3DExperience {
       this.camera.fov = first ? 64 : 50;
       this.camera.updateProjectionMatrix();
       const target = first ? new THREE.Vector3(0, -0.05, -0.7) : new THREE.Vector3(0, -0.05, -0.4);
-      const base = first ? new THREE.Vector3(0, 0.95, 3.15) : new THREE.Vector3(0, 2.7, 5.4);
+      const base = first ? new THREE.Vector3(0, 1.3, 3.05) : new THREE.Vector3(0, 3.4, 5.0);
       const pos = base.clone();
       if (!first) {
         const edge = new THREE.Vector3(4.3, 0.3, 1.9);
@@ -2511,7 +2639,7 @@ class Poker3DExperience {
       this.camera.position.copy(pos);
       this.camera.lookAt(pos.clone().add(dir));
       // remonte l'image : le panneau d'actions occupe le bas de l'écran sur PC
-      this.camera.setViewOffset(width, height, 0, Math.round(height * 0.13), width, height);
+      this.camera.setViewOffset(width, height, 0, Math.round(height * 0.09), width, height);
     }
     this.handWidget = !this.portraitMode && width >= 1000;
 
@@ -2580,11 +2708,14 @@ class Poker3DExperience {
         m.position.x = (i - 2) * P.boardSpacing;
         m.position.z = P.boardZ;
       } else {
-        m.scale.setScalar(1);
-        m.position.x = (i - 2) * 0.44;
+        // PC : grandes cartes posées dans leurs emplacements
+        m.scale.setScalar(1.9);
+        m.position.x = (i - 2) * 0.8;
         m.position.z = 0.05;
       }
     });
+    if (this.boardSlots) this.boardSlots.visible = !portrait;
+    if (this.dealerButton) this.dealerButton.visible = !portrait;
     (this.heroCards || []).forEach((m, i) => {
       const x = portrait ? P.heroX : 0.22;
       m.scale.setScalar(portrait ? P.heroScale : 1);
