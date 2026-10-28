@@ -442,7 +442,7 @@
       .poker-hud-overlay .hud-interactive.flex { gap:.3rem; }
       #headerBlindTag { white-space:nowrap; font-size:10px; }
       #potCenterDisplay { white-space:nowrap; }
-      #tablePhaseDisplay { font-size:10px; white-space:nowrap; max-width:80px; overflow:hidden; text-overflow:ellipsis; }
+      #tablePhaseDisplay { font-size:10px; white-space:nowrap; max-width:62px; overflow:hidden; text-overflow:ellipsis; }
     }
     @media (max-width: 767px) {
       #pmReadyBox { top:47%; gap:.3rem; width:92%; }

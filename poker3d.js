@@ -977,6 +977,7 @@ class Poker3DExperience {
     this.setupRenderer();
     this.setupLighting();
     this.buildPokerTable();
+    this.buildPortraitTable();
     this.buildHeroCards();
     this.buildCommunityCards();
     this.buildOpponentsSeats();
@@ -1077,6 +1078,25 @@ class Poker3DExperience {
     this.scene.add(floor);
   }
 
+  // Table verticale (ovale debout) pour les écrans de téléphone en portrait :
+  // même table que sur PC, tournée de 90° et plus étroite, pour que tout le monde tienne à l'écran.
+  buildPortraitTable() {
+    const o = this.options;
+    const desktopGroup = this.tableGroup;
+    const w0 = o.tableWidth, d0 = o.tableDepth;
+    o.tableWidth = 4.2;
+    o.tableDepth = 2.7;
+    o.railScale = 0.5;
+    this.buildPokerTable();
+    o.railScale = 1;
+    this.tableGroupPortrait = this.tableGroup;
+    this.tableGroupPortrait.rotation.y = Math.PI / 2;
+    this.tableGroupPortrait.visible = false;
+    o.tableWidth = w0;
+    o.tableDepth = d0;
+    this.tableGroup = desktopGroup;
+  }
+
   buildPokerTable() {
     this.tableGroup = new THREE.Group();
 
@@ -1125,7 +1145,8 @@ class Poker3DExperience {
     this.tableGroup.add(ringLine);
 
     const woodRailShape = new THREE.Shape();
-    const wrThickness = 0.18;
+    const rs = this.options.railScale || 1; // rebord plus fin sur la table verticale
+    const wrThickness = 0.18 * rs;
     const wrR = r + wrThickness;
     woodRailShape.moveTo(-straightLen / 2, wrR);
     woodRailShape.lineTo(straightLen / 2, wrR);
@@ -1153,7 +1174,7 @@ class Poker3DExperience {
     this.tableGroup.add(woodRailMesh);
 
     const railOuterShape = new THREE.Shape();
-    const railThickness = 0.38;
+    const railThickness = 0.38 * rs;
     const roR = wrR + railThickness;
     railOuterShape.moveTo(-straightLen / 2, roR);
     railOuterShape.lineTo(straightLen / 2, roR);
@@ -1347,6 +1368,8 @@ class Poker3DExperience {
       c2.rotation.set(-Math.PI / 2, 0, rotZ - 0.03);
       this.scene.add(c2);
 
+      // position d'origine (PC) mémorisée pour pouvoir revenir du mode portrait
+      [c1, c2].forEach((c) => { c._desk = { pos: c.position.clone(), rot: c.rotation.clone() }; });
       this.botCards.push([c1, c2]);
 
       const chipGrp = new THREE.Group();
@@ -1418,9 +1441,11 @@ class Poker3DExperience {
       st.textContent = `
         .pk-compact { padding: 3px 7px !important; gap: 5px !important; }
         .pk-compact .bot-avatar-box { display: none !important; }
-        .pk-compact .bot-name { font-size: 12px !important; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
-        .pk-compact .bot-status { font-size: 10px !important; }
-        .pk-compact .bot-stack { font-size: 13px !important; }`;
+        .pk-compact { border-radius: 10px !important; }
+        .pk-compact > div > div:first-child { flex-direction: column; align-items: flex-start; gap: 0 !important; }
+        .pk-compact .bot-name { font-size: 11px !important; max-width: 86px; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+        .pk-compact .bot-status { font-size: 9px !important; max-width: 86px; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+        .pk-compact .bot-stack { font-size: 12px !important; line-height: 1.2; }`;
       document.head.appendChild(st);
     }
 
@@ -1479,9 +1504,9 @@ class Poker3DExperience {
       if (this.portraitMode) {
         // Portrait : plaques alignées au-dessus du tapis, hors des cartes communes
         // [côté gauche -1 / centre 0 / droite 1, profondeur z] : une rangée par plaque
-        const slots = [[-1, -0.9], [-1, -1.4], [0, -1.9], [1, -1.4], [1, -0.9]];
-        const s = slots[i] || [0, -1.9];
-        anchor = new THREE.Vector3(s[0] * 1.25, 0.05, s[1]);
+        const slot = Poker3DExperience.PORTRAIT.bots[i];
+        const s = slot ? slot.plate : [0, -1.75];
+        anchor = new THREE.Vector3(s[0] * 1.0, 0.05, s[1]);
       }
       const v = anchor.clone().project(this.camera);
       if (v.z > 1) {
@@ -1568,7 +1593,9 @@ class Poker3DExperience {
     if (!this._chipGeo) this._chipGeo = new THREE.CylinderGeometry(chipRadius, chipRadius, chipHeight, 24);
     const chipGeo = this._chipGeo;
     const Rz = 1.35;
-    const potZ = -Rz * 0.28;
+    const P = Poker3DExperience.PORTRAIT;
+    const portrait = !!this.portraitMode;
+    const potZ = portrait ? P.potZ : -Rz * 0.28;
 
     while (this.centerPotGroup.children.length > 0) {
       this.centerPotGroup.remove(this.centerPotGroup.children[0]);
@@ -1602,13 +1629,14 @@ class Poker3DExperience {
     }
     const hero = players[0];
     if (hero && hero.currentBet > 0) {
-      const heroZ = Rz * 0.62;
+      const heroZ = portrait ? P.heroChip[1] : Rz * 0.62;
+      const heroChipX = portrait ? P.heroChip[0] : -0.75;
       const mats = this.getChipMaterials('#d97706');
       const count = Math.min(5, Math.max(1, Math.ceil(hero.currentBet / 200)));
       for (let h = 0; h < count; h++) {
         const chip = new THREE.Mesh(chipGeo, mats);
         chip.position.set(
-          -0.75 + (Math.random() - 0.5) * 0.003,
+          heroChipX + (Math.random() - 0.5) * 0.003,
           chipHeight / 2 + h * chipHeight,
           heroZ + (Math.random() - 0.5) * 0.003
         );
@@ -1629,8 +1657,8 @@ class Poker3DExperience {
       if (this.activeBotIndices.includes(i - 1) && bot && bot.currentBet > 0) {
         const theta = this.thetas[i - 1];
         const Rx = 2.60;
-        const chipX = Math.cos(theta + 0.35) * Rx * 0.68;
-        const chipZ = Math.sin(theta + 0.35) * Rz * 0.68;
+        const chipX = portrait && P.bots[i - 1] ? P.bots[i - 1].chips[0] : Math.cos(theta + 0.35) * Rx * 0.68;
+        const chipZ = portrait && P.bots[i - 1] ? P.bots[i - 1].chips[1] : Math.sin(theta + 0.35) * Rz * 0.68;
         const chipColor = (i % 2 === 0) ? '#16a34a' : '#2563eb';
         const mats = this.getChipMaterials(chipColor);
         const count = Math.min(5, Math.max(1, Math.ceil(bot.currentBet / 200)));
@@ -2165,16 +2193,16 @@ class Poker3DExperience {
     this.portraitMode = aspect < 0.85;
 
     if (this.portraitMode) {
-      // Portrait smartphone : caméra presque à la verticale, resserrée sur les cartes
-      // (cartes communes + main du joueur). Les plaques des adversaires sont ramenées
-      // au-dessus du tapis (voir updateHTMLNameplatesPosition).
+      // Portrait smartphone : vraie table ovale verticale, vue presque de dessus.
+      // Toute la table tient à l'écran, entre le bandeau du haut et le panneau d'actions.
       const fov = 50;
-      const halfW = 1.5; // demi-largeur visible au niveau du tapis
-      const dist = halfW / (aspect * Math.tan((fov / 2) * Math.PI / 180));
-      const tilt = 0.3;  // inclinaison depuis la verticale (rad)
+      const ppu = Math.max(40, Math.min(width / 3.7, (height - 330) / 5.0)); // pixels par unité 3D
+      const dist = height / (2 * ppu * Math.tan((fov / 2) * Math.PI / 180));
+      const tilt = 0.18;
+      const tz = 80 / ppu; // remonte la table pour la centrer entre le haut et le bas
       this.camera.fov = fov;
-      this.camera.position.set(0, dist * Math.cos(tilt), 0.25 + dist * Math.sin(tilt));
-      this.camera.lookAt(0, 0, 0.25);
+      this.camera.position.set(0, dist * Math.cos(tilt), tz + dist * Math.sin(tilt));
+      this.camera.lookAt(0, 0, tz);
     } else {
       // PC & Mode Paysage
       this.camera.fov = 46;
@@ -2186,22 +2214,64 @@ class Poker3DExperience {
     this.camera.updateProjectionMatrix();
   }
 
-  // Cartes de la table plus grandes en portrait (mises en page distinctes bureau / téléphone)
+  // Disposition portrait (téléphone) : positions sur la table verticale, en unités 3D
+  static get PORTRAIT() {
+    return {
+      heroZ: 1.55, heroX: 0.42, heroScale: 1.25,
+      boardZ: 0, boardSpacing: 0.5, boardScale: 1.1,
+      potZ: -0.8, heroChip: [0, 0.8],
+      // pour chaque bot : plaque [côté, z du bas de la plaque], cartes [x, z], jetons de mise [x, z]
+      bots: [
+        { plate: [-1, 0.95],  cards: [-1.15, 1.3],   chips: [-0.3, 0.75] },
+        { plate: [-1, -1.0],  cards: [-1.15, -0.65], chips: [-0.55, -0.95] },
+        { plate: [0, -1.75],  cards: [0, -1.4],      chips: [0.45, -1.3] },
+        { plate: [1, -1.0],   cards: [1.15, -0.65],  chips: [0.55, -0.95] },
+        { plate: [1, 0.95],   cards: [1.15, 1.3],    chips: [0.3, 0.75] }
+      ]
+    };
+  }
+
+  // Cartes de la table : mises en page distinctes bureau / téléphone
   applyCardLayout(portrait) {
     const key = portrait ? 'p' : 'd';
-    if (this._cardLayout === key) return;
+    if (!this.tableGroupPortrait || this._cardLayout === key) return; // scène pas encore construite
     this._cardLayout = key;
-    const boardScale = portrait ? 1.3 : 1;
-    const spacing = portrait ? 0.56 : 0.44;
+    const P = Poker3DExperience.PORTRAIT;
+
+    if (this.tableGroup) this.tableGroup.visible = !portrait;
+    if (this.tableGroupPortrait) this.tableGroupPortrait.visible = !!portrait;
+
     (this.communityCardMeshes || []).forEach((m, i) => {
-      m.scale.setScalar(boardScale);
-      m.position.x = (i - 2) * spacing;
+      if (portrait) {
+        m.scale.setScalar(P.boardScale);
+        m.position.x = (i - 2) * P.boardSpacing;
+        m.position.z = P.boardZ;
+      } else {
+        m.scale.setScalar(1);
+        m.position.x = (i - 2) * 0.44;
+        m.position.z = 0.05;
+      }
     });
-    const heroScale = portrait ? 1.3 : 1;
-    const heroX = portrait ? 0.4 : 0.22;
     (this.heroCards || []).forEach((m, i) => {
-      m.scale.setScalar(heroScale);
-      m.position.x = i === 0 ? -heroX : heroX;
+      const x = portrait ? P.heroX : 0.22;
+      m.scale.setScalar(portrait ? P.heroScale : 1);
+      m.position.x = i === 0 ? -x : x;
+      m.position.z = portrait ? P.heroZ : 1.35 * 0.62;
+    });
+    (this.botCards || []).forEach((pair, i) => {
+      pair.forEach((m, k) => {
+        if (!m._desk) return;
+        if (portrait && P.bots[i]) {
+          const c = P.bots[i].cards;
+          m.position.set(c[0] + (k ? 0.07 : -0.07), m._desk.pos.y, c[1]);
+          m.rotation.set(-Math.PI / 2, 0, k ? -0.06 : 0.06);
+          m.scale.setScalar(0.8);
+        } else {
+          m.position.copy(m._desk.pos);
+          m.rotation.copy(m._desk.rot);
+          m.scale.setScalar(1);
+        }
+      });
     });
   }
 
