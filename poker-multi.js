@@ -412,6 +412,22 @@
     @keyframes pmPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.06); } }
     .pm-tile { cursor:pointer; text-align:left; transition:transform .12s, border-color .15s, background .15s; }
     .pm-tile:hover { border-color:#fbbf24; background:rgba(245,158,11,.1); transform:translateY(-2px); }
+    /* le poker est plein écran : on masque l'en-tête du site (il recouvrait le haut de la table et du lobby) */
+    body:has(#view-poker:not(.hidden)) #smartHeader { display: none !important; }
+    /* cartes lisibles en HTML (surtout sur téléphone, où la 3D est trop petite) */
+    #pmCards { position:fixed; left:0; right:0; z-index:44; display:none; justify-content:center; align-items:flex-end; gap:14px; pointer-events:none; padding:0 8px; }
+    #pmCards.show { display:flex; }
+    #pmCards .pm-grp { display:flex; gap:5px; align-items:flex-end; }
+    #pmCards .pm-board .pm-pcard { width:44px; height:62px; font-size:15px; border-radius:6px; }
+    #pmCards .pm-board .pm-pcard .su { font-size:22px; }
+    #pmCards .pm-hand .pm-pcard { width:62px; height:88px; font-size:21px; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.6); }
+    #pmCards .pm-hand .pm-pcard .su { font-size:32px; }
+    .pm-pcard { position:relative; background:#fff; color:#111; font-weight:900; font-family:system-ui,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; border:1px solid #d6d3d1; }
+    .pm-pcard.red { color:#dc2626; }
+    .pm-pcard .rk { position:absolute; top:3px; left:5px; }
+    .pm-pcard.empty { background:rgba(255,255,255,.06); border:1px dashed rgba(255,255,255,.25); box-shadow:none; }
+    @media (min-width: 768px) { #pmCards { display:none !important; } }
+    @media (max-width: 767px) { .poker-hud-overlay { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)) !important; } }
     .pm-seg.on { border-color:#fbbf24; background:rgba(245,158,11,.2); color:#fcd34d; }
   `;
 
@@ -419,6 +435,30 @@
   function fullName(v) {
     const kind = v.maxSeats === 2 ? 'Duel' : v.maxSeats === 4 ? 'Table de 4' : v.maxSeats === 6 ? 'Table de 6' : '';
     return kind ? `${kind} • ${v.name}` : v.name;
+  }
+
+  // cartes en HTML : main du joueur + tapis, bien lisibles
+  function renderCards() {
+    const box = $('pmCards');
+    const root = $('view-poker');
+    if (!box || !root || root.classList.contains('hidden')) return;
+    const g = window.pokerGame;
+    const hero = g && g.players && g.players[0];
+    const hand = hero && !hero.empty && !hero.noCards && Array.isArray(hero.hand) ? hero.hand.filter((c) => c && c.rank) : [];
+    const board = g && Array.isArray(g.communityCards) ? g.communityCards.filter((c) => c && c.rank) : [];
+    if (!hand.length && !board.length) { box.classList.remove('show'); return; }
+    const face = (c) => `<div class="pm-pcard${c.suit === '♥' || c.suit === '♦' ? ' red' : ''}"><span class="rk">${esc(c.rank)}</span><span class="su">${esc(c.suit)}</span></div>`;
+    const slots = [];
+    for (let i = 0; i < 5; i++) slots.push(board[i] ? face(board[i]) : '<div class="pm-pcard empty"></div>');
+    const html = `<div class="pm-grp pm-board">${slots.join('')}</div><div class="pm-grp pm-hand">${hand.map(face).join('')}</div>`;
+    if (box.dataset.h !== html) { box.innerHTML = html; box.dataset.h = html; }
+    box.classList.add('show');
+    // juste au-dessus de la zone des boutons du joueur
+    const hud = $('bottomHudContainer');
+    if (hud) {
+      const r = hud.getBoundingClientRect();
+      box.style.bottom = Math.max(0, window.innerHeight - r.top + 8) + 'px';
+    }
   }
 
   function buildDom(view) {
@@ -502,6 +542,10 @@
     readyBox.id = 'pmReadyBox';
     readyBox.innerHTML = '<button id="pmReadyBtn" onclick="PokerMulti.ready()">👍 Je suis prêt</button><div id="pmReadyHint"></div>';
     root.appendChild(readyBox);
+    const cards = document.createElement('div');
+    cards.id = 'pmCards';
+    root.appendChild(cards);
+    setInterval(renderCards, 300);
 
     // bouton « Salons » dans la barre du haut
     const topButtons = root.querySelector('.hud-interactive button[title="Options de Table & Blindes"]');
