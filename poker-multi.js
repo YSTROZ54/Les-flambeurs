@@ -583,16 +583,6 @@
       b.onclick = () => PM.openLobbyFromTable();
       topButtons.parentElement.insertBefore(b, topButtons);
     }
-    // bouton de changement de vue (PC) : 3e personne / 1re personne (touche V)
-    if (topButtons && topButtons.parentElement && !$('pokerViewBtn')) {
-      const v = document.createElement('button');
-      v.id = 'pokerViewBtn';
-      v.title = 'Changer de vue (V) — clic maintenu + glisser pour regarder autour';
-      v.className = 'hidden md:flex px-2.5 sm:px-3 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-300 text-xs font-bold transition items-center gap-1 shadow-md';
-      v.innerHTML = '<span>👁️</span> <span class="pv-label">3e pers.</span>';
-      v.onclick = () => window.pokerExp && window.pokerExp.toggleViewMode();
-      topButtons.parentElement.insertBefore(v, topButtons);
-    }
   }
 
   /* ----------------------------------------------------------------------- */

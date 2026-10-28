@@ -1211,16 +1211,16 @@ class Poker3DExperience {
     skirtOuter.lineTo(-straightLen / 2, -skR);
     skirtOuter.absarc(-straightLen / 2, 0, skR, -Math.PI / 2, Math.PI / 2, true);
     const skirtMat = new THREE.MeshStandardMaterial({ color: 0x1b100a, roughness: 0.5, metalness: 0.08 });
-    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 0.75, bevelEnabled: false }), skirtMat);
+    const skirt = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 1.7, bevelEnabled: false }), skirtMat);
     skirt.rotation.x = -Math.PI / 2;
-    skirt.position.y = -0.8;
+    skirt.position.y = -1.75;
     skirt.castShadow = true;
     skirt.receiveShadow = true;
     this.tableGroup.add(skirt);
     // fine bande dorée au bas du flanc
     const band = new THREE.Mesh(new THREE.ExtrudeGeometry(skirtOuter, { depth: 0.05, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xb08d3c, roughness: 0.35, metalness: 0.6 }));
     band.rotation.x = -Math.PI / 2;
-    band.position.y = -0.83;
+    band.position.y = -0.2;
     band.scale.set(0.99, 0.99, 1);
     this.tableGroup.add(band);
 
@@ -1336,7 +1336,7 @@ class Poker3DExperience {
   // Emplacements noirs des 5 cartes communes, zone du pot et bouton dealer (comme une vraie table)
   buildBoardSlots() {
     const grp = new THREE.Group();
-    const w = 0.78, l = 1.1, r = 0.07;
+    const w = 0.5, l = 0.72, r = 0.05;
     const rr = new THREE.Shape();
     rr.moveTo(-w / 2 + r, -l / 2);
     rr.lineTo(w / 2 - r, -l / 2); rr.quadraticCurveTo(w / 2, -l / 2, w / 2, -l / 2 + r);
@@ -1349,11 +1349,11 @@ class Poker3DExperience {
     for (let i = 0; i < 5; i++) {
       const slot = new THREE.Mesh(new THREE.ShapeGeometry(rr), fill);
       slot.rotation.x = -Math.PI / 2;
-      slot.position.set((i - 2) * 0.8, 0.004, 0.05);
+      slot.position.set((i - 2) * 0.58, 0.004, 0.05);
       grp.add(slot);
       const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
       edge.rotation.x = -Math.PI / 2;
-      edge.position.set((i - 2) * 0.8, 0.006, 0.05);
+      edge.position.set((i - 2) * 0.58, 0.006, 0.05);
       grp.add(edge);
     }
     // zone du pot devant le croupier
@@ -1606,7 +1606,7 @@ class Poker3DExperience {
     const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true });
     dealer.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    dealer.position.set(0, -0.3, -(outer + 0.55));
+    dealer.position.set(0, -0.3, -(outer + 0.4));
     dealer.userData.phase = 0.4;
     dealer.userData.isDealer = true;
     this.scene.add(dealer);
@@ -1623,7 +1623,7 @@ class Poker3DExperience {
     const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 });
     hero.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.18 + 0.38 + 0.08;
-    hero.position.set(0, -0.3, outer + 0.55);
+    hero.position.set(0, -0.3, outer + 0.4);
     hero.rotation.y = Math.PI;
     hero.userData.phase = 2.1;
     hero.userData.isHero = true;
@@ -1710,7 +1710,7 @@ class Poker3DExperience {
     this.thetas.forEach((theta, i) => {
       const p = new THREE.Vector3(Math.cos(theta) * 4.2, 0, Math.sin(theta) * 3);
       const c = new THREE.Vector3(Math.max(-halfStraight, Math.min(halfStraight, p.x)), 0, 0);
-      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.55));
+      const pos = c.clone().add(p.sub(c).normalize().multiplyScalar(outer + 0.4));
       const player = this.createSeatedPlayer(looks[i % looks.length]);
       player.scale.setScalar(pos.z > 0 ? 0.5 : 0.62); // les sièges proches de la caméra sont un peu plus petits
       player.position.set(pos.x, SEAT_Y, pos.z);
@@ -2709,8 +2709,8 @@ class Poker3DExperience {
         m.position.z = P.boardZ;
       } else {
         // PC : grandes cartes posées dans leurs emplacements
-        m.scale.setScalar(1.9);
-        m.position.x = (i - 2) * 0.8;
+        m.scale.setScalar(1.3);
+        m.position.x = (i - 2) * 0.58;
         m.position.z = 0.05;
       }
     });
@@ -2783,11 +2783,6 @@ class Poker3DExperience {
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('dblclick', () => { this.viewYaw = 0; this.viewPitch = 0; this.handleResize(); });
-    window.addEventListener('keydown', (e) => {
-      if ((e.key === 'v' || e.key === 'V') && !/INPUT|TEXTAREA/.test((e.target || {}).tagName || '') && el.offsetParent) {
-        this.toggleViewMode();
-      }
-    });
   }
 
   setupEventListeners() {
