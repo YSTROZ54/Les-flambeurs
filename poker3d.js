@@ -1501,117 +1501,9 @@ class Poker3DExperience {
     return mesh;
   }
 
-  // Un joueur assis, de face vers +Z local. Retourne le groupe (origine = centre de l'assise).
-  createSeatedPlayer(look, floorLocal = -2.85) {
-    const std = (color, rough = 0.7, metal = 0.02) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
-    const skin = std(look.skin, 0.55);
-    const shirt = std(look.shirt, 0.65);
-    const hairMat = std(look.hair, 0.45);
-    const dark = std(0x16161c, 0.5);
-    const g = new THREE.Group();
-    const add = (mesh, parent = g) => { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; };
-
-    // Chaise : assise ronde + dossier arrondi
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 28), std(0x2a1d14, 0.4, 0.1)));
-    const back = add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.4, 0.14), std(0x2a1d14, 0.4, 0.1)));
-    back.position.set(0, 0.8, -0.62);
-    // Pied de chaise : colonne + base à 5 branches avec roulettes (le sol est à y = -1.47 en local)
-    const metal = std(0x15151a, 0.35, 0.55);
-    const stemLen = -0.06 - floorLocal;
-    const stem = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, stemLen, 14), metal));
-    stem.position.y = -0.06 - stemLen / 2;
-    for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * Math.PI * 2 + 0.3;
-      const leg = add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.09), metal));
-      leg.position.set(Math.cos(a) * 0.31, floorLocal + 0.09, Math.sin(a) * 0.31);
-      leg.rotation.y = -a;
-      const wheel = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), metal));
-      wheel.position.set(Math.cos(a) * 0.6, floorLocal + 0.07, Math.sin(a) * 0.6);
-    }
-
-    // Bassin, cuisses et jambes (pantalon) : le joueur n'a plus le bas du corps « coupé » net
-    const pants = std(0x15161d, 0.7);
-    const pelvis = add(new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.44, 0.34, 24), pants));
-    pelvis.position.set(0, 0.14, -0.08);
-    pelvis.scale.z = 0.85;
-    const shinLen = 0.2 - (floorLocal + 0.14);
-    [-1, 1].forEach((s) => {
-      const thigh = add(new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.24, 0.86), pants));
-      thigh.position.set(s * 0.22, 0.17, 0.32);
-      const shin = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, shinLen, 0.22), pants));
-      shin.position.set(s * 0.22, 0.2 - shinLen / 2, 0.7);
-      const shoe = add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.42), std(0x0b0b0e, 0.4, 0.2)));
-      shoe.position.set(s * 0.22, floorLocal + 0.1, 0.78);
-    });
-
-    // Buste (se balance légèrement quand le joueur respire)
-    const upper = new THREE.Group();
-    upper.position.set(0, 0.06, -0.08);
-    g.add(upper);
-    const torso = add(new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.4, 1.0, 24), shirt), upper);
-    torso.position.y = 0.55;
-    torso.scale.z = 0.72;
-    const shoulders = add(new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 14), shirt), upper);
-    shoulders.position.y = 1.02;
-    shoulders.scale.set(1.05, 0.42, 0.72);
-    const neck = add(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.22, 14), skin), upper);
-    neck.position.y = 1.2;
-    // Col de chemise
-    const collar = add(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.045, 8, 20), std(0xf5f5f4, 0.6)), upper);
-    collar.position.y = 1.14;
-    collar.rotation.x = Math.PI / 2;
-
-    // Tête
-    const head = new THREE.Group();
-    head.position.set(0, 1.52, 0.03);
-    upper.add(head);
-    const skull = add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 20), skin), head);
-    skull.scale.set(0.95, 1.12, 1);
-    const hair = add(new THREE.Mesh(new THREE.SphereGeometry(0.315, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat), head);
-    hair.position.set(0, 0.03, -0.02);
-    hair.scale.set(0.97, 1.12, 1.02);
-    const nose = add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), skin), head);
-    nose.position.set(0, -0.02, 0.3);
-    [-1, 1].forEach((s) => {
-      const eye = add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), dark), head);
-      eye.position.set(s * 0.1, 0.05, 0.27);
-      const ear = add(new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), skin), head);
-      ear.position.set(s * 0.29, -0.01, 0);
-    });
-
-    // Gilet + noeud papillon (croupier)
-    if (look.vest) {
-      const vest = add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.75, 24), std(0x0b0b0f, 0.5)), upper);
-      vest.position.set(0, 0.5, 0.02);
-      vest.scale.z = 0.76;
-      const bow = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.05), std(0xb91c1c, 0.5)), upper);
-      bow.position.set(0, 1.12, 0.2);
-    }
-
-    // Bras (pivot à l'épaule pour pouvoir les animer) : épaule -> coude -> main posée sur le rebord
-    const arms = [];
-    [-1, 1].forEach((s) => {
-      const shoulder = new THREE.Vector3(s * 0.52, 1.02, -0.08);
-      const pivot = new THREE.Group();
-      pivot.position.copy(shoulder);
-      g.add(pivot);
-      const zero = new THREE.Vector3();
-      const elbow = new THREE.Vector3(s * 0.1, -0.4, 0.38);
-      const hand = new THREE.Vector3(-s * 0.18, -0.3, 0.86);
-      pivot.add(this.makeLimb(zero, elbow, 0.12, shirt));
-      pivot.add(this.makeLimb(elbow, elbow.clone().add(hand.clone().sub(elbow)), 0.1, shirt));
-      const h = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 10), skin), pivot);
-      h.position.copy(hand);
-      arms.push(pivot);
-    });
-
-    g.userData = { upper, head, arms };
-    return g;
-  }
-
   // Le croupier : au bout de la table, face à la caméra, avec un geste de distribution
   buildDealer() {
-    const dealer = this.createSeatedPlayer({ skin: 0xe6b996, shirt: 0xf5f5f4, hair: 0x15110e, vest: true }, -2.47);
+    const dealer = this.createSeatedPlayer(Poker3DExperience.DEALER_LOOK, -2.47);
     dealer.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.44;
     dealer.position.set(0, -0.24, -(outer + 0.45));
@@ -1628,7 +1520,7 @@ class Poker3DExperience {
 
   // Le joueur (toi) : vu de dos en vue 3e personne, il tourne la tête avec ta vue
   buildHeroFigure() {
-    const hero = this.createSeatedPlayer({ skin: 0xd9a574, shirt: 0x1d4ed8, hair: 0x2a1a10 }, -2.47);
+    const hero = this.createSeatedPlayer(Poker3DExperience.HERO_LOOK, -2.47);
     hero.scale.setScalar(0.62);
     const outer = this.options.tableDepth / 2 + 0.44;
     hero.position.set(0, -0.24, outer + 0.45);
@@ -1639,77 +1531,8 @@ class Poker3DExperience {
     this.heroFigure = hero;
   }
 
-  /* ------------------------------------------------------------------------- */
-  /* DÉCOR : SALON DE POKER (PC)                                               */
-  /* ------------------------------------------------------------------------- */
-  buildRoom() {
-    const room = new THREE.Group();
-    const std = (color, rough = 0.8, metal = 0.0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, side: THREE.DoubleSide });
-
-    // Moquette sombre sous la table
-    const carpet = new THREE.Mesh(new THREE.CircleGeometry(7.5, 64), std(0x1a0d12, 0.95));
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = -1.77;
-    carpet.receiveShadow = true;
-    room.add(carpet);
-
-    // Banquette rouge courbe derrière le croupier : assise + dossier
-    const arc = 3.0, start = Math.PI - arc / 2;
-    const seat = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 7.6, 0.8, 64, 1, true, start, arc), std(0x5a0f1c, 0.55));
-    seat.position.y = -1.35;
-    room.add(seat);
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 8.0, 3.2, 64, 1, true, start, arc), std(0x7a1224, 0.6));
-    wall.position.y = 0.1;
-    room.add(wall);
-    const trim = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 8.0, 0.12, 64, 1, true, start, arc), std(0xb08d3c, 0.35, 0.6));
-    trim.position.y = 1.72;
-    room.add(trim);
-
-    // Grandes baies vitrées avec la ville la nuit
-    const cv = document.createElement('canvas');
-    cv.width = 1024; cv.height = 256;
-    const cx = cv.getContext('2d');
-    const grad = cx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#05070f'); grad.addColorStop(1, '#101a2e');
-    cx.fillStyle = grad; cx.fillRect(0, 0, 1024, 256);
-    for (let i = 0; i < 520; i++) {
-      const x = Math.random() * 1024, y = 110 + Math.random() * 146;
-      cx.fillStyle = ['#ffd27a', '#fff1c4', '#9cc4ff', '#ff9d6b'][Math.floor(Math.random() * 4)];
-      cx.globalAlpha = 0.35 + Math.random() * 0.6;
-      cx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
-    }
-    cx.globalAlpha = 1;
-    const cityTex = new THREE.CanvasTexture(cv);
-    const city = new THREE.Mesh(new THREE.PlaneGeometry(40, 10), new THREE.MeshBasicMaterial({ map: cityTex, toneMapped: false, fog: false }));
-    city.position.set(0, 3.5, -13);
-    room.add(city);
-
-    // Grosse lampe suspendue au-dessus de la table
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff6e0, toneMapped: false, fog: false }));
-    lamp.position.set(0, 5.2, -0.5);
-    room.add(lamp);
-    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 3, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-    cord.position.set(0, 7.2, -0.5);
-    room.add(cord);
-
-    // Un peu de lumière chaude pour le décor
-    const warm = new THREE.PointLight(0xff8a70, 0.9, 16, 1.6);
-    warm.position.set(0, 2.2, -6.5);
-    room.add(warm);
-
-    this.roomGroup = room;
-    this.scene.add(room);
-  }
-
   buildSeatedPlayers() {
-    // look : teint, chemise, cheveux (un style par adversaire)
-    const looks = [
-      { skin: 0xe0ac86, shirt: 0x1f6f50, hair: 0x2b1b12 },
-      { skin: 0xf1c9a5, shirt: 0x6d28d9, hair: 0x111111 },
-      { skin: 0x8d5a3b, shirt: 0xb91c1c, hair: 0x0f0f0f },
-      { skin: 0xd9a066, shirt: 0x0f4c81, hair: 0x6b4423 },
-      { skin: 0xf0c8a0, shirt: 0x111827, hair: 0xb89547 }
-    ];
+    const looks = Poker3DExperience.PLAYER_LOOKS; // apparences définies dans poker3d-scene.js
     const SEAT_Y = -0.24;
     const halfStraight = (this.options.tableWidth - this.options.tableDepth) / 2;
     const outer = this.options.tableDepth / 2 + 0.44;
