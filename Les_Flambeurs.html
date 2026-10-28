@@ -235,11 +235,11 @@
       </button>
 
       <!-- Blind Test -->
-      <button onclick="handleBlindTestClick()" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Blind Test (MàJ)">
-        <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🎵</span>
+      <button onclick="handleBlindTestClick()" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Blind Test">
+        <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🎬</span>
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Blind Test</span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-bold border border-fuchsia-400/30 ml-1">MàJ</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-400/30 ml-1">Nouveau</span>
         </div>
       </button>
 
@@ -357,8 +357,8 @@
         <button onclick="switchRoom('blackjack')" id="nav-blackjack" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🃏 Blackjack</button>
         <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🥤 Gobelets</button>
         <button onclick="handleBlindTestClick()" id="nav-blindtest" class="px-2.5 py-1.5 rounded-full font-medium text-fuchsia-300 hover:text-white flex items-center gap-1.5 transition">
-          <span>🎵 Blind Test</span>
-          <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold">(MàJ)</span>
+          <span>🎬 Blind Test</span>
+          <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold">Nouveau</span>
         </button>
         <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white">🛒 Boutique</button>
         <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white">🏦 Banque</button>
@@ -568,28 +568,28 @@
             </button>
           </div>
 
-          <!-- 8. BLIND TEST (FUTUR MISE À JOUR) -->
+          <!-- 8. BLIND TEST D'IMAGES -->
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/95 via-[#130722]/95 to-black border border-fuchsia-500/40 hover:border-fuchsia-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
             <div class="absolute -top-10 -right-10 w-28 h-28 bg-fuchsia-500/10 rounded-full blur-2xl pointer-events-none"></div>
             <div>
               <div class="flex items-center justify-between">
                 <span class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-bold flex items-center gap-1">
-                  <span>🎵</span> <span>Musique &amp; Réflexes</span>
+                  <span>🎬</span> <span>Films, dessins animés &amp; séries</span>
                 </span>
-                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
-                  ( Futur mise à jour )
+                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-extrabold border border-emerald-400/40">
+                  Nouveau
                 </span>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-fuchsia-100 mt-3 flex items-center gap-2">
                 <span>Blind Test</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-sans font-bold border border-fuchsia-400/30">Bientôt</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 font-sans font-bold border border-fuchsia-400/30">Multi</span>
               </h3>
               <p class="text-xs text-fuchsia-100/80 mt-2 leading-relaxed">
-                Écoute les extraits musicaux, devine le titre ou l'artiste avant tes rivaux et remporte la mise en multi !
+                Retrouve le film, le dessin animé ou la série à partir d'une scène, avant tes rivaux. 20 🪙 par image trouvée, et jouer est gratuit !
               </p>
             </div>
             <button onclick="handleBlindTestClick()" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
-              <span>🎵</span> <span>Jouer au Blind Test (futur mise à jour)</span>
+              <span>🎬</span> <span>Jouer au Blind Test</span>
             </button>
           </div>
 
@@ -1509,47 +1509,147 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 9 : LE BLIND TEST (FUTUR MISE À JOUR)                       -->
+    <!-- VUE 9 : LE BLIND TEST D'IMAGES (films, dessins animés, séries)    -->
     <!-- =============================================================== -->
-    <section id="view-blindtest" class="space-y-6 hidden">
+    <section id="view-blindtest" class="space-y-4 hidden">
       <div class="flex flex-wrap items-center justify-between gap-4 bg-stone-950/90 border border-fuchsia-500/30 rounded-2xl p-4 sm:p-5">
         <div class="flex items-center gap-3">
           <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
           <div>
-            <div class="flex items-center gap-2">
-              <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">🎵 Blind Test</h2>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                ( Futur mise à jour )
-              </span>
-            </div>
-            <p class="text-xs text-fuchsia-300">Reconnais le morceau et l'artiste plus vite que tes rivaux pour rafler la cagnotte !</p>
+            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">🎬 Blind Test</h2>
+            <p class="text-xs text-fuchsia-300">Retrouve le film, le dessin animé ou la série à partir d'une scène, plus vite que tes rivaux !</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <span class="text-xs text-stone-300">Solde : <strong class="text-amber-300 font-mono-num" id="btBalance">0</strong> 🪙</span>
           <button onclick="openRulesModal('blindtest')" class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">❓ Comment jouer</button>
         </div>
       </div>
 
-      <div class="rounded-3xl p-8 sm:p-12 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border-2 border-fuchsia-500/40 text-center space-y-6 shadow-2xl relative overflow-hidden">
-        <div class="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-3xl bg-fuchsia-500/20 border-2 border-fuchsia-400/50 flex items-center justify-center text-5xl sm:text-6xl shadow-xl shadow-fuchsia-500/20 animate-pulse">
-          🎧
+      <!-- Accueil : créer ou rejoindre un salon -->
+      <div id="btHome" class="grid md:grid-cols-2 gap-4">
+        <div class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border border-fuchsia-500/40 space-y-3">
+          <h3 class="font-serif-title text-xl font-extrabold text-fuchsia-100">✨ Créer un salon</h3>
+          <p class="text-xs text-stone-300 leading-relaxed">Tu règles le mode, le type d'images et la difficulté, puis tu partages le code à tes amis. <strong class="text-emerald-300">Jouer est gratuit.</strong></p>
+          <button onclick="btCreate()" class="w-full py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-sm transition shadow-lg active:scale-95">✨ Créer un salon</button>
         </div>
-        <div class="max-w-md mx-auto space-y-2">
-          <div class="inline-block text-xs uppercase tracking-widest font-extrabold px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
-            ( Futur mise à jour )
+        <div class="rounded-2xl p-6 bg-stone-950/90 border border-white/10 space-y-3">
+          <h3 class="font-serif-title text-xl font-extrabold text-white">🚪 Rejoindre un salon</h3>
+          <p class="text-xs text-stone-300">Entre le code à 4 lettres donné par le chef du salon.</p>
+          <input id="btJoinCode" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" onkeydown="if(event.key==='Enter')btJoin()" class="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-3 text-center text-2xl font-scifi tracking-[0.5em] uppercase text-white focus:outline-none focus:border-fuchsia-400">
+          <button onclick="btJoin()" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-sm transition active:scale-95">🚪 Rejoindre</button>
+        </div>
+        <div class="md:col-span-2 text-xs text-stone-400 leading-relaxed" id="btHomeNote"></div>
+      </div>
+
+      <!-- Salon d'attente -->
+      <div id="btLobby" class="hidden space-y-4">
+        <div class="rounded-2xl p-4 bg-stone-950/90 border border-fuchsia-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="text-[11px] uppercase tracking-wider text-stone-400">Code du salon</div>
+            <div id="btCodeBig" class="font-scifi text-4xl tracking-[0.3em] text-fuchsia-300">----</div>
           </div>
-          <h3 class="font-serif-title text-2xl sm:text-3xl font-extrabold text-white">
-            Le Blind Test arrive bientôt !
-          </h3>
-          <p class="text-sm text-stone-300 leading-relaxed">
-            Ce jeu musical multijoueur est actuellement en cours de préparation par l'administration des Flambeurs. Il sera disponible dans une prochaine mise à jour avec des extraits audio en direct, des buzzers et des duels endiablés !
-          </p>
+          <div class="flex gap-2">
+            <button onclick="btCopyCode()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white">📋 Copier le code</button>
+            <button onclick="btLeave()" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/30 text-xs font-bold text-rose-200">🚪 Quitter</button>
+          </div>
         </div>
-        <div class="pt-2">
-          <button onclick="switchRoom('hall')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:from-fuchsia-400 hover:to-pink-400 text-black font-extrabold text-xs sm:text-sm shadow-lg transition transform active:scale-95 inline-flex items-center gap-2">
-            <span>←</span> <span>Retourner au Hall des Jeux</span>
-          </button>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2 rounded-2xl p-4 bg-stone-950/90 border border-white/10 space-y-4">
+            <div>
+              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Mode de jeu</div>
+              <div class="grid sm:grid-cols-2 gap-2" id="btModeBtns">
+                <button type="button" data-v="all" onclick="btSetCfg('mode','all')" class="bt-opt text-left rounded-xl border px-3 py-2.5 transition"><div class="font-extrabold text-sm">👥 Tous répondent</div><div class="text-[11px] opacity-80 mt-0.5">Tout le monde cherche pendant 20 s. Chaque bonne réponse rapporte un point.</div></button>
+                <button type="button" data-v="first" onclick="btSetCfg('mode','first')" class="bt-opt text-left rounded-xl border px-3 py-2.5 transition"><div class="font-extrabold text-sm">⚡ Le premier gagne</div><div class="text-[11px] opacity-80 mt-0.5">Le premier qui écrit le bon nom gagne le point, puis on passe à l'image suivante.</div></button>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Type d'images</div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="btCatBtns">
+                <button type="button" data-v="all" onclick="btSetCfg('cat','all')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🎲 Tout mélanger</button>
+                <button type="button" data-v="film" onclick="btSetCfg('cat','film')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🎬 Films</button>
+                <button type="button" data-v="dessin" onclick="btSetCfg('cat','dessin')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🎨 Dessins animés</button>
+                <button type="button" data-v="serie" onclick="btSetCfg('cat','serie')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">📺 Séries</button>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Difficulté</div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="btDiffBtns">
+                <button type="button" data-v="all" onclick="btSetCfg('diff','all')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🎲 Tout mélanger</button>
+                <button type="button" data-v="f" onclick="btSetCfg('diff','f')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🟢 Facile</button>
+                <button type="button" data-v="m" onclick="btSetCfg('diff','m')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🟡 Moyen</button>
+                <button type="button" data-v="d" onclick="btSetCfg('diff','d')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">🔴 Difficile</button>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="text-[11px] uppercase tracking-wider text-stone-400" for="btRounds">Nombre d'images</label>
+              <select id="btRounds" onchange="btSetCfg('rounds', this.value)" class="bg-black/60 border border-white/15 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-fuchsia-400">
+                <option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option>
+              </select>
+              <span id="btAvail" class="text-xs text-stone-300"></span>
+            </div>
+            <div id="btConfigNote" class="text-[11px] text-stone-400"></div>
+          </div>
+          <div class="rounded-2xl p-4 bg-stone-950/90 border border-white/10 space-y-3">
+            <h3 class="font-serif-title text-lg font-extrabold text-white">👥 Joueurs <span id="btPlayerCount" class="text-xs text-stone-400 font-sans"></span></h3>
+            <div id="btLobbyPlayers" class="space-y-1.5"></div>
+            <div id="btRewardNote" class="text-[11px] leading-relaxed"></div>
+            <button id="btStartBtn" onclick="btStart()" class="hidden w-full py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 text-black font-extrabold text-sm transition shadow-lg active:scale-95 disabled:opacity-40">▶ Lancer la partie</button>
+            <div id="btWaitMsg" class="hidden text-center text-xs text-stone-300">⏳ En attente du chef du salon…</div>
+          </div>
         </div>
+      </div>
+
+      <!-- Partie en cours -->
+      <div id="btGame" class="hidden space-y-3">
+        <div class="rounded-2xl p-3 bg-stone-950/90 border border-fuchsia-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span id="btRoundLabel" class="font-scifi text-sm text-fuchsia-300">Image 1/15</span>
+            <span id="btModeLabel" class="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-stone-300"></span>
+          </div>
+          <div id="btRewardLabel" class="text-xs text-amber-300"></div>
+          <div id="btTimerText" class="font-mono-num text-2xl font-extrabold text-white">20</div>
+        </div>
+        <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div id="btTimerBar" class="h-full bg-gradient-to-r from-fuchsia-500 to-pink-400" style="width:100%"></div></div>
+        <div class="grid lg:grid-cols-3 gap-3">
+          <div class="lg:col-span-2 space-y-3">
+            <div class="relative rounded-2xl overflow-hidden bg-black border border-white/10 aspect-video flex items-center justify-center select-none">
+              <img id="btImage" class="w-full h-full object-contain hidden" alt="Scène à deviner" draggable="false" oncontextmenu="return false">
+              <div id="btCountdown" class="absolute inset-0 hidden flex items-center justify-center bg-black/85 text-center">
+                <div><div class="text-sm text-fuchsia-300">La partie commence dans</div><div id="btCountdownNum" class="font-scifi text-7xl font-black text-white">4</div></div>
+              </div>
+              <div id="btReveal" class="absolute inset-x-0 bottom-0 hidden p-4 bg-gradient-to-t from-black via-black/90 to-transparent">
+                <div class="text-xs text-stone-300">C'était…</div>
+                <div id="btAnswer" class="font-serif-title text-2xl font-extrabold text-amber-300"></div>
+                <div id="btWinners" class="text-xs text-stone-200 mt-1"></div>
+              </div>
+            </div>
+            <form id="btForm" onsubmit="return btSubmit(event)" class="flex gap-2">
+              <input id="btInput" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120" placeholder="Écris le titre en entier…" class="flex-1 min-w-0 bg-black/60 border border-white/15 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-fuchsia-400 disabled:opacity-50">
+              <button id="btSend" type="submit" class="px-5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 text-black font-extrabold text-sm active:scale-95 disabled:opacity-40">Valider</button>
+            </form>
+            <div id="btHint" class="min-h-[1.5rem] text-sm"></div>
+          </div>
+          <div class="rounded-2xl p-4 bg-stone-950/90 border border-white/10">
+            <h3 class="font-serif-title text-lg font-extrabold text-white mb-2">🏅 Classement</h3>
+            <div id="btScoreList" class="space-y-1.5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fin de partie -->
+      <div id="btEnd" class="hidden space-y-4">
+        <div class="rounded-3xl p-6 bg-gradient-to-br from-[#241038]/90 via-[#130722]/90 to-black border-2 border-fuchsia-500/40 text-center space-y-2">
+          <div class="text-5xl">🏆</div>
+          <h3 class="font-serif-title text-2xl font-extrabold text-white">Partie terminée !</h3>
+          <div id="btWinnerLine" class="text-sm text-fuchsia-200"></div>
+        </div>
+        <div class="rounded-2xl p-4 bg-stone-950/90 border border-white/10"><div id="btFinalList" class="space-y-2"></div></div>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <button id="btAgainBtn" onclick="btAgain()" class="hidden px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 text-black font-extrabold text-sm active:scale-95">🔁 Rejouer avec les mêmes joueurs</button>
+          <button onclick="btLeave()" class="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-sm active:scale-95">🚪 Quitter le salon</button>
+        </div>
+        <div id="btEndWait" class="hidden text-center text-xs text-stone-300">⏳ Le chef du salon peut relancer une partie.</div>
       </div>
     </section>
 
@@ -3564,7 +3664,7 @@
       window.fetch = function (input, init) {
         try {
           const url = typeof input === 'string' ? input : (input && input.url) || '';
-          if (/\/api\/(blackjack|crash|poker)/.test(url)) {
+          if (/\/api\/(blackjack|crash|poker|blindtest)/.test(url)) {
             const t = getAuthToken();
             if (t) init = { ...(init || {}), headers: { ...((init && init.headers) || {}), 'X-Auth-Token': t } };
           }
@@ -5106,13 +5206,12 @@
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
       scratch: '/ Grattage',
-      blindtest: '/ Blind Test (futur mise à jour)',
+      blindtest: '/ Blind Test',
       shop: '/ Boutique', bank: '/ La Banque'
     };
     let currentRoomKey = 'hall';
 
     function handleBlindTestClick() {
-      showToast('🎵 Blind Test : ( futur mise à jour ) !');
       switchRoom('blindtest');
     }
 
@@ -5200,6 +5299,7 @@
         startCrashAnimLoop();
         drawCrashScene(false);
       }
+      if (room === 'blindtest' && typeof btOnEnter === 'function') btOnEnter();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -5266,11 +5366,13 @@
         `
       },
       blindtest: {
-        title: '🎵 Comment jouer au Blind Test ?',
+        title: '🎬 Comment jouer au Blind Test ?',
         html: `
-          <p>🎯 <strong>Le but :</strong> Écouter les extraits audio en direct et trouver le titre du morceau ou l\'artiste avant tes adversaires !</p>
-          <p>⚡ <strong>Rapidité &amp; Réflexes :</strong> Plus vite tu buzzes et réponds correctement, plus tu empoches de points et de gains !</p>
-          <p>⏳ <strong>Disponibilité :</strong> Ce jeu musical est actuellement en cours de finalisation et arrive dans une <strong>futur mise à jour</strong> !</p>
+          <p>🎯 <strong>Le but :</strong> Retrouver le nom du film, du dessin animé ou de la série à partir d'une scène.</p>
+          <p>🚪 <strong>Salon :</strong> Crée un salon (gratuit) et donne le code à 4 lettres à tes amis, ou rejoins le leur. Le chef du salon choisit le mode, le type d'images, la difficulté et le nombre d'images (15 à 20).</p>
+          <p>⚡ <strong>Deux modes :</strong> « Tous répondent » : tout le monde cherche pendant 20 secondes, chaque bonne réponse rapporte un point. « Le premier gagne » : le premier qui écrit le bon nom gagne le point et on passe à l'image suivante.</p>
+          <p>✍️ <strong>Écrire le nom :</strong> les accents, majuscules, tirets et numéros de suite ne comptent pas (Spider-Man 3 → « spider man »), mais il faut écrire le titre en entier (« Le Roi Lion », pas « Lion »). Si tu es tout près, un message te le dit !</p>
+          <p>💰 <strong>Gains :</strong> 20 🪙 par image trouvée (en « Le premier gagne », seul le premier est payé), à partir de 2 joueurs. Seul, c'est de l'entraînement sans gains.</p>
         `
       }
     };
@@ -12376,6 +12478,254 @@
         try { handlePlayerLeavingGame(currentRoomKey); } catch (e) {}
       }
     });
+
+    /* ================= BLIND TEST D'IMAGES : MULTIJOUEUR, SERVEUR AUTORITAIRE (api/blindtest.js) =================
+       Le serveur garde les réponses, le chrono et les points : ici on affiche seulement l'état reçu. */
+    const BT = { code: '', st: null, offset: 0, polling: false, sending: false, screen: '', shownRound: -1, shownPhase: '', imgSrc: '', hintTimer: null };
+    const BT_KEY = 'flambeurs_blindtest_code';
+    const btEl = (id) => document.getElementById(id);
+    const BT_ON = 'border-fuchsia-400 bg-fuchsia-500/20 text-white';
+    const BT_OFF = 'border-white/10 bg-black/40 text-stone-300 hover:bg-white/10';
+
+    function btUrl() {
+      return (window.location && window.location.protocol === 'file:') ? 'http://localhost:8080/api/blindtest' : '/api/blindtest';
+    }
+    async function btCall(payload) {
+      let r, data = {};
+      try {
+        r = await fetch(btUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatar: getCrashCurrentAvatar(), ...payload }) });
+        try { data = await r.json(); } catch (e) {}
+      } catch (e) { return { ok: false, status: 0, data: { error: 'Serveur injoignable, réessaie.' } }; }
+      if (typeof data.balance === 'number') {
+        state.balance = data.balance; state.lastBalanceChange = Date.now(); saveState();
+        try { updateGlobalUI(); } catch (e) {}
+      }
+      if (r.status === 401) { try { handleAuthExpired(); } catch (e) {} }
+      return { ok: r.ok && data.ok !== false, status: r.status, data };
+    }
+    function btNeedLogin() {
+      if (typeof isUserLoggedIn === 'function' && !isUserLoggedIn()) { showToast('🔐 Connecte-toi pour jouer au Blind Test.'); return true; }
+      return false;
+    }
+    function btRemember(code) { BT.code = code || ''; try { if (code) sessionStorage.setItem(BT_KEY, code); else sessionStorage.removeItem(BT_KEY); } catch (e) {} }
+    function btShow(screen) {
+      BT.screen = screen;
+      ['Home', 'Lobby', 'Game', 'End'].forEach((s) => { const e = btEl('bt' + s); if (e) e.classList.toggle('hidden', s.toLowerCase() !== screen); });
+    }
+    function btReset(msg) {
+      btRemember(''); BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = '';
+      btShow('home'); if (msg) showToast(msg);
+    }
+
+    function btOnEnter() {
+      const bal = btEl('btBalance'); if (bal) bal.textContent = fmt(state.balance);
+      const note = btEl('btHomeNote');
+      if (note) note.innerHTML = '💰 Chaque image trouvée rapporte <strong class="text-amber-300">20 🪙</strong> (en « Le premier gagne », seul le premier est payé). Les gains sont versés dès qu\'on joue à <strong>2 joueurs ou plus</strong> ; seul, c\'est un entraînement. Écris le titre en entier : les accents, majuscules, tirets et numéros de suite (Spider-Man 3 → « spider man ») ne comptent pas.';
+      if (!BT.code) { try { BT.code = sessionStorage.getItem(BT_KEY) || ''; } catch (e) {} }
+      if (BT.code) { btShow(BT.screen || 'lobby'); btPoll(); } else btShow('home');
+    }
+
+    async function btCreate() {
+      if (btNeedLogin()) return;
+      const r = await btCall({ action: 'create' });
+      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de créer le salon.'));
+      btRemember(r.data.code); btApply(r.data.state);
+    }
+    async function btJoin() {
+      if (btNeedLogin()) return;
+      const code = (btEl('btJoinCode').value || '').toUpperCase().replace(/[^A-Z]/g, '');
+      if (code.length !== 4) return showToast('⚠️ Entre le code à 4 lettres du salon.');
+      const r = await btCall({ action: 'join', code });
+      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de rejoindre.'));
+      btRemember(code); btApply(r.data.state);
+    }
+    async function btLeave() {
+      const code = BT.code; btReset();
+      if (code) await btCall({ action: 'leave', code });
+    }
+    async function btSetCfg(field, value) {
+      if (!BT.st || !BT.st.you || !BT.st.you.host) return;
+      const r = await btCall({ action: 'config', code: BT.code, [field]: value });
+      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Réglage refusé.'));
+      btApply(r.data.state);
+    }
+    async function btStart() {
+      const r = await btCall({ action: 'start', code: BT.code });
+      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de lancer.'));
+      btApply(r.data.state);
+    }
+    async function btAgain() {
+      const r = await btCall({ action: 'again', code: BT.code });
+      if (!r.ok) return showToast('⚠️ ' + (r.data.error || 'Impossible de relancer.'));
+      btApply(r.data.state);
+    }
+    function btCopyCode() {
+      try { navigator.clipboard.writeText(BT.code); showToast('📋 Code copié : ' + BT.code); } catch (e) { showToast('Code du salon : ' + BT.code); }
+    }
+
+    function btHint(text, kind) {
+      const h = btEl('btHint'); if (!h) return;
+      const cls = { ok: 'text-emerald-300', near: 'text-amber-300', bad: 'text-rose-300', info: 'text-stone-300' }[kind || 'info'];
+      h.className = 'min-h-[1.5rem] text-sm font-semibold ' + cls;
+      h.textContent = text || '';
+      clearTimeout(BT.hintTimer);
+      if (text && kind !== 'ok') BT.hintTimer = setTimeout(() => { h.textContent = ''; }, 6000);
+    }
+
+    async function btSubmit(e) {
+      if (e) e.preventDefault();
+      const inp = btEl('btInput'); const text = (inp.value || '').trim();
+      if (!text || BT.sending || !BT.code) return false;
+      BT.sending = true;
+      const r = await btCall({ action: 'guess', code: BT.code, text });
+      BT.sending = false;
+      if (r.data && r.data.state) btApply(r.data.state);
+      if (r.ok && r.data.correct) {
+        inp.value = '';
+        btHint('✅ Bien joué !' + (r.data.reward ? ' +' + r.data.reward + ' 🪙' : ''), 'ok');
+        if (r.data.reward) { try { playCoinWinSound(); } catch (e2) {} showToast('🎉 +' + r.data.reward + ' 🪙 pour cette image !'); }
+      } else if (r.ok) {
+        btHint(r.data.hint || 'Ce n\'est pas ça.', r.data.near ? 'near' : 'bad'); inp.select();
+      } else {
+        btHint(r.data.error || 'Erreur.', 'bad');
+        if (r.status === 404 || r.status === 410) btReset(r.data.error);
+      }
+      return false;
+    }
+
+    async function btPoll() {
+      if (BT.polling || !BT.code) return;
+      BT.polling = true;
+      try {
+        const r = await fetch(btUrl() + '?code=' + encodeURIComponent(BT.code), { cache: 'no-store' });
+        let d = {}; try { d = await r.json(); } catch (e) {}
+        if (r.status === 404 || r.status === 410) btReset(d.error || 'Ce salon n\'existe plus.');
+        else if (d.ok && d.state) btApply(d.state);
+      } catch (e) {} finally { BT.polling = false; }
+    }
+
+    function btApply(st) {
+      if (!st) return;
+      BT.st = st; BT.offset = st.serverNow - Date.now();
+      if (st.you == null && BT.code) { btReset('Tu n\'es plus dans ce salon.'); return; }
+      btRender();
+    }
+
+    const btMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || (rank + '.');
+    function btPlayerRow(p, big) {
+      return '<div class="flex items-center justify-between gap-2 rounded-xl px-3 ' + (big ? 'py-3' : 'py-2') + ' ' + (p.me ? 'bg-fuchsia-500/15 border border-fuchsia-400/40' : 'bg-black/40 border border-white/5') + '">'
+        + '<div class="flex items-center gap-2 min-w-0"><span class="w-6 text-center text-sm">' + btMedal(p.rank) + '</span><span class="text-lg">' + escapeHtml(p.avatar) + '</span>'
+        + '<span class="truncate text-sm font-bold ' + (p.left ? 'text-stone-500 line-through' : 'text-white') + '">' + escapeHtml(p.name) + '</span>'
+        + (p.host ? '<span class="text-[10px] px-1.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">chef</span>' : '') + '</div>'
+        + '<div class="flex items-center gap-2 shrink-0">' + (p.found ? '<span class="text-emerald-300 text-sm" title="a trouvé">✔</span>' : '')
+        + (p.earned ? '<span class="text-[11px] text-amber-300 font-mono-num">+' + fmt(p.earned) + ' 🪙</span>' : '')
+        + '<span class="font-mono-num font-extrabold text-sm text-white">' + p.score + ' pt' + (p.score > 1 ? 's' : '') + '</span></div></div>';
+    }
+
+    function btRender() {
+      const st = BT.st; if (!st) return;
+      const bal = btEl('btBalance'); if (bal) bal.textContent = fmt(state.balance);
+      if (st.status === 'lobby') btRenderLobby(st);
+      else if (st.status === 'playing') btRenderGame(st);
+      else btRenderEnd(st);
+    }
+
+    function btRenderLobby(st) {
+      btShow('lobby');
+      btEl('btCodeBig').textContent = st.code;
+      const host = !!(st.you && st.you.host);
+      const mark = (boxId, val) => document.querySelectorAll('#' + boxId + ' .bt-opt').forEach((b) => {
+        b.className = 'bt-opt ' + (b.className.includes('text-left') ? 'text-left rounded-xl border px-3 py-2.5 transition ' : 'rounded-xl border px-2 py-2 text-xs font-bold transition ') + (b.dataset.v === String(val) ? BT_ON : BT_OFF) + (host ? '' : ' opacity-70 cursor-default');
+        b.disabled = !host;
+      });
+      mark('btModeBtns', st.cfg.mode); mark('btCatBtns', st.cfg.cat); mark('btDiffBtns', st.cfg.diff);
+      const sel = btEl('btRounds'); sel.value = String(st.cfg.rounds); sel.disabled = !host;
+      const n = Math.min(st.cfg.rounds, st.available);
+      btEl('btAvail').innerHTML = st.available < 5
+        ? '<span class="text-rose-300">⚠️ Seulement ' + st.available + ' titre(s) avec ces réglages : élargis le type ou la difficulté.</span>'
+        : n < st.cfg.rounds ? '⚠️ ' + st.available + ' titres disponibles : la partie fera ' + n + ' images.' : st.available + ' titres disponibles.';
+      btEl('btConfigNote').textContent = host ? 'Tu es le chef du salon : tu choisis les réglages, puis tu lances la partie.' : 'Seul le chef du salon (' + st.hostName + ') peut modifier les réglages.';
+      btEl('btPlayerCount').textContent = '(' + st.players.length + '/12)';
+      btEl('btLobbyPlayers').innerHTML = st.players.map((p) => '<div class="flex items-center gap-2 rounded-xl px-3 py-2 ' + (p.me ? 'bg-fuchsia-500/15 border border-fuchsia-400/40' : 'bg-black/40 border border-white/5') + '"><span class="text-lg">' + escapeHtml(p.avatar) + '</span><span class="truncate text-sm font-bold text-white">' + escapeHtml(p.name) + '</span>'
+        + (p.host ? '<span class="text-[10px] px-1.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">chef</span>' : '') + '</div>').join('');
+      const money = st.players.length >= st.rewardMinPlayers;
+      btEl('btRewardNote').innerHTML = money
+        ? '<span class="text-emerald-300">💰 Chaque image trouvée rapporte 20 🪙.</span>'
+        : '<span class="text-amber-300">🧪 Seul, c\'est un entraînement : il faut au moins ' + st.rewardMinPlayers + ' joueurs pour gagner des pièces.</span>';
+      const start = btEl('btStartBtn'); start.classList.toggle('hidden', !host); start.disabled = st.available < 5;
+      btEl('btWaitMsg').classList.toggle('hidden', host);
+    }
+
+    function btRenderGame(st) {
+      btShow('game');
+      const now = Date.now() + BT.offset;
+      const first = st.cfg.mode === 'first';
+      btEl('btRoundLabel').textContent = st.round >= 1 ? 'Image ' + st.round + '/' + st.total : 'Préparation…';
+      btEl('btModeLabel').textContent = (first ? '⚡ Le premier gagne' : '👥 Tous répondent');
+      btEl('btRewardLabel').textContent = st.reward ? '💰 ' + st.reward + ' 🪙 par image trouvée' : '🧪 Entraînement (sans gains)';
+      // image de la manche (le serveur ne la donne qu'au bon moment) + préchargement de la suivante
+      const img = btEl('btImage');
+      if (st.img) { if (BT.imgSrc !== st.img) { BT.imgSrc = st.img; img.src = st.img; } img.classList.remove('hidden'); }
+      else { img.classList.add('hidden'); BT.imgSrc = ''; }
+      if (st.nextImg && BT.preload !== st.nextImg) { BT.preload = st.nextImg; const pre = new Image(); pre.src = st.nextImg; }
+      btEl('btCountdown').classList.toggle('hidden', st.phase !== 'countdown');
+      const reveal = st.phase === 'reveal';
+      btEl('btReveal').classList.toggle('hidden', !reveal);
+      if (reveal) {
+        btEl('btAnswer').textContent = st.answer || '';
+        const w = st.solvedBy || [];
+        btEl('btWinners').innerHTML = w.length
+          ? w.map((x) => (x.first ? '🥇 ' : '✅ ') + '<strong>' + escapeHtml(x.name) + '</strong> (' + (x.ms / 1000).toFixed(1) + ' s)').join(' · ')
+          : '😅 Personne n\'a trouvé.';
+      }
+      // saisie : active seulement pendant la question, tant qu'on n'a pas trouvé
+      const inp = btEl('btInput'), send = btEl('btSend');
+      const can = st.phase === 'question' && !(st.you && st.you.found);
+      inp.disabled = !can; send.disabled = !can;
+      if (st.round !== BT.shownRound || st.phase !== BT.shownPhase) {
+        if (st.phase === 'question') { inp.value = ''; btHint('', 'info'); setTimeout(() => { try { inp.focus(); } catch (e) {} }, 50); }
+        if (reveal && st.you && st.you.found) btHint('✅ Tu as trouvé !', 'ok');
+        else if (reveal) btHint('', 'info');
+        BT.shownRound = st.round; BT.shownPhase = st.phase;
+      }
+      if (st.phase === 'question' && st.you && st.you.found) btHint('✅ Trouvé ! Attends la fin de la manche…', 'ok');
+      btEl('btScoreList').innerHTML = st.players.map((p) => btPlayerRow(p, false)).join('');
+      btTick();
+    }
+
+    function btRenderEnd(st) {
+      btShow('end');
+      const top = st.players[0];
+      const best = st.players.filter((p) => p.score === top.score);
+      btEl('btWinnerLine').innerHTML = top.score === 0 ? 'Personne n\'a trouvé de titre… 😅'
+        : (best.length > 1 ? 'Égalité entre ' + best.map((p) => '<strong>' + escapeHtml(p.name) + '</strong>').join(' et ') : '🥇 <strong>' + escapeHtml(top.name) + '</strong> remporte la partie')
+          + ' avec ' + top.score + ' bonne' + (top.score > 1 ? 's' : '') + ' réponse' + (top.score > 1 ? 's' : '') + ' sur ' + st.total + ' !';
+      btEl('btFinalList').innerHTML = st.players.map((p) => btPlayerRow(p, true)).join('');
+      const host = !!(st.you && st.you.host);
+      btEl('btAgainBtn').classList.toggle('hidden', !host); btEl('btEndWait').classList.toggle('hidden', host);
+    }
+
+    // chrono affiché : calculé avec l'horloge du serveur (le vrai chrono reste côté serveur)
+    function btTick() {
+      const st = BT.st; if (!st || st.status !== 'playing' || BT.screen !== 'game') return;
+      const now = Date.now() + BT.offset;
+      const left = Math.max(0, st.phaseEnd - now);
+      const txt = btEl('btTimerText'), bar = btEl('btTimerBar');
+      if (st.phase === 'countdown') {
+        btEl('btCountdownNum').textContent = Math.max(1, Math.ceil(left / 1000));
+        txt.textContent = '…'; bar.style.width = '100%';
+      } else if (st.phase === 'question') {
+        const s = Math.ceil(left / 1000);
+        txt.textContent = s; txt.className = 'font-mono-num text-2xl font-extrabold ' + (s <= 5 ? 'text-rose-400' : 'text-white');
+        bar.style.width = Math.min(100, left / st.questionMs * 100) + '%';
+      } else {
+        txt.textContent = '⏭ ' + Math.ceil(left / 1000); txt.className = 'font-mono-num text-2xl font-extrabold text-stone-300';
+        bar.style.width = '0%';
+      }
+    }
+
+    setInterval(() => { if (currentRoomKey === 'blindtest' && BT.code) btPoll(); }, 700);
+    setInterval(() => { if (currentRoomKey === 'blindtest') btTick(); }, 100);
   </script>
 </body>
 </html>

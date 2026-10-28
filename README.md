@@ -10,6 +10,7 @@ Application web complète de casino virtuel entre potes, conçue avec une interf
 - **🚀 Fusée Crash :** Encaissez avant que le multiplicateur n'explose en vol.
 - **🍒 Machine à Sous (Slots) :** Machine à rouleaux avec jackpot x500 et bonus.
 - **💣 La Chambre Forte (Mines) :** Grille 5x5 avec choix du nombre de bombes et cashout sécurisé.
+- **🎬 Blind Test d'images :** Retrouver le film, le dessin animé ou la série à partir d'une scène, en salon multijoueur (code à 4 lettres). Gratuit, 20 🪙 par image trouvée (à partir de 2 joueurs). Voir « Blind Test » plus bas.
 
 ## 🏢 Économie & Fonctionnalités
 - **La Banque du Club :** Système de virements entre vrais joueurs enregistrés et historique des transactions.
@@ -71,3 +72,11 @@ Tests : `ACCOUNTS_STORAGE=memory POKER_STORAGE=memory node --test tests/` (serve
 - **Jeu des gobelets** : jeu d'adresse, un robot peut le jouer ; la mise est donc plafonnée (250 €).
 - **Un mur d'écriture « si personne n'a modifié »** (`data->>_ver`) n'a pas pu être testé contre le vrai Supabase hors ligne : si la base le refuse, le serveur retombe sur une écriture simple (un avertissement apparaît dans les logs Vercel).
 - Poker/blackjack/crash multijoueurs gardent leurs tables dans Supabase (écriture « dernier arrivé gagne » sur la table de jeu, pas sur l'argent, qui lui est protégé par des clés uniques).
+
+## 🎬 Blind Test (architecture)
+- `api/blindtest.js` : salons (ligne réservée `__bt_<CODE>`), serveur autoritaire comme le Crash : le chrono (20 s par image), les points et les gains sont décidés côté serveur. Les **réponses acceptées ne quittent jamais le serveur** ; le navigateur ne reçoit que l'image de la manche en cours (nom de fichier opaque). Le client interroge `GET /api/blindtest?code=XXXX` environ toutes les 0,7 s.
+- Deux modes : « tous répondent » (chacun marque ; la manche s'arrête quand tout le monde a trouvé) et « le premier gagne » (la manche s'arrête dès la première bonne réponse). Le chef du salon règle le mode, le type (films / dessins animés / séries / tout), la difficulté (facile / moyen / difficile / tout) et le nombre d'images (15 à 20, une seule image par titre).
+- Gains : `REWARD` (20 €) par image trouvée, versés par `walletPay` avec une clé unique ; seulement si le salon compte au moins `MIN_REWARD_PLAYERS` (2) joueurs au départ, sinon c'est un entraînement. Jouer ne coûte rien. Constantes en haut de `api/blindtest.js`.
+- Réponses (`api/_blindtestEngine.js`) : casse, accents, ponctuation, espaces et numéros de suite ignorés (« Spider-Man 3 » = « spider man »), mais le titre doit être complet. Un titre « presque juste » donne un message privé (« Tu n'es pas loin… »), jamais la réponse ; délai de 0,5 s entre deux essais et 15 essais maximum par image.
+- Banque d'images : `api/_blindtestData.js` (réponses par titre, catégorie, difficulté) et `blindtest/img/<id>.jpg`. Pour ajouter une image : déposer le JPG dans `blindtest/img/`, puis ajouter une ligne `{ id, key, cat, diff }` dans `BANK` (et les réponses du titre dans `ANSWERS[key]` si le titre est nouveau).
+- Tests : `node --test tests/blindtestEngine.test.mjs tests/blindtestApi.test.mjs`.
