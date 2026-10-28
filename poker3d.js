@@ -1228,7 +1228,7 @@ class Poker3DExperience {
     const backTexture = this.getCardBackTexture();
 
     const edgeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 });
-    const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0 });
+    const frontMat = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0, toneMapped: false });
     const backMat = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.35, metalness: 0.08, transparent: true, opacity: 1.0 });
 
     const materials = [
@@ -1250,7 +1250,7 @@ class Poker3DExperience {
   setCardFace(cardMesh, rank, suit) {
     if (!cardMesh) return;
     const frontTexture = this.getCardFrontTexture(rank, suit);
-    cardMesh.material[4] = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0 });
+    cardMesh.material[4] = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true, opacity: 1.0, toneMapped: false });
     cardMesh.material[4].needsUpdate = true;
     cardMesh.userData = { rank, suit, isFaceDown: false };
   }
@@ -1443,10 +1443,11 @@ class Poker3DExperience {
         .pk-compact .bot-avatar-box { display: none !important; }
         .pk-compact { border-radius: 10px !important; }
         .pk-compact > div > div:first-child { flex-direction: column; align-items: flex-start; gap: 0 !important; }
-        .pk-compact { padding: 2px 6px !important; border-radius: 8px !important; }
-        .pk-compact .bot-name { font-size: 10px !important; max-width: 70px; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
-        .pk-compact .bot-status { font-size: 8px !important; max-width: 70px; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
-        .pk-compact .bot-stack { font-size: 10px !important; line-height: 1.15; }`;
+        .pk-compact { padding: 1px 5px 1px 3px !important; gap: 4px !important; border-radius: 8px !important; }
+        .pk-compact .bot-avatar-box { display: flex !important; width: 18px !important; height: 18px !important; font-size: 11px !important; }
+        .pk-compact .bot-status { display: none !important; }
+        .pk-compact .bot-name { font-size: 9px !important; max-width: 62px; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; color: #e7e5e4; }
+        .pk-compact .bot-stack { font-size: 10px !important; line-height: 1.1; }`;
       document.head.appendChild(st);
     }
 
@@ -1507,7 +1508,7 @@ class Poker3DExperience {
         // [côté gauche -1 / centre 0 / droite 1, profondeur z] : une rangée par plaque
         const slot = Poker3DExperience.PORTRAIT.bots[i];
         const s = slot ? slot.plate : [0, -1.75];
-        anchor = new THREE.Vector3(s[0] * 1.0, 0.05, s[1]);
+        anchor = new THREE.Vector3(s[0] * 1.1, 0.05, s[1]);
       }
       const v = anchor.clone().project(this.camera);
       if (v.z > 1) {
@@ -1962,18 +1963,18 @@ class Poker3DExperience {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    ctx.font = '900 84px "Georgia", "Times New Roman", serif';
-    ctx.fillText(rank, 62, 72);
-    ctx.font = 'bold 58px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 62, 142);
+    ctx.font = '900 112px "Georgia", "Times New Roman", serif';
+    ctx.fillText(rank, 68, 76);
+    ctx.font = 'bold 80px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 68, 168);
 
     ctx.save();
     ctx.translate(450, 648);
     ctx.rotate(Math.PI);
-    ctx.font = '900 84px "Georgia", "Times New Roman", serif';
+    ctx.font = '900 112px "Georgia", "Times New Roman", serif';
     ctx.fillText(rank, 0, 0);
-    ctx.font = 'bold 58px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 0, 70);
+    ctx.font = 'bold 80px "Georgia", "Times New Roman", serif';
+    ctx.fillText(suit, 0, 92);
     ctx.restore();
 
     if (['J', 'Q', 'K'].includes(rank)) {
@@ -2197,10 +2198,10 @@ class Poker3DExperience {
       // Portrait smartphone : vraie table ovale verticale, vue presque de dessus.
       // Toute la table tient à l'écran, entre le bandeau du haut et le panneau d'actions.
       const fov = 50;
-      const ppu = Math.max(40, Math.min(width / 3.7, (height - 330) / 5.0)); // pixels par unité 3D
+      const ppu = Math.max(40, Math.min(width / 3.7, (height - 280) / 4.7)); // pixels par unité 3D
       const dist = height / (2 * ppu * Math.tan((fov / 2) * Math.PI / 180));
       const tilt = 0.18;
-      const tz = 80 / ppu; // remonte la table pour la centrer entre le haut et le bas
+      const tz = 78 / ppu; // remonte la table pour la centrer entre le haut et le bas
       this.camera.fov = fov;
       this.camera.position.set(0, dist * Math.cos(tilt), tz + dist * Math.sin(tilt));
       this.camera.lookAt(0, 0, tz);
@@ -2218,8 +2219,8 @@ class Poker3DExperience {
   // Disposition portrait (téléphone) : positions sur la table verticale, en unités 3D
   static get PORTRAIT() {
     return {
-      heroZ: 1.55, heroX: 0.42, heroScale: 1.25,
-      boardZ: 0, boardSpacing: 0.5, boardScale: 1.1,
+      heroZ: 1.32, heroX: 0.44, heroScale: 1.3,
+      boardZ: 0, boardSpacing: 0.54, boardScale: 1.25,
       potZ: -0.8, heroChip: [0, 0.8],
       // pour chaque bot : plaque [côté, z du bas de la plaque], cartes [x, z], jetons de mise [x, z]
       bots: [
