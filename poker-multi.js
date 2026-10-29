@@ -670,6 +670,11 @@
       buildDom();
       if (!this.ensureExp()) return false;
       try { this.exp.pause(); } catch (e) {}   // la scène cachée du poker ne dessine rien : c'est la salle du monde qu'on voit
+      if (!this.exp._pmViewHook) {              // « 1re / 3e pers. » (bouton et touche V) : on change la caméra de la salle quand on y est assis
+        const orig = this.exp.toggleViewMode.bind(this.exp);
+        this.exp.toggleViewMode = () => { if (this.inWorld && this.worldRoom && this.worldRoom.toggleView) this.worldRoom.toggleView(); else orig(); };
+        this.exp._pmViewHook = true;
+      }
       this.worldRoom = roomObj;
       this.inWorld = true;
       this.showOverlay(true);

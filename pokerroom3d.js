@@ -264,6 +264,7 @@
       world._rtBye();
       world.setFull(true);                       // plein écran : l'interface du poker (par-dessus) est calée sur l'écran
       world.sitDown(room);
+      var l = document.querySelector('#pokerViewBtn .pv-label'); if (l) l.textContent = '3e pers.';
       shownKey = ''; refreshSeats();
     };
     // on se relève (fin de partie, bouton Quitter, fermeture) : debout derrière la chaise
@@ -288,10 +289,25 @@
       var k = 1 - Math.exp(-dt * 5), dx = st.salle.cx - st.slot.x, dz = -st.slot.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
       if (ctx2.mouseLook) { st.yawG = ctx2.dz(ctx2.ms.nx, 0.2) * 0.8; st.pitchG = ctx2.dz(ctx2.ms.ny, 0.2) * 0.3; }
       st.yaw += (st.yawG - st.yaw) * k; st.pitch += (st.pitchG - st.pitch) * k;
-      var ex = st.slot.x - ux * 0.65, ez = st.slot.z - uz * 0.65, ey = 1.6;
-      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + 0.65 - 0.5) + st.pitch;
+      // 3e personne : derrière la chaise, vue d'ensemble ; 1re personne : à hauteur des yeux, juste au-dessus de la table
+      var tgt = st.first ? { back: -0.12, h: 1.3, aim: 0.25, fov: 66 } : { back: 0.65, h: 1.6, aim: 0.5, fov: 54 };
+      if (!st.cam) st.cam = { back: tgt.back, h: tgt.h, aim: tgt.aim, fov: tgt.fov };
+      ['back', 'h', 'aim', 'fov'].forEach(function (q) { st.cam[q] += (tgt[q] - st.cam[q]) * k; });
+      var ex = st.slot.x - ux * st.cam.back, ez = st.slot.z - uz * st.cam.back, ey = st.cam.h;
+      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + st.cam.back - st.cam.aim) + st.pitch;
       var tx = ex + Math.sin(a) * Math.cos(p) * 5, tz = ez - Math.cos(a) * Math.cos(p) * 5, ty = ey + Math.sin(p) * 5;
-      return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 54 };
+      return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: st.cam.fov };
+    };
+    // boutons « 1re / 3e pers. » (et touche V) du poker : on change de point de vue dans la salle
+    // touche V (la scène cachée du poker n'écoute plus : on l'écoute ici, seulement quand on est assis)
+    var onKeyV = function (e) {
+      if ((e.key === 'v' || e.key === 'V') && room.seat && !/INPUT|TEXTAREA/.test((e.target || {}).tagName || '')) room.toggleView();
+    };
+    window.addEventListener('keydown', onKeyV);
+    room.toggleView = function () {
+      var st = room.seat; if (!st) return;
+      st.first = !st.first; st.yawG = st.pitchG = 0;
+      var l = document.querySelector('#pokerViewBtn .pv-label'); if (l) l.textContent = st.first ? '1re pers.' : '3e pers.';
     };
     room.seatDragStart = function () { var st = room.seat; return st ? { yaw: st.yawG, pitch: st.pitchG } : { yaw: 0, pitch: 0 }; };
     room.seatDrag = function (drag, dx, dy) {
@@ -421,7 +437,8 @@
       });
     };
     room.onEnter = function () { last.x = world.player.x; last.z = world.player.z; };
-    room.dispose = function () { room.salles.forEach(function (s) { s.tex.dispose(); }); };
+    room.dispose = function () {
+      window.removeEventListener('keydown', onKeyV); room.salles.forEach(function (s) { s.tex.dispose(); }); };
     return room;
   }
 
