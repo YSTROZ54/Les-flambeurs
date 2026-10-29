@@ -365,9 +365,10 @@
       var S = { def: def, person: person, group: pg, x: wp.x, z: wp.z, baseYaw: th, yaw: th, cheer: 0, wave: 0, say: '' };
       sellers.push(S);
       var spot = toWorld(def, 0, 3.4);
+      (room.stands = room.stands || {})[def.key] = { x: spot.x, z: spot.z, yaw: F.yawFor(-def.nx, -def.nz) };   // devant le comptoir, face au vendeur : le téléphone (hud3d.js) y emmène
       room.interactables.push({
         x: spot.x, z: spot.z, radius: 2.3, hit: hit,
-        prompt: function () { return '🛍️ Parler à ' + def.name + ' — ' + def.title + '  [E]'; },
+        prompt: function () { return '🛍️ Parler à ' + def.name + ' — ' + def.title + '  [F]'; },
         use: function (w) {
           if (w.mode !== 'room' || w.blend > 0 || w.trans) return;
           if (Math.hypot(w.player.x - S.x, w.player.z - S.z) > 6.5) { w.flash('Approche-toi de ' + def.name + ' pour voir ses articles.'); return; }
