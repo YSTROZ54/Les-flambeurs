@@ -122,10 +122,10 @@
     function list() { return tab === 'dance' ? F.DANCES : F.EMOTES; }
     function wheelIdle() { elWName.textContent = tab === 'dance' ? 'Danses' : 'Emotes'; elWHint.textContent = 'Clique ou touche 1 à 8'; }
     function renderWheel() {
-      var R = 138, half = 190, sz = 68, html = '';
+      var R = 36.5, html = '';   // rayon et centre en % de la roue : la taille se règle en CSS
       list().forEach(function (e, i) {
         var a = (-90 + i * 45) * Math.PI / 180;
-        html += '<button class="ph-slot' + (w.emoId === e.id ? ' on' : '') + '" data-emo="' + e.id + '" data-i="' + i + '" style="left:' + Math.round(half + R * Math.cos(a) - sz / 2) + 'px;top:' + Math.round(half + R * Math.sin(a) - sz / 2) + 'px;--c:' + e.color + '">' +
+        html += '<button class="ph-slot' + (w.emoId === e.id ? ' on' : '') + '" data-emo="' + e.id + '" data-i="' + i + '" style="left:' + (50 + R * Math.cos(a)).toFixed(2) + '%;top:' + (50 + R * Math.sin(a)).toFixed(2) + '%;--c:' + e.color + '">' +
           '<span class="fl-logo" style="--c:' + e.color + '"><i class="fa-solid ' + e.icon + '"></i></span><kbd>' + (i + 1) + '</kbd></button>';
       });
       elRing.innerHTML = html;

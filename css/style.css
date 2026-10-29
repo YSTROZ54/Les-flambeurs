@@ -1662,8 +1662,9 @@ body.s3d-full-on #sidebarBackdrop {
 }
 .ph-wheel-box {
   position: relative;
-  width: 380px;
-  height: 380px;
+  width: min(560px, 76vh);
+  height: min(560px, 76vh);
+  container-type: inline-size;   /* les tailles de la roue suivent sa largeur (unité cqw) */
   cursor: default;
   animation: ph-scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1673,9 +1674,10 @@ body.s3d-full-on #sidebarBackdrop {
 }
 .ph-slot {
   position: absolute;
-  width: 68px;
-  height: 68px;
-  border-radius: 18px;
+  width: 17cqw;
+  height: 17cqw;
+  margin: -8.5cqw 0 0 -8.5cqw;   /* left/top (en %) donnent le centre de la case */
+  border-radius: 4.4cqw;
   border: 2px solid rgba(var(--c), 0.35);
   background: linear-gradient(145deg, rgba(var(--c), 0.12) 0%, rgba(8, 5, 14, 0.88) 100%);
   backdrop-filter: blur(8px);
@@ -1703,10 +1705,10 @@ body.s3d-full-on #sidebarBackdrop {
   box-shadow: 0 0 20px rgba(var(--c), 0.4), inset 0 0 16px rgba(var(--c), 0.1);
 }
 .ph-slot .fl-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  font-size: 16px;
+  width: 9.6cqw;
+  height: 9.6cqw;
+  border-radius: 2.6cqw;
+  font-size: 4.4cqw;
 }
 .ph-slot kbd {
   padding: 1px 5px;
@@ -1714,7 +1716,7 @@ body.s3d-full-on #sidebarBackdrop {
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #9ca3af;
-  font-size: 10px;
+  font-size: max(11px, 2.4cqw);
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
   line-height: 1.3;
@@ -1728,12 +1730,12 @@ body.s3d-full-on #sidebarBackdrop {
   transform: translate(-50%, -50%);
   text-align: center;
   pointer-events: none;
-  width: 120px;
+  width: 31cqw;
 }
 .ph-wheel-mid b {
   display: block;
   color: #fef3c7;
-  font-size: 15px;
+  font-size: max(16px, 3.9cqw);
   font-weight: 900;
   letter-spacing: 0.04em;
   text-shadow: 0 0 12px rgba(255, 200, 60, 0.4);
@@ -1741,7 +1743,7 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-wheel-mid small {
   display: block;
   color: #9ca3af;
-  font-size: 10.5px;
+  font-size: max(11px, 2.5cqw);
   font-weight: 600;
   margin-top: 4px;
 }
@@ -2284,7 +2286,5 @@ body.s3d-full-on #sidebarBackdrop {
   .ph-bal b { font-size: 11.5px; }
   .ph-btn .fl-logo { width: 28px; height: 28px; font-size: 13px; }
   .ph-body { width: 270px; height: 480px; border-radius: 26px; }
-  .ph-wheel-box { width: 320px; height: 320px; }
-  .ph-slot { width: 56px; height: 56px; border-radius: 14px; }
-  .ph-slot .fl-logo { width: 30px; height: 30px; font-size: 14px; }
+  .ph-wheel-box { width: min(360px, 90vw); height: min(360px, 90vw); }
 }
