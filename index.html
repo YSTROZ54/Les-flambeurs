@@ -14,23 +14,23 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=2.9">
+  <link rel="stylesheet" href="css/style.css?v=3.0">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="js/poker/poker3d.js?v=8.6"></script>
   <script src="js/poker/poker3d-scene.js?v=1.9"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=1.3"></script>
+  <script src="js/3d/f3d-core.js?v=1.4"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
-  <script src="js/3d/hud3d.js?v=2.3"></script>
+  <script src="js/3d/hud3d.js?v=2.5"></script>
   <script src="js/3d/world3d.js?v=2.3"></script>
   <script src="js/3d/hall3d.js?v=2.1"></script>
   <script src="js/3d/slots3d.js?v=6.1"></script>
   <script src="js/3d/horses3d.js?v=2.7"></script>
   <script src="js/3d/pokerroom3d.js?v=2.5"></script>
   <script src="js/3d/shop3d.js?v=1.6"></script>
-  <script src="js/3d/pmu3d.js?v=1.1"></script>
+  <script src="js/3d/pmu3d.js?v=1.2"></script>
   <script src="js/utils/mises-a-jour.js?v=1.4"></script>
 </head>
 
@@ -5260,6 +5260,11 @@
       const current = (state.username || '').toLowerCase().trim();
       return current === 'ystroz' || current === 'alex';
     }
+    // Co Fondateur : titre affiché (badge violet) sous le pseudo, sans pouvoir d'administration
+    const CO_FONDATEURS = ['yohan81'];
+    function isCurrentUserCoFounder() {
+      return CO_FONDATEURS.includes((state.username || '').toLowerCase().trim());
+    }
 
     async function verifyAdminPassword() {
       const inp = document.getElementById('adminPasswordInput');
@@ -5717,7 +5722,8 @@
 
       // Rang sous le pseudo, comme le rôle sur Tropi Site (dégradé shimmer animé)
       const [rangIcone, rangNom, rangClasse] = !logged ? ['fa-eye', 'Spectateur', 'role-spectateur']
-        : isCurrentUserAdmin() ? ['fa-crown', 'Patron', 'role-patron'] : ['fa-fire', 'Flambeur', 'role-flambeur'];
+        : isCurrentUserAdmin() ? ['fa-crown', 'Patron', 'role-patron']
+        : isCurrentUserCoFounder() ? ['fa-gem', 'Co Fondateur', 'role-cofondateur'] : ['fa-fire', 'Flambeur', 'role-flambeur'];
       [['topRank', 'justify-end '], ['profileModalRank', '']].forEach(([id, alignement]) => {
         const el = document.getElementById(id);
         if (!el) return;

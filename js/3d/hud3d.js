@@ -108,9 +108,10 @@
       var boss = false; try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) { /* ok */ }
       put(elName, 'name', name);
       put(elAva, 'ava', av);
-      var rIcon = boss ? 'fa-crown' : 'fa-fire';
-      var rName = boss ? 'Patron' : 'Flambeur';
-      var rClass = boss ? 'role-patron' : 'role-flambeur';
+      var co = false; try { co = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) { /* ok */ }
+      var rIcon = boss ? 'fa-crown' : co ? 'fa-gem' : 'fa-fire';
+      var rName = boss ? 'Patron' : co ? 'Co Fondateur' : 'Flambeur';
+      var rClass = boss ? 'role-patron' : co ? 'role-cofondateur' : 'role-flambeur';
       put(elRank, 'rank', '<i class="fa-solid ' + rIcon + ' role-crown"></i> <span class="role-label">' + rName + '</span>', true);
       elRank.className = 'ph-rank role-tag ' + rClass;
       put(elBal, 'bal', s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0');
@@ -251,13 +252,14 @@
         try { av = typeof getAvatarDisplay === 'function' ? getAvatarDisplay() : ''; } catch (e) {}
         if (!av || av === '🎭') av = name.charAt(0).toUpperCase();
         var boss = false; try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) {}
+        var coP = false; try { coP = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) {}
         var bal = s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0';
 
         h = '<div class="ph-profile-banner">' +
             '<div class="ph-profile-ava">' + av + '</div>' +
             '<div class="ph-profile-meta">' +
               '<b class="ph-profile-name">' + name + '</b>' +
-              '<span class="ph-rank role-tag ' + (boss ? 'role-patron' : 'role-flambeur') + '"><i class="fa-solid ' + (boss ? 'fa-crown' : 'fa-fire') + ' role-crown"></i> <span class="role-label">' + (boss ? 'Patron' : 'Flambeur') + '</span></span>' +
+              '<span class="ph-rank role-tag ' + (boss ? 'role-patron' : coP ? 'role-cofondateur' : 'role-flambeur') + '"><i class="fa-solid ' + (boss ? 'fa-crown' : coP ? 'fa-gem' : 'fa-fire') + ' role-crown"></i> <span class="role-label">' + (boss ? 'Patron' : coP ? 'Co Fondateur' : 'Flambeur') + '</span></span>' +
               '<div class="ph-bal"><i class="fl-coin"></i><b>' + bal + '</b> jetons</div>' +
             '</div>' +
           '</div>' +
@@ -315,7 +317,7 @@
     /* ---------- inventaire (5 cases) ---------- */
     // Une case = un objet { id, name, icon, color } ; null = vide. Le téléphone est au milieu (3e case).
     var INV = [null, null, { id: 'phone', name: 'Téléphone', icon: 'fa-mobile-screen-button', color: '56,189,248' }, null, null];
-    var sel = 0;   // case choisie (molette) ; une case vide au départ, sinon le premier clic ouvrirait le téléphone au lieu de verrouiller la souris
+    var sel = -1;   // case choisie (molette ou chiffre) ; aucune au départ : sinon le premier clic utiliserait l'objet au lieu de verrouiller la souris
     function renderHotbar() {
       elHotbar.innerHTML = INV.map(function (it, i) {
         return '<button class="ph-inv' + (it ? '' : ' empty') + '" data-slot="' + i + '"' + (it ? ' title="' + it.name + '"' : ' tabindex="-1"') + '>' +
@@ -358,22 +360,28 @@
       var t = performance.now();
       if (t - wheelT < 90) return;                                     // un cran de molette = une case, même sur pavé tactile
       wheelT = t;
-      sel = (sel + (ev.deltaY > 0 ? 1 : -1) + INV.length) % INV.length;
+      var dir = ev.deltaY > 0 ? 1 : -1;
+      sel = sel < 0 ? (dir > 0 ? 0 : INV.length - 1) : (sel + dir + INV.length) % INV.length;
       markHotbar();
     }
     window.addEventListener('wheel', onWheel, { passive: false });
 
     // case du téléphone choisie : un clic gauche ou droit sur la vue ouvre le téléphone (comme un objet qu'on tient en main)
-    function phoneEnMain() { var it = INV[sel]; return !!it && it.id === 'phone'; }
+    // objet en main : le téléphone, ou un objet rangé par un autre fichier (cartes à gratter) ; clickOk() peut refuser le clic (ex. hors du PMU)
+    function enMain() {
+      var it = INV[sel];
+      if (!it || !(it.id === 'phone' || typeof it.use === 'function')) return false;
+      return typeof it.clickOk !== 'function' || !!it.clickOk();
+    }
     function onWorldDown(ev) {
       if (ev.target !== w.dom || ev.pointerType !== 'mouse') return;
-      if (phoneOpen || wheelOpen || pauseOpen) { ev.stopPropagation(); return; }   // fenêtre ouverte : un clic à côté ne reprend pas la souris, le curseur reste visible
+      if (phoneOpen || wheelOpen || pauseOpen || w.modalOpen) { ev.stopPropagation(); return; }   // fenêtre ouverte : un clic à côté ne reprend pas la souris, le curseur reste visible
       if (ev.button !== 0 && ev.button !== 2) return;
-      if (!phoneEnMain() || !w.running || w.dead || !w.canEmote() || chatOpen) return;
+      if (!enMain() || !w.running || w.dead || !w.canEmote() || chatOpen) return;
       ev.stopPropagation(); ev.preventDefault();                       // le monde ne verrouille pas la souris pour ce clic
-      openPhone();
+      useSlot(sel);
     }
-    function onWorldMenu(ev) { if (ev.target === w.dom && phoneEnMain()) ev.preventDefault(); }   // pas de menu du navigateur sur le clic droit
+    function onWorldMenu(ev) { if (ev.target === w.dom && enMain()) ev.preventDefault(); }   // pas de menu du navigateur sur le clic droit
     w.container.addEventListener('pointerdown', onWorldDown, true);
     w.container.addEventListener('contextmenu', onWorldMenu, true);
 
@@ -395,7 +403,7 @@
     function onLockChange() {
       if (document.pointerLockElement === w.dom) return;
       if (Date.now() - (w._relache || 0) < 400) return;                // c'est nous qui l'avons rendue (roue, téléphone, chat…)
-      if (!w.full || !w.running || w.dead || wheelOpen || phoneOpen || chatOpen || pauseOpen) return;
+      if (!w.full || !w.running || w.dead || wheelOpen || phoneOpen || chatOpen || pauseOpen || w.modalOpen) return;
       openPause();
     }
     document.addEventListener('pointerlockchange', onLockChange);
@@ -487,7 +495,9 @@
       chatLast = now;
       var s = st(), name = String((s && s.username) || 'Invité').slice(0, 20);
       var sent = false;
-      try { sent = !!(w.rt && w.rt.ready && w.rt.send('chat', { k: w._me(), name: name, av: myAv(), text: text })); } catch (e) { /* ok */ }
+      var msg = { k: w._me(), name: name, av: myAv(), text: text };
+      sent = !!(F.presence && F.presence.send('chat', msg));          // canal de tout le casino : toutes les salles reçoivent
+      if (!sent) { try { sent = !!(w.rt && w.rt.ready && w.rt.send('chat', msg)); } catch (e) { /* ok */ } }   // repli : les joueurs de la salle
       chatAdd(name, text, 'me', myAv());
       if (w.selfPerson && w.selfPerson.say) w.selfPerson.say(text);   // visible si tu danses (caméra devant toi)
       if (!sent) chatAdd('', 'Hors ligne : personne n\'a reçu ton message.', 'sys');
@@ -541,7 +551,7 @@
       var text = m.text.replace(/\s+/g, ' ').trim().slice(0, 120);
       if (!text) return;
       var cn = String(m.name || m.k || '?').slice(0, 20);
-      chatAdd(cn, text, '', cleanAv(m.av, cn));
+      chatAdd(cn, text, '', cleanAv(m.av || (F.presence && F.presence.avatarOf(m.k)), cn));
       var r = w.remote && w.remote[m.k];
       if (r && r.person && r.person.say) r.person.say(text);
     }
@@ -638,7 +648,7 @@
 
     /* ---------- clavier ---------- */
     function kd(ev) {
-      if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev) || !w.running || w.dead || !w.container.clientWidth) return;
+      if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev) || !w.running || w.dead || !w.container.clientWidth || w.modalOpen) return;   // modalOpen : un ticket à gratter est ouvert, il gère ses touches
       if (ev.code === 'Escape') {
         if (pauseOpen) {
           if (performance.now() - pauseT < 250) { ev.stopImmediatePropagation(); ev.preventDefault(); return; }   // même geste que celui qui vient d'ouvrir la pause
@@ -681,15 +691,18 @@
     }
     window.addEventListener('keydown', kd, true);
 
+    if (F.presence && F.presence.on) F.presence.on('chat', chatIn);          // les messages des autres salles arrivent par le canal commun
     sync();
     var api = {
       sync: sync,
       setItems: setItems,
+      relock: relock,
       close: closeAll,
       chatIn: chatIn,
       typingIn: typingIn,
       dispose: function () {
         window.removeEventListener('keydown', kd, true);
+        if (F.presence && F.presence.on) F.presence.on('chat', null);
         window.removeEventListener('wheel', onWheel);
         w.container.removeEventListener('pointerdown', onWorldDown, true);
         w.container.removeEventListener('contextmenu', onWorldMenu, true);

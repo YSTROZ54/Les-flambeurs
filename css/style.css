@@ -59,20 +59,20 @@ body {
 /* ── FLAMBEUR (identique au tag Fondateur "role-fire" de Tropi Site) ── */
 /* Éclat doré qui balaie un rouge rubis profond en translation continue infinie (aucun aller-retour) */
 .role-flambeur,
-.ph-rank:not(.role-patron):not(.boss) {
+.ph-rank:not(.role-patron):not(.boss):not(.role-cofondateur) {
   --rt-a: #ef4444;
   --rt-glow: rgba(239, 68, 68, 0.7);
 }
 .role-flambeur .role-label,
-.ph-rank:not(.role-patron):not(.boss) .role-label {
+.ph-rank:not(.role-patron):not(.boss):not(.role-cofondateur) .role-label {
   background-image: linear-gradient(100deg, #7f1d1d 0%, #ef4444 15%, #ffe08a 25%, #ef4444 35%, #7f1d1d 50%, #ef4444 65%, #ffe08a 75%, #ef4444 85%, #7f1d1d 100%);
   background-size: 300% auto;
   filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.65));
   animation: roleShimmer 16s linear infinite, roleFirePulse 4s ease-in-out infinite;
 }
 .role-flambeur .role-crown,
-.ph-rank:not(.role-patron):not(.boss) .role-crown,
-.ph-rank:not(.role-patron):not(.boss) > i {
+.ph-rank:not(.role-patron):not(.boss):not(.role-cofondateur) .role-crown,
+.ph-rank:not(.role-patron):not(.boss):not(.role-cofondateur) > i {
   color: #ef4444;
   filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.75));
   transform-origin: 50% 90%;
@@ -2624,3 +2624,28 @@ body.s3d-full-on #sidebarBackdrop {
   font-weight: 800;
 }
 .ph-crow.me .ph-cav { border-color: rgba(254, 243, 199, 0.7); }
+
+/* ── CO FONDATEUR : violet royal, balayage lumineux continu et gemme qui bascule ── */
+.role-cofondateur,
+.ph-rank.role-cofondateur {
+  --rt-a: #a855f7;
+  --rt-glow: rgba(168, 85, 247, 0.65);
+}
+.role-cofondateur .role-label,
+.ph-rank.role-cofondateur .role-label {
+  background-image: linear-gradient(100deg, #3b0764 0%, #a855f7 15%, #f5d0fe 25%, #a855f7 35%, #3b0764 50%, #a855f7 65%, #f5d0fe 75%, #a855f7 85%, #3b0764 100%);
+  background-size: 300% auto;
+  filter: drop-shadow(0 0 5px rgba(168, 85, 247, 0.65));
+  animation: roleShimmer 15s linear infinite, roleVioletPulse 4s ease-in-out infinite;
+}
+.role-cofondateur .role-crown,
+.ph-rank.role-cofondateur .role-crown,
+.ph-rank.role-cofondateur > i {
+  color: #c084fc;
+  filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.7));
+  animation: roleCrown 2.8s ease-in-out infinite;
+}
+@keyframes roleVioletPulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(168, 85, 247, 0.45)); }
+  50% { filter: drop-shadow(0 0 12px rgba(192, 132, 252, 0.85)); }
+}

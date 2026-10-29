@@ -9,8 +9,9 @@
      - L'achat et le tirage sont décidés par le SERVEUR (api/_games.js : pmu_buy / pmu_scratch) : le navigateur
        ne connaît le résultat d'une carte qu'au moment où il la gratte, et le solde vient du serveur.
      - Les cartes achetées vont dans la barre du bas (hud3d.js, cases 1, 2, 4, 5 ; le téléphone reste au milieu).
-     - On ne gratte QU'ICI : la carte s'affiche en grand au-dessus de la tête du joueur pour tout le monde dans
-       la salle (canal temps réel du monde : événement « scr »). Le résultat montré aux autres est purement visuel.
+     - On ne gratte QU'ICI. Un clic gauche sur la carte (case de la barre du bas, ou clic dans le monde quand elle est en main) l'ouvre en grand :
+       on gratte SOI-MÊME à la souris (clic enfoncé), le résultat apparaît quand assez de cases sont grattées. La carte s'affiche ensuite au-dessus de
+       la tête du joueur pour tout le monde dans la salle (canal temps réel du monde : événement « scr »). Le résultat montré aux autres est purement visuel.
    Fichiers liés : f3d-core.js, world3d.js, hud3d.js (barre du bas), shop3d.js (la porte), api/_games.js (serveur).
    ===================================================================== */
 (function () {
@@ -53,7 +54,7 @@
     x.lineTo(a + r, b + h); x.quadraticCurveTo(a, b + h, a, b + h - r); x.lineTo(a, b + r); x.quadraticCurveTo(a, b, a + r, b); x.closePath();
   }
   // p : 0 = tout est couvert, 1 = tout est gratté ; en fin de grattage les cases gagnantes brillent et le résultat s'affiche
-  function drawCard(cv, cells, prize, p, who) {
+  function drawCard(cv, cells, prize, p, who, hideResult) {
     var W = cv.width, Hh = cv.height, x = cv.getContext('2d');
     x.clearRect(0, 0, W, Hh);
     var g = x.createLinearGradient(0, 0, 0, Hh); g.addColorStop(0, '#e23a3a'); g.addColorStop(1, '#8e0f1c');
@@ -67,7 +68,7 @@
     var t = tmp.getContext('2d'); t.clearRect(0, 0, W, Hh);
     cells.forEach(function (v, k) {
       var cx0 = gx + (k % 3) * cw + pad, cy0 = gy + Math.floor(k / 3) * ch + pad, w = cw - pad * 2, h = ch - pad * 2;
-      var win = p >= 1 && prize > 0 && v === prize;
+      var win = p >= 1 && !hideResult && prize > 0 && v === prize;
       roundPath(x, cx0, cy0, w, h, 10); x.fillStyle = win ? '#fff3b0' : '#fbf3e2'; x.fill();
       if (win) { x.lineWidth = 5; x.strokeStyle = '#ffb300'; x.stroke(); }
       x.fillStyle = '#1a1a1a'; x.font = '900 ' + Math.round(W * (v >= 10000 ? 0.085 : 0.1)) + 'px ' + MONO; x.fillText(fmtN(v), cx0 + w / 2, cy0 + h * 0.46, w - 8);
@@ -93,7 +94,7 @@
     x.drawImage(tmp, 0, 0);
     x.fillStyle = 'rgba(255,255,255,0.9)'; x.font = '700 ' + Math.round(W * 0.045) + 'px ' + MONO; x.textAlign = 'center'; x.textBaseline = 'middle';
     if (who) x.fillText(String(who).slice(0, 18), W / 2, Hh * 0.78, W * 0.86);
-    if (p >= 1) {
+    if (p >= 1 && !hideResult) {
       var win2 = prize > 0;
       roundPath(x, W * 0.08, Hh * 0.82, W * 0.84, Hh * 0.13, 16); x.fillStyle = win2 ? '#0f8a43' : '#2a2a30'; x.fill(); x.lineWidth = 3; x.strokeStyle = win2 ? '#9cffc2' : '#666'; x.stroke();
       x.fillStyle = '#fff'; x.font = '900 ' + Math.round(W * (win2 ? 0.075 : 0.07)) + 'px ' + SERIF;
@@ -113,7 +114,7 @@
     PMU.cards = Array.isArray(ids) ? ids.slice(0, MAX_CARDS) : [];
     if (!PMU.hud || !PMU.hud.setItems) return;
     PMU.hud.setItems('pmu', PMU.cards.map(function (id) {
-      return { id: 'pmu-' + id, name: 'Carte à gratter', icon: 'fa-ticket', color: '239,68,68', use: function () { scratch(id); } };
+      return { id: 'pmu-' + id, name: 'Carte à gratter', icon: 'fa-ticket', color: '239,68,68', use: function () { scratch(id); }, clickOk: inPmu };   // clic dans le monde : seulement au PMU
     }));
   }
   function loadCards() {
@@ -129,49 +130,124 @@
     var w = PMU.world;
     if (!w || PMU.busy) return;
     if (!inPmu()) { w.flash('🎟️ On ne peut gratter ses cartes que dans le PMU !'); return; }
-    PMU.busy = true;
+    PMU.busy = true; try { w._libererSouris(); } catch (e) { /* ok */ }
     sg({ action: 'pmu_scratch', id: id }, { silent: true }).then(function (r) {
       if (!r || !r.ok) { PMU.busy = false; w.flash('❌ ' + ((r && r.error) || 'Grattage impossible.')); if (r && r.cards) setCards(r.cards); return; }
       setCards(r.cards);
       var me = st(), who = String((me && me.username) || '').slice(0, 20);
-      try { if (w.rt && w.rt.ready) w.rt.send('scr', { k: F.me(), name: who, cells: r.cells, prize: r.prize }); } catch (e) { /* ok */ }
-      showSelf(w, r.cells, r.prize, who);
+      showManual(w, r.cells, r.prize, who);
     });
   }
 
-  // ma carte en grand, au centre de l'écran (je ne vois pas le dessus de ma propre tête)
-  function showSelf(w, cells, prize, who) {
-    var ov = document.createElement('div'), cv = document.createElement('canvas'), t0 = performance.now(), done = false, raf = 0, tm = 0;
+  // ma carte en grand, au centre de l'écran : une pellicule argentée qu'on gratte soi-même à la souris (je ne vois pas le dessus de ma propre tête).
+  // Le serveur a déjà tiré et payé la carte : fermer avant la fin ne fait rien perdre, le résultat est alors annoncé tout de suite.
+  function cellRects(W, Hh) {
+    var gx = W * 0.07, gy = Hh * 0.23, gw = W * 0.86, gh = Hh * 0.5, cw = gw / 3, ch = gh / 2, pad = 6, out = [], k;   // mêmes cases que drawCard
+    for (k = 0; k < 6; k++) out.push({ x: gx + (k % 3) * cw + pad, y: gy + Math.floor(k / 3) * ch + pad, w: cw - pad * 2, h: ch - pad * 2 });
+    return out;
+  }
+  function paintCoating(c, rects, W) {
+    rects.forEach(function (r, k) {
+      var g = c.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h); g.addColorStop(0, '#d9dce2'); g.addColorStop(0.5, '#9ea4b0'); g.addColorStop(1, '#cfd3da');
+      roundPath(c, r.x, r.y, r.w, r.h, 10); c.fillStyle = g; c.fill();
+      c.save(); roundPath(c, r.x, r.y, r.w, r.h, 10); c.clip();
+      c.strokeStyle = 'rgba(255,255,255,0.22)'; c.lineWidth = 2;
+      for (var d = -r.h; d < r.w; d += 14) { c.beginPath(); c.moveTo(r.x + d, r.y + r.h); c.lineTo(r.x + d + r.h, r.y); c.stroke(); }   // fines rayures brillantes
+      c.restore();
+      c.fillStyle = 'rgba(80,86,98,0.55)'; c.font = '900 ' + Math.round(W * 0.09) + 'px ' + MONO; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', r.x + r.w / 2, r.y + r.h / 2);
+    });
+  }
+  function showManual(w, cells, prize, who) {
+    var W = 510, Hh = 637, sw = 85, sh = 106, ov = document.createElement('div');
     injectCss();
-    ov.className = 'pmu-card-ov'; cv.width = 340; cv.height = 425; ov.appendChild(cv); w.container.appendChild(ov);
-    function finish() {
-      if (done) return; done = true; cancelAnimationFrame(raf); clearTimeout(tm);
-      if (ov.parentNode) ov.parentNode.removeChild(ov);
-      PMU.busy = false; PMU.self = null;
+    ov.className = 'pmu-card-ov manual';
+    ov.innerHTML = '<div class="pmu-m-hint">Gratte avec la souris : garde le clic enfoncé</div>' +
+      '<div class="pmu-m-card"><canvas class="pmu-m-base"></canvas><canvas class="pmu-m-cover"></canvas></div>' +
+      '<div class="pmu-m-btns"><button data-a="all">Tout gratter</button><button data-a="close">Fermer</button></div>';
+    var base = ov.querySelector('.pmu-m-base'), cover = ov.querySelector('.pmu-m-cover'), hint = ov.querySelector('.pmu-m-hint'), btnAll = ov.querySelector('[data-a="all"]');
+    base.width = cover.width = W; base.height = cover.height = Hh;
+    drawCard(base, cells, prize, 1, who, true);                         // les montants, sans le résultat
+    var rects = cellRects(W, Hh), cx = cover.getContext('2d');
+    paintCoating(cx, rects, W);
+    var small = document.createElement('canvas'); small.width = sw; small.height = sh;
+    var sx = small.getContext('2d'), inCell = [], i, j;                 // pixels de la petite image qui tombent dans une case : pour mesurer ce qui est gratté
+    for (j = 0; j < sh; j++) for (i = 0; i < sw; i++) {
+      var fx = (i + 0.5) * W / sw, fy = (j + 0.5) * Hh / sh;
+      if (rects.some(function (r) { return fx >= r.x && fx <= r.x + r.w && fy >= r.y && fy <= r.y + r.h; })) inCell.push(j * sw + i);
+    }
+    function coverage() {
+      sx.clearRect(0, 0, sw, sh); sx.drawImage(cover, 0, 0, sw, sh);
+      var d = sx.getImageData(0, 0, sw, sh).data, n = 0, q;
+      for (q = 0; q < inCell.length; q++) if (d[inCell[q] * 4 + 3] < 128) n++;
+      return n / inCell.length;
+    }
+    w.container.appendChild(ov); w.modalOpen = true;
+    var done = false, sent = false, announced = false, pressed = false, last = null, tCheck = 0, tm = 0;
+    function announce() {
+      if (announced) return; announced = true;
+      w.flash(prize > 0 ? '🎉 Gagné ! +' + fmtN(prize) + ' 🪙' : '😢 Perdu, ce sera pour la prochaine !');
+      if (prize > 0) { try { if (typeof playCoinWinSound === 'function') playCoinWinSound(); } catch (e) { /* ok */ } }
       try { if (typeof updateGlobalUI === 'function') updateGlobalUI(); } catch (e) { /* ok */ }
     }
+    function sendScr() {                                                // les autres voient la carte au-dessus de ma tête
+      if (sent) return; sent = true;
+      try { if (w.rt && w.rt.ready) w.rt.send('scr', { k: F.me(), name: who, cells: cells, prize: prize }); } catch (e) { /* ok */ }
+    }
+    function finish() {
+      clearTimeout(tm); window.removeEventListener('keydown', onKey, true);
+      if (ov.parentNode) ov.parentNode.removeChild(ov);
+      w.modalOpen = false; PMU.busy = false; PMU.self = null;
+      announce(); sendScr();
+      if (PMU.hud && PMU.hud.relock) PMU.hud.relock();                 // en grand écran, on reprend la souris
+    }
+    function reveal() {                                                 // on a assez gratté (ou « tout gratter ») : la pellicule s'efface, le résultat s'affiche
+      if (done) return; done = true; pressed = false;
+      cover.classList.add('gone'); hint.style.display = 'none'; btnAll.style.display = 'none';
+      drawCard(base, cells, prize, 1, who, false);
+      announce(); sendScr();
+      tm = setTimeout(finish, SHOW_MS);
+    }
+    function onKey(e) { if (e.code === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); finish(); } }
+    window.addEventListener('keydown', onKey, true);
     PMU.self = { finish: finish };
-    ov.addEventListener('click', function () { if (performance.now() - t0 > CARD_MS) finish(); });
-    var paid = false;
-    (function loop(now) {
-      if (done) return;
-      var p = clamp01((now - t0) / CARD_MS);
-      drawCard(cv, cells, prize, p, who);
-      if (p >= 1 && !paid) {
-        paid = true;
-        w.flash(prize > 0 ? '🎉 Gagné ! +' + fmtN(prize) + ' 🪙' : '😢 Perdu, ce sera pour la prochaine !');
-        if (prize > 0) { try { if (typeof playCoinWinSound === 'function') playCoinWinSound(); } catch (e) { /* ok */ } }
-        tm = setTimeout(finish, SHOW_MS);
-      }
-      raf = requestAnimationFrame(loop);
-    })(t0);
+    function pos(e) { var r = cover.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * Hh / r.height }; }
+    function erase(a, b) {
+      cx.globalCompositeOperation = 'destination-out'; cx.lineWidth = W * 0.085; cx.lineCap = 'round'; cx.lineJoin = 'round';
+      cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke(); cx.globalCompositeOperation = 'source-over';
+    }
+    function check(force) { var t = performance.now(); if (!force && t - tCheck < 140) return; tCheck = t; if (coverage() >= 0.55) reveal(); }
+    cover.addEventListener('pointerdown', function (e) {
+      if (done) return; pressed = true; last = pos(e);
+      try { cover.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
+      erase(last, last); e.preventDefault();
+    });
+    cover.addEventListener('pointermove', function (e) {
+      if (!pressed || done) return; var p = pos(e); erase(last, p); last = p; check(false);
+    });
+    function up() { if (!pressed) return; pressed = false; check(true); }
+    cover.addEventListener('pointerup', up); cover.addEventListener('pointercancel', up);
+    ov.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    ov.addEventListener('click', function (e) {
+      var a = e.target && e.target.getAttribute && e.target.getAttribute('data-a');
+      if (a === 'all') reveal(); else if (a === 'close') finish();
+    });
   }
+
+  PMU.open = showManual;                                                // accès direct (essais)
 
   /* ---------- styles (injectés une seule fois) ---------- */
   function injectCss() {
     if (document.getElementById('pmu-style')) return;
     var s = document.createElement('style'); s.id = 'pmu-style';
     s.textContent =
+      '.pmu-card-ov.manual{top:5%;cursor:default;display:flex;flex-direction:column;align-items:center;gap:10px}' +
+      '.pmu-m-hint{color:#ffe9a8;font:800 14px "Plus Jakarta Sans",system-ui,sans-serif;text-shadow:0 2px 8px #000;background:rgba(8,5,12,.82);border:1px solid rgba(243,207,98,.5);padding:7px 16px;border-radius:999px}' +
+      '.pmu-m-card{position:relative;width:min(420px,calc((100vh - 200px) * 0.8),82vw)}' +
+      '.pmu-m-card canvas{display:block;width:100%;height:auto;border-radius:22px}' +
+      '.pmu-m-cover{position:absolute;left:0;top:0;touch-action:none;cursor:url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'36\' height=\'36\'><circle cx=\'18\' cy=\'18\' r=\'15\' fill=\'%23f3cf62\' stroke=\'%239a6a10\' stroke-width=\'3\'/><circle cx=\'18\' cy=\'18\' r=\'8\' fill=\'none\' stroke=\'%239a6a10\' stroke-width=\'2\'/></svg>") 18 18,crosshair;transition:opacity .5s ease}' +
+      '.pmu-m-cover.gone{opacity:0;pointer-events:none}' +
+      '.pmu-m-btns{display:flex;gap:10px}.pmu-m-btns button{cursor:pointer;padding:9px 18px;border-radius:11px;font-weight:900;font-size:13px;border:1px solid rgba(255,255,255,.3);background:rgba(8,5,12,.88);color:#fff}' +
+      '.pmu-m-btns button:hover{border-color:#f3cf62}' +
       '.pmu-card-ov{position:absolute;left:50%;top:12%;transform:translateX(-50%);z-index:6;pointer-events:auto;cursor:pointer;filter:drop-shadow(0 10px 28px rgba(0,0,0,.7));animation:pmuIn .35s ease-out}' +
       '.pmu-card-ov canvas{display:block;width:min(340px,38vh*0.8*2);max-width:70vw;height:auto}' +
       '@keyframes pmuIn{from{opacity:0;transform:translateX(-50%) translateY(-24px) scale(.9)}to{opacity:1;transform:translateX(-50%)}}' +
