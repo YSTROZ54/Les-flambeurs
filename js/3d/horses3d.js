@@ -281,12 +281,9 @@
     // bandeaux lumineux : au-dessus des plinthes, en haut des murs, et un cadre au plafond
     [[HX * 2, 0.07, 0.07, 0, 1.02, -HZ + 0.05], [HX * 2, 0.07, 0.07, 0, 1.02, HZ - 0.05], [0.07, 0.07, HZ * 2, -HX + 0.05, 1.02, 0], [0.07, 0.07, HZ * 2, HX - 0.05, 1.02, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
     [[HX * 2, 0.1, 0.1, 0, 5.7, -HZ + 0.06], [HX * 2, 0.1, 0.1, 0, 5.7, HZ - 0.06], [0.1, 0.1, HZ * 2, -HX + 0.06, 5.7, 0], [0.1, 0.1, HZ * 2, HX - 0.06, 5.7, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledB); });
-    [[HX * 2 - 6, 0.08, 0.08, 0, 5.94, -HZ + 3], [HX * 2 - 6, 0.08, 0.08, 0, 5.94, HZ - 3], [0.08, 0.08, HZ * 2 - 6, -HX + 3, 5.94, 0], [0.08, 0.08, HZ * 2 - 6, HX - 3, 5.94, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080b12 }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; g.add(ceil);
     var ceilFx = new THREE.Group(); g.add(ceilFx);                                  // masqué quand on regarde d'en haut (la caméra est au-dessus du plafond)
-    [-8, -4, 0, 4, 8].forEach(function (cx, k) { box(0.14, 0.05, HZ * 2 - 1.6, cx, 5.96, 0, k % 2 ? ledB : ledA, ceilFx); box(0.5, 0.02, HZ * 2 - 1.6, cx, 5.985, 0, ledDim, ceilFx); });
-    [-9, -3, 3, 9].forEach(function (cz, k) { box(HX * 2 - 1.6, 0.05, 0.14, 0, 5.94, cz, k % 2 ? ledA : ledB, ceilFx); });
     /* ----- la table de jeu ----- */
     var tt = trackTexture();
     var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0 }));
@@ -324,7 +321,13 @@
       pts.frustumCulled = false; (parent || g).add(pts); ledRows.push({ geo: geo, col: col, cnt: cnt, dir: dir });
     }
     ledRow(R_OUT + 0.78, TY + 0.09, low ? 0.12 : 0.065, 0.16, 1); ledRow(R_OUT + 0.5, TY + 0.09, low ? 0.12 : 0.065, 0.16, -1);
-    ledRow(R_OUT + 4.4, 5.93, 0.14, 0.26, 1, ceilFx); ledRow(R_OUT + 2.4, 5.93, 0.12, 0.22, -1, ceilFx);
+    // plafond : des anneaux néon qui reprennent la forme de la table, avec des LED qui courent entre eux
+    [3.4, 5.0, 6.6, 8.2].forEach(function (rr, k) {
+      var tube = slab(rr + 0.05, rr - 0.05, 5.955, 5.985, ledA); tube.material = k % 2 ? ledB : ledA; ledA.side = ledB.side = THREE.DoubleSide; ceilFx.add(tube);
+      var halo = slab(rr + 0.32, rr - 0.32, 5.99, 5.995, ledDim); ceilFx.add(halo);
+    });
+    [4.2, 5.8, 7.4].forEach(function (rr, k) { ledRow(rr, 5.95, 0.11, 0.2, k % 2 ? -1 : 1, ceilFx); });
+    var hub = slab(2.2, 0, 5.97, 5.99, ledDim); ceilFx.add(hub);          // plaque sombre juste au-dessus de la piste
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
