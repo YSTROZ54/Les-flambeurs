@@ -219,7 +219,7 @@
     fx.globalAlpha = 1; fx.strokeStyle = 'rgba(201,162,39,0.8)'; fx.lineWidth = 3; fx.strokeRect(1, 1, 254, 254);
     fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.lineWidth = 1.5; fx.stroke();
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.28, metalness: 0.2 }));
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, color: 0xb9b1a2, roughness: 0.28, metalness: 0.2 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
 
     /* --- tapis rouge royal de la porte jusqu'au centre --- */
@@ -343,10 +343,10 @@
       // vitrine : un médaillon tournant par article du rayon, au-dessus du comptoir
       var step = Math.min(0.34, 2.0 / Math.max(1, n));
       items.forEach(function (it, k) {
-        var m = new THREE.Group(); m.position.set(-0.25 + (k - (n - 1) / 2) * step, 1.5, 2.0); st0.add(m);
-        var ringM = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.02, 8, 24), gold); m.add(ringM);
-        var disc = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), new THREE.MeshBasicMaterial({ map: medalTexture(splitName(it.name).icon), side: THREE.DoubleSide })); m.add(disc);
-        medals.push({ g: m, y: 1.5, ph: k * 0.9 });
+        var m = new THREE.Group(); m.position.set(-0.25 + (k - (n - 1) / 2) * step, 1.3, 2.0); st0.add(m);
+        var ringM = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.017, 8, 24), gold); m.add(ringM);
+        var disc = new THREE.Mesh(new THREE.CircleGeometry(0.122, 24), new THREE.MeshBasicMaterial({ map: medalTexture(splitName(it.name).icon), side: THREE.DoubleSide })); m.add(disc);
+        medals.push({ g: m, y: 1.3, ph: k * 0.9 });
       });
 
       // le vendeur (derrière le comptoir, tourné vers la salle)
@@ -469,8 +469,8 @@
     // caméra pendant la discussion : en face du vendeur, un peu décalée pour qu'il reste à gauche du panneau
     room.seatPose = function () {
       var S = camSeller; if (!S) return null;
-      var d = S.def, cam = toWorld(d, 0, 4.1), tgt = toWorld(d, 0.95, 0.95);
-      return { cx: cam.x, cy: 1.7, cz: cam.z, tx: tgt.x, ty: 1.5, tz: tgt.z, fov: 46 };
+      var d = S.def, cam = toWorld(d, 0, 5.3), tgt = toWorld(d, 1.0, 0.95);   // un peu en hauteur : les médaillons du comptoir ne cachent pas le vendeur
+      return { cx: cam.x, cy: 2.2, cz: cam.z, tx: tgt.x, ty: 1.4, tz: tgt.z, fov: 46 };
     };
 
     /* --- cycle de vie, interface, réseau --- */
