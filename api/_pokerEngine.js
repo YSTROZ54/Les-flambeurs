@@ -17,36 +17,29 @@ export const STALE_MS = 60000;       // joueur sans signe de vie => éjecté
 export const TAKEOVER_MS = 20000;    // un siège « fantôme » peut être repris
 export const MAX_MISSED_TURNS = 2;   // 2 tours sautés d'affilée => éjecté
 
-// Tables publiques : 3 formats x 3 niveaux de blindes
-const NAMES = {
-  '1v1': ['Duel des As', 'Heads-Up Flambeur', 'Showdown VIP'],
-  '4max': ['Texas Flambeur', 'Vegas VIP Club', 'Cercle Privilège'],
-  '6max': ['6-Max Royale', 'Grand Tournoi Cash', 'Table des Maîtres']
-};
-const BIG_BLINDS = [100, 500, 1000];
+// Tables publiques : 3 formats x 3 salons, tous identiques (mêmes blindes, même mise de départ)
+const SALON_BB = 100;
+const SALON_MIN_BUYIN = 1000;
+const SALON_MAX_BUYIN = 20000;
 const SEATS = { '1v1': 2, '4max': 4, '6max': 6 };
 
 export const PUBLIC_TABLES = {};
-{
-  let n = 1;
-  ['1v1', '4max', '6max'].forEach((cat) => {
-    BIG_BLINDS.forEach((bb, i) => {
-      const id = `poker_${cat}_${i + 1}`;
-      PUBLIC_TABLES[id] = {
-        id,
-        name: `Table ${n} • ${NAMES[cat][i]}`,
-        category: cat,
-        maxSeats: SEATS[cat],
-        smallBlind: bb / 2,
-        bigBlind: bb,
-        minBuyIn: bb * 10,
-        maxBuyIn: Math.min(50000, bb * 200),
-        isPrivate: false
-      };
-      n++;
-    });
+['1v1', '4max', '6max'].forEach((cat) => {
+  [1, 2, 3].forEach((n) => {
+    const id = `poker_${cat}_${n}`;
+    PUBLIC_TABLES[id] = {
+      id,
+      name: `Salon ${n}`,
+      category: cat,
+      maxSeats: SEATS[cat],
+      smallBlind: SALON_BB / 2,
+      bigBlind: SALON_BB,
+      minBuyIn: SALON_MIN_BUYIN,
+      maxBuyIn: SALON_MAX_BUYIN,
+      isPrivate: false
+    };
   });
-}
+});
 
 export const PRIVATE_ID_RE = /^priv_[a-z0-9]{4,8}$/;
 export const PRIVATE_BLINDS = [100, 500, 1000];
