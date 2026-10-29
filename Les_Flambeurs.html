@@ -16,7 +16,7 @@
   <script src="poker3d-scene.js?v=1.4"></script>
   <script src="poker3d-anim.js?v=1.3"></script>
   <script src="poker-multi.js?v=2.1"></script>
-  <script src="slots3d.js?v=2.1"></script>
+  <script src="slots3d.js?v=2.3"></script>
 </head>
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
 
@@ -3554,6 +3554,7 @@
       cupsStreak: 0,
       cupsBestStreak: 0,
       scratchBestWin: 0,
+      slotBestWin: 0,
       scratchTotalWon: 0,
       scratchCardsPlayed: 0,
       friends: [],
@@ -3855,6 +3856,7 @@
                 const remoteScratchBest = typeof extraData.scratchBestWin === 'number' ? extraData.scratchBestWin : (typeof row.scratchBestWin === 'number' ? row.scratchBestWin : 0);
                 const remoteScratchTotal = typeof extraData.scratchTotalWon === 'number' ? extraData.scratchTotalWon : (typeof row.scratchTotalWon === 'number' ? row.scratchTotalWon : 0);
                 const remoteScratchPlayed = typeof extraData.scratchCardsPlayed === 'number' ? extraData.scratchCardsPlayed : (typeof row.scratchCardsPlayed === 'number' ? row.scratchCardsPlayed : 0);
+                const remoteSlotBest = typeof extraData.slotBestWin === 'number' ? extraData.slotBestWin : (typeof row.slotBestWin === 'number' ? row.slotBestWin : 0);
                 const existingAcc = db[key] || {};
 
                 let myResolvedStreak = Math.max(existingAcc.cupsStreak || 0, remoteCupsStreak);
@@ -3862,7 +3864,10 @@
                 let myResolvedScratchBest = Math.max(existingAcc.scratchBestWin || 0, remoteScratchBest);
                 let myResolvedScratchTotal = Math.max(existingAcc.scratchTotalWon || 0, remoteScratchTotal);
                 let myResolvedScratchPlayed = Math.max(existingAcc.scratchCardsPlayed || 0, remoteScratchPlayed);
+                let myResolvedSlotBest = Math.max(existingAcc.slotBestWin || 0, remoteSlotBest);
                 if (isMe) {
+                  state.slotBestWin = Math.max(state.slotBestWin || 0, myResolvedSlotBest);
+                  myResolvedSlotBest = state.slotBestWin;
                   state.cupsStreak = Math.max(state.cupsStreak || 0, myResolvedStreak);
                   state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, myResolvedBest, state.cupsStreak || 0);
                   state.scratchBestWin = Math.max(state.scratchBestWin || 0, myResolvedScratchBest);
@@ -3883,6 +3888,7 @@
                   scratchBestWin: myResolvedScratchBest,
                   scratchTotalWon: myResolvedScratchTotal,
                   scratchCardsPlayed: myResolvedScratchPlayed,
+                  slotBestWin: myResolvedSlotBest,
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
@@ -3926,7 +3932,9 @@
                 const rScratchBest = Math.max(existing.scratchBestWin || 0, remoteAcc.scratchBestWin || 0, remoteAcc.data?.scratchBestWin || 0);
                 const rScratchTotal = Math.max(existing.scratchTotalWon || 0, remoteAcc.scratchTotalWon || 0, remoteAcc.data?.scratchTotalWon || 0);
                 const rScratchPlayed = Math.max(existing.scratchCardsPlayed || 0, remoteAcc.scratchCardsPlayed || 0, remoteAcc.data?.scratchCardsPlayed || 0);
+                const rSlotBest = Math.max(existing.slotBestWin || 0, remoteAcc.slotBestWin || 0, remoteAcc.data?.slotBestWin || 0);
                 if (isMe) {
+                  state.slotBestWin = Math.max(state.slotBestWin || 0, rSlotBest);
                   state.cupsStreak = Math.max(state.cupsStreak || 0, rStreak);
                   state.cupsBestStreak = Math.max(state.cupsBestStreak || 0, rBest, state.cupsStreak || 0);
                   state.scratchBestWin = Math.max(state.scratchBestWin || 0, rScratchBest);
@@ -3948,7 +3956,8 @@
                   cupsBestStreak: isMe ? state.cupsBestStreak : rBest,
                   scratchBestWin: isMe ? state.scratchBestWin : rScratchBest,
                   scratchTotalWon: isMe ? state.scratchTotalWon : rScratchTotal,
-                  scratchCardsPlayed: isMe ? state.scratchCardsPlayed : rScratchPlayed
+                  scratchCardsPlayed: isMe ? state.scratchCardsPlayed : rScratchPlayed,
+                  slotBestWin: isMe ? state.slotBestWin : rSlotBest
                 };
                 changed = true;
               }
@@ -4148,6 +4157,7 @@
           scratchBestWin: isMe ? (state.scratchBestWin || 0) : (account.scratchBestWin || account.data?.scratchBestWin || 0),
           scratchTotalWon: isMe ? (state.scratchTotalWon || 0) : (account.scratchTotalWon || account.data?.scratchTotalWon || 0),
           scratchCardsPlayed: isMe ? (state.scratchCardsPlayed || 0) : (account.scratchCardsPlayed || account.data?.scratchCardsPlayed || 0),
+          slotBestWin: isMe ? (state.slotBestWin || 0) : (account.slotBestWin || account.data?.slotBestWin || 0),
           friends: account.friends || [],
           friendBalances: account.friendBalances || {},
           bankTransfers: account.bankTransfers || [],
@@ -4407,6 +4417,7 @@
         let loadedScratchBest = acc.scratchBestWin || 0;
         let loadedScratchTotal = acc.scratchTotalWon || 0;
         let loadedScratchPlayed = acc.scratchCardsPlayed || 0;
+        let loadedSlotBest = acc.slotBestWin || 0;
         try {
           const rawLocal = localStorage.getItem(STORAGE_KEY);
           if (rawLocal) {
@@ -4417,6 +4428,7 @@
               loadedScratchBest = Math.max(loadedScratchBest, parsed.scratchBestWin || 0);
               loadedScratchTotal = Math.max(loadedScratchTotal, parsed.scratchTotalWon || 0);
               loadedScratchPlayed = Math.max(loadedScratchPlayed, parsed.scratchCardsPlayed || 0);
+              loadedSlotBest = Math.max(loadedSlotBest, parsed.slotBestWin || 0);
             }
           }
         } catch (e) {}
@@ -4429,6 +4441,7 @@
           scratchBestWin: loadedScratchBest,
           scratchTotalWon: loadedScratchTotal,
           scratchCardsPlayed: loadedScratchPlayed,
+          slotBestWin: loadedSlotBest,
           equipped: { ...DEFAULT_USER_STATE.equipped, ...(acc.equipped || {}) },
           luckConfig: { ...DEFAULT_USER_STATE.luckConfig, ...(acc.luckConfig || {}) }
         };
@@ -8604,6 +8617,7 @@
 
       setTimeout(() => {
         const mult = srv.mult || 0;
+        if (mult > 0 && srv.win > (state.slotBestWin || 0)) state.slotBestWin = srv.win;
         updateGlobalUI();
         const banner = document.getElementById('slotResultBanner');
         if (mult > 0) {

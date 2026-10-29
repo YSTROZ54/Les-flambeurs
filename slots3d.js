@@ -664,14 +664,14 @@
     var wallMat = new THREE.MeshStandardMaterial({ color: 0x24141e, roughness: 0.9 });
     var goldMat = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.6, emissive: 0x2a1d00 });
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(px, py, pz); m.rotation.y = ry; scene.add(m); return m; }
-    wall(18, 5, 0, 2.5, ROOM.back, 0);
-    wall(14.2, 5, -ROOM.wall, 2.5, 3.9, Math.PI / 2);
-    wall(14.2, 5, ROOM.wall, 2.5, 3.9, -Math.PI / 2);
-    wall(18, 5, 0, 2.5, ROOM.front, Math.PI);
+    wall(18, 7.5, 0, 3.75, ROOM.back, 0);
+    wall(14.2, 7.5, -ROOM.wall, 3.75, 3.9, Math.PI / 2);
+    wall(14.2, 7.5, ROOM.wall, 3.75, 3.9, -Math.PI / 2);
+    wall(18, 7.5, 0, 3.75, ROOM.front, Math.PI);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(18, 14.2), new THREE.MeshBasicMaterial({ color: 0x0b060c }));
-    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5, 3.9); scene.add(ceil);
+    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 7.5, 3.9); scene.add(ceil);
     // moulures dorées
-    [1.0, 4.85].forEach(function (y) {
+    [1.0, 7.35].forEach(function (y) {
       [[18, 0.07, 0.07, 0, y, ROOM.back + 0.04], [18, 0.07, 0.07, 0, y, ROOM.front - 0.04],
        [0.07, 0.07, 14.2, -ROOM.wall + 0.04, y, 3.9], [0.07, 0.07, 14.2, ROOM.wall - 0.04, y, 3.9]].forEach(function (d) {
         var m = new THREE.Mesh(new THREE.BoxGeometry(d[0], d[1], d[2]), goldMat); m.position.set(d[3], d[4], d[5]); scene.add(m);
@@ -685,21 +685,77 @@
     sx.font = '800 64px ' + SERIF; sx.fillText('LES FLAMBEURS', 512, 62);
     sx.font = '600 30px ' + MONO; sx.shadowBlur = 8; sx.fillText('✦  SALLE DES MACHINES  ✦', 512, 118);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.09), new THREE.MeshBasicMaterial({ map: mkTex(sg) }));
-    sign.position.set(0, 3.9, ROOM.back + 0.05); scene.add(sign);
+
+    // tableau des meilleurs gains (mur du fond, au-dessus de l'enseigne)
+    var bc = mkCanvas(1024, 420), bx = bc.getContext('2d'), bTex = mkTex(bc);
+    var frame = new THREE.Mesh(new THREE.BoxGeometry(8.5, 3.5, 0.08), goldMat); frame.position.set(0, 5.5, ROOM.back + 0.06); scene.add(frame);
+    var board = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.4), new THREE.MeshBasicMaterial({ map: bTex }));
+    board.position.set(0, 5.5, ROOM.back + 0.11); scene.add(board);
+    var boardSig = '';
+    function drawBoard(list) {
+      var sigNew = JSON.stringify(list);
+      if (sigNew === boardSig) return;
+      boardSig = sigNew;
+      var g = bx.createLinearGradient(0, 0, 0, 420); g.addColorStop(0, '#1d0a1c'); g.addColorStop(1, '#0a0510');
+      bx.fillStyle = g; bx.fillRect(0, 0, 1024, 420);
+      bx.textBaseline = 'middle'; bx.textAlign = 'center';
+      bx.fillStyle = '#f3cf62'; bx.shadowColor = '#ffb300'; bx.shadowBlur = 14; bx.font = '800 42px ' + SERIF;
+      bx.fillText('🏆 LES FLAMBEURS · MEILLEURS GAINS 🏆', 512, 44); bx.shadowBlur = 0;
+      bx.strokeStyle = 'rgba(201,162,39,0.5)'; bx.lineWidth = 2; bx.beginPath(); bx.moveTo(60, 82); bx.lineTo(964, 82); bx.stroke();
+      if (!list.length) {
+        bx.fillStyle = '#d9c88f'; bx.font = '600 38px ' + MONO; bx.fillText('Aucun gain enregistré', 512, 220);
+        bx.font = '500 28px ' + MONO; bx.fillStyle = '#9a8a58'; bx.fillText('Sois le premier au classement !', 512, 280);
+      }
+      var medals = ['🥇', '🥈', '🥉', '4', '5'], rowH = 64;
+      list.forEach(function (p, i) {
+        var y = 124 + i * rowH;
+        if (p.me) { bx.fillStyle = 'rgba(243,207,98,0.14)'; bx.fillRect(50, y - 29, 924, 58); }
+        bx.textAlign = 'center'; bx.font = (i < 3 ? '40px ' + EMOJI_FONT : '700 34px ' + MONO); bx.fillStyle = '#d9c88f'; bx.fillText(medals[i], 100, y);
+        bx.textAlign = 'left'; bx.font = '700 36px ' + MONO; bx.fillStyle = p.me ? '#ffe28a' : '#f4e3b0';
+        bx.fillText(((p.emoji ? p.emoji + ' ' : '') + p.name).slice(0, 22), 170, y);
+        bx.textAlign = 'right'; bx.font = '800 38px ' + MONO; bx.fillStyle = i === 0 ? '#ffd24a' : '#f3cf62';
+        bx.fillText(fmtN(p.win) + ' €', 960, y);
+      });
+      bTex.needsUpdate = true;
+    }
+    drawBoard([]);
     // colonnes
     [[-7.2, 0.2], [7.2, 0.2], [-7.2, 8.2], [7.2, 8.2]].forEach(function (p) {
-      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 5, 16), new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.6, metalness: 0.2 }));
-      c.position.set(p[0], 2.5, p[1]); scene.add(c);
-      [0.3, 4.7].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.6, metalness: 0.2 }));
+      c.position.set(p[0], 3.75, p[1]); scene.add(c);
+      [0.3, 7.2].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
     });
     // bandeaux lumineux au plafond
     var stripMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
-    [0.5, 4.5, 8.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 4.96, z); scene.add(s); });
+    [0.5, 4.5, 8.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 7.46, z); scene.add(s); });
 
     scene.add(new THREE.AmbientLight(0x9a8cc0, 0.85));
     var key = new THREE.DirectionalLight(0xfff0d0, 0.55); key.position.set(2, 5, 9); scene.add(key);
     var pl = new THREE.PointLight(0xffd9a0, 0.9, 16); pl.position.set(0, 4.4, 6); scene.add(pl);
     if (!low) { var pl2 = new THREE.PointLight(0xffc890, 0.6, 14); pl2.position.set(0, 4.4, 1); scene.add(pl2); }
+    return { drawBoard: drawBoard };
+  }
+
+  // Meilleur gain de chaque joueur (comptes connus du navigateur), du plus gros au plus petit
+  function topSlotWins() {
+    var out = [];
+    try {
+      var db = typeof getAccountsDB === 'function' ? getAccountsDB() : {};
+      var meKey = (typeof state !== 'undefined' && state && state.username ? state.username : '').toLowerCase().trim();
+      var seenMe = false;
+      Object.keys(db).forEach(function (k) {
+        var a = db[k];
+        if (k.indexOf('__') === 0 || !a || !a.username) return;
+        if (typeof isUsernameBanned === 'function' && isUsernameBanned(k)) return;
+        var isMe = !!meKey && a.username.toLowerCase().trim() === meKey;
+        var best = Math.max(a.slotBestWin || 0, (a.data && a.data.slotBestWin) || 0, isMe && state ? state.slotBestWin || 0 : 0);
+        if (isMe) seenMe = true;
+        if (best > 0) out.push({ name: a.username, emoji: a.avatarEmoji || '', win: best, me: isMe });
+      });
+      if (!seenMe && meKey && state.slotBestWin > 0) out.push({ name: state.username, emoji: state.avatarEmoji || '', win: state.slotBestWin, me: true });
+    } catch (e) { /* données pas encore chargées */ }
+    out.sort(function (x, y) { return y.win - x.win; });
+    return out.slice(0, 5);
   }
 
   function SlotsExperience(container, opts) {
@@ -718,7 +774,8 @@
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x07050c);
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 60);
-    buildRoom(this.scene, this.low);
+    this.room = buildRoom(this.scene, this.low);
+    this.room.drawBoard(topSlotWins());
 
     // bornes en arc de cercle, tournées vers le centre
     var n = opts.cabinets || (this.low ? 4 : 6);
@@ -982,6 +1039,7 @@
     this.renderer.render(this.scene, this.camera);
     this.hudT += dt;
     if (this.hudT > 0.25) { this.hudT = 0; this.syncHud(); }
+    if (this.clock - (this.boardT || 0) > 5) { this.boardT = this.clock; this.room.drawBoard(topSlotWins()); }
   };
 
   // Fait avancer la simulation de dt secondes et place la caméra (séparé du rendu pour pouvoir tester)
