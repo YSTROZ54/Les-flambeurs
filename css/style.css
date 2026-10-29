@@ -68,7 +68,7 @@ body {
   background-image: linear-gradient(100deg, #7f1d1d 0%, #ef4444 15%, #ffe08a 25%, #ef4444 35%, #7f1d1d 50%, #ef4444 65%, #ffe08a 75%, #ef4444 85%, #7f1d1d 100%);
   background-size: 300% auto;
   filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.65));
-  animation: roleShimmer 8s linear infinite, roleFirePulse 3s ease-in-out infinite;
+  animation: roleShimmer 16s linear infinite, roleFirePulse 4s ease-in-out infinite;
 }
 .role-flambeur .role-crown,
 .ph-rank:not(.role-patron):not(.boss) .role-crown,
@@ -76,7 +76,7 @@ body {
   color: #ef4444;
   filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.75));
   transform-origin: 50% 90%;
-  animation: roleFlame 2.2s ease-in-out infinite;
+  animation: roleFlame 2.8s ease-in-out infinite;
 }
 
 /* ── PATRON (Style Boss Or Royal Tropi Site) ── */
@@ -93,7 +93,7 @@ body {
   background-image: linear-gradient(100deg, #78350f 0%, #eab308 15%, #fef9c3 25%, #eab308 35%, #78350f 50%, #eab308 65%, #fef9c3 75%, #eab308 85%, #78350f 100%);
   background-size: 300% auto;
   filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.65));
-  animation: roleShimmer 7s linear infinite, roleGoldPulse 3s ease-in-out infinite;
+  animation: roleShimmer 15s linear infinite, roleGoldPulse 4s ease-in-out infinite;
 }
 .role-patron .role-crown,
 .ph-rank.boss .role-crown,
@@ -101,7 +101,7 @@ body {
 .ph-rank.role-patron .role-crown {
   color: #facc15;
   filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.65));
-  animation: roleCrown 2.2s ease-in-out infinite;
+  animation: roleCrown 2.8s ease-in-out infinite;
 }
 
 /* ── SPECTATEUR (neutre, pas d'animation) ── */

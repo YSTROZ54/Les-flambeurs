@@ -336,6 +336,7 @@
     }
     this._kd = function (e) {
       if (!ok(e)) return;
+      if (e.key === 'a' || e.key === 'A') return; // Touche A réservée aux Emotes (hud3d.js)
       if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
       else if ((e.code === 'KeyF' || e.code === 'Enter') && self.near && self.blend === 0) { self._libererSouris(); self.near.use(self); e.preventDefault(); }
     };

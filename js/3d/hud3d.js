@@ -33,7 +33,7 @@
         '</div>' +
         '<div class="ph-dock">' +
           '<button class="ph-btn" data-act="wheel-dance" title="Danses">' + logo(fa('fa-music'), '232,121,249') + '<span>Danses</span><kbd>E</kbd></button>' +
-          '<button class="ph-btn" data-act="wheel-emote" title="Emotes">' + logo(fa('fa-face-smile'), '251,191,36') + '<span>Emotes</span></button>' +
+          '<button class="ph-btn" data-act="wheel-emote" title="Emotes">' + logo(fa('fa-face-smile'), '251,191,36') + '<span>Emotes</span><kbd>A</kbd></button>' +
           '<button class="ph-btn" data-act="phone" title="Téléphone">' + logo(fa('fa-mobile-screen-button'), '56,189,248') + '<span>Téléphone</span><kbd>T</kbd></button>' +
         '</div>' +
       '</div>' +
@@ -333,11 +333,26 @@
         if (wheelOpen || phoneOpen) { ev.stopImmediatePropagation(); ev.preventDefault(); closeAll(); }
         return;
       }
-      if (w.mode !== 'room' || ev.repeat) return;
-      // Touche E (ou B) : ouvrir/fermer la roue des danses & emotes
-      if (ev.code === 'KeyE' || ev.code === 'KeyB') { ev.preventDefault(); if (wheelOpen) closeWheel(); else openWheel(); }
-      else if (ev.code === 'KeyT') { ev.preventDefault(); if (phoneOpen) closePhone(); else openPhone(); }
-      else if (wheelOpen && ev.code === 'Tab') { ev.preventDefault(); setTab(tab === 'dance' ? 'emote' : 'dance'); }
+      // Touche E (ou B) : ouvrir/fermer la roue sur l'onglet Danses
+      // Touche A : ouvrir/fermer la roue sur l'onglet Emotes
+      var isKeyE = (ev.code === 'KeyE' || ev.code === 'KeyB' || ev.key === 'e' || ev.key === 'E');
+      var isKeyA = (ev.key === 'a' || ev.key === 'A');
+      if (isKeyE) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        if (wheelOpen && tab === 'dance') closeWheel(); else openWheel('dance');
+      } else if (isKeyA) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        if (wheelOpen && tab === 'emote') closeWheel(); else openWheel('emote');
+      } else if (ev.code === 'KeyT' || ev.key === 't' || ev.key === 'T') {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        if (phoneOpen) closePhone(); else openPhone();
+      } else if (wheelOpen && ev.code === 'Tab') {
+        ev.preventDefault();
+        setTab(tab === 'dance' ? 'emote' : 'dance');
+      }
       else if (wheelOpen) {
         var m = /^(?:Digit|Numpad)([1-8])$/.exec(ev.code);
         if (m && list()[+m[1] - 1]) { ev.preventDefault(); play(list()[+m[1] - 1].id); }
