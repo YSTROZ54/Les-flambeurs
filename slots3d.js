@@ -153,16 +153,41 @@
     });
 
     /* ---------- panneaux latéraux animés ---------- */
-    var PW = low ? 96 : 128, PH = low ? 480 : 640;
-    var sideCv = [mkCanvas(PW, PH), mkCanvas(PW, PH)];
-    var sideCtx = sideCv.map(function (c) { return c.getContext('2d'); });
-    var sideTex = sideCv.map(function (c) { return track(mkTex(c)); });
-    var drops = [];
-    for (var di = 0; di < 9; di++) drops.push({ x: Math.random(), y: Math.random(), v: 0.08 + Math.random() * 0.16, s: SYMS[di % SYMS.length], z: 0.5 + Math.random() * 0.6 });
-    [1, -1].forEach(function (s, i) {
-      var p = new THREE.Mesh(track(new THREE.PlaneGeometry(0.22, 1.6)), track(new THREE.MeshBasicMaterial({ map: sideTex[i] })));
-      p.position.set(s * 0.76, 1.85, 0.356); group.add(p);
-    });
+    // Bande lumineuse qui épouse la courbe de la lyre : la texture (motif répété) coule le long du meuble.
+    var TW = low ? 64 : 96, TH = low ? 256 : 384;
+    var tileCv = mkCanvas(TW, TH), tc = tileCv.getContext('2d');
+    (function () {
+      var g = tc.createLinearGradient(0, 0, 0, TH);
+      g.addColorStop(0, '#2a0f3a'); g.addColorStop(0.5, '#12081c'); g.addColorStop(1, '#2a0f3a');
+      tc.fillStyle = g; tc.fillRect(0, 0, TW, TH);
+      tc.strokeStyle = 'rgba(255,255,255,0.55)'; tc.lineWidth = 3;
+      for (var cy = 0; cy < TH; cy += TH / 4) {          // chevrons qui montent
+        tc.beginPath(); tc.moveTo(TW * 0.15, cy + TH / 8); tc.lineTo(TW / 2, cy); tc.lineTo(TW * 0.85, cy + TH / 8); tc.stroke();
+      }
+      tc.textAlign = 'center'; tc.textBaseline = 'middle'; tc.font = Math.round(TW * 0.5) + 'px ' + EMOJI_FONT;
+      for (var si2 = 0; si2 < 4; si2++) tc.fillText(SYMS[si2 * 2 % SYMS.length], TW / 2, (si2 + 0.5) * TH / 4 + TH / 8);
+    })();
+    var sideTex = track(mkTex(tileCv));
+    sideTex.wrapS = THREE.RepeatWrapping; sideTex.wrapT = THREE.RepeatWrapping;
+    var sideMat = track(new THREE.MeshBasicMaterial({ map: sideTex, side: THREE.DoubleSide }));
+    function ribbonGeo(s) {
+      var pts = outerCurve.getPoints(low ? 24 : 40).filter(function (p) { return p.y > 0.75 && p.y < 2.55; });
+      var pos = [], uv = [], idx = [], len = 0, i;
+      for (i = 0; i < pts.length; i++) {
+        if (i) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+        // largeur 0.17 vers l'intérieur, à partir du bord (juste sous le néon)
+        pos.push(s * (pts[i].x - 0.04), pts[i].y, 0.353, s * (pts[i].x - 0.2), pts[i].y, 0.353);
+        uv.push(0, len / 0.5, 1, len / 0.5);
+        if (i) { var a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      }
+      var g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setIndex(idx);
+      return track(g);
+    }
+    group.add(new THREE.Mesh(ribbonGeo(1), sideMat));
+    group.add(new THREE.Mesh(ribbonGeo(-1), sideMat));
 
     /* ---------- rayons lumineux ---------- */
     var rayCv = mkCanvas(32, 256), rctx = rayCv.getContext('2d');
@@ -369,29 +394,11 @@
     }
 
     /* ---------- panneaux latéraux ---------- */
-    function drawSides(dt) {
-      var P = S.party, hueBase = (S.t * 40) % 360;
-      for (var s = 0; s < 2; s++) {
-        var c = sideCtx[s], g = c.createLinearGradient(0, 0, 0, PH);
-        if (P) { g.addColorStop(0, '#5a3200'); g.addColorStop(1, '#1a0c00'); }
-        else { g.addColorStop(0, 'hsl(' + ((hueBase + s * 120) % 360) + ',70%,18%)'); g.addColorStop(1, 'hsl(' + ((hueBase + 180 + s * 120) % 360) + ',70%,8%)'); }
-        c.fillStyle = g; c.fillRect(0, 0, PW, PH);
-        c.textAlign = 'center'; c.textBaseline = 'middle';
-        for (var d = 0; d < drops.length; d++) {
-          var dr = drops[d];
-          dr.y += dr.v * dt * (P ? 4 : 1) * (s ? -1 : 1);
-          if (dr.y > 1.1) dr.y = -0.1; if (dr.y < -0.1) dr.y = 1.1;
-          c.globalAlpha = 0.4 + 0.5 * dr.z;
-          c.font = Math.round(PW * 0.45 * dr.z + 10) + 'px ' + EMOJI_FONT;
-          c.fillText(P ? ['⭐', '💎', '👑', '🔥'][d % 4] : dr.s, ((dr.x + s * 0.37 + d * 0.11) % 1) * PW * 0.7 + PW * 0.15, dr.y * PH);
-        }
-        c.globalAlpha = 1;
-        var sy = ((S.t * (P ? 0.9 : 0.25) + s * 0.5) % 1) * PH;
-        var sl = c.createLinearGradient(0, sy - 20, 0, sy + 20);
-        sl.addColorStop(0, 'rgba(255,255,255,0)'); sl.addColorStop(0.5, 'rgba(255,255,255,0.35)'); sl.addColorStop(1, 'rgba(255,255,255,0)');
-        c.fillStyle = sl; c.fillRect(0, sy - 20, PW, 40);
-        sideTex[s].needsUpdate = true;
-      }
+    function updateSides(dt) {
+      var P = S.party;
+      sideTex.offset.y -= dt * (P ? 1.2 : 0.18);
+      if (P) sideMat.color.setHSL(0.12, 1, 0.75);
+      else sideMat.color.setHSL((S.t * 0.07) % 1, 0.7, 0.8);
     }
 
     /* ---------- pièces & étincelles ---------- */
@@ -524,8 +531,7 @@
       S.scrT += dt;
       var moving = S.spinning || S.party || reels.some(function (r) { return r.mode !== 'idle'; });
       if (moving || S.scrT > 0.16 || S.dirty) { S.scrT = 0; S.dirty = false; drawScreen(); }
-      S.sideT += dt;
-      if (S.sideT > (low ? 0.1 : 0.05)) { drawSides(S.sideT); S.sideT = 0; }
+      updateSides(dt);
 
       // bouton enfoncé
       if (S.pressBtn) {
@@ -572,7 +578,7 @@
     function setTrim(hex) { if (hex !== S.trim) { S.trim = hex; matTrim.color.setHex(hex); matTrim.emissive.setHex(hex).multiplyScalar(0.12); } }
     function pressButton(btn) { S.pressBtn = btn; S.pressT = 0.14; }
 
-    drawBanner(); drawScreen(); drawSides(0.05);
+    drawBanner(); drawScreen(); updateSides(0);
 
     return {
       group: group,
