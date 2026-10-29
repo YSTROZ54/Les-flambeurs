@@ -94,13 +94,13 @@ test('horses : les paris ferment 2 s avant le départ et le classement apparaît
   fresh();
   const ta = await signup('Bob');
   __test.memory.rows.bob.balance = 1000;
-  await hsGet();
+  assert.equal((await hs({ action: 'bet', horse: 1, kind: 'group', amount: 100 }, ta)).code, 200);   // le premier pari lance le compte à rebours
   shift(H.BET_MS - H.CLOSE_MS + 500);
   const g = await hsGet();
   assert.ok(Array.isArray(g.data.finish) && g.data.finish.length === 8, 'le classement est révélé une fois les paris fermés');
   const r = await hs({ action: 'bet', horse: 3, kind: 'group', amount: 100 }, ta);
   assert.equal(r.code, 400);
-  assert.equal(bal('bob'), 1000);
+  assert.equal(bal('bob'), 900);
 });
 
 test('horses : gains versés une seule fois à la fin de la course, perdants non payés', async () => {
@@ -141,12 +141,39 @@ test('horses : la course suivante démarre à l\'heure, avec de nouvelles mises 
   fresh();
   const ta = await signup('Erin');
   __test.memory.rows.erin.balance = 1000;
-  await hsGet();
+  assert.equal((await hs({ action: 'bet', horse: 1, kind: 'group', amount: 100 }, ta)).code, 200);
   const round = raw().round;
   shift(H.CYCLE_MS + 1000);
   const g = await hsGet();
   assert.equal(g.data.round, round + 1);
   assert.equal(g.data.bets.length, 0);
   assert.equal(g.data.finish, undefined);
+  assert.equal(g.data.t0, 0, 'rien ne démarre tant que personne ne parie');
   assert.equal((await hs({ action: 'bet', horse: 2, kind: 'group', amount: 100 }, ta)).code, 200);
+});
+
+test('horses : aucune course ne démarre sans pari, et le premier pari lance 10 s de paris', async () => {
+  fresh();
+  const ta = await signup('Fred');
+  __test.memory.rows.fred.balance = 1000;
+  let g = await hsGet();
+  assert.equal(g.data.t0, 0);
+  assert.equal(g.data.finish, undefined);
+  assert.equal(H.BET_MS - H.CLOSE_MS, 10000, '10 s pour parier');
+  await new Promise((r) => setTimeout(r, 30));
+  g = await hsGet();
+  assert.equal(g.data.t0, 0, 'toujours en attente');
+  const t = Date.now();
+  let r = await hs({ action: 'bet', horse: 3, kind: 'group', amount: 100 }, ta);
+  assert.equal(r.code, 200);
+  assert.ok(r.data.state.t0 >= t && r.data.state.t0 <= Date.now(), 'le compte à rebours part au premier pari');
+  // un deuxième pari ne relance pas l'horloge
+  const t0 = raw().t0;
+  assert.equal((await hs({ action: 'bet', horse: 4, kind: 'group', amount: 100 }, ta)).code, 200);
+  assert.equal(raw().t0, t0);
+  // si tous les paris sont annulés avant le départ, la course repasse en attente
+  const mine = (await hs({ action: 'mine' }, ta)).data.mine;
+  for (const b of mine) assert.equal((await hs({ action: 'cancel', at: b.at }, ta)).code, 200);
+  assert.equal(raw().t0, 0);
+  assert.equal(bal('fred'), 1000);
 });

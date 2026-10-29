@@ -38,7 +38,7 @@
   var Z0 = 1.0;                       // ligne de départ = ligne d'arrivée (ligne droite est)
   var TY = 0.93;                      // hauteur du tapis vert
   var HX = 11, HZ = 13;               // demi-largeur / demi-profondeur de la salle
-  var BET_MS = 30000, CLOSE_MS = 2000, RACE_MS = 30000, RESULT_MS = 10000;   // mêmes durées que api/horses.js
+  var BET_MS = 12000, CLOSE_MS = 2000, RACE_MS = 30000, RESULT_MS = 10000;   // mêmes durées que api/horses.js
 
   function laneR(i) { return LANE0 + i * LANE_STEP; }
   function laneLen(r) { return 2 * S + 2 * Math.PI * r; }
@@ -72,6 +72,7 @@
   // phase de la course à l'instant now (ms) : 'betting' | 'racing' | 'results' | 'done' + secondes écoulées dans la course
   function phaseOf(st, now) {
     var el = now - st.t0;
+    if (!st.t0) return { phase: 'waiting', left: 0, t: 0, open: true };   // personne n'a encore parié : rien ne démarre
     // tant que le classement n'est pas arrivé du serveur (il l'envoie 2 s avant le départ), on reste en attente
     if (el < BET_MS || !st.finish) return { phase: 'betting', left: Math.max(0, (BET_MS - el) / 1000), t: 0, open: el < BET_MS - CLOSE_MS };
     if (el < BET_MS + RACE_MS) return { phase: 'racing', left: (BET_MS + RACE_MS - el) / 1000, t: (el - BET_MS) / 1000 };
@@ -374,13 +375,13 @@
       c.fillStyle = '#0d2a52'; c.fillRect(0, 0, W, 78);
       c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#7fd1ff'; c.font = '900 40px ' + SERIF; c.fillText('GRAND PRIX DES FLAMBEURS', 28, 40);
       c.textAlign = 'right'; c.fillStyle = '#f3cf62'; c.font = '800 34px ' + MONO;
-      var head = info.phase === 'betting' ? 'PARIS · ' + Math.ceil(info.left) + ' s' : info.phase === 'racing' ? 'COURSE EN COURS' : info.phase === 'results' ? 'RÉSULTATS' : '…';
+      var head = info.phase === 'waiting' ? 'EN ATTENTE DE PARIS' : info.phase === 'betting' ? 'PARIS · ' + Math.ceil(Math.max(0, info.left - CLOSE_MS / 1000)) + ' s' : info.phase === 'racing' ? 'COURSE EN COURS' : info.phase === 'results' ? 'RÉSULTATS' : '…';
       c.fillText(head, W - 28, 40);
       var list = info.rows;
       for (i = 0; i < 8; i++) {
         var row = list[i], y = 100 + i * 58, h = HORSES[row.i];
         c.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.09)'; c.fillRect(20, y, W - 40, 52);
-        c.textAlign = 'center'; c.font = '900 30px ' + MONO; c.fillStyle = i === 0 && info.phase !== 'betting' ? '#f3cf62' : '#9fb4d6'; c.fillText(info.phase === 'betting' ? '' : String(i + 1), 62, y + 28);
+        c.textAlign = 'center'; c.font = '900 30px ' + MONO; c.fillStyle = i === 0 && (info.phase === 'racing' || info.phase === 'results') ? '#f3cf62' : '#9fb4d6'; c.fillText(info.phase === 'betting' || info.phase === 'waiting' ? '' : String(i + 1), 62, y + 28);
         c.beginPath(); c.arc(130, y + 26, 20, 0, TAU); c.fillStyle = hex(h.silk); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke();
         c.fillStyle = h.ink; c.font = '900 24px ' + MONO; c.fillText(String(h.n), 130, y + 28);
         c.textAlign = 'left'; c.fillStyle = '#eaf2ff'; c.font = '800 30px "Plus Jakarta Sans",system-ui,sans-serif'; c.fillText(h.name, 175, y + 27);
@@ -409,7 +410,7 @@
       if (room.demo && (!room.state || phaseOf(room.state, room.now()).phase === 'done')) room.state = newDemoState();
       var st = room.state; if (!st) return;
       var ph = phaseOf(st, room.now()), rows = [], i;
-      if (ph.phase === 'betting') { placeHorses(dt, 0, null, false); for (i = 0; i < 8; i++) rows.push({ i: i, txt: room.odds ? 'x' + room.odds.group[i] : '' }); }
+      if (ph.phase === 'betting' || ph.phase === 'waiting') { placeHorses(dt, 0, null, false); for (i = 0; i < 8; i++) rows.push({ i: i, txt: room.odds ? 'x' + room.odds.group[i] : '' }); }
       else {
         placeHorses(dt, ph.t, st.finish, ph.phase === 'racing');
         var idx = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -418,9 +419,9 @@
       }
       room.info = { phase: ph.phase, left: ph.left, t: ph.t, rows: rows, id: st.id, open: !!ph.open };
       if (ph.phase !== room.lastPhase) { var prev = room.lastPhase; room.lastPhase = ph.phase; room.onPhase(ph.phase, prev); }
-      gateY += ((ph.phase === 'betting' ? 0 : 0.9) - gateY) * Math.min(1, dt * 5);
+      gateY += ((ph.phase === 'betting' || ph.phase === 'waiting' ? 0 : 0.9) - gateY) * Math.min(1, dt * 5);
       gate.position.y = TY + 0.2 - gateY * 0.3;
-      var key = ph.phase + ':' + (ph.phase === 'betting' ? Math.ceil(ph.left) : Math.floor(ph.t * 5)) + ':' + rows.map(function (r) { return r.i; }).join('');
+      var key = ph.phase + ':' + (ph.phase === 'betting' ? Math.ceil(ph.left) : ph.phase === 'waiting' ? 0 : Math.floor(ph.t * 5)) + ':' + rows.map(function (r) { return r.i; }).join('');
       if (key !== lastKey) { lastKey = key; drawScreen(room.info); }
     }
 
@@ -466,7 +467,7 @@
     room.syncHud = function () {
       if (!room.elBanner) return;
       var i = room.info, s = room.sel, open = room.canBet();
-      var t = i.phase === 'betting' ? (i.open ? '🎟️ PARIS OUVERTS — ' + Math.ceil(Math.max(0, i.left - CLOSE_MS / 1000)) + ' s' : '🔒 PARIS FERMÉS — DÉPART IMMINENT') : i.phase === 'racing' ? '🏇 COURSE EN COURS' : i.phase === 'results' ? '🏁 COURSE TERMINÉE' : '';
+      var t = i.phase === 'waiting' ? '🎟️ AUCUNE COURSE — LE PREMIER PARI LANCE 10 s DE PARIS' : i.phase === 'betting' ? (i.open ? '🎟️ PARIS OUVERTS — ' + Math.ceil(Math.max(0, i.left - CLOSE_MS / 1000)) + ' s' : '🔒 PARIS FERMÉS — DÉPART IMMINENT') : i.phase === 'racing' ? '🏇 COURSE EN COURS' : i.phase === 'results' ? '🏁 COURSE TERMINÉE' : '';
       if (room.demo) t += ' (hors ligne : paris indisponibles)';
       room.elBanner.textContent = t; room.elBanner.style.display = '';
       if (!room.elHud) return;
@@ -482,7 +483,7 @@
       room.elAmt.textContent = fmt(s.amount);
       var m = curMult();
       room.elGo.disabled = !open;
-      room.elGo.textContent = !room.odds ? 'HORS LIGNE' : !open ? (i.phase === 'betting' ? 'PARIS FERMÉS' : 'PROCHAINE COURSE…') : 'PARIER · gain ' + fmt(Math.floor(s.amount * m));
+      room.elGo.textContent = !room.odds ? 'HORS LIGNE' : !open ? (i.phase === 'betting' ? 'PARIS FERMÉS' : 'COURSE EN COURS…') : 'PARIER · gain ' + fmt(Math.floor(s.amount * m));
       room.elStand.disabled = false;
       var rows = room.myBets.map(function (b) {
         var h = HORSES[b.horse - 1], what = b.kind === 'group' ? '4 premiers' : (b.place === 1 ? '1ᵉʳ' : b.place + 'ᵉ');
@@ -491,7 +492,7 @@
       }).join('');
       if (rows !== room._minePaint) { room._minePaint = rows; room.elMine.innerHTML = rows || '<div class="e">Aucun pari sur cette course (3 maximum).</div>'; }
     };
-    room.canBet = function () { return !room.demo && !!room.odds && room.info.phase === 'betting' && room.info.open; };
+    room.canBet = function () { return !room.demo && !!room.odds && (room.info.phase === 'waiting' || (room.info.phase === 'betting' && room.info.open)); };
 
     /* ----- liaison avec le serveur de course : état, paris, gains ----- */
     function balanceTo(v) {
@@ -516,7 +517,7 @@
     room.onPhase = function (ph, prev) {
       if (room.demo) return;
       if (ph === 'results' && room.myBets.length) { room.refreshMine(true); setTimeout(function () { if (!world.dead) room.refreshMine(true); }, 1500); }
-      if (ph === 'betting' && prev) { room.myBets = []; room._minePaint = null; room.say(''); }
+      if (ph === 'waiting' && prev) { room.myBets = []; room._minePaint = null; room.say(''); }
     };
     room.placeBet = function () {
       var s = room.sel;
@@ -526,7 +527,7 @@
       var av = ''; try { av = state.avatarEmoji || ''; } catch (e) { /* pas connecté */ }
       room.elGo.disabled = true;
       world.post('/api/horses', { action: 'bet', horse: s.horse, kind: s.kind, place: s.kind === 'place' ? s.place : 0, amount: s.amount, avatar: av }).then(function (r) {
-        if (r && r.ok) { balanceTo(r.balance); room.say('✅ Pari enregistré : ' + HORSES[s.horse - 1].name + ' (x' + r.mult + ')'); return room.refreshMine(false); }
+        if (r && r.ok) { balanceTo(r.balance); if (r.state && r.state.serverNow) { room.clockOffset = r.state.serverNow - Date.now(); room.setState(r.state); } room.say('✅ Pari enregistré : ' + HORSES[s.horse - 1].name + ' (x' + r.mult + ')'); return room.refreshMine(false); }
         room.say((r && r.error) || 'Pas de réponse du serveur.');
       }).then(function () { room.syncHud(); });
     };

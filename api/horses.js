@@ -1,6 +1,6 @@
 // Courses de chevaux multijoueur, entièrement gérées par le serveur :
 //  - le classement est tiré ici et reste secret jusqu'à la fermeture des paris,
-//  - le déroulement (paris, course, résultats) suit l'horloge du serveur, une course toutes les 70 s,
+//  - une course ne démarre que si quelqu'un a parié : le premier pari lance 10 s de paris, puis 30 s de course et 10 s de résultats,
 //  - mises prélevées et gains versés par le serveur (jamais par le navigateur).
 // Même principe que api/crash.js : l'état est enregistré dans la ligne __horses_game__ avec une écriture
 // « si personne n'a modifié entre-temps », donc deux joueurs qui parient en même temps ne s'écrasent pas.
@@ -12,7 +12,7 @@ import { walletCharge, walletPay } from './_wallet.js';
 const ROW = '__horses_game__';
 const NOOP = Symbol('noop');
 
-export const BET_MS = 30000;      // paris ouverts + compte à rebours
+export const BET_MS = 12000;      // du premier pari au départ : 10 s pour parier + 2 s de fermeture
 export const CLOSE_MS = 2000;     // les paris ferment 2 s avant le départ (le classement est alors révélé aux écrans)
 export const RACE_MS = 30000;     // la course (les chevaux franchissent la ligne entre 17 et 26,5 s)
 export const RESULT_MS = 10000;   // affichage des résultats
@@ -64,14 +64,14 @@ export const ODDS = buildOdds();
 
 // ---------- état ----------
 const initialState = (now) => ({
-  round: 1, id: '1', t0: now, finish: drawFinish(), bets: {}, owed: [], settled: false, history: [], updatedAt: now
+  round: 1, id: '1', t0: 0, finish: drawFinish(), bets: {}, owed: [], settled: false, history: [], updatedAt: now
 });
 
 // fait avancer la partie avec l'horloge ; renvoie true si quelque chose a changé
 export function progress(st, now) {
   let changed = false;
   for (let guard = 0; guard < 4; guard++) {
-    if (!st.settled && now >= st.t0 + BET_MS + RACE_MS) {
+    if (st.t0 && !st.settled && now >= st.t0 + BET_MS + RACE_MS) {
       const order = orderOf(st.finish);
       Object.keys(st.bets || {}).forEach((name) => (st.bets[name] || []).forEach((b) => {
         if (!b.paid) return;
@@ -86,21 +86,23 @@ export function progress(st, now) {
       if (st.history.length > 8) st.history.pop();
       st.updatedAt = now; changed = true; continue;
     }
-    if (st.settled && now >= st.t0 + CYCLE_MS) {
-      const k = Math.floor((now - st.t0) / CYCLE_MS);   // si personne n'a joué depuis longtemps, on saute les courses vides
-      st.round = (st.round || 1) + k; st.t0 += k * CYCLE_MS; st.id = String(st.round);
+    if (st.settled && st.t0 && now >= st.t0 + CYCLE_MS) {
+      st.round = (st.round || 1) + 1; st.t0 = 0; st.id = String(st.round);   // la course suivante attend son premier pari
       st.finish = drawFinish(); st.bets = {}; st.order = undefined; st.settled = false; st.updatedAt = now; changed = true; continue;
     }
     break;
   }
   return changed;
 }
-export const bettingOpen = (st, now) => now < st.t0 + BET_MS - CLOSE_MS;
+// les paris sont ouverts tant que personne n'a parié (rien ne démarre) puis pendant les 10 s qui suivent le premier pari
+// plus aucun pari pendant le compte à rebours : la course repasse en attente (rien ne démarre sans pari)
+function stopIfEmpty(st, now) { if (st.t0 && !st.settled && now < st.t0 + BET_MS && !Object.keys(st.bets).length) st.t0 = 0; }
+export const bettingOpen = (st, now) => !st.t0 || now < st.t0 + BET_MS - CLOSE_MS;
 
 // ce que les navigateurs ont le droit de voir : le classement n'est montré qu'une fois les paris fermés
 export function publicState(st, now) {
   const out = { id: st.id, round: st.round, t0: st.t0, serverNow: now, history: st.history, odds: { group: ODDS.group, place: ODDS.place }, bets: [] };
-  if (now >= st.t0 + BET_MS - CLOSE_MS) out.finish = st.finish;
+  if (st.t0 && now >= st.t0 + BET_MS - CLOSE_MS) out.finish = st.finish;
   Object.keys(st.bets || {}).forEach((name) => (st.bets[name] || []).forEach((b) => {
     if (!b.paid) return;
     out.bets.push({ name, avatar: b.avatar, horse: b.horse + 1, kind: b.kind, place: b.place || 0, amount: b.amount, mult: b.mult, win: b.done ? b.win : undefined });
@@ -210,6 +212,7 @@ export default async function handler(req, res) {
         const at = now * 1000 + randomInt(0, 1000);
         mine.push({ at, horse, kind, place, amount, mult, paid: false, win: 0, done: false, avatar: cleanAvatar(body.avatar) });
         st.bets[actor] = mine; st.updatedAt = now;
+        if (!st.t0) st.t0 = now;   // le premier pari lance le compte à rebours de la course
         return { round: st.round, at };
       });
       let charged;
@@ -220,6 +223,7 @@ export default async function handler(req, res) {
           const mine = st.bets[actor] || [], k = mine.findIndex((b) => b.at === reserved.at && !b.paid);
           if (st.round !== reserved.round || k < 0) return NOOP;
           mine.splice(k, 1); if (!mine.length) delete st.bets[actor];
+          stopIfEmpty(st, Date.now());
         }).catch(() => {});
         throw e;
       }
@@ -247,6 +251,7 @@ export default async function handler(req, res) {
         if (k < 0) throw new GameError(400, 'Pari introuvable.');
         const b = mine.splice(k, 1)[0];
         if (!mine.length) delete st.bets[actor];
+        stopIfEmpty(st, now);
         if (b.paid) st.owed.push({ key: `hc:${st.round}:${actor}:${b.at}`, name: actor, amount: b.amount });
         st.updatedAt = now;
         return { refund: b.paid ? b.amount : 0 };
