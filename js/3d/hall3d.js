@@ -53,11 +53,11 @@
 
     // grand médaillon doré au centre
     var mc = mkCanvas(512, 512), mx = mc.getContext('2d');
-    mx.translate(256, 256); mx.strokeStyle = '#c9a227'; mx.fillStyle = 'rgba(80,12,28,0.92)';
+    mx.translate(256, 256); mx.strokeStyle = '#c9a227'; mx.fillStyle = '#500c1c';
     mx.beginPath(); mx.arc(0, 0, 250, 0, TAU); mx.fill();
     [250, 232, 150, 140].forEach(function (r, i) { mx.lineWidth = i % 2 ? 3 : 8; mx.beginPath(); mx.arc(0, 0, r, 0, TAU); mx.stroke(); });
     mx.lineWidth = 3; for (var a = 0; a < 16; a++) { mx.save(); mx.rotate(a / 16 * TAU); mx.beginPath(); mx.moveTo(150, 0); mx.lineTo(232, 0); mx.stroke(); mx.restore(); }
-    var med = new THREE.Mesh(new THREE.CircleGeometry(4.4, 48), new THREE.MeshBasicMaterial({ map: mkTex(mc), transparent: true }));
+    var med = new THREE.Mesh(new THREE.CircleGeometry(4.4, 48), new THREE.MeshBasicMaterial({ map: mkTex(mc), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     med.rotation.x = -Math.PI / 2; med.position.y = 0.01; g.add(med);
 
     // murs, moulures, plafond
@@ -99,26 +99,60 @@
     var marble = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.25, metalness: 0.1 });
     var base = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.85, 0.6, 32), marble); base.position.y = 0.3; g.add(base);
     var rim = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.07, 8, 40), gold); rim.rotation.x = Math.PI / 2; rim.position.y = 0.6; g.add(rim);
-    var wc = mkCanvas(64, 64), wx = wc.getContext('2d'), wg = wx.createRadialGradient(32, 32, 4, 32, 32, 32);
-    wg.addColorStop(0, '#4fb4e8'); wg.addColorStop(1, '#14507f'); wx.fillStyle = wg; wx.fillRect(0, 0, 64, 64);
-    wx.strokeStyle = 'rgba(255,255,255,0.35)'; wx.lineWidth = 2; for (var q = 0; q < 6; q++) { wx.beginPath(); wx.arc(32, 32, 5 + q * 5, 0, TAU); wx.stroke(); }
-    var wt = new THREE.CanvasTexture(wc); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(2, 2);
-    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 32), new THREE.MeshBasicMaterial({ map: wt }));
-    water.rotation.x = -Math.PI / 2; water.position.y = 0.63; g.add(water);
-    var pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 1.5, 14), gold); pillar.position.y = 1.3; g.add(pillar);
-    var arm = new THREE.Group(); arm.position.y = 2.5; g.add(arm);
+    // eau : fond sombre, surface brillante, reflets qui bougent, vaguelettes et petites gouttes
+    var bed = new THREE.Mesh(new THREE.CircleGeometry(1.66, 40), new THREE.MeshStandardMaterial({ color: 0x0b3a5c, roughness: 0.6 }));
+    bed.rotation.x = -Math.PI / 2; bed.position.y = 0.42; g.add(bed);
+    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 48), new THREE.MeshStandardMaterial({ color: 0x2aa8e0, emissive: 0x06324f, roughness: 0.05, metalness: 0.25, transparent: true, opacity: 0.8 }));
+    water.rotation.x = -Math.PI / 2; water.position.y = 0.6; g.add(water);
+    var cc = mkCanvas(128, 128), cx2 = cc.getContext('2d'), q, u;
+    cx2.fillStyle = '#000'; cx2.fillRect(0, 0, 128, 128); cx2.lineCap = 'round';
+    for (q = 0; q < 46; q++) {
+      cx2.strokeStyle = 'rgba(190,240,255,' + (0.25 + Math.random() * 0.5) + ')'; cx2.lineWidth = 1 + Math.random() * 2;
+      cx2.beginPath(); u = Math.random() * 128; cx2.moveTo(u, Math.random() * 128); cx2.bezierCurveTo(u + 30, Math.random() * 128, u - 30, Math.random() * 128, u + (Math.random() - 0.5) * 60, Math.random() * 128); cx2.stroke();
+    }
+    var wt = new THREE.CanvasTexture(cc); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(2.2, 2.2);
+    var wt2 = wt.clone(); wt2.needsUpdate = true; wt2.repeat.set(1.5, 1.5);
+    [wt, wt2].forEach(function (t, k) {
+      var cs = new THREE.Mesh(new THREE.CircleGeometry(1.64, 40), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+      cs.rotation.x = -Math.PI / 2; cs.position.y = 0.612 + k * 0.004; g.add(cs);
+    });
+    var ripples = [0, 1, 2].map(function (k) {
+      var rp = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 48), new THREE.MeshBasicMaterial({ color: 0xcdf3ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+      rp.rotation.x = -Math.PI / 2; rp.position.y = 0.625; g.add(rp); return rp;
+    });
+    var DROPS = low ? 10 : 22, dropG = new THREE.SphereGeometry(0.035, 6, 5), dropM = new THREE.MeshBasicMaterial({ color: 0xd9f6ff, transparent: true, opacity: 0.85 });
+    var drops = [], dk;
+    for (dk = 0; dk < DROPS; dk++) { var dm = new THREE.Mesh(dropG, dropM); g.add(dm); drops.push({ m: dm, a: dk / DROPS * TAU, ph: (dk * 0.37) % 1, sp: 0.8 + (dk % 5) * 0.12 }); }
+    var pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 1.6, 14), gold); pillar.position.y = 1.35; g.add(pillar);
+    var cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), gold); cap.position.y = 2.18; g.add(cap);
+    var arm = new THREE.Group(); arm.position.y = 3.15; g.add(arm);
     var ringMat = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.2, metalness: 0.8, emissive: 0x6a4500 });
     [0, 1, 2].forEach(function (k) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.035, 8, 32), ringMat); r.rotation.set(k * 1.05, k * 0.7, 0); arm.add(r); });
     var core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffe9a0 })); arm.add(core);
     room.colliders.push({ x: 0, z: 0, r: 2.1 });
 
     // lustres
+    function rod(c, a, b, rad) {
+      var dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], len = Math.hypot(dx, dy, dz), m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, len, 6), gold);
+      m.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx, dy, dz).normalize()); c.add(m);
+    }
     function chandelier(x, z, r, y) {
-      var c = new THREE.Group(); c.position.set(x, y, z); g.add(c);
+      var c = new THREE.Group(), top = 8 - y, k, an; c.position.set(x, y, z); g.add(c);
       var ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.06, 8, 40), gold); ring.rotation.x = Math.PI / 2; c.add(ring);
-      var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 8 - y, 6), gold); chain.position.y = (8 - y) / 2; c.add(chain);
+      var ring2 = new THREE.Mesh(new THREE.TorusGeometry(r * 0.5, 0.04, 8, 32), gold); ring2.rotation.x = Math.PI / 2; ring2.position.y = -0.14; c.add(ring2);
+      var hub = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), gold); hub.position.y = -0.14; c.add(hub);
+      var drop = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 10), gold); drop.rotation.x = Math.PI; drop.position.y = -0.44; c.add(drop);
+      for (k = 0; k < 4; k++) {                                   // 4 chaînes qui montent de l'anneau jusqu'à la rosace du plafond, et des rayons vers le moyeu
+        an = k / 4 * TAU + Math.PI / 4;
+        rod(c, [Math.cos(an) * r, 0, Math.sin(an) * r], [0, top - 0.05, 0], 0.022);
+        rod(c, [Math.cos(an) * r, 0, Math.sin(an) * r], [0, -0.14, 0], 0.03);
+        rod(c, [Math.cos(an) * r * 0.5, -0.14, Math.sin(an) * r * 0.5], [Math.cos(an) * r, 0, Math.sin(an) * r], 0.02);
+      }
+      rod(c, [0, -0.14, 0], [0, top - 0.05, 0], 0.03);
+      var rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 0.12, 20), gold); rosette.position.y = top - 0.05; c.add(rosette);
+      var rcap = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 6, 20), gold); rcap.rotation.x = Math.PI / 2; rcap.position.y = top - 0.1; c.add(rcap);
       var nb = low ? 10 : 18, bm = new THREE.MeshBasicMaterial({ color: 0xffe3a8 }), bg = new THREE.SphereGeometry(0.07, 8, 6);
-      for (var b = 0; b < nb; b++) { var m = new THREE.Mesh(bg, bm); var an = b / nb * TAU; m.position.set(Math.cos(an) * r, 0.1, Math.sin(an) * r); c.add(m); }
+      for (var b = 0; b < nb; b++) { var m = new THREE.Mesh(bg, bm); var an2 = b / nb * TAU; m.position.set(Math.cos(an2) * r, 0.1, Math.sin(an2) * r); c.add(m); }
     }
     chandelier(0, 0, 2.6, 6.2); chandelier(-6.5, 0, 1.5, 6.6); chandelier(6.5, 0, 1.5, 6.6);
 
@@ -142,9 +176,16 @@
       return w.touch ? 'Joystick : marcher · approche-toi d\'une porte pour la pousser'
         : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · avance vers une porte pour la pousser' + (w.full ? ' · la souris tourne la vue · Échap : quitter' : ' · clique-glisse : regarder');
     };
+    var hallT = 0;
     room.update = function (dt) {
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
-      wt.offset.x += dt * 0.03; wt.offset.y += dt * 0.02;
+      wt.offset.x += dt * 0.03; wt.offset.y += dt * 0.02; wt2.offset.x -= dt * 0.025; wt2.offset.y += dt * 0.018;
+      hallT += dt;
+      ripples.forEach(function (rp, k) { var f = (hallT * 0.3 + k / 3) % 1, rr = 0.25 + f * 1.4; rp.scale.set(rr, rr, 1); rp.material.opacity = 0.55 * (1 - f); });
+      drops.forEach(function (d) {          // gouttes qui jaillissent du pied de la sphère et retombent dans l'eau
+        var f = (hallT * d.sp * 0.5 + d.ph) % 1, out = f * 1.25, h = 2.1 + 1.3 * 4 * f * (1 - f) * 0.9 - f * 1.5;
+        d.m.position.set(Math.cos(d.a) * out, Math.max(0.62, h), Math.sin(d.a) * out);
+      });
     };
     return room;
   }
