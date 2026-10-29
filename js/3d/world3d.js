@@ -314,9 +314,19 @@
     }
     this.elHint.textContent = t; this.elHint.style.display = ''; this.hintShown = this.clock || 0;
   };
-  World.prototype.flash = function (msg) {
-    this.elHint.textContent = msg; this.elHint.style.display = ''; this.hintShown = this.clock;
-    var self = this; clearTimeout(this._flashT); this._flashT = setTimeout(function () { if (!self.dead) self._setHint(); }, 3500);
+  // Annonce en grand au centre haut : pastille dorée qui rebondit, reflet qui la traverse, barre qui se vide. L'emoji du début du message devient l'icône.
+  // sub : ligne en dessous (facultative).
+  World.prototype.flash = function (msg, sub) {
+    var self = this, el = this._toast;
+    if (!el) { el = this._toast = document.createElement('div'); el.className = 's3d-toast'; this.hud.appendChild(el); }
+    var m = /^(\p{Extended_Pictographic}[️‍\p{Extended_Pictographic}]*)\s*([\s\S]*)$/u.exec(String(msg)), ic = m ? m[1] : '', tx = m ? m[2] : String(msg);
+    el.innerHTML = '<span class="s3d-toast-ic"></span><span class="s3d-toast-tx"><b></b><small></small></span><i class="s3d-toast-bar"></i>';
+    el.children[0].textContent = ic; el.children[0].style.display = ic ? '' : 'none';
+    el.querySelector('b').textContent = tx;
+    var sm = el.querySelector('small'); sm.textContent = sub || ''; sm.style.display = sub ? '' : 'none';
+    el.classList.remove('on', 'out'); void el.offsetWidth; el.classList.add('on');          // relance l'animation même si une annonce est déjà là
+    clearTimeout(this._flashT); clearTimeout(this._flashT2);
+    this._flashT = setTimeout(function () { el.classList.add('out'); self._flashT2 = setTimeout(function () { el.classList.remove('on', 'out'); }, 450); }, 3400);
   };
   World.prototype._paintFullBtn = function () {
     var enter = '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', exit = '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>';
