@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    Une grande galerie de luxe avec SIX vendeurs. Chaque vendeur a son stand et sa propre catégorie :
      Neil (fusées du Crash) · Victor (poker) · Merlin (gobelets) · Rosa (blackjack) · Max (machines à sous) · Cléo (avatars).
-   On marche jusqu'à un vendeur, on appuie sur E (ou on clique dessus) : la caméra se tourne vers lui et un panneau
+   On marche jusqu'à un vendeur, on appuie sur F (ou on clique dessus) : la caméra se tourne vers lui et un panneau
    montre SES articles. Les achats passent par les fonctions déjà présentes dans la page (buySkin / equipSkin) :
    mêmes prix, même vérification par le serveur. Cette salle ne s'occupe que de ce qu'on voit et du bon bouton.
    Les autres joueurs sont visibles dans la boutique (canal temps réel de f3d-core.js) et on voit passer
@@ -17,7 +17,8 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, EMOJI = F.EMOJI_FONT, TAU = F.TAU, fmtN = F.fmtN;
 
-  var HX = 12, HZ = 11;   // demi-largeur et demi-profondeur de la galerie (mètres)
+  var HX = 14, HZ = 11;   // demi-largeur et demi-profondeur de la galerie (mètres)
+  var PMU_DOOR_X = 10.5;  // la porte du PMU est sur le mur du fond, à droite des stands
 
   /* ---------- petits outils ---------- */
   var matCache = {};
@@ -211,24 +212,16 @@
     var clockT = 0, medals = [], sellers = [], talk = null, camSeller = null, overlay = null, busy = false, msgT = null;
     var coin = null;
 
-    /* --- sol : marbre ivoire et lignes dorées --- */
+    /* --- sol : grand damier de marbre noir et anthracite, lignes dorées fines, mat (pas de taches de lumière) --- */
     var fc = mkCanvas(256, 256), fx = fc.getContext('2d');
-    fx.fillStyle = '#e6dfd0'; fx.fillRect(0, 0, 256, 256);
-    fx.fillStyle = '#d3c9b4'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);
-    fx.globalAlpha = 0.08; for (var i = 0; i < 120; i++) { fx.fillStyle = i % 2 ? '#fff' : '#5a4a30'; fx.fillRect(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 30, 1); }
-    fx.globalAlpha = 1; fx.strokeStyle = 'rgba(201,162,39,0.8)'; fx.lineWidth = 3; fx.strokeRect(1, 1, 254, 254);
-    fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.lineWidth = 1.5; fx.stroke();
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, color: 0xb9b1a2, roughness: 0.28, metalness: 0.2 }));
+    fx.fillStyle = '#17141c'; fx.fillRect(0, 0, 256, 256);
+    fx.fillStyle = '#2a2631'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);
+    fx.globalAlpha = 0.07; for (var i = 0; i < 140; i++) { fx.fillStyle = i % 2 ? '#d8d0e0' : '#000'; fx.fillRect(Math.random() * 256, Math.random() * 256, 6 + Math.random() * 40, 1); }
+    fx.globalAlpha = 1; fx.strokeStyle = 'rgba(201,162,39,0.85)'; fx.lineWidth = 1.5; fx.strokeRect(0.75, 0.75, 254.5, 254.5);
+    fx.strokeStyle = 'rgba(201,162,39,0.35)'; fx.lineWidth = 1; fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.stroke();
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 8;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ map: ft }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
-
-    /* --- tapis rouge royal de la porte jusqu'au centre --- */
-    var cc = mkCanvas(128, 512), cx = cc.getContext('2d');
-    cx.fillStyle = '#6e0f22'; cx.fillRect(0, 0, 128, 512);
-    cx.strokeStyle = '#c9a227'; cx.lineWidth = 6; cx.strokeRect(8, 0, 112, 512); cx.lineWidth = 2; cx.strokeRect(18, 0, 92, 512);
-    cx.fillStyle = 'rgba(201,162,39,0.55)'; for (var d = 0; d < 8; d++) { cx.save(); cx.translate(64, 32 + d * 64); cx.rotate(Math.PI / 4); cx.fillRect(-9, -9, 18, 18); cx.restore(); }
-    var carpet = new THREE.Mesh(new THREE.PlaneGeometry(3, HZ - 1.6), new THREE.MeshLambertMaterial({ map: mkTex(cc) }));
-    carpet.rotation.x = -Math.PI / 2; carpet.position.set(0, 0.012, (HZ + 1.6) / 2); g.add(carpet);
 
     /* --- murs sombres à panneaux dorés, plafond à caissons --- */
     function wallTex(len) {
@@ -324,6 +317,8 @@
 
     /* --- porte de retour vers le hall --- */
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.2, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
+    // porte du PMU (bureau de tabac, bar, cartes à gratter) : salle pmu3d.js
+    world.addDoor(room, { x: PMU_DOOR_X, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.2, label: 'PMU', sub: 'ESPACE SOCIALE', color: 0xff4a4a, target: 'pmu' });
 
     /* --- les six stands --- */
     function toWorld(def, lx, lz) {   // repère du stand (x = à droite en regardant le vendeur, z = vers la salle) -> repère du monde
@@ -509,9 +504,12 @@
         try { window.__shopClassic = true; if (typeof switchRoom === 'function') switchRoom('shop'); } catch (e) { /* ok */ }
       });
     };
-    room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
+    room.spawn = function (from) {
+      if (from === 'pmu') return { x: PMU_DOOR_X, z: -HZ + 3, yaw: F.yawFor(0, 1) };   // on ressort du PMU devant sa porte
+      return { x: 0, z: HZ - 3, yaw: 0 };
+    };
     room.hint = function (w) {
-      return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · approche-toi d\'un vendeur puis E (ou clique sur lui) pour voir ses articles' + (w.full ? ' · Échap : quitter' : '');
+      return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · approche-toi d\'un vendeur puis F (ou clique sur lui) pour voir ses articles' + (w.full ? ' · Échap : quitter' : '');
     };
     room.syncHud = function () {
       if (overlay && talk) { var b = overlay.querySelector('.shp-bal b'); if (b) b.textContent = fmtN(balance()) + ' 🪙'; }

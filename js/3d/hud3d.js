@@ -304,10 +304,22 @@
         b.classList.toggle('sel', +b.getAttribute('data-slot') === sel);
       });
     }
+    // Objets rangés par d'autres fichiers (ex. cartes à gratter du PMU) : setItems('pmu', [{ id, name, icon, color, use }]) remplace
+    // tous les objets de ce genre ; ils prennent les cases libres (1, 2, 4, 5 : la 3e reste au téléphone).
+    function setItems(kind, list) {
+      var i, k, free = [0, 1, 3, 4];
+      for (i = 0; i < INV.length; i++) if (INV[i] && INV[i].kind === kind) INV[i] = null;
+      (list || []).forEach(function (it) {
+        it.kind = kind;
+        for (k = 0; k < free.length; k++) if (!INV[free[k]]) { INV[free[k]] = it; break; }
+      });
+      renderHotbar();
+    }
     function useSlot(i) {
       sel = i; markHotbar();
       var it = INV[i];
       if (!it) return;
+      if (typeof it.use === 'function') { it.use(); return; }
       if (it.id === 'phone') { if (phoneOpen) closePhone(); else openPhone(); }
     }
 
@@ -606,8 +618,9 @@
     window.addEventListener('keydown', kd, true);
 
     sync();
-    return {
+    var api = {
       sync: sync,
+      setItems: setItems,
       close: closeAll,
       chatIn: chatIn,
       typingIn: typingIn,
@@ -619,5 +632,7 @@
         w.hud.classList.remove('has-ph');
       }
     };
+    (F.hudReady || []).forEach(function (fn) { try { fn(w, api); } catch (e) { /* un module en panne ne bloque pas le HUD */ } });   // ex. pmu3d.js : ses cartes à gratter vont dans la barre du bas
+    return api;
   };
 })();

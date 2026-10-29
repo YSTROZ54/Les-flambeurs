@@ -70,6 +70,44 @@ export function drawScratch(chance) {
   return 20000;
 }
 
+/* ------------------------- Cartes à gratter du PMU (monde 3D) ------------------------- */
+// Le tirage est fait ici, à l'achat, et reste secret : le navigateur ne reçoit que l'identifiant de la carte.
+// Gains espérés : 75 % de la mise en moyenne (la maison garde 25 %).
+export const PMU_CARD_PRICE = 100;
+export const PMU_MAX_CARDS = 4;
+export const PMU_HERE_MS = 45000; // il faut avoir signalé sa présence au PMU depuis moins de 45 s pour acheter ou gratter
+export const PMU_PRIZES = [[20000, 0.0003], [5000, 0.002], [1000, 0.01], [500, 0.03], [200, 0.08], [100, 0.18]];
+export const PMU_CELLS = [100, 200, 500, 1000, 5000, 20000];
+
+export function drawPmu() {
+  const r = randomInt(0, 1000000) / 1000000;
+  let acc = 0;
+  for (const [value, p] of PMU_PRIZES) { acc += p; if (r < acc) return value; }
+  return 0;
+}
+
+// les 6 cases de la carte : trois montants identiques = gagné ; sinon jamais trois pareils
+export function pmuCells(prize) {
+  const cells = [];
+  if (prize > 0) {
+    cells.push(prize, prize, prize);
+    shuffle(PMU_CELLS.filter((v) => v !== prize)).slice(0, 3).forEach((v) => cells.push(v));
+  } else {
+    const count = {};
+    while (cells.length < 6) {
+      const v = pick(PMU_CELLS);
+      if ((count[v] || 0) >= 2) continue;
+      count[v] = (count[v] || 0) + 1;
+      cells.push(v);
+    }
+  }
+  return shuffle(cells);
+}
+
+const pmuState = (d) => { const s = srv(d); if (!s.pmu || typeof s.pmu !== 'object') s.pmu = {}; if (!Array.isArray(s.pmu.cards)) s.pmu.cards = []; return s.pmu; };
+const pmuIds = (p) => p.cards.map((c) => c.id);
+const pmuHere = (p) => Date.now() - (Number(p.here) || 0) < PMU_HERE_MS;
+
 /* ---------------------------------- Mines ---------------------------------- */
 export function minesMult(count, revealedCount) {
   let m = 1;
@@ -333,6 +371,35 @@ export async function runGameAction(action, body, ctx) {
         return { ...bjView(g), done: true, result: r.result, win: r.payout, pScore: r.pScore, dScore: r.dScore };
       });
 
+    case 'pmu_cards':
+      return wrap((d) => ({ cards: pmuIds(pmuState(d)), price: PMU_CARD_PRICE, max: PMU_MAX_CARDS }));
+
+    case 'pmu_here':
+      return wrap((d) => { const p = pmuState(d); p.here = Date.now(); return { cards: pmuIds(p), price: PMU_CARD_PRICE, max: PMU_MAX_CARDS }; });
+
+    case 'pmu_buy':
+      return wrap((d) => {
+        const p = pmuState(d);
+        if (!pmuHere(p)) throw new GameError(400, 'Les cartes à gratter se vendent au PMU.', { cards: pmuIds(p) });
+        if (p.cards.length >= PMU_MAX_CARDS) throw new GameError(400, 'Tu as déjà ' + PMU_MAX_CARDS + ' cartes : gratte-en une d\'abord.', { cards: pmuIds(p), balance: d.balance });
+        if (d.balance < PMU_CARD_PRICE) throw new GameError(400, 'Solde insuffisant : une carte coûte ' + PMU_CARD_PRICE + ' pièces.', { cards: pmuIds(p), balance: d.balance });
+        d.balance -= PMU_CARD_PRICE;
+        const card = { id: randomBytes(8).toString('hex'), prize: drawPmu() };
+        p.cards.push(card);
+        return { card: card.id, cards: pmuIds(p) };
+      });
+
+    case 'pmu_scratch':
+      return wrap((d) => {
+        const p = pmuState(d);
+        if (!pmuHere(p)) throw new GameError(400, 'On ne gratte qu\'au PMU.', { cards: pmuIds(p) });
+        const i = p.cards.findIndex((c) => c.id === String(body.id || ''));
+        if (i < 0) throw new GameError(400, 'Carte introuvable (déjà grattée ?).', { cards: pmuIds(p) });
+        const [card] = p.cards.splice(i, 1);   // la carte disparaît et le gain est payé dans la même écriture : impossible de gratter deux fois
+        d.balance += card.prize;
+        return { id: card.id, prize: card.prize, cells: pmuCells(card.prize), cards: pmuIds(p) };
+      });
+
     case 'wallet_balance':
       return wrap((d) => ({ }));
 
@@ -371,4 +438,4 @@ export async function runGameAction(action, body, ctx) {
   }
 }
 
-export const GAME_ACTIONS = ['slots_spin', 'scratch_buy', 'scratch_claim', 'mines_start', 'mines_pick', 'mines_cashout', 'cups_start', 'cups_pick', 'chest_claim', 'shop_buy', 'bj_start', 'bj_hit', 'bj_stand', 'bj_double', 'wallet_balance'];
+export const GAME_ACTIONS = ['slots_spin', 'scratch_buy', 'scratch_claim', 'mines_start', 'mines_pick', 'mines_cashout', 'cups_start', 'cups_pick', 'chest_claim', 'shop_buy', 'bj_start', 'bj_hit', 'bj_stand', 'bj_double', 'pmu_cards', 'pmu_here', 'pmu_buy', 'pmu_scratch', 'wallet_balance'];
