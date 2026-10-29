@@ -312,12 +312,12 @@
     // départ : une barrière légère qui se lève quand la course commence
     var gate = box(laneR(7) - laneR(0) + 0.35, 0.025, 0.025, (laneR(0) + laneR(7)) / 2, TY + 0.2, Z0 + 0.3, new THREE.MeshBasicMaterial({ color: 0xffffff }));
     // les LED : deux rangées d'ampoules autour de la table (le dessus du rebord et le tablier), qui courent en sens inverse
-    var bulbG = new THREE.SphereGeometry(0.03, 6, 5), bulbN = 0, bulbStep = low ? 0.34 : 0.17;
+    var bulbG = new THREE.SphereGeometry(0.034, 8, 6), bulbN = 0, bulbStep = low ? 0.26 : 0.13;
     function bulbRow(r, y, dir, off) {
       var L = laneLen(r), cnt = Math.round(L / bulbStep), bp = {}, k, b;
       for (k = 0; k < cnt; k++) { lanePos(r, k / cnt * L, bp); b = new THREE.Mesh(bulbG, ledMats[(((dir > 0 ? k : -k) + off) % 12 + 12) % 12]); b.position.set(bp.x, y, bp.z); g.add(b); bulbN++; }
     }
-    bulbRow(R_OUT + 0.72, TY + 0.115, 1, 0); bulbRow(R_OUT + 0.4, TY + 0.115, -1, 6);
+    bulbRow(R_OUT + 0.78, TY + 0.082, 1, 0); bulbRow(R_OUT + 0.5, TY + 0.082, -1, 6);
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
