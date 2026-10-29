@@ -1535,7 +1535,7 @@ body.s3d-full-on #sidebarBackdrop {
   font-weight: 800;
   letter-spacing: 0.03em;
   white-space: nowrap;
-  max-width: 140px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
