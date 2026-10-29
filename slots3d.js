@@ -283,7 +283,7 @@
       return { pos: 0, speed: 0, mode: 'idle', salt: i * 17 + 3, p0: 0, T: 0, t: 0, D: 1, finalK: null, finalSym: null, idleSyms: ['🔥', '👑', '7️⃣'][i] };
     });
     var S = {
-      t: 0, spinning: false, msg: 'Tire le levier !', bet: 0, lastWin: 0, hl: [false, false, false],
+      t: 0, spinning: false, msg: opts.message || 'Tire le levier !', label: opts.label || '', bet: 0, lastWin: 0, hl: [false, false, false],
       party: null, spawnAcc: 0, sparkAcc: 0, scrT: 0, banT: 0, sideT: 0, shake: 0, onStopped: null, banMode: '', hueShift: 0, pressT: 0, pressBtn: null, trim: 0xc9a227
     };
 
@@ -304,8 +304,8 @@
       c.font = '800 ' + Math.round(H * 0.05) + 'px ' + SERIF;
       c.fillStyle = '#f3cf62'; c.shadowColor = '#ffb300'; c.shadowBlur = 12;
       c.fillText('LES FLAMBEURS', W / 2, H * 0.06); c.shadowBlur = 0;
-      c.font = Math.round(H * 0.026) + 'px ' + EMOJI_FONT; c.fillStyle = '#c9a227';
-      c.fillText('✦  ✦  ✦', W / 2, H * 0.105);
+      c.font = S.label ? '700 ' + Math.round(H * 0.03) + 'px ' + MONO : Math.round(H * 0.026) + 'px ' + EMOJI_FONT; c.fillStyle = '#c9a227';
+      c.fillText(S.label || '✦  ✦  ✦', W / 2, H * 0.105);
 
       var ax = W * 0.07, aw = W * 0.86, ay = H * 0.135, ah = H * 0.6, gap = W * 0.022;
       var rw = (aw - gap * 2) / 3, ch = ah / 3, i, k;
@@ -578,10 +578,17 @@
     function setTrim(hex) { if (hex !== S.trim) { S.trim = hex; matTrim.color.setHex(hex); matTrim.emissive.setHex(hex).multiplyScalar(0.12); } }
     function pressButton(btn) { S.pressBtn = btn; S.pressT = 0.14; }
 
+    // zone invisible pour cliquer sur la borne depuis la salle
+    var hit = new THREE.Mesh(track(new THREE.BoxGeometry(2.0, 3.7, 1.3)), track(new THREE.MeshBasicMaterial({ visible: false })));
+    hit.position.set(0, 1.85, 0.35); group.add(hit);
+
     drawBanner(); drawScreen(); updateSides(0);
 
     return {
       group: group,
+      hit: hit,
+      setMessage: function (m) { if (m !== S.msg) { S.msg = m; S.dirty = true; } },
+      setLabel: function (l) { S.label = l || ''; S.dirty = true; },
       buttons: buttons,
       update: update,
       startSpin: startSpin,
@@ -603,7 +610,8 @@
   }
 
   /* ===================================================================
-     SCÈNE SOLO : une borne + caméra + commandes (étape 1)
+     SALLE DES MACHINES (étape 2) : plusieurs bornes, on marche, on choisit, on s'assoit.
+     Une seule borne est « active » (celle où le joueur est assis) : c'est elle que le jeu fait tourner.
      =================================================================== */
   var CSS_ID = 's3d-style';
   function injectCss() {
@@ -612,9 +620,16 @@
     st.textContent =
       '.s3d-hud{position:absolute;inset:0;pointer-events:none;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#f4e3b0}' +
       '.s3d-hud button{pointer-events:auto;cursor:pointer;touch-action:manipulation;font-family:inherit}' +
+      '.s3d-hud[data-mode=room] .s3d-seat-only,.s3d-hud[data-mode=seat] .s3d-room-only{display:none!important}' +
       '.s3d-top{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:8px;align-items:center;justify-content:space-between}' +
+      '.s3d-btns{display:flex;gap:6px}' +
       '.s3d-bal{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:6px 10px;font-weight:800;font-size:13px;white-space:nowrap}' +
       '.s3d-cam{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:8px 12px;min-height:40px;color:#f3cf62;font-weight:800;font-size:12px}' +
+      '.s3d-cam[disabled]{opacity:.45}' +
+      '.s3d-hint{position:absolute;top:56px;left:8px;right:8px;text-align:center;font-size:11px;font-weight:700;color:#d9c88f;text-shadow:0 1px 4px #000}' +
+      '.s3d-sit{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);min-height:52px;padding:0 22px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(180deg,#d8a928,#8a6410);color:#1a1000;font-weight:900;font-size:15px;box-shadow:0 0 18px rgba(255,200,60,.5);white-space:nowrap}' +
+      '.s3d-stick{position:absolute;left:18px;bottom:22px;width:112px;height:112px;border-radius:50%;background:rgba(8,5,12,.55);border:2px solid rgba(201,162,39,.5);pointer-events:auto;touch-action:none}' +
+      '.s3d-stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(243,207,98,.85);box-shadow:0 0 12px rgba(255,200,60,.5)}' +
       '.s3d-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;align-items:stretch}' +
       '.s3d-chips{display:flex;gap:6px;justify-content:center}' +
       '.s3d-chips button{flex:1;max-width:72px;min-height:36px;border-radius:10px;border:1px solid rgba(201,162,39,.45);background:rgba(8,5,12,.78);color:#f4e3b0;font-weight:800;font-size:12px}' +
@@ -628,40 +643,108 @@
     document.head.appendChild(st);
   }
 
+  // Dimensions de la salle (mètres) et placement des bornes en arc de cercle
+  var ROOM = { xMax: 8.4, zMin: -2.6, zMax: 10.4, wall: 9, back: -3.2, front: 11 };
+  var ARC = { cx: 0, cz: 4, r: 5.5, stepDeg: 26 };
+
+  function buildRoom(scene, low) {
+    var carpet = mkCanvas(256, 256), x = carpet.getContext('2d');
+    x.fillStyle = '#2a0a16'; x.fillRect(0, 0, 256, 256);
+    x.strokeStyle = 'rgba(201,162,39,0.38)'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(128, 6); x.lineTo(250, 128); x.lineTo(128, 250); x.lineTo(6, 128); x.closePath(); x.stroke();
+    x.strokeStyle = 'rgba(201,162,39,0.2)';
+    x.beginPath(); x.moveTo(128, 56); x.lineTo(200, 128); x.lineTo(128, 200); x.lineTo(56, 128); x.closePath(); x.stroke();
+    x.fillStyle = 'rgba(201,162,39,0.35)';
+    [[0, 0], [256, 0], [0, 256], [256, 256], [128, 128]].forEach(function (p) { x.beginPath(); x.arc(p[0], p[1], 7, 0, TAU); x.fill(); });
+    var cTex = new THREE.CanvasTexture(carpet);
+    cTex.wrapS = cTex.wrapT = THREE.RepeatWrapping; cTex.repeat.set(9, 8); cTex.anisotropy = 4;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14.2), new THREE.MeshStandardMaterial({ map: cTex, roughness: 0.85, metalness: 0.05 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, 3.9); scene.add(floor);
+
+    var wallMat = new THREE.MeshStandardMaterial({ color: 0x24141e, roughness: 0.9 });
+    var goldMat = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.6, emissive: 0x2a1d00 });
+    function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(px, py, pz); m.rotation.y = ry; scene.add(m); return m; }
+    wall(18, 5, 0, 2.5, ROOM.back, 0);
+    wall(14.2, 5, -ROOM.wall, 2.5, 3.9, Math.PI / 2);
+    wall(14.2, 5, ROOM.wall, 2.5, 3.9, -Math.PI / 2);
+    wall(18, 5, 0, 2.5, ROOM.front, Math.PI);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(18, 14.2), new THREE.MeshBasicMaterial({ color: 0x0b060c }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5, 3.9); scene.add(ceil);
+    // moulures dorées
+    [1.0, 4.85].forEach(function (y) {
+      [[18, 0.07, 0.07, 0, y, ROOM.back + 0.04], [18, 0.07, 0.07, 0, y, ROOM.front - 0.04],
+       [0.07, 0.07, 14.2, -ROOM.wall + 0.04, y, 3.9], [0.07, 0.07, 14.2, ROOM.wall - 0.04, y, 3.9]].forEach(function (d) {
+        var m = new THREE.Mesh(new THREE.BoxGeometry(d[0], d[1], d[2]), goldMat); m.position.set(d[3], d[4], d[5]); scene.add(m);
+      });
+    });
+    // enseigne au fond
+    var sg = mkCanvas(1024, 160), sx = sg.getContext('2d');
+    sx.fillStyle = '#12080f'; sx.fillRect(0, 0, 1024, 160);
+    sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(6, 6, 1012, 148);
+    sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#f3cf62'; sx.shadowColor = '#ffb300'; sx.shadowBlur = 18;
+    sx.font = '800 64px ' + SERIF; sx.fillText('LES FLAMBEURS', 512, 62);
+    sx.font = '600 30px ' + MONO; sx.shadowBlur = 8; sx.fillText('✦  SALLE DES MACHINES  ✦', 512, 118);
+    var sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.09), new THREE.MeshBasicMaterial({ map: mkTex(sg) }));
+    sign.position.set(0, 3.9, ROOM.back + 0.05); scene.add(sign);
+    // colonnes
+    [[-7.2, 0.2], [7.2, 0.2], [-7.2, 8.2], [7.2, 8.2]].forEach(function (p) {
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 5, 16), new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.6, metalness: 0.2 }));
+      c.position.set(p[0], 2.5, p[1]); scene.add(c);
+      [0.3, 4.7].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
+    });
+    // bandeaux lumineux au plafond
+    var stripMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
+    [0.5, 4.5, 8.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 4.96, z); scene.add(s); });
+
+    scene.add(new THREE.AmbientLight(0x9a8cc0, 0.85));
+    var key = new THREE.DirectionalLight(0xfff0d0, 0.55); key.position.set(2, 5, 9); scene.add(key);
+    var pl = new THREE.PointLight(0xffd9a0, 0.9, 16); pl.position.set(0, 4.4, 6); scene.add(pl);
+    if (!low) { var pl2 = new THREE.PointLight(0xffc890, 0.6, 14); pl2.position.set(0, 4.4, 1); scene.add(pl2); }
+  }
+
   function SlotsExperience(container, opts) {
     opts = opts || {};
     var self = this;
     this.container = container;
     this.low = opts.low !== undefined ? !!opts.low : isMobile();
     this.touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    this.renderer = new THREE.WebGLRenderer({ antialias: !this.low, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this.low, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.low ? 1.5 : 2));
-    this.renderer.setClearColor(0x000000, 0);
-    container.style.background = 'radial-gradient(ellipse at 50% 38%, #3a1a3f 0%, #1a0d22 45%, #07050c 100%)';
+    this.renderer.setClearColor(0x07050c, 1);
     var dom = this.dom = this.renderer.domElement;
     dom.style.cssText = 'display:block;width:100%;height:100%;touch-action:pan-y;outline:none';
     container.appendChild(dom);
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 60);
-    this.scene.add(new THREE.AmbientLight(0x8a7fb0, 0.75));
-    var key = new THREE.DirectionalLight(0xfff0d0, 0.7); key.position.set(1.5, 4, 5); this.scene.add(key);
+    this.scene.background = new THREE.Color(0x07050c);
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 60);
+    buildRoom(this.scene, this.low);
 
-    // sol sombre
-    var flc = mkCanvas(256, 256), fx = flc.getContext('2d'), fg = fx.createRadialGradient(128, 128, 10, 128, 128, 128);
-    fg.addColorStop(0, 'rgba(60,30,70,0.95)'); fg.addColorStop(0.6, 'rgba(20,10,28,0.8)'); fg.addColorStop(1, 'rgba(7,5,12,0)');
-    fx.fillStyle = fg; fx.fillRect(0, 0, 256, 256);
-    var fl = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({ map: mkTex(flc), transparent: true, depthWrite: false }));
-    fl.rotation.x = -Math.PI / 2; fl.position.y = 0.002; this.scene.add(fl);
+    // bornes en arc de cercle, tournées vers le centre
+    var n = opts.cabinets || (this.low ? 4 : 6);
+    this.cabs = [];
+    for (var i = 0; i < n; i++) {
+      var th = (i - (n - 1) / 2) * ARC.stepDeg * Math.PI / 180;
+      var px = ARC.cx + ARC.r * Math.sin(th), pz = ARC.cz - ARC.r * Math.cos(th);
+      var cab = createSlotCabinet({ low: this.low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: -th, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
+      this.scene.add(cab.group);
+      var entry = { cab: cab, x: px, z: pz, rotY: -th, n: i + 1 };
+      cab.hit.userData.entry = entry;
+      this.cabs.push(entry);
+    }
+    this.seatCab = null;
+    this.cab = this.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
 
-    this.cab = createSlotCabinet({ low: this.low, position: new THREE.Vector3(0, 0, 0) });
-    this.scene.add(this.cab.group);
-
+    this.player = { x: 0, z: 10.2, yaw: 0, pitch: -0.04 };
+    this.keys = {}; this.stick = { x: 0, y: 0 };
+    this.mode = 'room'; this.blend = 0; this.near = null;
     this.view = { yaw: 0, pitch: 0.06, yawG: 0, pitchG: 0.06, r: 3.2, rG: 3.2, ty: 1.95, tyG: 1.95, fov: 40, fovG: 40, mode: 'play', lastDrag: -99 };
     this.clock = 0; this.last = 0; this.w = 0; this.h = 0; this.running = true; this.dead = false; this.hudT = 0;
     this.ray = new THREE.Raycaster(); this.ndc = new THREE.Vector2();
+    this._tmpA = new THREE.Vector3(); this._tmpB = new THREE.Vector3();
     this._buildHud();
     this._bindPointer();
+    this._bindKeys();
     this._frame = function (now) { self._loop(now); };
     this._raf = requestAnimationFrame(this._frame);
   }
@@ -669,19 +752,28 @@
   SlotsExperience.prototype._buildHud = function () {
     var self = this;
     injectCss();
-    var hud = document.createElement('div'); hud.className = 's3d-hud';
+    var hud = document.createElement('div'); hud.className = 's3d-hud'; hud.setAttribute('data-mode', 'room');
     hud.innerHTML =
-      '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div><button class="s3d-cam" data-s3d="cam">🔭 Reculer</button></div>' +
-      '<div class="s3d-bottom"><div class="s3d-chips">' +
+      '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div>' +
+      '<div class="s3d-btns"><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
+      '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
+      '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none">🪑 S\'asseoir</button>' +
+      '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
+      '<div class="s3d-bottom s3d-seat-only"><div class="s3d-chips">' +
       '<button data-bet="50">50</button><button data-bet="500">500</button><button data-bet="5000">5k</button><button data-bet="25000">25k</button><button data-bet="100000">MAX</button></div>' +
       '<div class="s3d-row"><button class="s3d-step" data-d="-1" aria-label="Mise moins">−</button>' +
       '<div class="s3d-bet">MISE<b data-s3d="bet">50</b></div><button class="s3d-step" data-d="1" aria-label="Mise plus">+</button>' +
       '<button class="s3d-spin" data-s3d="spin">🔴 TIRER</button></div></div>';
     this.container.appendChild(hud);
     this.hud = hud;
-    this.elBal = hud.querySelector('[data-s3d="bal"]'); this.elBet = hud.querySelector('[data-s3d="bet"]');
-    this.elSpin = hud.querySelector('[data-s3d="spin"]'); this.elCam = hud.querySelector('[data-s3d="cam"]');
+    function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
+    this.elBal = q('bal'); this.elBet = q('bet'); this.elSpin = q('spin'); this.elCam = q('cam');
+    this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
+    this.elHint.textContent = this.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir' : 'ZQSD / flèches : marcher · glisser : regarder · clic sur une borne : s\'asseoir';
+    if (this.touch) this.elStick.style.display = '';
     this.elCam.addEventListener('click', function () { self.toggleCamera(); });
+    this.elStand.addEventListener('click', function () { self.stand(); });
+    this.elSit.addEventListener('click', function () { if (self.near) self.sit(self.near); });
     this.elSpin.addEventListener('click', function (e) { self.doSpin(e); });
     hud.querySelectorAll('[data-bet]').forEach(function (b) {
       b.addEventListener('click', function () { self.setBet(parseInt(b.getAttribute('data-bet'), 10)); });
@@ -689,6 +781,34 @@
     hud.querySelectorAll('[data-d]').forEach(function (b) {
       b.addEventListener('click', function () { self.stepBet(parseInt(b.getAttribute('data-d'), 10)); });
     });
+    // joystick tactile
+    var knob = this.elStick.querySelector('i'), st = this.elStick, act = false;
+    function mv(e) {
+      var rc = st.getBoundingClientRect(), dx = e.clientX - (rc.left + rc.width / 2), dy = e.clientY - (rc.top + rc.height / 2);
+      var L = Math.hypot(dx, dy), M = rc.width / 2 - 10; if (L > M) { dx *= M / L; dy *= M / L; }
+      knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      self.stick.x = dx / M; self.stick.y = -dy / M;
+    }
+    st.addEventListener('pointerdown', function (e) { act = true; try { st.setPointerCapture(e.pointerId); } catch (er) { /* ok */ } mv(e); });
+    st.addEventListener('pointermove', function (e) { if (act) mv(e); });
+    function end() { act = false; self.stick.x = 0; self.stick.y = 0; knob.style.transform = ''; }
+    st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+  };
+
+  SlotsExperience.prototype._bindKeys = function () {
+    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr' };
+    function ok(e) {
+      var t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
+      return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !e.ctrlKey && !e.metaKey && !e.altKey;
+    }
+    this._kd = function (e) {
+      if (!ok(e)) return;
+      if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
+      else if ((e.code === 'KeyE' || e.code === 'Enter') && self.near && self.blend === 0) { self.sit(self.near); e.preventDefault(); }
+    };
+    this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
+    window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku);
   };
 
   SlotsExperience.prototype.getBetInput = function () { return document.getElementById('slotBetInput'); };
@@ -704,29 +824,51 @@
     else { for (i = BET_STEPS.length - 1; i >= 0; i--) if (BET_STEPS[i] < cur) { this.setBet(BET_STEPS[i]); return; } this.setBet(BET_STEPS[0]); }
   };
   SlotsExperience.prototype.doSpin = function (e) {
-    if (this.cab.isBusy()) return;
+    if (this.mode !== 'seat' || this.blend < 1 || this.cab.isBusy()) return;
     if (typeof window.pullSlotLever === 'function') window.pullSlotLever(e);
   };
-  SlotsExperience.prototype.syncHud = function (force) {
-    var el = this.getBetInput(), bet = el ? (parseInt(el.value, 10) || 0) : 0;
-    this.elBet.textContent = fmtN(bet); this.cab.setBet(bet);
-    try { if (typeof state !== 'undefined' && state && typeof state.balance === 'number') this.elBal.textContent = fmtN(state.balance); } catch (e) { /* solde pas encore chargé */ }
-    var busy = this.cab.isBusy(); this.elSpin.disabled = busy;
-    this.elSpin.textContent = busy ? '… EN COURS' : '🔴 TIRER';
-    var box = document.getElementById('slotCabinetBox');
-    if (box) {
-      var skin = '';
-      Object.keys(SKINS).forEach(function (k) { if (k && box.classList.contains(k)) skin = k; });
-      this.cab.setTrim(SKINS[skin]);
-    }
+
+  /* ---------- s'asseoir / se lever ---------- */
+  SlotsExperience.prototype.sit = function (entry) {
+    if (this.mode === 'seat' || !entry) return;
+    this.seatCab = entry; this.cab = entry.cab; this.mode = 'seat';
+    var v = this.view; v.mode = 'play'; v.yaw = v.yawG = 0; v.lastDrag = -99;
+    this.elCam.textContent = '🔭 Reculer';
+    this.cab.setMessage('Tire le levier !');
+    this._computeGoals(); v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG; v.pitch = v.pitchG;
+    this.keys = {}; this.stick.x = this.stick.y = 0;
+    this.syncHud(true);
+  };
+  SlotsExperience.prototype.stand = function () {
+    if (this.mode !== 'seat' || this.cab.isBusy()) return;
+    var e = this.seatCab;
+    this.player.x = e.x + Math.sin(e.rotY) * 2.3; this.player.z = e.z + Math.cos(e.rotY) * 2.3;
+    this.player.yaw = -e.rotY; this.player.pitch = -0.04;
+    e.cab.setMessage('Libre — viens jouer !');
+    this.mode = 'room'; this.seatCab = null;
   };
   SlotsExperience.prototype.toggleCamera = function () {
+    if (this.mode !== 'seat') return;
     var v = this.view;
     v.mode = v.mode === 'play' ? 'far' : 'play';
     v.yawG = 0; v.lastDrag = -99;
     this.elCam.textContent = v.mode === 'play' ? '🔭 Reculer' : '🎯 Rapprocher';
     this._computeGoals();
   };
+
+  SlotsExperience.prototype.syncHud = function () {
+    var el = this.getBetInput(), bet = el ? (parseInt(el.value, 10) || 0) : 0;
+    this.elBet.textContent = fmtN(bet);
+    if (this.mode === 'seat') this.cab.setBet(bet);
+    try { if (typeof state !== 'undefined' && state && typeof state.balance === 'number') this.elBal.textContent = fmtN(state.balance); } catch (e) { /* solde pas encore chargé */ }
+    var busy = this.cab.isBusy(); this.elSpin.disabled = busy; this.elStand.disabled = busy;
+    this.elSpin.textContent = busy ? '… EN COURS' : '🔴 TIRER';
+    var box = document.getElementById('slotCabinetBox'), trim = SKINS[''];
+    if (box) Object.keys(SKINS).forEach(function (k) { if (k && box.classList.contains(k)) trim = SKINS[k]; });
+    this.cabs.forEach(function (c) { c.cab.setTrim(trim); });
+    this.hud.setAttribute('data-mode', this.blend > 0.5 ? 'seat' : 'room');
+  };
+
   SlotsExperience.prototype._computeGoals = function () {
     var v = this.view, aspect = this.w / Math.max(1, this.h), fov = aspect < 0.9 ? 50 : 38;
     var t = Math.tan(fov * Math.PI / 360);
@@ -737,10 +879,11 @@
     }
     v.fovG = fov;
   };
+
   SlotsExperience.prototype._bindPointer = function () {
     var self = this, dom = this.dom, drag = null;
     dom.addEventListener('pointerdown', function (e) {
-      drag = { x: e.clientX, y: e.clientY, yaw: self.view.yawG, pitch: self.view.pitchG, moved: 0, mouse: e.pointerType === 'mouse', id: e.pointerId };
+      drag = { x: e.clientX, y: e.clientY, yaw: self.view.yawG, pitch: self.view.pitchG, pyaw: self.player.yaw, ppitch: self.player.pitch, moved: 0, mouse: e.pointerType === 'mouse' };
       try { dom.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
     });
     dom.addEventListener('pointermove', function (e) {
@@ -748,23 +891,36 @@
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
       if (drag.moved < 6) return;
+      if (self.mode === 'room') {
+        if (self.blend > 0) return;
+        self.player.yaw = drag.pyaw + dx * 0.005;
+        if (drag.mouse) self.player.pitch = Math.max(-0.6, Math.min(0.5, drag.ppitch + dy * 0.004));
+        return;
+      }
       var v = self.view, lim = v.mode === 'play' ? 0.9 : Math.PI;
       v.yawG = Math.max(-lim, Math.min(lim, drag.yaw - dx * 0.007));
       if (drag.mouse) v.pitchG = Math.max(-0.05, Math.min(0.75, drag.pitch + dy * 0.005));
       v.lastDrag = self.clock;
     });
-    function up(e) {
+    dom.addEventListener('pointerup', function (e) {
       if (!drag) return;
       var d = drag; drag = null;
       if (d.moved < 6) self._click(e);
-    }
-    dom.addEventListener('pointerup', up);
+    });
     dom.addEventListener('pointercancel', function () { drag = null; });
   };
+
   SlotsExperience.prototype._click = function (e) {
     var rc = this.dom.getBoundingClientRect();
     this.ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
     this.ray.setFromCamera(this.ndc, this.camera);
+    if (this.mode === 'room') {
+      if (this.blend > 0) return;
+      var hits = this.ray.intersectObjects(this.cabs.map(function (c) { return c.cab.hit; }), false);
+      if (hits[0]) this.sit(hits[0].object.userData.entry);
+      return;
+    }
+    if (this.blend < 1) return;
     var hit = this.ray.intersectObjects(this.cab.buttons, false)[0];
     if (!hit) return;
     var a = hit.object.userData.action;
@@ -785,37 +941,98 @@
     var v = this.view; v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG;
   };
 
+  /* ---------- déplacement dans la salle ---------- */
+  SlotsExperience.prototype._movePlayer = function (dt) {
+    var k = this.keys, p = this.player;
+    p.yaw += ((k.tr ? 1 : 0) - (k.tl ? 1 : 0)) * 1.8 * dt;
+    var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x;
+    var len = Math.hypot(fwd, str);
+    if (len > 1) { fwd /= len; str /= len; }
+    var sp = 3.2 * dt;
+    p.x += (Math.sin(p.yaw) * fwd + Math.cos(p.yaw) * str) * sp;
+    p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
+    p.x = Math.max(-ROOM.xMax, Math.min(ROOM.xMax, p.x)); p.z = Math.max(ROOM.zMin, Math.min(ROOM.zMax, p.z));
+    for (var i = 0; i < this.cabs.length; i++) {          // on ne traverse pas les bornes
+      var c = this.cabs[i], dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
+      if (d < 1.15 && d > 0.0001) { p.x = c.x + dx / d * 1.15; p.z = c.z + dz / d * 1.15; }
+    }
+  };
+  SlotsExperience.prototype._findNear = function () {
+    var best = null, bd = 1.8, p = this.player;
+    if (this.mode === 'room' && this.blend === 0) {
+      for (var i = 0; i < this.cabs.length; i++) {
+        var c = this.cabs[i], d = Math.hypot(p.x - (c.x + Math.sin(c.rotY) * 2.1), p.z - (c.z + Math.cos(c.rotY) * 2.1));
+        if (d < bd) { bd = d; best = c; }
+      }
+    }
+    if (best !== this.near) {
+      this.near = best;
+      this.elSit.style.display = best ? '' : 'none';
+      if (best) this.elSit.textContent = '🪑 S\'asseoir — Borne ' + best.n;
+    }
+  };
+
   SlotsExperience.prototype._loop = function (now) {
     if (this.dead) return;
     this._raf = requestAnimationFrame(this._frame);
     if (!this.running || !this.container.clientWidth) { this.last = 0; return; }
     var dt = this.last ? (now - this.last) / 1000 : 0.016; this.last = now;
     if (dt > 0.1) dt = 0.1;
-    this.clock += dt;
-    this._resize();
-    this.cab.update(dt);
-
-    var v = this.view, k = 1 - Math.exp(-dt * 4);
-    if (v.mode === 'play' && !this.dragging && this.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
-    v.yaw += (v.yawG - v.yaw) * k; v.pitch += (v.pitchG - v.pitch) * k;
-    v.r += (v.rG - v.r) * k; v.ty += (v.tyG - v.ty) * k; v.fov += (v.fovG - v.fov) * k;
-    if (Math.abs(this.camera.fov - v.fov) > 0.01) { this.camera.fov = v.fov; this.camera.updateProjectionMatrix(); }
-    var cp = Math.cos(v.pitch);
-    this.camera.position.set(Math.sin(v.yaw) * cp * v.r, v.ty + Math.sin(v.pitch) * v.r, 0.3 + Math.cos(v.yaw) * cp * v.r);
-    var sh = this.cab.getShake();
-    if (sh > 0) this.camera.position.add(new THREE.Vector3(Math.sin(this.clock * 61) * sh * v.r, Math.cos(this.clock * 53) * sh * v.r, 0));
-    this.camera.lookAt(0, v.ty, 0.3);
+    this.step(dt);
     this.renderer.render(this.scene, this.camera);
-
     this.hudT += dt;
     if (this.hudT > 0.25) { this.hudT = 0; this.syncHud(); }
   };
 
-  SlotsExperience.prototype.pause = function () { this.running = false; };
+  // Fait avancer la simulation de dt secondes et place la caméra (séparé du rendu pour pouvoir tester)
+  SlotsExperience.prototype.step = function (dt) {
+    this.clock += dt;
+    this._resize();
+    if (this.clock > 8 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
+    var i;
+    for (i = 0; i < this.cabs.length; i++) this.cabs[i].cab.update(dt);
+
+    var target = this.mode === 'seat' ? 1 : 0;
+    this.blend += Math.sign(target - this.blend) * dt / 1.1;
+    this.blend = Math.max(0, Math.min(1, this.blend));
+    if (Math.abs(target - this.blend) < 0.004) this.blend = target;
+    if (this.mode === 'room' && this.blend === 0) this._movePlayer(dt);
+    this._findNear();
+    var w = this.blend * this.blend * (3 - 2 * this.blend);   // adoucit le trajet
+
+    // pose « salle »
+    var p = this.player, cpp = Math.cos(p.pitch), A = this._tmpA, B = this._tmpB;
+    var rx = p.x, ry = 1.65, rz = p.z;
+    var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
+    var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = this.w / Math.max(1, this.h) < 0.9 ? 70 : 62;
+
+    if (this.seatCab && this.blend > 0) {
+      var e = this.seatCab, v = this.view, k = 1 - Math.exp(-dt * 4);
+      if (v.mode === 'play' && this.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
+      v.yaw += (v.yawG - v.yaw) * k; v.pitch += (v.pitchG - v.pitch) * k;
+      v.r += (v.rG - v.r) * k; v.ty += (v.tyG - v.ty) * k; v.fov += (v.fovG - v.fov) * k;
+      var cp = Math.cos(v.pitch), lx = Math.sin(v.yaw) * cp * v.r, lz = 0.3 + Math.cos(v.yaw) * cp * v.r;
+      var sn = Math.sin(e.rotY), cs = Math.cos(e.rotY);
+      var sx = e.x + lx * cs + lz * sn, sz = e.z - lx * sn + lz * cs, sy = v.ty + Math.sin(v.pitch) * v.r;
+      var stx = e.x + 0.3 * sn, stz = e.z + 0.3 * cs, sty = v.ty;
+      var sh = this.cab.getShake();
+      if (sh > 0) { sx += Math.sin(this.clock * 61) * sh * v.r; sy += Math.cos(this.clock * 53) * sh * v.r; }
+      cx = rx + (sx - rx) * w; cy = ry + (sy - ry) * w; cz = rz + (sz - rz) * w;
+      tx = rtx + (stx - rtx) * w; ty = rty + (sty - rty) * w; tz = rtz + (stz - rtz) * w;
+      fov = fov + (v.fov - fov) * w;
+    }
+    if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
+    this.camera.position.set(cx, cy, cz);
+    this.camera.lookAt(tx, ty, tz);
+  };
+
+  SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; };
   SlotsExperience.prototype.resume = function () { this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
   SlotsExperience.prototype.dispose = function () {
     this.dead = true; cancelAnimationFrame(this._raf);
-    this.cab.dispose(); this.renderer.dispose();
+    window.removeEventListener('keydown', this._kd); window.removeEventListener('keyup', this._ku);
+    this.cabs.forEach(function (c) { c.cab.dispose(); });
+    this.renderer.dispose();
     if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
     if (this.hud && this.hud.parentNode) this.hud.parentNode.removeChild(this.hud);
   };
