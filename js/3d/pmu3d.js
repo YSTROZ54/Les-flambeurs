@@ -52,8 +52,13 @@
     x.beginPath(); x.moveTo(a + r, b); x.lineTo(a + w - r, b); x.quadraticCurveTo(a + w, b, a + w, b + r); x.lineTo(a + w, b + h - r); x.quadraticCurveTo(a + w, b + h, a + w - r, b + h);
     x.lineTo(a + r, b + h); x.quadraticCurveTo(a, b + h, a, b + h - r); x.lineTo(a, b + r); x.quadraticCurveTo(a, b, a + r, b); x.closePath();
   }
-  // p : 0 = tout est couvert, 1 = tout est gratté ; en fin de grattage les cases gagnantes brillent et le résultat s'affiche
-  function drawCard(cv, cells, prize, p, who) {
+  // Dessin de la carte. p : un nombre (0 = tout couvert, 1 = tout gratté, grattage automatique) ou 6 nombres (avancée de chaque case, de 0 à 1).
+  // done : le résultat est connu (cases gagnantes en or + bandeau GAGNÉ / PERDU).
+  function cellRect(W, Hh, k) {
+    var gx = W * 0.07, gy = Hh * 0.23, gw = W * 0.86, gh = Hh * 0.5, cw = gw / 3, ch = gh / 2, pad = 6;
+    return { x: gx + (k % 3) * cw + pad, y: gy + Math.floor(k / 3) * ch + pad, w: cw - pad * 2, h: ch - pad * 2 };
+  }
+  function drawCard(cv, cells, prize, p, who, done) {
     var W = cv.width, Hh = cv.height, x = cv.getContext('2d');
     x.clearRect(0, 0, W, Hh);
     var g = x.createLinearGradient(0, 0, 0, Hh); g.addColorStop(0, '#e23a3a'); g.addColorStop(1, '#8e0f1c');
@@ -61,29 +66,26 @@
     x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillStyle = '#fff'; x.font = '900 ' + Math.round(W * 0.085) + 'px ' + SERIF; x.fillText('GRATTAGE FLAMBEURS', W / 2, Hh * 0.09, W * 0.9);
     x.fillStyle = '#ffe9a8'; x.font = '700 ' + Math.round(W * 0.042) + 'px ' + MONO; x.fillText('3 MONTANTS IDENTIQUES = GAGNÉ', W / 2, Hh * 0.17, W * 0.9);
-    var gx = W * 0.07, gy = Hh * 0.23, gw = W * 0.86, gh = Hh * 0.5, cw = gw / 3, ch = gh / 2, pad = 6;
     if (!tmp) tmp = document.createElement('canvas');
     if (tmp.width !== W || tmp.height !== Hh) { tmp.width = W; tmp.height = Hh; }
     var t = tmp.getContext('2d'); t.clearRect(0, 0, W, Hh);
     cells.forEach(function (v, k) {
-      var cx0 = gx + (k % 3) * cw + pad, cy0 = gy + Math.floor(k / 3) * ch + pad, w = cw - pad * 2, h = ch - pad * 2;
-      var win = p >= 1 && prize > 0 && v === prize;
+      var r = cellRect(W, Hh, k), cx0 = r.x, cy0 = r.y, w = r.w, h = r.h;
+      var win = done && prize > 0 && v === prize;
       roundPath(x, cx0, cy0, w, h, 10); x.fillStyle = win ? '#fff3b0' : '#fbf3e2'; x.fill();
       if (win) { x.lineWidth = 5; x.strokeStyle = '#ffb300'; x.stroke(); }
       x.fillStyle = '#1a1a1a'; x.font = '900 ' + Math.round(W * (v >= 10000 ? 0.085 : 0.1)) + 'px ' + MONO; x.fillText(fmtN(v), cx0 + w / 2, cy0 + h * 0.46, w - 8);
       x.fillStyle = '#7a5a08'; x.font = Math.round(W * 0.05) + 'px ' + EMOJI; x.fillText('🪙', cx0 + w / 2, cy0 + h * 0.82);
-      // pellicule argentée, grattée case après case
-      var cp = clamp01((p - k * 0.13) / 0.3);
+      // pellicule argentée (grattée par la pièce qui passe en zigzag)
+      var cp = Array.isArray(p) ? clamp01(p[k]) : clamp01((p - k * 0.13) / 0.3);
       if (cp < 1) {
-        var sg2 = t.createLinearGradient(cx0, cy0, cx0 + w, cy0 + h); sg2.addColorStop(0, '#d9dce2'); sg2.addColorStop(0.5, '#9ea4b0'); sg2.addColorStop(1, '#cfd3da');
-        t.globalCompositeOperation = 'source-over'; roundPath(t, cx0, cy0, w, h, 10); t.fillStyle = sg2; t.fill();
-        t.fillStyle = 'rgba(80,86,98,0.55)'; t.font = '900 ' + Math.round(W * 0.09) + 'px ' + MONO; t.textAlign = 'center'; t.textBaseline = 'middle'; t.fillText('?', cx0 + w / 2, cy0 + h / 2);
-        if (cp > 0) {   // la pièce passe en zigzag et efface la pellicule
+        paintCoat(t, r);
+        if (cp > 0) {
           t.globalCompositeOperation = 'destination-out'; t.lineWidth = h / 4.2; t.lineCap = 'round'; t.strokeStyle = '#000'; t.beginPath();
-          var rows = 5, u = cp * rows * 1.04, r, j;
-          for (r = 0; r < rows && u > 0; r++) {
-            var f = Math.min(1, u), y0 = cy0 + (r + 0.5) * h / rows, xa = r % 2 ? cx0 + w : cx0, xb = r % 2 ? cx0 : cx0 + w;
-            if (r === 0) t.moveTo(xa, y0); else t.lineTo(xa, y0);
+          var rows = 5, u = cp * rows * 1.04, rr;
+          for (rr = 0; rr < rows && u > 0; rr++) {
+            var f = Math.min(1, u), y0 = cy0 + (rr + 0.5) * h / rows, xa = rr % 2 ? cx0 + w : cx0, xb = rr % 2 ? cx0 : cx0 + w;
+            if (rr === 0) t.moveTo(xa, y0); else t.lineTo(xa, y0);
             t.lineTo(xa + (xb - xa) * f, y0); u -= 1;
           }
           t.stroke(); t.globalCompositeOperation = 'source-over';
@@ -93,12 +95,18 @@
     x.drawImage(tmp, 0, 0);
     x.fillStyle = 'rgba(255,255,255,0.9)'; x.font = '700 ' + Math.round(W * 0.045) + 'px ' + MONO; x.textAlign = 'center'; x.textBaseline = 'middle';
     if (who) x.fillText(String(who).slice(0, 18), W / 2, Hh * 0.78, W * 0.86);
-    if (p >= 1) {
+    if (done) {
       var win2 = prize > 0;
       roundPath(x, W * 0.08, Hh * 0.82, W * 0.84, Hh * 0.13, 16); x.fillStyle = win2 ? '#0f8a43' : '#2a2a30'; x.fill(); x.lineWidth = 3; x.strokeStyle = win2 ? '#9cffc2' : '#666'; x.stroke();
       x.fillStyle = '#fff'; x.font = '900 ' + Math.round(W * (win2 ? 0.075 : 0.07)) + 'px ' + SERIF;
       x.fillText(win2 ? 'GAGNÉ ! +' + fmtN(prize) + ' 🪙' : 'PERDU… retente ta chance', W / 2, Hh * 0.885, W * 0.8);
     }
+  }
+  // la pellicule argentée d'une case
+  function paintCoat(t, r) {
+    var sg2 = t.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h); sg2.addColorStop(0, '#d9dce2'); sg2.addColorStop(0.5, '#9ea4b0'); sg2.addColorStop(1, '#cfd3da');
+    t.globalCompositeOperation = 'source-over'; roundPath(t, r.x, r.y, r.w, r.h, 10); t.fillStyle = sg2; t.fill();
+    t.fillStyle = 'rgba(80,86,98,0.55)'; t.font = '900 ' + Math.round(r.w * 0.5) + 'px ' + MONO; t.textAlign = 'center'; t.textBaseline = 'middle'; t.fillText('?', r.x + r.w / 2, r.y + r.h / 2);
   }
   function okShow(m) {
     if (!m || !Array.isArray(m.cells) || m.cells.length !== 6) return false;
@@ -123,7 +131,7 @@
   // le monde prévient quand sa barre du bas est prête (hud3d.js)
   (F.hudReady = F.hudReady || []).push(function (w, ph) { PMU.world = w; PMU.hud = ph; loadCards(); });
 
-  function inPmu() { var w = PMU.world; return !!(w && w.room && w.room.id === 'pmu' && w.mode === 'room'); }
+  function inPmu() { var w = PMU.world; return !!(w && w.room && w.room.id === 'pmu' && (w.mode === 'room' || w.mode === 'seat')); }
 
   function scratch(id) {
     var w = PMU.world;
@@ -139,32 +147,64 @@
     });
   }
 
-  // ma carte en grand, au centre de l'écran (je ne vois pas le dessus de ma propre tête)
+  // Ma carte, en grand : c'est MOI qui gratte (clic maintenu + glisser). Les autres voient ma carte au-dessus de ma tête
+  // se gratter au fur et à mesure (événements « scr » au début, « scp » pour l'avancée).
+  var FULL_AT = 0.55;   // une case est « grattée » quand 55 % de sa pellicule est partie
   function showSelf(w, cells, prize, who) {
-    var ov = document.createElement('div'), cv = document.createElement('canvas'), t0 = performance.now(), done = false, raf = 0, tm = 0;
     injectCss();
-    ov.className = 'pmu-card-ov'; cv.width = 340; cv.height = 425; ov.appendChild(cv); w.container.appendChild(ov);
-    function finish() {
-      if (done) return; done = true; cancelAnimationFrame(raf); clearTimeout(tm);
+    var W = 340, Hh = 425, ov = document.createElement('div'), cv = document.createElement('canvas'), tip = document.createElement('div'), btn = document.createElement('button');
+    var coat = document.createElement('canvas'), cx = coat.getContext('2d'), prog = [0, 0, 0, 0, 0, 0], done = false, tm = 0, last = null, sendT = 0, measureT = 0, finished = false;
+    cv.width = coat.width = W; cv.height = coat.height = Hh;
+    cells.forEach(function (v, k) { paintCoat(cx, cellRect(W, Hh, k)); });
+    ov.className = 'pmu-card-ov'; tip.className = 'pmu-tip'; tip.textContent = 'Gratte la carte avec la souris : clique et glisse sur les cases argentées';
+    btn.className = 'pmu-reveal'; btn.textContent = 'Tout révéler';
+    ov.appendChild(cv); ov.appendChild(tip); ov.appendChild(btn); w.container.appendChild(ov);
+    try { w._libererSouris(); } catch (e) { /* ok */ }
+    function paint() { drawCard(cv, cells, prize, [1, 1, 1, 1, 1, 1], who, done); cv.getContext('2d').drawImage(coat, 0, 0); }
+    function measure() {
+      cells.forEach(function (v, k) {
+        var r = cellRect(W, Hh, k), d = cx.getImageData(Math.floor(r.x), Math.floor(r.y), Math.floor(r.w), Math.floor(r.h)).data, n = 0, tot = 0, i;
+        for (i = 3; i < d.length; i += 16) { tot++; if (d[i] < 40) n++; }
+        prog[k] = tot ? n / tot : 0;
+      });
+    }
+    function send(final) {
+      try { if (w.rt && w.rt.ready) w.rt.send('scp', { k: F.me(), p: prog.map(function (v) { return Math.round(v * 100) / 100; }), done: !!final }); } catch (e) { /* ok */ }
+    }
+    function close() {
+      if (finished) return; finished = true; clearTimeout(tm);
       if (ov.parentNode) ov.parentNode.removeChild(ov);
       PMU.busy = false; PMU.self = null;
       try { if (typeof updateGlobalUI === 'function') updateGlobalUI(); } catch (e) { /* ok */ }
     }
-    PMU.self = { finish: finish };
-    ov.addEventListener('click', function () { if (performance.now() - t0 > CARD_MS) finish(); });
-    var paid = false;
-    (function loop(now) {
-      if (done) return;
-      var p = clamp01((now - t0) / CARD_MS);
-      drawCard(cv, cells, prize, p, who);
-      if (p >= 1 && !paid) {
-        paid = true;
-        w.flash(prize > 0 ? '🎉 Gagné ! +' + fmtN(prize) + ' 🪙' : '😢 Perdu, ce sera pour la prochaine !');
-        if (prize > 0) { try { if (typeof playCoinWinSound === 'function') playCoinWinSound(); } catch (e) { /* ok */ } }
-        tm = setTimeout(finish, SHOW_MS);
+    function reveal() {
+      if (done) return; done = true; prog = [1, 1, 1, 1, 1, 1];
+      cx.clearRect(0, 0, W, Hh); paint(); send(true);
+      tip.textContent = prize > 0 ? 'Bravo ! Les ' + fmtN(prize) + ' 🪙 sont sur ton solde. (clique pour fermer)' : 'Perdu cette fois… (clique pour fermer)'; btn.style.display = 'none';
+      w.flash(prize > 0 ? '🎉 Gagné ! +' + fmtN(prize) + ' 🪙' : '😢 Perdu, ce sera pour la prochaine !');
+      if (prize > 0) { try { if (typeof playCoinWinSound === 'function') playCoinWinSound(); } catch (e) { /* ok */ } }
+      tm = setTimeout(close, SHOW_MS + 4000);
+    }
+    function scratchAt(px, py) {
+      var rc = cv.getBoundingClientRect(), x = (px - rc.left) * W / rc.width, y = (py - rc.top) * Hh / rc.height;
+      cx.globalCompositeOperation = 'destination-out'; cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.lineWidth = 34; cx.strokeStyle = '#000';
+      cx.beginPath(); if (last) cx.moveTo(last.x, last.y); else cx.moveTo(x - 0.1, y); cx.lineTo(x, y); cx.stroke(); cx.globalCompositeOperation = 'source-over';
+      last = { x: x, y: y };
+      paint();
+      var now = performance.now();
+      if (now - measureT > 120) {
+        measureT = now; measure();
+        if (now - sendT > 220) { sendT = now; send(false); }
+        if (prog.every(function (v) { return v >= FULL_AT; })) reveal();
       }
-      raf = requestAnimationFrame(loop);
-    })(t0);
+    }
+    cv.addEventListener('pointerdown', function (e) { if (done) return; last = null; cv.setPointerCapture(e.pointerId); cv._d = true; scratchAt(e.clientX, e.clientY); e.preventDefault(); });
+    cv.addEventListener('pointermove', function (e) { if (cv._d && !done) scratchAt(e.clientX, e.clientY); });
+    cv.addEventListener('pointerup', function () { cv._d = false; last = null; if (!done) { measure(); send(false); } });
+    ov.addEventListener('click', function () { if (done) close(); });
+    btn.addEventListener('click', function (e) { e.stopPropagation(); measure(); reveal(); });
+    PMU.self = { finish: function () { if (!done) reveal(); close(); } };
+    paint(); send(false);
   }
 
   /* ---------- styles (injectés une seule fois) ---------- */
@@ -172,8 +212,12 @@
     if (document.getElementById('pmu-style')) return;
     var s = document.createElement('style'); s.id = 'pmu-style';
     s.textContent =
-      '.pmu-card-ov{position:absolute;left:50%;top:12%;transform:translateX(-50%);z-index:6;pointer-events:auto;cursor:pointer;filter:drop-shadow(0 10px 28px rgba(0,0,0,.7));animation:pmuIn .35s ease-out}' +
-      '.pmu-card-ov canvas{display:block;width:min(340px,38vh*0.8*2);max-width:70vw;height:auto}' +
+      '.pmu-card-ov{position:absolute;left:50%;top:12%;transform:translateX(-50%);z-index:6;pointer-events:auto;filter:drop-shadow(0 10px 28px rgba(0,0,0,.7));animation:pmuIn .35s ease-out}' +
+      '.pmu-card-ov canvas{display:block;width:min(360px,60vw);height:auto;cursor:crosshair;touch-action:none;border-radius:22px}' +
+      '.pmu-tip{margin-top:8px;text-align:center;font:700 12px "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.65);border-radius:10px;padding:6px 10px;max-width:360px}' +
+      '.pmu-reveal{display:block;margin:6px auto 0;cursor:pointer;background:rgba(8,5,12,.85);color:#ffe9a8;border:1px solid rgba(255,233,168,.5);border-radius:10px;font-weight:800;font-size:12px;padding:7px 14px}' +
+      '.pmu-stand{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:6}' +
+      '.pmu-stand button{cursor:pointer;background:rgba(8,5,12,.85);color:#fff;border:1.5px solid #d01a1a;border-radius:12px;font-weight:800;font-size:13px;padding:10px 16px}.pmu-stand kbd{opacity:.6;font-size:11px;margin-left:6px}' +
       '@keyframes pmuIn{from{opacity:0;transform:translateX(-50%) translateY(-24px) scale(.9)}to{opacity:1;transform:translateX(-50%)}}' +
       '.pmup{position:absolute;inset:0;pointer-events:none;z-index:5;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#f4e3b0}' +
       '.pmup-panel{position:absolute;top:56px;bottom:12px;right:12px;width:min(440px,46%);min-width:330px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:16px;pointer-events:auto;overflow-y:auto;' +
@@ -199,7 +243,7 @@
   /* ===================== LA SALLE ===================== */
   function createPmuRoom(world) {
     var low = world.low;
-    var room = { title: '🍀 PMU', subtitle: 'ESPACE SOCIALE · TABAC · CARTES À GRATTER', topic: 'flambeurs-pmu-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+    var room = { title: '🍀 PMU', subtitle: 'ESPACE SOCIALE · CARTES À GRATTER', topic: 'flambeurs-pmu-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
     var clockT = 0, hereT = 99, seller = null, talk = null, overlay = null, msgT = null, busy = false, shows = [], pendants = [];
@@ -220,15 +264,16 @@
     /* --- murs gris clair, soubassement noir, bande rouge --- */
     function wallTex(len) {
       var c = mkCanvas(256, 512), x = c.getContext('2d');
-      x.fillStyle = '#dcdee3'; x.fillRect(0, 0, 256, 512);
+      x.fillStyle = '#4b4d56'; x.fillRect(0, 0, 256, 512);
       x.fillStyle = '#17171c'; x.fillRect(0, 350, 256, 162);
       x.fillStyle = '#d01a1a'; x.fillRect(0, 336, 256, 14);
-      x.fillStyle = 'rgba(0,0,0,0.04)'; for (var k = 0; k < 256; k += 64) x.fillRect(k, 0, 2, 336);
+      x.fillStyle = 'rgba(0,0,0,0.16)'; for (var k = 32; k < 256; k += 64) x.fillRect(k, 20, 60, 300);
+      x.fillStyle = 'rgba(255,255,255,0.08)'; for (k = 0; k < 256; k += 64) x.fillRect(k, 0, 3, 336);
       var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(len / 4, 1); t.anisotropy = 4; return t;
     }
     function wall(len, px, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshLambertMaterial({ map: wallTex(len) })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0xececef })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0x45424a })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
     /* --- le comptoir : plateau noir, face blanche rétroéclairée, bande rouge (il touche le mur de gauche ; un retour ferme le côté droit) --- */
     var CZ = -4.6, CX0 = -HX, CX1 = 5.0;                                   // le comptoir va de x = -9 à x = 5, face à la salle (z = CZ)
@@ -238,6 +283,8 @@
     var face = box(g, cw - 0.1, 0.9, 0.02, bas(0xf6f6fa), cmx, 0.5, CZ + 0.46);               // face blanche rétroéclairée
     box(g, cw - 0.1, 0.13, 0.03, bas(RED), cmx, 0.55, CZ + 0.47);                              // bande rouge
     box(g, cw - 0.1, 0.05, 0.03, bas(0xffffff), cmx, 0.98, CZ + 0.47);
+    box(g, cw - 0.2, 0.035, 0.035, bas(0xffffff), cmx, 0.945, CZ + 0.52);                                  // néon blanc sous le plateau du bar
+    var neonGlow = new THREE.Mesh(new THREE.PlaneGeometry(cw, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending })); neonGlow.position.set(cmx, 0.9, CZ + 0.5); g.add(neonGlow);
     var glow = new THREE.Mesh(new THREE.PlaneGeometry(cw, 1.3), new THREE.MeshBasicMaterial({ color: 0xfff4e0, transparent: true, opacity: 0.1, depthWrite: false }));
     glow.rotation.x = -Math.PI / 2; glow.position.set(cmx, 0.02, CZ + 1.1); g.add(glow);
     box(g, 0.9, 1.0, HZ + CZ, lam(BLACK), CX1, 0.5, (CZ - HZ) / 2);                                    // retour du comptoir jusqu'au mur du fond
@@ -264,11 +311,10 @@
       var m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.18), new THREE.MeshBasicMaterial({ map: screenTex(s[1], s[2]) })); m.position.set(s[0], 3.0, -HZ + 0.52); g.add(m);
       box(g, 2.22, 1.3, 0.05, lam(0x111114), s[0], 3.0, -HZ + 0.49);
     });
-    var tc = mkCanvas(1024, 192), tx = tc.getContext('2d');
-    tx.fillStyle = '#111116'; tx.fillRect(0, 0, 1024, 192); tx.fillStyle = '#d01a1a'; tx.fillRect(0, 0, 1024, 20); tx.fillRect(0, 172, 1024, 20);
-    tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.fillStyle = '#fff'; tx.font = '900 96px ' + SERIF; tx.fillText('TABAC · PMU', 512, 92, 960);
-    tx.fillStyle = '#ffb3b3'; tx.font = '700 28px ' + MONO; tx.fillText('ESPACE SOCIALE · CARTES À GRATTER', 512, 148, 960);
-    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.125), new THREE.MeshBasicMaterial({ map: mkTex(tc) })); tabSign.position.set(-2, 4.15, -HZ + 0.52); g.add(tabSign);
+    var tc = mkCanvas(512, 192), tx = tc.getContext('2d');
+    tx.fillStyle = '#111116'; tx.fillRect(0, 0, 512, 192); tx.fillStyle = '#d01a1a'; tx.fillRect(0, 0, 512, 18); tx.fillRect(0, 174, 512, 18);
+    tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.fillStyle = '#fff'; tx.font = '900 130px ' + SERIF; tx.fillText('PMU', 256, 98, 460);
+    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.05), new THREE.MeshBasicMaterial({ map: mkTex(tc) })); tabSign.position.set(-2, 4.1, -HZ + 0.52); g.add(tabSign);
 
     /* --- le vendeur de cartes --- */
     var person = F.createPerson('Bruno', '🎟️'), pg = person.group, kids = pg.children;
@@ -294,19 +340,27 @@
     }
     for (i = 0; i < 7; i++) stool(-7.2 + i * 1.5, CZ + 1.25);
 
-    /* --- petites tables carrées et chaises noires à assise rouge --- */
-    function chair(x, z, yaw) {
-      var c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = yaw; g.add(c);
+    /* --- petites tables carrées et chaises noires à assise rouge (on peut s'y asseoir) --- */
+    var seats = room.seats = [];
+    function chair(x, z, r, tx, tz) {                       // r : rotation de la chaise (0 = elle regarde vers +z) ; (tx, tz) : la table
+      var c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = r; g.add(c);
       [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(c, 0.035, 0.45, 0.035, lam(BLACK), p[0], 0.225, p[1]); });
       box(c, 0.46, 0.05, 0.46, lam(BLACK), 0, 0.46, 0); box(c, 0.4, 0.04, 0.4, lam(RED), 0, 0.5, 0);
-      box(c, 0.46, 0.4, 0.04, lam(BLACK), 0, 0.72, -0.21);                                                   // dossier : derrière la chaise (elle regarde vers +z)
+      box(c, 0.46, 0.4, 0.04, lam(BLACK), 0, 0.72, -0.21);                                                   // dossier : derrière la chaise
       room.colliders.push({ x: x, z: z, r: 0.3 });
+      var s = { n: seats.length, x: x, z: z, r: r, yaw: Math.PI - r, tx: tx, tz: tz, sx: x - Math.sin(r) * 0.95, sz: z - Math.cos(r) * 0.95 };   // sx, sz : où on se retrouve debout
+      seats.push(s);
+      room.interactables.push({
+        x: x, z: z, radius: 1.35,
+        prompt: function () { return '🪑 S\'asseoir  [F]'; },
+        use: function (w) { sit(w, s); }
+      });
     }
     function table(x, z) {
       box(g, 0.9, 0.05, 0.9, lam(BLACK), x, 0.74, z); cyl(g, 0.04, 0.04, 0.72, chrome(), x, 0.36, z, 8); cyl(g, 0.28, 0.3, 0.03, lam(BLACK), x, 0.015, z, 16);
       box(g, 0.2, 0.012, 0.2, lam(0xf2f2f2), x + 0.1, 0.77, z - 0.1);
       room.colliders.push({ x: x, z: z, r: 0.55 });
-      chair(x, z - 0.8, 0); chair(x, z + 0.8, Math.PI); chair(x - 0.85, z, Math.PI / 2);
+      chair(x, z - 0.8, 0, x, z); chair(x, z + 0.8, Math.PI, x, z); chair(x - 0.85, z, Math.PI / 2, x, z); chair(x + 0.85, z, -Math.PI / 2, x, z);
     }
     [[1.6, -0.5], [5.2, -0.5], [1.6, 3.4], [5.2, 3.4]].forEach(function (p) { table(p[0], p[1]); });
 
@@ -331,30 +385,30 @@
       room.colliders.push({ x: -HX + 0.8, z: z - 0.8, r: 0.7 }, { x: -HX + 0.8, z: z, r: 0.7 }, { x: -HX + 0.8, z: z + 0.8, r: 0.7 });
     });
 
-    /* --- distributeur de boules de gomme --- */
-    var gum = new THREE.Group(); gum.position.set(HX - 1.1, 0, 5.4); gum.rotation.y = -Math.PI / 2.4; g.add(gum);
-    cyl(gum, 0.28, 0.32, 0.7, lam(RED), 0, 0.35, 0, 18); box(gum, 0.2, 0.18, 0.1, lam(0xd8d8de), 0, 0.5, 0.3); cyl(gum, 0.05, 0.05, 0.1, chrome(), 0, 0.5, 0.36, 10).rotation.x = Math.PI / 2;
-    cyl(gum, 0.3, 0.28, 0.08, chrome(), 0, 0.74, 0, 18);
-    var glass = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 14), new THREE.MeshPhongMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.28, shininess: 90, depthWrite: false })); glass.position.y = 1.12; gum.add(glass);
-    var ballCols = [0xe23a3a, 0x2f6fe0, 0xf2d12a, 0x2fa050, 0xe86aa8, 0xf08a24, 0xffffff];
-    for (i = 0; i < 26; i++) { var a = Math.random() * TAU, rr = Math.random() * 0.2, hh = (Math.random() - 0.5) * 0.4; sph(gum, 0.055, lam(ballCols[i % ballCols.length]), Math.cos(a) * rr, 1.1 + hh * 0.7, Math.sin(a) * rr); }
-    cyl(gum, 0.12, 0.1, 0.1, lam(RED), 0, 1.5, 0, 14);
-    room.colliders.push({ x: gum.position.x, z: gum.position.z, r: 0.55 });
+    /* --- poutres sombres au plafond --- */
+    var beamM = lam(0x1b1512);
+    for (i = -HX + 1.5; i < HX; i += 3) box(g, 0.28, 0.3, HZ * 2, beamM, i, H - 0.15, 0);
+    [-4.5, 0, 4.5].forEach(function (z) { box(g, HX * 2, 0.22, 0.2, beamM, 0, H - 0.11, z); });
 
-    /* --- suspensions noires coniques --- */
-    var bulbM = bas(0xffe9b8), coneM = new THREE.MeshLambertMaterial({ color: 0x121216, side: THREE.DoubleSide });
-    function pendant(x, z, y) {
-      var c = new THREE.Group(); c.position.set(x, y, z); g.add(c);
-      cyl(c, 0.008, 0.008, H - y, lam(0x111111), 0, (H - y) / 2 + 0.2, 0, 4);
-      var cone = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.34, 0.34, 20, 1, true), coneM); c.add(cone);
-      sph(c, 0.08, bulbM, 0, -0.1, 0);
-      var halo = new THREE.Mesh(new THREE.CircleGeometry(0.34, 20), new THREE.MeshBasicMaterial({ color: 0xffe9b8, transparent: true, opacity: 0.55, depthWrite: false })); halo.rotation.x = Math.PI / 2; halo.position.y = -0.17; c.add(halo);
+    /* --- appliques murales : abat-jour crème, lumière chaude et douce (ni LED ni lustre) --- */
+    var glowTex = (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,214,150,0.85)'); gr.addColorStop(0.4, 'rgba(255,180,100,0.3)'); gr.addColorStop(1, 'rgba(255,160,70,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c); })();
+    var glowMat = new THREE.SpriteMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    var brass = new THREE.MeshStandardMaterial({ color: 0xb08a3c, roughness: 0.35, metalness: 0.7 });
+    var shadeM = new THREE.MeshBasicMaterial({ color: 0xffe2b0, side: THREE.DoubleSide });
+    function sconce(x, z, ry) {                       // ry : le mur regarde vers (sin ry, cos ry)
+      var s = new THREE.Group(); s.position.set(x, 2.35, z); s.rotation.y = ry; g.add(s);
+      box(s, 0.1, 0.34, 0.03, brass, 0, 0, 0.015); cyl(s, 0.018, 0.018, 0.2, brass, 0, 0, 0.12, 8).rotation.x = Math.PI / 2;
+      var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.17, 0.26, 18, 1, true), shadeM); shade.position.set(0, 0.04, 0.24); s.add(shade);
+      var gl = new THREE.Sprite(glowMat); gl.scale.set(1.5, 1.5, 1); gl.position.set(0, 0.04, 0.3); s.add(gl);
+      var wash = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.3), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })); wash.position.set(0, 0.0, 0.02); s.add(wash);
     }
-    for (i = 0; i < 7; i++) pendant(-7.2 + i * 1.5, CZ + 1.25, 2.55);
-    [[1.6, -0.5], [5.2, -0.5], [1.6, 3.4], [5.2, 3.4]].forEach(function (p) { pendant(p[0], p[1], 2.5); });
+    [-6.5, -2.5, 2.5, 6.5].forEach(function (z) { sconce(HX - 0.01, z, -Math.PI / 2); });          // mur de droite
+    [-1.0, 4.5].forEach(function (z) { sconce(-HX + 0.01, z + 1.6, Math.PI / 2); });                // mur de gauche, entre les étagères
+    [-6.5, -3.2, 3.2, 6.5].forEach(function (x) { sconce(x, HZ - 0.01, Math.PI); });                // mur de l'entrée
+    sconce(-8.2, -HZ + 0.02, 0); sconce(6.8, -HZ + 0.02, 0);                                        // mur du fond, aux extrémités
 
     /* --- lumières --- */
-    g.add(new THREE.AmbientLight(0xf4f0ea, 1.0));
+    g.add(new THREE.AmbientLight(0xf0e6dc, 1.15));
     var key = new THREE.DirectionalLight(0xffffff, 0.45); key.position.set(3, 8, 5); g.add(key);
     if (!low) { var pl = new THREE.PointLight(0xfff0d8, 0.7, 16); pl.position.set(1, 3.6, -1); g.add(pl); var p2 = new THREE.PointLight(0xffe0c0, 0.5, 12); p2.position.set(-5, 3, 3); g.add(p2); }
 
@@ -444,9 +498,55 @@
       if (instant) { world.blend = 0; world.seatRoom = null; }
     }
     // caméra pendant la discussion : devant le comptoir, le vendeur à gauche du panneau
-    room.seatPose = function () { return { cx: 0.4, cy: 2.0, cz: CZ + 4.8, tx: 1.5, ty: 1.4, tz: seller.z, fov: 46 }; };
+    function talkPose() { return { cx: 0.4, cy: 2.0, cz: CZ + 4.8, tx: 1.5, ty: 1.4, tz: seller.z, fov: 46 }; }
 
-    /* --- les cartes des autres, au-dessus de leur tête --- */
+    /* --- s'asseoir aux tables --- */
+    var seat = null, view = { yaw: 0, pitch: 0 }, standEl = null;
+    function seatTaken(s) {
+      var now = performance.now();
+      return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; });
+    }
+    function onSeatKey(e) {
+      if (!seat) return;
+      if (e.code === 'Escape' || e.code === 'Space' || e.code === 'KeyF' || e.code === 'KeyS') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
+    }
+    function sit(w, s) {
+      if (seat || talk || w.mode !== 'room' || w.blend > 0 || w.trans) return;
+      if (seatTaken(s)) { w.flash('Cette chaise est occupée.'); return; }
+      w.sitDown(room); seat = s; view.yaw = view.pitch = 0;
+      injectCss();
+      standEl = document.createElement('div'); standEl.className = 'pmu-stand';
+      standEl.innerHTML = '<button>🪑 Se lever <kbd>Échap</kbd></button>';
+      standEl.querySelector('button').addEventListener('click', function () { stand(); });
+      w.container.appendChild(standEl);
+      window.addEventListener('keydown', onSeatKey, true);
+    }
+    function stand() {
+      if (!seat) return;
+      var s = seat; seat = null;
+      window.removeEventListener('keydown', onSeatKey, true);
+      if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl);
+      standEl = null;
+      world.standUp(s.sx, s.sz, s.yaw);
+    }
+    room.forceStand = function () { stand(); };
+    room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
+    room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
+    room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
+    room.seatDrag = function (drag, dx, dy) {
+      if (!seat) return;
+      view.yaw = Math.max(-1.4, Math.min(1.4, drag.seat.yaw - dx * 0.006));
+      if (drag.mouse) view.pitch = Math.max(-0.5, Math.min(0.5, drag.seat.pitch - dy * 0.004));
+    };
+
+    room.seatPose = function (dt, ctx) {
+      if (!seat) return talkPose();                       // sinon : on parle au vendeur
+      if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.9; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.3; }
+      var ex = seat.x, ey = 1.2, ez = seat.z, a = Math.atan2(seat.tx - ex, -(seat.tz - ez)) + view.yaw, p = Math.atan2(0.78 - ey, Math.hypot(seat.tx - ex, seat.tz - ez)) + view.pitch;
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
+    };
+
+    /* --- les cartes des autres, au-dessus de leur tête : elles se grattent en direct (événements « scr » puis « scp ») --- */
     function showRemote(m, remote) {
       if (!remote || !remote.person || !okShow(m)) return;
       shows = shows.filter(function (s) { if (s.key !== m.k) return true; killShow(s); return false; });
@@ -455,16 +555,26 @@
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
       sp.scale.set(1.4, 1.75, 1); sp.position.set(0, 3.25, 0);
       remote.person.group.add(sp);
-      shows.push({ key: m.k, remote: remote, cv: cv, tex: tex, sp: sp, t0: performance.now(), cells: m.cells, prize: m.prize, who: String(m.name || m.k).slice(0, 18), final: false });
+      var now = performance.now();
+      shows.push({ key: m.k, cv: cv, tex: tex, sp: sp, t0: now, last: now, doneAt: 0, cells: m.cells, prize: m.prize, who: String(m.name || m.k).slice(0, 18), prog: [0, 0, 0, 0, 0, 0], done: false, dirty: true });
+    }
+    function progRemote(m) {
+      if (!m || !Array.isArray(m.p) || m.p.length !== 6) return;
+      var s = shows.filter(function (x) { return x.key === m.k; })[0];
+      if (!s) return;
+      s.prog = m.p.map(function (v) { v = Number(v); return clamp01((isFinite(v) ? v : 0) / FULL_AT); });
+      s.last = performance.now();
+      if (m.done && !s.done) { s.done = true; s.doneAt = s.last; s.prog = [1, 1, 1, 1, 1, 1]; }
+      s.dirty = true;
     }
     function killShow(s) { if (s.sp.parent) s.sp.parent.remove(s.sp); s.tex.dispose(); s.sp.material.dispose(); }
-    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); };
+    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); };
 
     /* --- cycle de vie, interface --- */
-    room.hint = function (w) { return 'ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
+    room.hint = function (w) { return 'ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.onEnter = function () { hereT = 99; if (loggedIn()) loadCards(); };
-    room.onLeave = function () { closeTalk(true); if (PMU.self) PMU.self.finish(); shows.forEach(killShow); shows = []; };
+    room.onLeave = function () { closeTalk(true); stand(); if (PMU.self) PMU.self.finish(); shows.forEach(killShow); shows = []; };
     room.onPause = function () { closeTalk(true); };
     room.syncHud = function () { if (overlay && talk) { var b = overlay.querySelector('.pmup-bal b'); if (b) b.textContent = fmtN(balance()) + ' 🪙'; } };
     room.update = function (dt, w) {
@@ -482,9 +592,8 @@
       // cartes affichées au-dessus des autres joueurs
       var now = performance.now();
       shows = shows.filter(function (s) {
-        var age = now - s.t0, pr = clamp01(age / CARD_MS);
-        if (age > CARD_MS + SHOW_MS || !s.sp.parent) { killShow(s); return false; }
-        if (!s.final) { drawCard(s.cv, s.cells, s.prize, pr, s.who); s.tex.needsUpdate = true; if (pr >= 1) s.final = true; }
+        if ((s.done && now - s.doneAt > SHOW_MS) || now - s.last > 60000 || !s.sp.parent) { killShow(s); return false; }
+        if (s.dirty) { drawCard(s.cv, s.cells, s.prize, s.prog, s.who, s.done); s.tex.needsUpdate = true; s.dirty = false; }
         s.sp.position.y = 3.25 + Math.sin(t * 2 + s.t0) * 0.04;
         return true;
       });
