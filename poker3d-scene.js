@@ -433,23 +433,75 @@
     }, [24, 1]);
   }
 
-  function skylineTexture() {
-    return canvasTex(2048, 512, (c, w, h) => {
-      const sky = c.createLinearGradient(0, 0, 0, h);
-      sky.addColorStop(0, '#04060f'); sky.addColorStop(0.6, '#141c36'); sky.addColorStop(1, '#3b2a40');
-      c.fillStyle = sky; c.fillRect(0, 0, w, h);
-      for (let i = 0; i < 160; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.2 + Math.random() * 0.6) + ')'; c.fillRect(Math.random() * w, Math.random() * h * 0.45, 1.5, 1.5); }
-      c.fillStyle = '#f3efe0'; c.beginPath(); c.arc(1500, 90, 26, 0, Math.PI * 2); c.fill();
-      for (let layer = 0; layer < 2; layer++) {
-        let x = -20;
-        while (x < w) {
-          const bw = 40 + Math.random() * 80, bh = 90 + Math.random() * (layer ? 150 : 230);
-          c.fillStyle = layer ? '#0a0e1c' : '#0f1428';
-          c.fillRect(x, h - bh, bw, bh);
-          for (let wy = h - bh + 10; wy < h - 8; wy += 14) for (let wx = x + 6; wx < x + bw - 6; wx += 12) {
-            if (Math.random() < 0.55) { c.fillStyle = Math.random() < 0.8 ? 'rgba(255,214,130,0.85)' : 'rgba(170,200,255,0.8)'; c.fillRect(wx, wy, 5, 7); }
+  // Vue des baies : une scène par salle (ville de nuit / jardin au crépuscule / port au clair de lune), une variante par baie
+  function viewTexture(themeKey, idx) {
+    let seed = 1234 + idx * 977 + themeKey.length * 31;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    return canvasTex(1024, 880, (c, w, h) => {
+      const glowDot = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); };
+      const stars = (n, maxY) => { for (let i = 0; i < n; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.25 + rnd() * 0.65) + ')'; c.fillRect(rnd() * w, rnd() * maxY, 2, 2); } };
+      const moon = (x, y, r) => { glowDot(x, y, r * 4, 'rgba(255,245,210,0.35)'); c.fillStyle = '#f6f0d8'; c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.fill(); };
+      if (themeKey === 'emeraude') {
+        // jardin au crépuscule : montagnes, lac, pins, lucioles
+        const sky = c.createLinearGradient(0, 0, 0, h * 0.62); sky.addColorStop(0, '#04141c'); sky.addColorStop(0.55, '#0e3b45'); sky.addColorStop(1, '#4f8f6a');
+        c.fillStyle = sky; c.fillRect(0, 0, w, h); stars(90, h * 0.3);
+        const mx = 200 + rnd() * 620; moon(mx, 150 + rnd() * 60, 44);
+        const hor = h * 0.62;
+        [['#16505a', 0.22, 70], ['#0d3a42', 0.15, 55], ['#082a2e', 0.09, 40]].forEach((L) => {
+          c.fillStyle = L[0]; c.beginPath(); c.moveTo(0, hor);
+          const ph = rnd() * 6;
+          for (let x = 0; x <= w; x += 16) c.lineTo(x, hor - h * L[1] - Math.sin(x / 90 + ph) * L[2] * 0.5 - Math.sin(x / 37 + ph * 2) * L[2] * 0.25);
+          c.lineTo(w, hor); c.closePath(); c.fill();
+        });
+        const lake = c.createLinearGradient(0, hor, 0, h); lake.addColorStop(0, '#1a5a5c'); lake.addColorStop(1, '#04181c');
+        c.fillStyle = lake; c.fillRect(0, hor, w, h - hor);
+        c.fillStyle = 'rgba(246,240,216,0.22)'; for (let i = 0; i < 26; i++) { const ww = 10 + (i % 7) * 7, yy = hor + 10 + i * 8; c.fillRect(mx - ww / 2 + (rnd() - 0.5) * 14, yy, ww, 2); }
+        const pine = (x, base, ph) => { c.fillStyle = '#041a14'; for (let t = 0; t < 5; t++) { const wd = ph * (0.5 + t * 0.2), yt = base - ph * 1.3 + t * ph * 0.26; c.beginPath(); c.moveTo(x, yt - ph * 0.3); c.lineTo(x + wd, yt + ph * 0.34); c.lineTo(x - wd, yt + ph * 0.34); c.closePath(); c.fill(); } c.fillRect(x - 5, base - 20, 10, 24); };
+        for (let i = 0; i < 7; i++) pine(30 + rnd() * 160 + (i % 2) * 790, h * (0.74 + rnd() * 0.18), 70 + rnd() * 70);
+        for (let i = 0; i < 4; i++) pine(220 + rnd() * 580, hor + 6, 26 + rnd() * 20);
+        for (let i = 0; i < 40; i++) glowDot(rnd() * w, hor + rnd() * (h - hor) * 0.9, 7 + rnd() * 8, 'rgba(210,255,120,0.85)');
+      } else if (themeKey === 'saphir') {
+        // port de nuit : clair de lune sur la mer, voiliers, phare
+        const sky = c.createLinearGradient(0, 0, 0, h * 0.55); sky.addColorStop(0, '#020716'); sky.addColorStop(0.6, '#0a1f4a'); sky.addColorStop(1, '#2d4f8a');
+        c.fillStyle = sky; c.fillRect(0, 0, w, h); stars(140, h * 0.4);
+        const mx = 180 + rnd() * 660, hor = h * 0.55; moon(mx, 130 + rnd() * 80, 52);
+        c.fillStyle = '#071334'; c.beginPath(); c.moveTo(0, hor); for (let x = 0; x <= w; x += 20) c.lineTo(x, hor - 20 - Math.abs(Math.sin(x / 130 + idx)) * 30); c.lineTo(w, hor); c.fill();
+        const sea = c.createLinearGradient(0, hor, 0, h); sea.addColorStop(0, '#16356e'); sea.addColorStop(1, '#030b22');
+        c.fillStyle = sea; c.fillRect(0, hor, w, h - hor);
+        for (let i = 0; i < 70; i++) { const yy = hor + 6 + (i / 70) * (h - hor), ww = 8 + (i / 70) * 70 * rnd(); c.fillStyle = 'rgba(255,244,205,' + (0.55 - (i / 70) * 0.4) + ')'; c.fillRect(mx - ww / 2 + (rnd() - 0.5) * 24, yy, ww, 2); }
+        const boat = (x, y, sz) => { c.fillStyle = '#050b1c'; c.beginPath(); c.moveTo(x - sz, y); c.lineTo(x + sz, y); c.lineTo(x + sz * 0.7, y + sz * 0.25); c.lineTo(x - sz * 0.7, y + sz * 0.25); c.fill(); c.fillRect(x - 2, y - sz * 1.5, 4, sz * 1.5); c.beginPath(); c.moveTo(x + 4, y - sz * 1.45); c.lineTo(x + sz * 0.9, y - 6); c.lineTo(x + 4, y - 6); c.fill(); glowDot(x - sz * 0.6, y - 4, 10, 'rgba(255,210,120,0.9)'); };
+        boat(200 + rnd() * 200, hor + 60, 38); boat(560 + rnd() * 260, hor + 150, 56); boat(100 + rnd() * 800, hor + 270, 70);
+        if (idx !== 1) {
+          const lx = idx === 0 ? 880 : 130, d = idx === 0 ? -1 : 1;
+          c.fillStyle = '#e9e2cc'; c.beginPath(); c.moveTo(lx - 22, hor + 10); c.lineTo(lx + 22, hor + 10); c.lineTo(lx + 10, hor - 190); c.lineTo(lx - 10, hor - 190); c.fill();
+          c.fillStyle = '#9c2b2b'; c.fillRect(lx - 17, hor - 80, 34, 22); c.fillRect(lx - 14, hor - 150, 28, 18);
+          c.fillStyle = '#10182c'; c.fillRect(lx - 16, hor - 210, 32, 22); glowDot(lx, hor - 198, 60, 'rgba(255,240,170,0.9)');
+          const bm = c.createLinearGradient(lx, 0, lx + d * 420, 0); bm.addColorStop(0, 'rgba(255,240,170,0.35)'); bm.addColorStop(1, 'rgba(255,240,170,0)');
+          c.fillStyle = bm; c.beginPath(); c.moveTo(lx, hor - 198); c.lineTo(lx + d * 420, hor - 270); c.lineTo(lx + d * 420, hor - 120); c.fill();
+        }
+      } else {
+        // ville de luxe au crépuscule : tours, enseignes néon, grande roue, tour à aiguille, projecteurs
+        const sky = c.createLinearGradient(0, 0, 0, h * 0.8); sky.addColorStop(0, '#0a0620'); sky.addColorStop(0.5, '#3a1245'); sky.addColorStop(0.85, '#b23a4a'); sky.addColorStop(1, '#f08a4a');
+        c.fillStyle = sky; c.fillRect(0, 0, w, h); stars(60, h * 0.3);
+        const neon = ['rgba(255,61,154,0.7)', 'rgba(53,224,255,0.7)', 'rgba(255,210,61,0.7)'];
+        for (let layer = 0; layer < 3; layer++) {
+          let x = -30;
+          while (x < w) {
+            const bw = 60 + rnd() * 90, bh = h * (0.25 + layer * 0.06) + rnd() * h * (0.2 + layer * 0.05);
+            c.fillStyle = ['#2a1236', '#1a0c28', '#0e0618'][layer]; c.fillRect(x, h - bh, bw, bh);
+            if (layer > 0) for (let wy = h - bh + 14; wy < h - 12; wy += 20) for (let wx = x + 8; wx < x + bw - 8; wx += 16) if (rnd() < 0.5) { c.fillStyle = rnd() < 0.85 ? 'rgba(255,208,120,0.85)' : 'rgba(150,210,255,0.85)'; c.fillRect(wx, wy, 7, 10); }
+            if (layer === 2 && rnd() < 0.5) { const nc = neon[Math.floor(rnd() * 3)]; glowDot(x + bw / 2, h - bh * 0.7, 46, nc); c.fillStyle = nc; c.fillRect(x + bw / 2 - 5, h - bh * 0.85, 10, bh * 0.3); }
+            x += bw + 6;
           }
-          x += bw + 4;
+        }
+        if (idx === 0) {
+          const wx = 700, wy = 360, r = 190; c.strokeStyle = '#ffd98a'; c.lineWidth = 4; c.beginPath(); c.arc(wx, wy, r, 0, 6.2832); c.stroke();
+          for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832; c.beginPath(); c.moveTo(wx, wy); c.lineTo(wx + Math.cos(a) * r, wy + Math.sin(a) * r); c.stroke(); glowDot(wx + Math.cos(a) * r, wy + Math.sin(a) * r, 16, 'rgba(255,120,200,0.95)'); }
+          c.fillStyle = '#ffd98a'; c.fillRect(wx - 4, wy, 8, h - wy);
+        } else if (idx === 1) {
+          c.fillStyle = '#12081f'; c.fillRect(w / 2 - 22, 260, 44, h); c.beginPath(); c.ellipse(w / 2, 300, 90, 24, 0, 0, 6.2832); c.fill(); c.fillRect(w / 2 - 6, 80, 12, 200); glowDot(w / 2, 84, 40, 'rgba(255,60,90,0.95)');
+        } else {
+          for (let k = 0; k < 4; k++) { const bx = 160 + k * 230, tx = bx + (k - 1.5) * 140, bm = c.createLinearGradient(bx, h * 0.5, tx, 0); bm.addColorStop(0, 'rgba(255,230,150,0.45)'); bm.addColorStop(1, 'rgba(255,230,150,0)'); c.fillStyle = bm; c.beginPath(); c.moveTo(bx - 8, h * 0.5); c.lineTo(bx + 8, h * 0.5); c.lineTo(tx + 40, 0); c.lineTo(tx - 40, 0); c.fill(); }
         }
       }
     });
@@ -474,10 +526,13 @@
   /* ------------------------------------------------------------------------ */
   // themeKey : clé de Poker3DExperience.ROOM_THEMES (rouge par défaut) ; gaps : angles (a, voir polar) où le mur s'ouvre sur une autre salle ;
   // lights:false = pas de lampes d'angle (la salle de poker 3D éclaire elle-même)
-  P.buildRoom = function (themeKey, gaps, lights) {
-    const T = THEMES[themeKey] || THEMES.rouge;
+  P.buildRoom = function (themeKey, gaps, lights, noSofa) {
+    themeKey = THEMES[themeKey] ? themeKey : 'rouge';
+    const T = THEMES[themeKey];
     gaps = gaps || [];
+    noSofa = noSofa || [];
     const room = new THREE.Group();
+    const colliders = [];       // obstacles (x, z, r) dans le repère de la salle : banquettes, plantes, tables basses, appliques
     const FLOOR = -1.2;
     const R = 12;                 // rayon du mur
     const H = 7.6;                // hauteur du mur
@@ -597,10 +652,16 @@
         place(cap, a, R - 0.3, FLOOR + yy);
         room.add(cap);
       });
-      // applique : petite lampe fixée sur la colonne
-      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.34, 14), glow);
-      place(lamp, a, R - 0.3 - 0.52, FLOOR + 3.0);
-      room.add(lamp);
+      // applique dorée : platine fixée sur la colonne, bras, coupelle et abat-jour lumineux (z local + = vers le centre de la salle)
+      const sconce = new THREE.Group();
+      const plateM = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 20), goldM); plateM.rotation.x = Math.PI / 2; plateM.position.set(0, 0, 0.385);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.34, 10), goldM); arm.rotation.x = Math.PI / 2; arm.position.set(0, 0, 0.55);
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.05, 0.1, 16), goldM); cup.position.set(0, 0.04, 0.72);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 0.36, 16), glow); lamp.position.set(0, 0.27, 0.72);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.06, 16), goldM); cap.position.set(0, 0.48, 0.72);
+      sconce.add(plateM, arm, cup, lamp, cap);
+      place(sconce, a, R - 0.3, FLOOR + 2.7);
+      room.add(sconce);
     }
 
     /* ---- 8 baies : 3 grandes baies vitrées derrière le croupier, tableaux ailleurs ---- */
@@ -612,7 +673,7 @@
         const span = TWO_PI / 8 - 0.34;
         const glass = new THREE.Mesh(
           new THREE.CylinderGeometry(R - 0.06, R - 0.06, 4.6, 24, 1, true, a - span / 2, span),
-          new THREE.MeshBasicMaterial({ map: skylineTexture(), toneMapped: false, fog: false, side: THREE.DoubleSide })
+          new THREE.MeshBasicMaterial({ map: viewTexture(themeKey, k - 3), toneMapped: false, fog: false, side: THREE.DoubleSide })
         );
         glass.position.y = FLOOR + 3.7;
         room.add(glass);
@@ -648,7 +709,7 @@
     const sofaR0 = 9.5, sofaR1 = 10.55;
     for (let k = 0; k < 8; k++) {
       const a = (k * TWO_PI) / 8;
-      if (isGap(a)) continue;                     // pas de banquette devant une ouverture
+      if (isGap(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // pas de banquette devant une ouverture ni une porte
       const half = 0.27;
       const t0 = a - half, len = half * 2;
       const front = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0, sofaR0, 0.55, 24, 1, true, t0, len), leatherM);
@@ -661,6 +722,21 @@
       const back = new THREE.Mesh(new THREE.CylinderGeometry(sofaR1, sofaR1, 1.5, 24, 1, true, t0, len), leatherM);
       back.position.y = FLOOR + 1.3;
       room.add(back);
+      const backFront = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0 + 0.65, sofaR0 + 0.65, 1.5, 24, 1, true, t0, len), leatherM);
+      backFront.position.y = FLOOR + 1.3;
+      room.add(backFront);
+      // accoudoirs pleins aux deux bouts : la banquette est fermée sur les côtés
+      [-1, 1].forEach((sd) => {
+        const ea = a + sd * (half + 0.012);
+        const armLow = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.0, sofaR1 - sofaR0), leatherM);
+        place(armLow, ea, (sofaR0 + sofaR1) / 2, FLOOR + 0.5);
+        const armBack = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.5, 0.4), leatherM);
+        place(armBack, ea, sofaR1 - 0.2, FLOOR + 1.3);
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, sofaR1 - sofaR0 + 0.02), goldM);
+        place(trim, ea, (sofaR0 + sofaR1) / 2, FLOOR + 1.0);
+        room.add(armLow, armBack, trim);
+      });
+      for (let q = 0; q <= 6; q++) { const pp = polar(a - half + (q / 6) * len, 9.9); colliders.push({ x: pp.x, z: pp.z, r: 0.95 }); }
       const top = new THREE.Mesh(new THREE.RingGeometry(sofaR0 + 0.65, sofaR1, 24, 1, Math.PI / 2 - (a + half), len), leatherM);
       top.rotation.x = Math.PI / 2;
       top.position.y = FLOOR + 2.05;
@@ -679,6 +755,7 @@
         const p = polar(a, 8.5);
         tb.position.set(p.x, FLOOR, p.z);
         room.add(tb);
+        colliders.push({ x: p.x, z: p.z, r: 0.8 });
       }
     }
 
@@ -690,6 +767,7 @@
       pot.position.set(p.x, FLOOR + 0.35, p.z);
       pot.castShadow = true;
       room.add(pot);
+      colliders.push({ x: p.x, z: p.z, r: 1.1 });
       const leaves = mat(0x1d5a2c, 0.7);
       for (let i = 0; i < 12; i++) {
         const lf = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), leaves);
@@ -702,6 +780,7 @@
     }
 
     if (this.scene.fog) this.scene.fog.density = 0.012;
+    this.roomColliders = colliders;
     this.roomGroup = room;
     this.scene.add(room);
   };

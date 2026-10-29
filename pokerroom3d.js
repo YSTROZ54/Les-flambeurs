@@ -77,7 +77,8 @@
       ctx.options = { feltColor: def.felt, railColor: 0x121013, woodColor: 0x1e1108, tableWidth: 6.6, tableDepth: 3.3 };
       ctx.thetas = THETAS.slice(1); ctx.tableFormat = '6max'; ctx.activeBotIndices = [0, 1, 2, 3, 4];
       ctx.buildPokerTable();
-      ctx.buildRoom(def.theme, def.gaps, false);
+      ctx.buildRoom(def.theme, def.gaps, false, r === 0 ? [0] : []);   // pas de banquette devant la porte du hall
+      ctx.roomColliders.forEach(function (o) { room.colliders.push({ x: cx + o.x * SC, z: o.z * SC, r: o.r * SC }); });
       ctx.buildDealer();      // le croupier reste assis à côté de la table
       ctx.buildCommunityCards();   // 5 cartes communes + emplacements + bouton dealer (affichés quand une partie se joue à cette table)
       ctx.communityCardMeshes.forEach(function (m, i) { m.scale.setScalar(1.12); m.position.set((i - 2) * 0.5, 0.012, 0.05); m.visible = false; });
@@ -158,7 +159,9 @@
       return new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), new THREE.MeshBasicMaterial({ map: mkTex(c) }));
     }
     for (var c = 0; c < ROOMS.length - 1; c++) {
-      var x0 = c * D + WALL_R - 0.5, x1 = (c + 1) * D - WALL_R + 0.5, len = x1 - x0, mid = (x0 + x1) / 2, hw = GAP_W + 0.02;
+      // le couloir s'arrête pile au mur de chaque salle (il ne dépasse pas à l'intérieur)
+      var hw = WALL_R * Math.sin(0.17), edge = WALL_R * Math.cos(0.17);
+      var x0 = c * D + edge, x1 = (c + 1) * D - edge, len = x1 - x0, mid = (x0 + x1) / 2;
       var fl = new THREE.Mesh(new THREE.PlaneGeometry(len, hw * 2), floorM); fl.rotation.x = -Math.PI / 2; fl.position.set(mid, 0.003, 0); g.add(fl);
       var cl = new THREE.Mesh(new THREE.PlaneGeometry(len, hw * 2), new THREE.MeshBasicMaterial({ color: 0x0b060c })); cl.rotation.x = Math.PI / 2; cl.position.set(mid, CEIL, 0); g.add(cl);
       [-1, 1].forEach(function (s) {
@@ -179,6 +182,24 @@
       for (var c2 = 0; c2 < ROOMS.length - 1; c2++) if (px > c2 * D + WALL_R - 1.2 && px < (c2 + 1) * D - WALL_R + 1.2 && Math.abs(pz) < GAP_W - 0.25) return true;
       return false;
     }
+
+    // on reste dans les salles rondes et les couloirs : jamais dans le vide derrière un mur
+    room.constrain = function (p) {
+      var best = null, bd = 1e9;
+      function consider(x, z) { var d = (x - p.x) * (x - p.x) + (z - p.z) * (z - p.z); if (d < bd) { bd = d; best = { x: x, z: z }; } }
+      var RR = WALL_R - 0.45, cw = GAP_W - 0.3, edge = WALL_R * Math.cos(0.17);
+      for (var r = 0; r < ROOMS.length; r++) {
+        var dx = p.x - r * D, d = Math.hypot(dx, p.z);
+        if (d <= RR) return;                                  // dans une salle : rien à faire
+        consider(r * D + dx / d * RR, p.z / d * RR);
+      }
+      for (var c = 0; c < ROOMS.length - 1; c++) {            // dans un couloir
+        var xa = c * D + edge - 1.5, xb = (c + 1) * D - edge + 1.5;
+        if (p.x >= xa && p.x <= xb && Math.abs(p.z) <= cw) return;
+        consider(Math.max(xa, Math.min(xb, p.x)), Math.max(-cw, Math.min(cw, p.z)));
+      }
+      if (best) { p.x = best.x; p.z = best.z; }
+    };
 
     // plaque de nom au-dessus d'un joueur assis
     // nom (+ jetons et état pendant une partie) ; la couleur dorée = c'est à lui de parler

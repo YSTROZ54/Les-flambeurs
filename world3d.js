@@ -373,6 +373,7 @@
       var c = room.colliders[i], dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
       if (d < c.r && d > 0.0001) { p.x = c.x + dx / d * c.r; p.z = c.z + dz / d * c.r; }
     }
+    if (room.constrain) room.constrain(p);                       // limites non rectangulaires (salles rondes, couloirs)
     var vk = Math.min(1, dt * 12), pv = this.pv;
     pv.x += ((p.x - ox) / Math.max(dt, 0.001) - pv.x) * vk; pv.z += ((p.z - oz) / Math.max(dt, 0.001) - pv.z) * vk;
   };
