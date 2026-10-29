@@ -21,7 +21,7 @@ export function publicRoom(room, now) {
   Object.keys(room.players || {}).forEach((k) => {
     const p = room.players[k];
     if (!p || now - p.ts > TTL_MS) return;
-    players[k] = { name: p.name, avatar: p.avatar, x: p.x, z: p.z, yaw: p.yaw, seat: p.seat, fx: p.fx || null };
+    players[k] = { name: p.name, avatar: p.avatar, x: p.x, z: p.z, yaw: p.yaw, vx: p.vx || 0, vz: p.vz || 0, run: !!p.run, jmp: p.jmp || 0, seat: p.seat, fx: p.fx || null };
   });
   return { serverNow: now, players };
 }
@@ -84,6 +84,7 @@ export default async function handler(req, res) {
       const r = await mutate((room, now) => {
         const p = mine(room, now);
         p.x = num(body.x, -10, 10, p.x); p.z = num(body.z, -4, 12, p.z); p.yaw = num(body.yaw, -100, 100, p.yaw);
+        p.vx = num(body.vx, -8, 8, 0); p.vz = num(body.vz, -8, 8, 0); p.run = !!body.run; p.jmp = Math.floor(num(body.jmp, 0, 1e9, p.jmp || 0));
         return { seat: p.seat };
       });
       return res.status(200).json({ ok: true, seat: r.out.seat, ...r.pub });

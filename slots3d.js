@@ -929,7 +929,7 @@
   };
 
   SlotsExperience.prototype._bindKeys = function () {
-    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr' };
+    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
     function ok(e) {
       var t = e.target, tag = t && t.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
@@ -942,6 +942,8 @@
     };
     this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
     window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku);
+    this._blur = function () { self.keys = {}; };
+    window.addEventListener('blur', this._blur);
     this._esc = function (e) { if (e.code === 'Escape' && self.full) self.setFull(false); };
     window.addEventListener('keydown', this._esc);
     this._ph = function () { if (self.netOn) self._post({ action: 'leave' }); };
@@ -950,8 +952,8 @@
 
   SlotsExperience.prototype._setHint = function () {
     this.elHint.textContent = this.touch ? "Joystick : marcher · glisse : regarder · touche une borne pour t'asseoir · règles sur les murs de côté"
-      : this.full ? "ZQSD / flèches : marcher · la souris tourne la vue (bords de l'écran) · clic sur une borne : s'asseoir · Échap : quitter"
-      : "ZQSD / flèches : marcher · clique-glisse : regarder · clic sur une borne : s'asseoir · règles sur les murs de côté";
+      : this.full ? "ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l'écran) · clic sur une borne : s'asseoir · Échap : quitter"
+      : "ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · clic sur une borne : s'asseoir · règles sur les murs de côté";
     this.elHint.style.display = ''; this.hintShown = this.clock || 0;
   };
   SlotsExperience.prototype._paintFullBtn = function () {
@@ -1120,7 +1122,10 @@
     var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x;
     var len = Math.hypot(fwd, str);
     if (len > 1) { fwd /= len; str /= len; }
-    var sp = 3.2 * dt;
+    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z;
+    this.running2 = run;
+    if (k.jump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
+    if (p.air) { p.vy -= 13 * dt; p.jy = (p.jy || 0) + p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; p.air = false; } }
     p.x += (Math.sin(p.yaw) * fwd + Math.cos(p.yaw) * str) * sp;
     p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
     p.x = Math.max(-ROOM.xMax, Math.min(ROOM.xMax, p.x)); p.z = Math.max(ROOM.zMin, Math.min(ROOM.zMax, p.z));
@@ -1128,6 +1133,8 @@
       var c = this.cabs[i], dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
       if (d < 1.15 && d > 0.0001) { p.x = c.x + dx / d * 1.15; p.z = c.z + dz / d * 1.15; }
     }
+    var vk = Math.min(1, dt * 12), pv = this.pv || (this.pv = { x: 0, z: 0 });
+    pv.x += ((p.x - ox) / Math.max(dt, 0.001) - pv.x) * vk; pv.z += ((p.z - oz) / Math.max(dt, 0.001) - pv.z) * vk;
   };
   SlotsExperience.prototype._findNear = function () {
     var best = null, bd = 1.8, p = this.player;
@@ -1185,7 +1192,7 @@
 
     // pose « salle »
     var p = this.player, cpp = Math.cos(p.pitch), A = this._tmpA, B = this._tmpB;
-    var rx = p.x, ry = 1.65, rz = p.z;
+    var rx = p.x, ry = 1.65 + (p.jy || 0), rz = p.z;
     var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
     var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = this.w / Math.max(1, this.h) < 0.9 ? 70 : 62;
 
@@ -1318,12 +1325,19 @@
   SlotsExperience.prototype._netTick = function () {
     var self = this;
     if (!this.netOn || this.dead) return;
-    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, 900); };
+    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, 220); };
     if (document.hidden) { next(); return; }
     var p = this.player, e = this.seatCab, x = p.x, z = p.z, yaw = p.yaw;
     if (e) { x = e.x + Math.sin(e.rotY) * 2.2; z = e.z + Math.cos(e.rotY) * 2.2; yaw = -e.rotY; }
-    var req = this._token() ? this._post({ action: 'presence', x: x, z: z, yaw: yaw })
-      : fetch('/api/slots').then(function (r) { return r.json(); }).catch(function () { return null; });
+    // en mouvement : on envoie vite (position + vitesse) ; à l'arrêt : un signe de vie toutes les 1,8 s, le reste du temps on ne fait que regarder
+    var pv = this.pv || { x: 0, z: 0 }, moving = !e && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(yaw - (this._lastYaw || 0)) > 0.02);
+    var nowT = performance.now(), due = moving || this._wasMoving || !this._lastSend || nowT - this._lastSend > 1800;
+    this._wasMoving = moving; this._lastYaw = yaw;
+    var req;
+    if (this._token() && due) {
+      this._lastSend = nowT;
+      req = this._post({ action: 'presence', x: x, z: z, yaw: yaw, vx: e ? 0 : pv.x, vz: e ? 0 : pv.z, run: !!this.running2, jmp: p.jmp || 0 });
+    } else req = fetch('/api/slots').then(function (r) { return r.json(); }).catch(function () { return null; });
     req.then(function (d) { if (d && d.players) self._applyNet(d); next(); });
   };
   SlotsExperience.prototype._applyNet = function (d) {
@@ -1343,11 +1357,12 @@
       if (p.seat >= 0) self.occ[p.seat] = p.name;
       var r = self.remote[k];
       if (!r) {
-        r = self.remote[k] = { name: p.name, person: createPerson(p.name, p.avatar), tx: p.x, tz: p.z, tyaw: p.yaw, lastFx: null, fresh: true, vx: 0 };
+        r = self.remote[k] = { name: p.name, person: createPerson(p.name, p.avatar), tx: p.x, tz: p.z, tyaw: p.yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: p.jmp || 0, jt: -1 };
         r.person.group.position.set(p.x, 0, p.z); r.px = p.x; r.pz = p.z;
         self.scene.add(r.person.group);
       }
-      r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.seat = p.seat;
+      r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.seat = p.seat; r.vx = p.vx || 0; r.vz = p.vz || 0; r.recv = performance.now();
+      if ((p.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = p.jmp || 0; }
       var fx = p.fx;
       if (fx && p.seat >= 0 && self.cabs[p.seat]) {
         var key = fx.id + ':' + fx.phase, cab = self.cabs[p.seat].cab;
@@ -1378,9 +1393,11 @@
     this.scene.remove(r.person.group); r.person.dispose(); delete this.remote[k];
   };
   SlotsExperience.prototype._updateRemotes = function (dt) {
-    var self = this, kk = 1 - Math.exp(-dt * 4.5);
+    var self = this, kk = 1 - Math.exp(-dt * 11), nowT = performance.now();
     Object.keys(this.remote || {}).forEach(function (k) {
       var r = self.remote[k], g = r.person.group, tx = r.tx, tz = r.tz, yaw = r.tyaw;
+      var age = Math.min(0.6, (nowT - r.recv) / 1000 + 0.1);          // on prolonge le mouvement connu : pas de saccade entre deux envois
+      if (!(r.seat >= 0)) { tx += r.vx * age; tz += r.vz * age; }
       if (r.seat >= 0 && self.cabs[r.seat]) {      // assis : sur le tabouret, face à la borne
         var e = self.cabs[r.seat];
         tx = e.x + Math.sin(e.rotY) * 1.6; tz = e.z + Math.cos(e.rotY) * 1.6; yaw = -e.rotY;
@@ -1388,7 +1405,9 @@
       } else r.person.setSeated(false);
       var ox = g.position.x, oz = g.position.z;
       g.position.x += (tx - ox) * kk; g.position.z += (tz - oz) * kk;
-      var sp = Math.hypot(g.position.x - ox, g.position.z - oz) / Math.max(dt, 0.001);
+      var sp = r.seat >= 0 ? 0 : Math.max(Math.hypot(r.vx, r.vz), Math.hypot(g.position.x - ox, g.position.z - oz) / Math.max(dt, 0.001) * 0.5);
+      if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = 4 * 0.6 * u * (1 - u); }
+      else if (!r.person.seated) g.position.y = 0;
       var ty = Math.PI - yaw, dy = ((ty - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
       g.rotation.y += dy * Math.min(1, dt * 6);
       if (sp > 0.12 && !r.person.seated) r.person.walk(dt, sp); else r.person.stopWalk();
@@ -1403,7 +1422,7 @@ SlotsExperience.prototype.pause = function () { this.running = false; this.keys 
   SlotsExperience.prototype.resume = function () { this._netStart(); this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
   SlotsExperience.prototype.dispose = function () {
     this.dead = true; cancelAnimationFrame(this._raf);
-    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); this._netStop(); window.removeEventListener('keyup', this._ku); window.removeEventListener('pagehide', this._ph);
+    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); this._netStop(); window.removeEventListener('keyup', this._ku); window.removeEventListener('blur', this._blur); window.removeEventListener('pagehide', this._ph);
     this.cabs.forEach(function (c) { c.cab.dispose(); });
     this.renderer.dispose();
     if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
