@@ -241,10 +241,7 @@
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.28, metalness: 0.45 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var rugB = flatExtrude(stadiumShape(R_OUT + 3.1), 0.012, 0, new THREE.MeshStandardMaterial({ color: 0xc9a24a, roughness: 0.5, metalness: 0.6 })); g.add(rugB);
     var rugA = flatExtrude(stadiumShape(R_OUT + 3.0), 0.02, 0, new THREE.MeshStandardMaterial({ color: 0x0b1f4a, roughness: 0.95 })); g.add(rugA);
-    var rugRing = stadiumShape(R_OUT + 2.72); rugRing.holes.push(stadiumShape(R_OUT + 2.62, true));
-    g.add(flatExtrude(rugRing, 0.03, 0, ledA));                                                              // liseré lumineux autour de la zone des chaises
     var wc = mkCanvas(512, 512), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 0, 512);
     wgr.addColorStop(0, '#0d2250'); wgr.addColorStop(1, '#091630'); wx.fillStyle = wgr; wx.fillRect(0, 0, 512, 512);
     for (var wp = 0; wp < 4; wp++) {                                                                         // 4 panneaux capitonnés par motif
@@ -313,23 +310,6 @@
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCW, SCH), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, SCY, SCZ + 0.01); g.add(screen);
     box(SCW + 0.7, 0.1, 0.1, 0, SCY + SCH / 2 + 0.25, SCZ, ledA); box(SCW + 0.7, 0.1, 0.1, 0, SCY - SCH / 2 - 0.25, SCZ, ledA);
     box(0.1, SCH + 0.6, 0.1, -SCW / 2 - 0.3, SCY, SCZ, ledA); box(0.1, SCH + 0.6, 0.1, SCW / 2 + 0.3, SCY, SCZ, ledA);
-
-    /* ----- terminaux le long des murs, comme dans la salle d'arcade ----- */
-    var termScreens = [];
-    for (var v = 0; v < 3; v++) {
-      var tc = mkCanvas(128, 96), tx = tc.getContext('2d'), grd = tx.createLinearGradient(0, 0, 0, 96);
-      grd.addColorStop(0, ['#2a7bff', '#2fc27a', '#c84bff'][v]); grd.addColorStop(1, '#0b1a3a'); tx.fillStyle = grd; tx.fillRect(0, 0, 128, 96);
-      tx.fillStyle = 'rgba(255,255,255,0.8)'; for (var l = 0; l < 6; l++) tx.fillRect(10, 10 + l * 13, 30 + Math.random() * 80, 6);
-      termScreens.push(new THREE.MeshBasicMaterial({ map: mkTex(tc) }));
-    }
-    var termBody = new THREE.BoxGeometry(0.8, 1.4, 0.7), termScr = new THREE.PlaneGeometry(0.62, 0.42);
-    [-1, 1].forEach(function (s) {
-      for (var tz = -9; tz <= 9; tz += 3) {
-        var tb = new THREE.Mesh(termBody, matDark); tb.position.set(s * (HX - 0.7), 0.7, tz); g.add(tb);
-        var ts = new THREE.Mesh(termScr, termScreens[Math.abs(tz / 3) % 3]); ts.position.set(s * (HX - 0.7) - s * 0.36, 1.1, tz); ts.rotation.y = -s * Math.PI / 2; g.add(ts);
-        room.colliders.push({ x: s * (HX - 0.7), z: tz, r: 0.75 });
-      }
-    });
 
     /* ----- postes de pari : une petite table par chaise (6 de chaque côté de la table) ----- */
     var deckTex = (function () {                 // la partie « boutons » de la table
