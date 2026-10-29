@@ -187,7 +187,20 @@
       if (near && d.open > 0.55 && Math.abs(lat) < (s.w || 1.7) / 2 - 0.1 && dn < 0.9) { this._useDoor(d); return; }
     }
   };
+  // se déplacer dans la même salle derrière un fondu au noir (portes entre deux salons d'une même salle)
+  World.prototype.teleport = function (x, z, yaw) {
+    var self = this;
+    if (this.trans) return;
+    this.trans = true; this.elFade.classList.add('on');
+    setTimeout(function () {
+      if (self.dead) return;
+      var p = self.player;
+      p.x = x; p.z = z; p.yaw = yaw; p.pitch = -0.04; p.jy = 0; p.air = false; p.vy = 0; self.pv.x = self.pv.z = 0;
+      setTimeout(function () { self.elFade.classList.remove('on'); self.trans = false; }, 120);
+    }, 380);
+  };
   World.prototype._useDoor = function (d) {
+    if (d.spec.go) { d.spec.go(this); return; }
     var t = d.spec.target;
     if (typeof t === 'string' && this.hasRoom(t)) this.goRoom(t, this.room.id);
     else this.exitGame(typeof t === 'string' ? t : (t && t.game), d);

@@ -715,7 +715,7 @@
     for (let k = 0; k < 8; k++) {
       const a = (k * TWO_PI) / 8;                 // centre de la baie
       const backBay = k >= 3 && k <= 5;           // 135°, 180°, 225° : derrière le croupier
-      if (isGap(a)) continue;                     // ouverture sur une autre salle
+      if (isGap(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // ouverture ou porte
       if (backBay) {
         const span = TWO_PI / 8 - 0.34;
         const glass = new THREE.Mesh(
