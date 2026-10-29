@@ -31,7 +31,7 @@ const BASE_TIME = 22;       // secondes d'un cheval de vitesse 1,00 sans aléa
 const NOISE = 0.09;         // part d'aléa sur le temps de course
 export const GROUP_BASE = 2;   // gain du pari « groupe » pour un cheval moyen (une chance sur deux)
 export const GROUP_RTP = 0.95;   // le casino garde 5 % en moyenne sur les paris « groupe »
-export const PLACE_BASE = 4;   // gain du pari « place précise » pour un cheval moyen (une chance sur huit)
+export const PLACE_BASE = 7;   // gain du pari « place précise » pour un cheval moyen (une chance sur huit)
 
 // ---------- tirage ----------
 // u : fonction qui renvoie un nombre dans ]0 ; 1[ (par défaut le hasard sécurisé du serveur)
@@ -48,7 +48,7 @@ export const orderOf = (finish) => finish.map((t, i) => ({ i, t })).sort((a, b) 
 
 // ---------- cotes ----------
 // Probabilités estimées une fois pour toutes (tirages simulés avec un générateur fixe), puis gains :
-//  groupe = 2 × (0,5 / chance d'être dans les 4 premiers) ; place précise = 4 × (0,125 / chance d'arriver à cette place)
+//  groupe = 2 × (0,5 / chance d'être dans les 4 premiers) ; place précise = 7 × (0,125 / chance d'arriver à cette place)
 function lcg(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return (s + 0.5) / 4294967296; }; }
 export function buildOdds(sims = 40000) {
   const u = lcg(20240607), top = new Array(8).fill(0), pl = HORSES.map(() => new Array(8).fill(0));
