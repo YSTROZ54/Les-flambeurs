@@ -228,20 +228,44 @@
     var matMetal = new THREE.MeshStandardMaterial({ color: 0x1b2433, roughness: 0.35, metalness: 0.7 });
     var neonB = new THREE.MeshBasicMaterial({ color: 0x3a8dff }), neonC = new THREE.MeshBasicMaterial({ color: 0x56e6ff });
 
-    /* ----- salle : sol clair, murs verts, plafond sombre avec spots ----- */
-    var fc = mkCanvas(256, 256), fx = fc.getContext('2d');
-    fx.fillStyle = '#cfd6d8'; fx.fillRect(0, 0, 256, 256); fx.strokeStyle = 'rgba(80,90,100,0.35)'; fx.lineWidth = 2;
-    fx.strokeRect(1, 1, 254, 254); fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.stroke();
-    fx.globalAlpha = 0.06; for (var i = 0; i < 80; i++) { fx.fillStyle = i % 2 ? '#fff' : '#000'; fx.fillRect(Math.random() * 256, Math.random() * 256, 3 + Math.random() * 20, 1); }
+    /* ----- salle : sol de dalles bleu nuit, tapis autour de la table, murs capitonnés à néons, plafond sombre avec spots ----- */
+    var ledMats = [], li;                                   // LED qui courent autour de la table (couleurs animées dans room.update)
+    for (li = 0; li < 12; li++) ledMats.push(new THREE.MeshBasicMaterial({ color: 0x3a8dff }));
+    var ledA = new THREE.MeshBasicMaterial({ color: 0x56e6ff }), ledB = new THREE.MeshBasicMaterial({ color: 0xc84bff });   // bandeaux lumineux des murs, du plafond, du sol
+    var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), fgr = fx.createLinearGradient(0, 0, 256, 256);
+    fgr.addColorStop(0, '#13244a'); fgr.addColorStop(1, '#0a1530'); fx.fillStyle = fgr; fx.fillRect(0, 0, 256, 256);
+    fx.fillStyle = 'rgba(8,14,30,0.55)'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);          // damier discret
+    fx.strokeStyle = 'rgba(86,230,255,0.55)'; fx.lineWidth = 3; fx.strokeRect(1.5, 1.5, 253, 253);
+    fx.strokeStyle = 'rgba(86,230,255,0.18)'; fx.lineWidth = 2; fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.stroke();
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.4, metalness: 0.15 }));
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.28, metalness: 0.45 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var wallMat = new THREE.MeshStandardMaterial({ color: 0x2f7a5a, roughness: 0.9 }), wallLow = new THREE.MeshStandardMaterial({ color: 0x14312a, roughness: 0.8 });
-    function wall(w, h, px, py, pz, ry, mat) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat || wallMat); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
+    var rugB = flatExtrude(stadiumShape(R_OUT + 3.1), 0.012, 0, new THREE.MeshStandardMaterial({ color: 0xc9a24a, roughness: 0.5, metalness: 0.6 })); g.add(rugB);
+    var rugA = flatExtrude(stadiumShape(R_OUT + 3.0), 0.02, 0, new THREE.MeshStandardMaterial({ color: 0x0b1f4a, roughness: 0.95 })); g.add(rugA);
+    var rugRing = stadiumShape(R_OUT + 2.72); rugRing.holes.push(stadiumShape(R_OUT + 2.62, true));
+    g.add(flatExtrude(rugRing, 0.03, 0, ledA));                                                              // liseré lumineux autour de la zone des chaises
+    var wc = mkCanvas(512, 512), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 0, 512);
+    wgr.addColorStop(0, '#0d2250'); wgr.addColorStop(1, '#091630'); wx.fillStyle = wgr; wx.fillRect(0, 0, 512, 512);
+    for (var wp = 0; wp < 4; wp++) {                                                                         // 4 panneaux capitonnés par motif
+      var wpg = wx.createLinearGradient(wp * 128, 0, wp * 128 + 128, 0); wpg.addColorStop(0, 'rgba(70,120,230,0.10)'); wpg.addColorStop(0.5, 'rgba(70,120,230,0.0)'); wpg.addColorStop(1, 'rgba(0,0,0,0.25)');
+      wx.fillStyle = wpg; wx.fillRect(wp * 128 + 6, 6, 116, 500);
+      wx.strokeStyle = 'rgba(86,230,255,0.35)'; wx.lineWidth = 2; wx.strokeRect(wp * 128 + 6, 6, 116, 500);
+    }
+    wx.strokeStyle = 'rgba(243,207,98,0.45)'; wx.lineWidth = 3; wx.beginPath(); wx.moveTo(0, 256); wx.lineTo(512, 256); wx.stroke();
+    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
+    var wallLow = new THREE.MeshStandardMaterial({ color: 0x0a1426, roughness: 0.4, metalness: 0.6 });
+    function wall(w, h, px, py, pz, ry, mat) {
+      var m;
+      if (!mat) { var wt = wallTex.clone(); wt.needsUpdate = true; wt.repeat.set(w / 3, 2); mat = new THREE.MeshStandardMaterial({ map: wt, roughness: 0.75, metalness: 0.1 }); }
+      m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m);
+    }
     wall(HX * 2, 6, 0, 3, -HZ, 0); wall(HX * 2, 6, 0, 3, HZ, Math.PI); wall(HZ * 2, 6, -HX, 3, 0, Math.PI / 2); wall(HZ * 2, 6, HX, 3, 0, -Math.PI / 2);
     wall(HX * 2, 1, 0, 0.5, -HZ + 0.02, 0, wallLow); wall(HX * 2, 1, 0, 0.5, HZ - 0.02, Math.PI, wallLow);
     wall(HZ * 2, 1, -HX + 0.02, 0.5, 0, Math.PI / 2, wallLow); wall(HZ * 2, 1, HX - 0.02, 0.5, 0, -Math.PI / 2, wallLow);
-    [[HX * 2, 0.06, 0.06, 0, 1, -HZ + 0.04], [HX * 2, 0.06, 0.06, 0, 1, HZ - 0.04], [0.06, 0.06, HZ * 2, -HX + 0.04, 1, 0], [0.06, 0.06, HZ * 2, HX - 0.04, 1, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], neonC); });
+    // bandeaux lumineux : au-dessus des plinthes, en haut des murs, et un cadre au plafond
+    [[HX * 2, 0.07, 0.07, 0, 1.02, -HZ + 0.05], [HX * 2, 0.07, 0.07, 0, 1.02, HZ - 0.05], [0.07, 0.07, HZ * 2, -HX + 0.05, 1.02, 0], [0.07, 0.07, HZ * 2, HX - 0.05, 1.02, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
+    [[HX * 2, 0.1, 0.1, 0, 5.7, -HZ + 0.06], [HX * 2, 0.1, 0.1, 0, 5.7, HZ - 0.06], [0.1, 0.1, HZ * 2, -HX + 0.06, 5.7, 0], [0.1, 0.1, HZ * 2, HX - 0.06, 5.7, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledB); });
+    [[HX * 2 - 6, 0.08, 0.08, 0, 5.94, -HZ + 3], [HX * 2 - 6, 0.08, 0.08, 0, 5.94, HZ - 3], [0.08, 0.08, HZ * 2 - 6, -HX + 3, 5.94, 0], [0.08, 0.08, HZ * 2 - 6, HX - 3, 5.94, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080b12 }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; g.add(ceil);
     var spotM = new THREE.MeshBasicMaterial({ color: 0xfff0d0 }), spotG = new THREE.CylinderGeometry(0.16, 0.2, 0.18, 10), spots = new THREE.Group(); g.add(spots);
@@ -269,23 +293,24 @@
     });
     // départ : une barrière légère qui se lève quand la course commence
     var gate = box(laneR(7) - laneR(0) + 0.35, 0.025, 0.025, (laneR(0) + laneR(7)) / 2, TY + 0.2, Z0 + 0.3, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    // les LED : deux rangées d'ampoules autour de la table (le dessus du rebord et le tablier), qui courent en sens inverse
+    var bulbG = new THREE.SphereGeometry(0.038, 6, 5), bulbN = 0, bulbStep = low ? 0.34 : 0.17;
+    function bulbRow(r, y, dir, off) {
+      var L = laneLen(r), cnt = Math.round(L / bulbStep), bp = {}, k, b;
+      for (k = 0; k < cnt; k++) { lanePos(r, k / cnt * L, bp); b = new THREE.Mesh(bulbG, ledMats[(((dir > 0 ? k : -k) + off) % 12 + 12) % 12]); b.position.set(bp.x, y, bp.z); g.add(b); bulbN++; }
+    }
+    bulbRow(R_OUT + 0.72, TY + 0.125, 1, 0); bulbRow(R_OUT + 0.62, 0.46, -1, 6);
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
 
-    /* ----- grand écran au bout de la table ----- */
+    /* ----- grand écran collé au mur du fond (il ne prend plus de place dans la salle) ----- */
     var scr = mkCanvas(1024, 576), sctx = scr.getContext('2d'), scrTex = mkTex(scr);
-    var SCZ = -(HS + R_OUT + 1.4);
-    box(6.6, 3.9, 0.3, 0, 3.4, SCZ - 0.05, matDark);
-    var screen = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 3.49), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 3.4, SCZ + 0.11); g.add(screen);
-    box(0.12, 3.9, 0.12, -3.4, 3.4, SCZ + 0.12, neonB); box(0.12, 3.9, 0.12, 3.4, 3.4, SCZ + 0.12, neonB);
-    box(6.8, 0.1, 0.12, 0, 5.4, SCZ + 0.12, neonC);
-    box(0.25, 1.6, 0.25, -2.6, 0.8, SCZ - 0.05, matMetal); box(0.25, 1.6, 0.25, 2.6, 0.8, SCZ - 0.05, matMetal);
-    var sg = mkCanvas(1024, 160), sgx = sg.getContext('2d');
-    sgx.fillStyle = '#0b1220'; sgx.fillRect(0, 0, 1024, 160); sgx.textAlign = 'center'; sgx.textBaseline = 'middle'; sgx.fillStyle = '#7fd1ff'; sgx.shadowColor = '#2a9dff'; sgx.shadowBlur = 24;
-    sgx.font = '900 84px ' + SERIF; sgx.fillText('GRAND PRIX', 512, 62); sgx.shadowBlur = 0; sgx.fillStyle = '#d9c88f'; sgx.font = '700 30px ' + MONO; sgx.fillText('✦  LES FLAMBEURS  ✦', 512, 126);
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 0.96), new THREE.MeshBasicMaterial({ map: mkTex(sg) })); sign.position.set(0, 6 - 0.52, -HZ + 0.05); g.add(sign);
-    room.colliders.push({ x: 0, z: SCZ - 0.05, r: 3.6 });
+    var SCW = 8.9, SCH = 5, SCY = 3.2, SCZ = -HZ + 0.22;
+    box(SCW + 0.5, SCH + 0.5, 0.2, 0, SCY, -HZ + 0.1, matDark);
+    var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCW, SCH), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, SCY, SCZ + 0.01); g.add(screen);
+    box(SCW + 0.7, 0.1, 0.1, 0, SCY + SCH / 2 + 0.25, SCZ, ledA); box(SCW + 0.7, 0.1, 0.1, 0, SCY - SCH / 2 - 0.25, SCZ, ledA);
+    box(0.1, SCH + 0.6, 0.1, -SCW / 2 - 0.3, SCY, SCZ, ledA); box(0.1, SCH + 0.6, 0.1, SCW / 2 + 0.3, SCY, SCZ, ledA);
 
     /* ----- terminaux le long des murs, comme dans la salle d'arcade ----- */
     var termScreens = [];
@@ -304,22 +329,50 @@
       }
     });
 
-    /* ----- bornes de pari et chaises hautes autour de la table ----- */
+    /* ----- comptoirs de pari (un long comptoir par côté, une borne par chaise) et chaises hautes ----- */
     var consoleTex = (function () {
-      var c = mkCanvas(256, 128), x = c.getContext('2d'); x.fillStyle = '#071326'; x.fillRect(0, 0, 256, 128);
-      x.strokeStyle = '#3a8dff'; x.lineWidth = 4; x.strokeRect(3, 3, 250, 122); x.fillStyle = '#9fd0ff'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = '800 30px ' + MONO; x.fillText('PARIS', 128, 38); x.fillStyle = '#f3cf62'; x.font = '700 18px ' + MONO; x.fillText('1  2  3  4  5  6  7  8', 128, 84); return mkTex(c);
+      var c = mkCanvas(256, 128), x = c.getContext('2d'), k, gr = x.createLinearGradient(0, 0, 0, 128);
+      gr.addColorStop(0, '#0d2a5c'); gr.addColorStop(1, '#050d1e'); x.fillStyle = gr; x.fillRect(0, 0, 256, 128);
+      x.strokeStyle = '#56e6ff'; x.lineWidth = 4; x.strokeRect(3, 3, 250, 122); x.fillStyle = '#9fd0ff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = '800 26px ' + MONO; x.fillText('PARIS OUVERTS', 128, 26);
+      for (k = 0; k < 8; k++) { x.beginPath(); x.arc(22 + k * 30.5, 66, 12, 0, TAU); x.fillStyle = hex(HORSES[k].silk); x.fill(); x.fillStyle = HORSES[k].ink; x.font = '900 14px ' + MONO; x.fillText(String(k + 1), 22 + k * 30.5, 67); }
+      x.fillStyle = '#f3cf62'; x.font = '700 16px ' + MONO; x.fillText('GROUPE x2   ·   PLACE x7', 128, 106); return mkTex(c);
+    })();
+    var deckTex = (function () {                 // la partie « boutons » du comptoir
+      var c = mkCanvas(512, 288), x = c.getContext('2d'), k, r, cc, gr = x.createLinearGradient(0, 0, 0, 288);
+      gr.addColorStop(0, '#1a2a4a'); gr.addColorStop(1, '#0b1426'); x.fillStyle = gr; x.fillRect(0, 0, 512, 288);
+      x.strokeStyle = '#56e6ff'; x.lineWidth = 4; x.strokeRect(4, 4, 504, 280);
+      for (k = 0; k < 8; k++) {
+        r = Math.floor(k / 4); cc = k % 4; x.beginPath(); x.arc(70 + cc * 92, 70 + r * 84, 33, 0, TAU); x.fillStyle = hex(HORSES[k].silk); x.fill();
+        x.strokeStyle = '#ffffff'; x.lineWidth = 4; x.stroke(); x.fillStyle = HORSES[k].ink; x.font = '900 34px ' + MONO; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(k + 1), 70 + cc * 92, 72 + r * 84);
+      }
+      x.fillStyle = '#07101e'; x.fillRect(376, 30, 124, 44); x.strokeStyle = '#3a8dff'; x.lineWidth = 2; x.strokeRect(376, 30, 124, 44);
+      x.fillStyle = '#7fd1ff'; x.font = '800 22px ' + MONO; x.fillText('MISE', 438, 52);
+      x.fillStyle = '#1fae5a'; x.beginPath(); x.moveTo(386, 98); x.lineTo(490, 98); x.lineTo(490, 156); x.lineTo(386, 156); x.closePath(); x.fill();
+      x.fillStyle = '#fff'; x.font = '900 24px ' + MONO; x.fillText('PARIER', 438, 128);
+      x.fillStyle = '#d63a3a'; x.fillRect(386, 176, 104, 46); x.fillStyle = '#fff'; x.font = '800 18px ' + MONO; x.fillText('ANNULER', 438, 200);
+      return mkTex(c);
     })();
     var chairM = new THREE.MeshStandardMaterial({ color: 0x151c2a, roughness: 0.6, metalness: 0.3 }), chairG = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16);
     var backG = new THREE.BoxGeometry(0.06, 0.42, 0.42), poleG = new THREE.CylinderGeometry(0.035, 0.035, 0.6, 8), footG = new THREE.TorusGeometry(0.26, 0.014, 6, 18);
+    var counterTop = new THREE.MeshStandardMaterial({ color: 0x101a30, roughness: 0.2, metalness: 0.6 });
+    var divM = new THREE.MeshStandardMaterial({ color: 0x9fd0ff, roughness: 0.1, transparent: true, opacity: 0.25 });
     var n = 0;
     [1, -1].forEach(function (s) {          // s = 1 : côté est (regarde vers -x) ; s = -1 : côté ouest
+      box(0.74, 0.82, 6.3, s * 3.95, 0.41, 0, matMetal);                                  // le meuble
+      box(0.9, 0.05, 6.42, s * 3.97, 0.845, 0, counterTop);                               // le plateau
+      box(0.04, 0.05, 6.42, s * 4.43, 0.86, 0, ledA);                                     // liseré lumineux sur le bord du plateau
+      box(0.04, 0.06, 6.3, s * 3.575, 0.05, 0, ledB);                                     // lueur au pied du meuble
+      for (var cz2 = -2.4; cz2 <= 2.4; cz2 += 0.8) room.colliders.push({ x: s * 3.95, z: cz2, r: 0.5 });
       for (var zz = -2.5; zz <= 2.5 + 0.01; zz += 1) {
         var cxp = s * 4.55, czp = zz, seat = { n: ++n, side: s, x: cxp, z: czp, yaw: s > 0 ? -Math.PI / 2 : Math.PI / 2, occBy: null };
-        // borne : bureau, pied et petit écran incliné
-        box(0.8, 0.05, 0.5, s * 3.95, 0.8, czp, matDark); box(0.1, 0.78, 0.1, s * 3.95, 0.39, czp, matMetal);
-        var cs = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: consoleTex })); cs.position.set(s * 3.8, 0.97, czp); cs.rotation.set(0, -s * Math.PI / 2, 0); cs.rotateX(-0.45); g.add(cs);
-        box(0.52, 0.03, 0.02, s * 3.8, 1.1, czp, neonB).rotation.y = s * Math.PI / 2;
+        // borne : écran incliné qui montre les chevaux, et un panneau de boutons posé sur le plateau
+        var cs = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.31), new THREE.MeshBasicMaterial({ map: consoleTex })); cs.position.set(s * 3.72, 1.04, czp); cs.rotation.set(0, -s * Math.PI / 2, 0); cs.rotateX(-0.5); g.add(cs);
+        box(0.66, 0.04, 0.03, s * 3.7, 1.2, czp, ledA).rotation.y = s * Math.PI / 2;
+        box(0.04, 0.2, 0.04, s * 3.72, 0.95, czp - 0.29, matMetal); box(0.04, 0.2, 0.04, s * 3.72, 0.95, czp + 0.29, matMetal);
+        var dk = new THREE.Group(); dk.position.set(s * 4.1, 0.874, czp); dk.rotation.y = s * Math.PI / 2; g.add(dk);
+        var dp = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.35), new THREE.MeshBasicMaterial({ map: deckTex })); dp.rotation.x = -Math.PI / 2; dk.add(dp);
+        box(0.02, 0.2, 0.46, s * 3.62, 0.96, czp + 0.5, divM);                              // petite cloison en verre entre deux postes
         // chaise haute avec repose-pieds
         var cg = new THREE.Group(); cg.position.set(cxp, 0, czp); g.add(cg);
         var ss = new THREE.Mesh(chairG, chairM); ss.position.y = 0.62; cg.add(ss);
@@ -373,7 +426,7 @@
       var c = sctx, W = 1024, H = 576, i;
       c.fillStyle = '#050b18'; c.fillRect(0, 0, W, H);
       c.fillStyle = '#0d2a52'; c.fillRect(0, 0, W, 78);
-      c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#7fd1ff'; c.font = '900 40px ' + SERIF; c.fillText('GRAND PRIX DES FLAMBEURS', 28, 40);
+      c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#7fd1ff'; c.font = '900 34px ' + SERIF; c.fillText('GRAND PRIX · FLAMBEURS', 28, 40);
       c.textAlign = 'right'; c.fillStyle = '#f3cf62'; c.font = '800 34px ' + MONO;
       var head = info.phase === 'waiting' ? 'EN ATTENTE DE PARIS' : info.phase === 'betting' ? 'PARIS · ' + Math.ceil(Math.max(0, info.left - CLOSE_MS / 1000)) + ' s' : info.phase === 'racing' ? 'COURSE EN COURS' : info.phase === 'results' ? 'RÉSULTATS' : '…';
       c.fillText(head, W - 28, 40);
@@ -614,8 +667,16 @@
     room.seatPos = function () { var e = room.seatEntry; return e ? { seat: e.n - 1, x: e.x, z: e.z, yaw: e.yaw } : null; };
     room.remotePose = function (r) { var e = room.seats[r.seat]; return e ? { x: e.x - e.side * 0.1, z: e.z, yaw: e.yaw } : null; };
 
+    var ledT = 0, ledCol = new THREE.Color();
     room.update = function (dt) {
       updateRace(dt);
+      ledT += dt;
+      for (var lm = 0; lm < 12; lm++) {          // arc-en-ciel qui défile + vague de luminosité
+        var wv = 0.5 + 0.5 * Math.sin(lm / 12 * TAU - ledT * 6);
+        ledMats[lm].color.copy(ledCol.setHSL((lm / 12 + ledT * 0.07) % 1, 1, 0.22 + 0.4 * wv));
+      }
+      ledA.color.copy(ledCol.setHSL(0.5 + 0.12 * Math.sin(ledT * 0.9), 1, 0.52 + 0.1 * Math.sin(ledT * 3)));
+      ledB.color.copy(ledCol.setHSL(0.78 + 0.1 * Math.sin(ledT * 0.7 + 1), 1, 0.5 + 0.12 * Math.sin(ledT * 2.2)));
       spots.visible = !(world.mode === 'seat' && room.view.mode === 'top');   // la vue d'en haut est au-dessus des spots du plafond
       // places occupées : celles où un autre joueur est assis
       var occ = {}, k;
