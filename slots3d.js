@@ -626,6 +626,9 @@
       '.s3d-bal{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:6px 10px;font-weight:800;font-size:13px;white-space:nowrap}' +
       '.s3d-cam{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:8px 12px;min-height:40px;color:#f3cf62;font-weight:800;font-size:12px}' +
       '.s3d-cam[disabled]{opacity:.45}' +
+      '.s3d-hud .s3d-full-btn{background:linear-gradient(180deg,#e6b932,#8a6410);color:#1a1000;border-color:#ffe08a;box-shadow:0 0 14px rgba(255,200,60,.4)}' +
+      '.s3d-full{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;min-height:0!important;z-index:60!important;border-radius:0!important;border:0!important}' +
+      'body.s3d-full-on #smartHeader{display:none!important}' +
       '.s3d-hint{position:absolute;top:56px;left:8px;right:8px;text-align:center;font-size:11px;font-weight:700;color:#d9c88f;text-shadow:0 1px 4px #000}' +
       '.s3d-sit{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);min-height:52px;padding:0 22px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(180deg,#d8a928,#8a6410);color:#1a1000;font-weight:900;font-size:15px;box-shadow:0 0 18px rgba(255,200,60,.5);white-space:nowrap}' +
       '.s3d-stick{position:absolute;left:18px;bottom:22px;width:112px;height:112px;border-radius:50%;background:rgba(8,5,12,.55);border:2px solid rgba(201,162,39,.5);pointer-events:auto;touch-action:none}' +
@@ -733,7 +736,56 @@
     var key = new THREE.DirectionalLight(0xfff0d0, 0.55); key.position.set(2, 5, 9); scene.add(key);
     var pl = new THREE.PointLight(0xffd9a0, 0.9, 16); pl.position.set(0, 4.4, 6); scene.add(pl);
     if (!low) { var pl2 = new THREE.PointLight(0xffc890, 0.6, 14); pl2.position.set(0, 4.4, 1); scene.add(pl2); }
-    return { drawBoard: drawBoard };
+
+    // Règles et gains sur les murs de gauche et de droite (valeurs lues dans le jeu pour rester identiques)
+    var rcv = mkCanvas(1400, 720), rx = rcv.getContext('2d'), rTex = mkTex(rcv);
+    (function () {
+      var P3 = typeof SLOT_PAY_3 !== 'undefined' ? SLOT_PAY_3 : { '🔥': 200, '👑': 100, '7️⃣': 50, '💎': 30, '🔔': 12, '🍋': 5, '🍒': 3 };
+      var P2 = typeof SLOT_PAY_2 !== 'undefined' ? SLOT_PAY_2 : { '🔥': 2.5, '👑': 2.0, '7️⃣': 1.8, '💎': 1.5, '🔔': 1.1, '🍋': 0.8, '🍒': 0.4 };
+      var NAMES = { '🔥': 'Flammes', '👑': 'Couronnes', '7️⃣': 'Sept', '💎': 'Diamants', '🔔': 'Cloches', '🍋': 'Citrons', '🍒': 'Cerises' };
+      function mx(v) { return '×' + String(v).replace('.', ','); }
+      var g = rx.createLinearGradient(0, 0, 0, 720); g.addColorStop(0, '#1d0a1c'); g.addColorStop(1, '#0a0510');
+      rx.fillStyle = g; rx.fillRect(0, 0, 1400, 720);
+      rx.strokeStyle = '#c9a227'; rx.lineWidth = 6; rx.strokeRect(8, 8, 1384, 704);
+      rx.textBaseline = 'middle'; rx.textAlign = 'center';
+      rx.fillStyle = '#f3cf62'; rx.shadowColor = '#ffb300'; rx.shadowBlur = 14; rx.font = '800 64px ' + SERIF;
+      rx.fillText('RÈGLES & GAINS', 700, 62); rx.shadowBlur = 0;
+      rx.fillStyle = '#d9c88f'; rx.font = '600 28px ' + MONO; rx.fillText('Aligne les symboles sur la ligne rouge · gain = mise × multiplicateur', 700, 122);
+      [['🏆 3 SYMBOLES IDENTIQUES', 50, P3, 'Trois '], ['✨ 2 SYMBOLES IDENTIQUES', 720, P2, '2 ']].forEach(function (col, ci) {
+        rx.textAlign = 'left'; rx.fillStyle = '#ffb3c8'; rx.font = '800 34px ' + SERIF; rx.fillText(col[0], col[1], 180);
+        SYMS.forEach(function (s, i) {
+          var y = 240 + i * 62;
+          if (ci === 0 && i === 0) { rx.fillStyle = 'rgba(239,68,68,0.22)'; rx.fillRect(col[1] - 10, y - 28, 640, 56); }
+          rx.fillStyle = 'rgba(255,255,255,0.05)'; if (!(ci === 0 && i === 0)) rx.fillRect(col[1] - 10, y - 28, 640, 56);
+          rx.font = '34px ' + EMOJI_FONT; rx.fillStyle = '#fff';
+          rx.fillText(ci === 0 ? s + s + s : s + s, col[1], y);
+          rx.font = '700 30px ' + MONO; rx.fillStyle = '#f4e3b0'; rx.fillText(col[3] + NAMES[s] + (ci === 0 && i === 0 ? ' (Jackpot)' : ''), col[1] + (ci === 0 ? 150 : 100), y, ci === 0 ? 330 : 380);
+          rx.textAlign = 'right'; rx.font = '800 34px ' + MONO; rx.fillStyle = '#ffd24a'; rx.fillText(mx(col[2][s]), col[1] + 620, y); rx.textAlign = 'left';
+        });
+      });
+      rx.textAlign = 'center'; rx.fillStyle = '#9a8a58'; rx.font = '600 26px ' + MONO; rx.fillText('Mise maximale : 100 000 €', 700, 692);
+      rTex.needsUpdate = true;
+    })();
+    var rulesMat = new THREE.MeshBasicMaterial({ map: rTex });
+    var pcv = mkCanvas(768, 160), px = pcv.getContext('2d'), pTex = mkTex(pcv);
+    function drawPlaque(full) {
+      var g = px.createLinearGradient(0, 0, 0, 160); g.addColorStop(0, '#e6b932'); g.addColorStop(1, '#8a6410');
+      px.fillStyle = g; px.fillRect(0, 0, 768, 160);
+      px.strokeStyle = '#ffe08a'; px.lineWidth = 8; px.strokeRect(6, 6, 756, 148);
+      px.fillStyle = '#1a1000'; px.textAlign = 'center'; px.textBaseline = 'middle'; px.font = '900 52px ' + SERIF;
+      px.fillText(full ? '❌ QUITTER LE GRAND ÉCRAN' : '🖥️ GRAND ÉCRAN', 384, 82, 720);
+      pTex.needsUpdate = true;
+    }
+    drawPlaque(false);
+    var plaques = [];
+    [[-1, Math.PI / 2], [1, -Math.PI / 2]].forEach(function (s) {
+      var x = s[0] * (ROOM.wall - 0.06);
+      var fr = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.5, 8.7), goldMat); fr.position.set(x - s[0] * 0.01, 3.8, 4.5); scene.add(fr);
+      var rb = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 4.32), rulesMat); rb.position.set(x + (-s[0]) * 0.06, 3.8, 4.5); rb.rotation.y = s[1]; scene.add(rb);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.71), new THREE.MeshBasicMaterial({ map: pTex }));
+      pl.position.set(x + (-s[0]) * 0.06, 1.45, 4.5); pl.rotation.y = s[1]; pl.userData.action = 'fs'; scene.add(pl); plaques.push(pl);
+    });
+    return { drawBoard: drawBoard, drawPlaque: drawPlaque, plaques: plaques };
   }
 
   // Meilleur gain de chaque joueur (comptes connus du navigateur), du plus gros au plus petit
@@ -812,7 +864,7 @@
     var hud = document.createElement('div'); hud.className = 's3d-hud'; hud.setAttribute('data-mode', 'room');
     hud.innerHTML =
       '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div>' +
-      '<div class="s3d-btns"><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
+      '<div class="s3d-btns"><button class="s3d-cam s3d-full-btn" data-s3d="full">🖥️ Grand écran</button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
       '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none">🪑 S\'asseoir</button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
@@ -825,10 +877,11 @@
     this.hud = hud;
     function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
     this.elBal = q('bal'); this.elBet = q('bet'); this.elSpin = q('spin'); this.elCam = q('cam');
-    this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
-    this.elHint.textContent = this.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir' : 'ZQSD / flèches : marcher · souris vers les bords : regarder autour · clic sur une borne : s\'asseoir';
+    this.elFull = q('full'); this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
+    this.full = false; this._setHint();
     if (this.touch) this.elStick.style.display = '';
     this.elCam.addEventListener('click', function () { self.toggleCamera(); });
+    this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
     this.elStand.addEventListener('click', function () { self.stand(); });
     this.elSit.addEventListener('click', function () { if (self.near) self.sit(self.near); });
     this.elSpin.addEventListener('click', function (e) { self.doSpin(e); });
@@ -866,8 +919,25 @@
     };
     this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
     window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku);
+    this._esc = function (e) { if (e.code === 'Escape' && self.full) self.setFull(false); };
+    window.addEventListener('keydown', this._esc);
   };
 
+  SlotsExperience.prototype._setHint = function () {
+    this.elHint.textContent = this.touch ? "Joystick : marcher · glisse : regarder · touche une borne pour t'asseoir · règles sur les murs de côté"
+      : this.full ? "ZQSD / flèches : marcher · la souris tourne la vue (bords de l'écran) · clic sur une borne : s'asseoir · Échap : quitter"
+      : "ZQSD / flèches : marcher · clique-glisse : regarder · clic sur une borne : s'asseoir · règles sur les murs de côté";
+    this.elHint.style.display = ''; this.hintShown = this.clock || 0;
+  };
+  SlotsExperience.prototype.setFull = function (on) {
+    on = !!on; if (on === this.full) return;
+    this.full = on; this.mouse.inside = false;
+    this.container.classList.toggle('s3d-full', on);
+    document.body.classList.toggle('s3d-full-on', on);
+    this.elFull.textContent = on ? '❌ Quitter le grand écran' : '🖥️ Grand écran';
+    this.room.drawPlaque(on);
+    this.w = 0; this._setHint();
+  };
   SlotsExperience.prototype.getBetInput = function () { return document.getElementById('slotBetInput'); };
   SlotsExperience.prototype.setBet = function (n) {
     if (typeof window.setSlotQuickBet === 'function') window.setSlotQuickBet(n);
@@ -956,7 +1026,7 @@
       if (!drag) return;
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
-      if (drag.moved < 6 || drag.mouse) return;
+      if (drag.moved < 6 || (drag.mouse && self.full)) return;
       if (self.mode === 'room') {
         if (self.blend > 0) return;
         self.player.yaw = drag.pyaw + dx * 0.005;
@@ -982,8 +1052,8 @@
     this.ray.setFromCamera(this.ndc, this.camera);
     if (this.mode === 'room') {
       if (this.blend > 0) return;
-      var hits = this.ray.intersectObjects(this.cabs.map(function (c) { return c.cab.hit; }), false);
-      if (hits[0]) this.sit(hits[0].object.userData.entry);
+      var hits = this.ray.intersectObjects(this.cabs.map(function (c) { return c.cab.hit; }).concat(this.room.plaques), false);
+      if (hits[0]) { if (hits[0].object.userData.action === 'fs') this.setFull(!this.full); else this.sit(hits[0].object.userData.entry); }
       return;
     }
     if (this.blend < 1) return;
@@ -1055,7 +1125,7 @@
   SlotsExperience.prototype.step = function (dt) {
     this.clock += dt;
     this._resize();
-    if (this.clock > 8 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
+    if (this.clock - (this.hintShown || 0) > 9 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
     var i;
     for (i = 0; i < this.cabs.length; i++) this.cabs[i].cab.update(dt);
 
@@ -1063,7 +1133,7 @@
     this.blend += Math.sign(target - this.blend) * dt / 1.1;
     this.blend = Math.max(0, Math.min(1, this.blend));
     if (Math.abs(target - this.blend) < 0.004) this.blend = target;
-    var ms = this.mouse, mouseLook = ms.inside && !this.touch;
+    var ms = this.mouse, mouseLook = ms.inside && !this.touch && this.full;
     function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
     if (this.mode === 'room' && this.blend === 0) {
       if (mouseLook) {   // curseur vers les bords = on tourne la tête, haut/bas = on regarde en l'air / au sol
@@ -1106,11 +1176,11 @@
     this.camera.lookAt(tx, ty, tz);
   };
 
-  SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; };
+  SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; this.setFull(false); };
   SlotsExperience.prototype.resume = function () { this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
   SlotsExperience.prototype.dispose = function () {
     this.dead = true; cancelAnimationFrame(this._raf);
-    window.removeEventListener('keydown', this._kd); window.removeEventListener('keyup', this._ku);
+    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); window.removeEventListener('keyup', this._ku);
     this.cabs.forEach(function (c) { c.cab.dispose(); });
     this.renderer.dispose();
     if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
@@ -1125,15 +1195,17 @@
   function stage() { return document.getElementById('slot3dStage'); }
   function classicWrap() { return document.getElementById('slotClassicWrap'); }
 
+  function showRulesPanelOnPc() { var p = document.getElementById('slotRulesPanel'); if (p) p.classList.remove('lg:hidden'); }
+
   function open() {
-    if (failed || typeof THREE === 'undefined') return false;
+    if (failed || typeof THREE === 'undefined') { showRulesPanelOnPc(); return false; }
     var st = stage(); if (!st) return false;
     if (!exp) {
       try {
         st.classList.remove('hidden');
         exp = new SlotsExperience(st, {});
       } catch (err) {
-        failed = true; exp = null; st.classList.add('hidden');
+        failed = true; exp = null; st.classList.add('hidden'); showRulesPanelOnPc();
         if (window.console) console.warn('[Slots3D] WebGL indisponible, machine classique conservée.', err);
         return false;
       }
