@@ -270,13 +270,19 @@
     /* --- pièce maîtresse au centre : grande pièce d'or qui tourne sur un piédestal de marbre --- */
     var marble = std(0xe8e0d0, 0.25, 0.1);
     cyl(g, 1.3, 1.45, 0.5, marble, 0, 0.25, 0, 32); var rimR = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.06, 8, 40), gold); rimR.rotation.x = Math.PI / 2; rimR.position.y = 0.5; g.add(rimR);
-    cyl(g, 0.22, 0.34, 1.3, gold, 0, 1.15, 0, 16);
+    // lumière dans le socle : un disque lumineux, un faisceau doux et une vraie lumière qui éclaire la pièce
+    var emit = new THREE.Mesh(new THREE.CircleGeometry(0.62, 32), new THREE.MeshBasicMaterial({ color: 0xfff1c4 })); emit.rotation.x = -Math.PI / 2; emit.position.y = 0.515; g.add(emit);
+    var emitRing = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.035, 8, 32), gold); emitRing.rotation.x = Math.PI / 2; emitRing.position.y = 0.52; g.add(emitRing);
+    var beamMat = new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    var beam = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.6, 1.7, 32, 1, true), beamMat); beam.position.y = 1.4; g.add(beam);
+    var beam2 = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 1.7, 24, 1, true), beamMat); beam2.position.y = 1.4; g.add(beam2);
+    var coinLight = new THREE.PointLight(0xffe0a0, 1.5, 6); coinLight.position.set(0, 1.0, 0); if (!low) g.add(coinLight);
     var coinC = mkCanvas(256, 256), coinX = coinC.getContext('2d');
     var cg = coinX.createRadialGradient(128, 128, 20, 128, 128, 126); cg.addColorStop(0, '#ffe9a0'); cg.addColorStop(1, '#b8860b');
     coinX.fillStyle = cg; coinX.fillRect(0, 0, 256, 256); coinX.strokeStyle = '#7a5a08'; coinX.lineWidth = 8; coinX.beginPath(); coinX.arc(128, 128, 112, 0, TAU); coinX.stroke();
     coinX.fillStyle = '#7a5a08'; coinX.font = '900 120px ' + SERIF; coinX.textAlign = 'center'; coinX.textBaseline = 'middle'; coinX.fillText('F', 128, 138);
     var coinMat = [std(0xd9a826, 0.25, 0.85, 0x3a2800), new THREE.MeshStandardMaterial({ map: mkTex(coinC), roughness: 0.3, metalness: 0.7 }), new THREE.MeshStandardMaterial({ map: mkTex(coinC), roughness: 0.3, metalness: 0.7 })];
-    coin = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.12, 40), coinMat); coin.rotation.x = Math.PI / 2; coin.position.y = 2.5;
+    coin = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.12, 40), coinMat); coin.rotation.x = Math.PI / 2; coin.position.y = 2.55;
     var coinPivot = new THREE.Group(); coinPivot.position.y = 0; coinPivot.add(coin); g.add(coinPivot);
     room.colliders.push({ x: 0, z: 0, r: 1.8 });
 
@@ -502,7 +508,7 @@
     room.update = function (dt, w) {
       clockT += dt;
       var t = clockT, p = w.player;
-      coinPivot.rotation.y = t * 0.9; coin.position.y = 2.5 + Math.sin(t * 1.4) * 0.08;
+      coinPivot.rotation.y = t * 0.9; coin.position.y = 2.55 + Math.sin(t * 1.4) * 0.08; beamMat.opacity = 0.2 + 0.05 * Math.sin(t * 2.2);
       for (var i = 0; i < medals.length; i++) { var m = medals[i]; m.g.rotation.y = t * 0.9 + m.ph; m.g.position.y = m.y + Math.sin(t * 1.6 + m.ph) * 0.03; }
       sellers.forEach(function (S, idx) {
         var dx = p.x - S.x, dz = p.z - S.z, d = Math.hypot(dx, dz), talking = talk && talk.s === S;
