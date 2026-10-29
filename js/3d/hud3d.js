@@ -28,7 +28,7 @@
         '<div class="ph-now" data-ph="now" hidden><span><i class="fa-solid fa-music"></i> <b data-ph="nowname"></b></span><button data-act="stop">Arrêter</button></div>' +
         '<div class="ph-card">' +
           '<button class="ph-ava" data-act="profile" title="Mon profil"><span data-ph="ava">?</span></button>' +
-          '<div class="ph-id"><b class="ph-name" data-ph="name">Invité</b><span class="ph-rank" data-ph="rank"></span></div>' +
+          '<div class="ph-id"><b class="ph-name" data-ph="name">Invité</b><span class="ph-rank role-tag role-flambeur" data-ph="rank"></span></div>' +
           '<div class="ph-bal" title="Ton solde"><i class="fl-coin"></i><b data-ph="bal">0</b></div>' +
         '</div>' +
         '<div class="ph-dock">' +
@@ -77,8 +77,11 @@
       var boss = false; try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) { /* ok */ }
       put(elName, 'name', name);
       put(elAva, 'ava', av);
-      put(elRank, 'rank', boss ? fa('fa-crown') + ' Patron' : fa('fa-fire') + ' Flambeur', true);
-      elRank.classList.toggle('boss', boss);
+      var rIcon = boss ? 'fa-crown' : 'fa-fire';
+      var rName = boss ? 'Patron' : 'Flambeur';
+      var rClass = boss ? 'role-patron' : 'role-flambeur';
+      put(elRank, 'rank', '<i class="fa-solid ' + rIcon + ' role-crown"></i> <span class="role-label">' + rName + '</span>', true);
+      elRank.className = 'ph-rank role-tag ' + rClass;
       put(elBal, 'bal', s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0');
       var e = w.emoId ? F.emoteById(w.emoId) : null;
       elNow.hidden = !e;
@@ -220,7 +223,7 @@
             '<div class="ph-profile-ava">' + av + '</div>' +
             '<div class="ph-profile-meta">' +
               '<b class="ph-profile-name">' + name + '</b>' +
-              '<span class="ph-rank ' + (boss ? 'boss' : '') + '">' + (boss ? fa('fa-crown') + ' Patron' : fa('fa-fire') + ' Flambeur') + '</span>' +
+              '<span class="ph-rank role-tag ' + (boss ? 'role-patron' : 'role-flambeur') + '"><i class="fa-solid ' + (boss ? 'fa-crown' : 'fa-fire') + ' role-crown"></i> <span class="role-label">' + (boss ? 'Patron' : 'Flambeur') + '</span></span>' +
               '<div class="ph-bal"><i class="fl-coin"></i><b>' + bal + '</b> jetons</div>' +
             '</div>' +
           '</div>' +

@@ -29,6 +29,127 @@ body {
 .font-mono-num { font-family: 'JetBrains Mono', monospace; }
 .font-scifi { font-family: 'Orbitron', sans-serif; }
 
+/* ── Badges de rôle animés (reproduction exacte de Tropi Site : dégradé continu sans aller-retour) ── */
+.role-tag,
+.role-flambeur,
+.role-patron,
+.ph-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Base commune pour le texte en dégradé */
+.role-tag .role-label,
+.role-flambeur .role-label,
+.role-patron .role-label,
+.ph-rank .role-label {
+  display: inline-block;
+  white-space: nowrap;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── FLAMBEUR (identique au tag Fondateur "role-fire" de Tropi Site) ── */
+/* Éclat doré qui balaie un rouge rubis profond en translation continue infinie (aucun aller-retour) */
+.role-flambeur,
+.ph-rank:not(.role-patron):not(.boss) {
+  --rt-a: #ef4444;
+  --rt-glow: rgba(239, 68, 68, 0.7);
+}
+.role-flambeur .role-label,
+.ph-rank:not(.role-patron):not(.boss) .role-label {
+  background-image: linear-gradient(100deg, #7f1d1d 0%, #ef4444 15%, #ffe08a 25%, #ef4444 35%, #7f1d1d 50%, #ef4444 65%, #ffe08a 75%, #ef4444 85%, #7f1d1d 100%);
+  background-size: 300% auto;
+  filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.65));
+  animation: roleShimmer 8s linear infinite, roleFirePulse 3s ease-in-out infinite;
+}
+.role-flambeur .role-crown,
+.ph-rank:not(.role-patron):not(.boss) .role-crown,
+.ph-rank:not(.role-patron):not(.boss) > i {
+  color: #ef4444;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.75));
+  transform-origin: 50% 90%;
+  animation: roleFlame 2.2s ease-in-out infinite;
+}
+
+/* ── PATRON (Style Boss Or Royal Tropi Site) ── */
+/* Dégradé or étincelant avec balayage continu et couronne qui bascule */
+.role-patron,
+.ph-rank.boss,
+.ph-rank.role-patron {
+  --rt-a: #facc15;
+  --rt-glow: rgba(250, 204, 21, 0.65);
+}
+.role-patron .role-label,
+.ph-rank.boss .role-label,
+.ph-rank.role-patron .role-label {
+  background-image: linear-gradient(100deg, #78350f 0%, #eab308 15%, #fef9c3 25%, #eab308 35%, #78350f 50%, #eab308 65%, #fef9c3 75%, #eab308 85%, #78350f 100%);
+  background-size: 300% auto;
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.65));
+  animation: roleShimmer 7s linear infinite, roleGoldPulse 3s ease-in-out infinite;
+}
+.role-patron .role-crown,
+.ph-rank.boss .role-crown,
+.ph-rank.boss > i,
+.ph-rank.role-patron .role-crown {
+  color: #facc15;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.65));
+  animation: roleCrown 2.2s ease-in-out infinite;
+}
+
+/* ── SPECTATEUR (neutre, pas d'animation) ── */
+.role-spectateur .role-label {
+  color: #a1a1aa;
+  -webkit-text-fill-color: #a1a1aa;
+}
+.role-spectateur .role-crown {
+  color: #a1a1aa;
+  animation: none;
+}
+
+/* ── KEYFRAMES TROPI SITE (TRANSLATION 100% UNIDIRECTIONNELLE LINÉAIRE INFINIE) ── */
+@keyframes roleShimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: -300% center; }
+}
+@keyframes roleFirePulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.45)); }
+  50% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.85)); }
+}
+@keyframes roleGoldPulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.45)); }
+  50% { filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.85)); }
+}
+@keyframes roleFlame {
+  0%, 100% { transform: scale(1) rotate(-4deg); }
+  25% { transform: scale(1.15, 1.28) rotate(3deg); }
+  50% { transform: scale(0.95, 1.1) rotate(-2deg); }
+  75% { transform: scale(1.1, 1.22) rotate(4deg); }
+}
+@keyframes roleCrown {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-2px) rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-flambeur .role-label,
+  .role-patron .role-label,
+  .role-flambeur .role-crown,
+  .role-patron .role-crown,
+  .ph-rank .role-label,
+  .ph-rank .role-crown,
+  .ph-rank i {
+    animation: none !important;
+  }
+}
+
 /* SUPPRESSION TOTALE DES FLÈCHES WINDOWS & ANTI-ZOOM AUTO SUR MOBILE */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -1314,7 +1435,8 @@ body.s3d-full-on #sidebarBackdrop {
   gap: 8px;
   z-index: 12;
   pointer-events: auto;
-  max-width: 280px;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 32px));
 }
 
 /* indicateur de danse en cours */
@@ -1356,7 +1478,7 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 8px 14px 8px 8px;
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(12, 8, 20, 0.92) 0%, rgba(20, 14, 32, 0.88) 100%);
@@ -1365,6 +1487,7 @@ body.s3d-full-on #sidebarBackdrop {
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   animation: ph-slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 260px;
 }
 
 .ph-ava {
@@ -1402,8 +1525,8 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-id {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  flex: 1;
+  gap: 2px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 .ph-name {
@@ -1412,10 +1535,11 @@ body.s3d-full-on #sidebarBackdrop {
   font-weight: 800;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Badge de rôle : dégradé flamboyant animé */
+/* Badge de rôle joueur dans le HUD 3D (carte et profil) */
 .ph-rank {
   display: inline-flex;
   align-items: center;
@@ -1424,34 +1548,11 @@ body.s3d-full-on #sidebarBackdrop {
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #ff3d00 0%, #ff8c00 28%, #ffd000 50%, #ff6d00 72%, #ff3d00 100%);
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: ph-rankGradient 3.2s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 6px rgba(255, 69, 0, 0.45));
+  white-space: nowrap;
 }
 .ph-rank i {
   font-size: 10px;
-  background: inherit;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
   display: inline-block;
-  animation: ph-rankPulse 1.8s ease-in-out infinite alternate;
-}
-.ph-rank.boss {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 25%, #fffbeb 50%, #f59e0b 75%, #d97706 100%);
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: ph-rankGradient 3s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.55));
-}
-.ph-rank.boss i {
-  animation: ph-crownShine 1.8s ease-in-out infinite alternate;
 }
 
 .ph-bal {
@@ -2109,20 +2210,6 @@ body.s3d-full-on #sidebarBackdrop {
   animation: ph-fpsDotPulse 2s ease-in-out infinite;
 }
 
-@keyframes ph-rankGradient {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
-}
-@keyframes ph-rankPulse {
-  0% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.15) rotate(3deg); filter: brightness(1.3); }
-  100% { transform: scale(1); filter: brightness(1); }
-}
-@keyframes ph-crownShine {
-  0% { transform: scale(1) rotate(-2deg); filter: brightness(1); }
-  50% { transform: scale(1.18) rotate(2deg); filter: brightness(1.4); }
-  100% { transform: scale(1) rotate(-2deg); filter: brightness(1); }
-}
 @keyframes ph-fpsDotPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.55; transform: scale(0.85); }
