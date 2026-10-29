@@ -173,10 +173,8 @@
     <!-- En-tête : Centré en mode petit, Logo + ◫ en mode grand -->
     <div class="px-2.5 flex items-center justify-between mb-2 min-h-[44px]">
       <!-- Logo et nom du Casino (visible uniquement en mode grand) -->
-      <div id="sidebarBrand" class="hidden items-center gap-2 cursor-pointer select-none overflow-hidden" onclick="switchRoom('hall')">
-        <div class="fl-logo w-8 h-8 min-w-[32px] text-sm" style="--c: 251, 191, 36">
-          <i class="fa-solid fa-masks-theater"></i>
-        </div>
+      <div id="sidebarBrand" class="hidden items-center gap-2 cursor-pointer select-none overflow-hidden" onclick="handleLogoSecretClick()">
+        <img src="icon/logo.png" alt="Les Flambeurs" class="w-9 h-9 min-w-[36px] rounded-xl">
         <div class="truncate">
           <span class="font-serif-title font-extrabold text-xs text-amber-300 tracking-wider block leading-tight">LES FLAMBEURS</span>
           <span class="text-[9px] text-stone-400 uppercase tracking-widest block leading-none">Casino Anonyme</span>
@@ -311,10 +309,15 @@
         <span class="sidebar-icon fl-logo" style="--c: 148, 163, 184"><i class="fa-solid fa-gear"></i></span>
         <span class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Paramètres Son</span>
       </button>
+    </div>
 
-      <!-- Touche avec les trois petits points (...) : Suno style -->
-      <button onclick="togglePlusMenu(event)" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-amber-300 hover:text-white hover:bg-amber-500/20 border border-transparent hover:border-amber-400/30 transition group text-left cursor-pointer" title="Plus (Menu Complet)">
-        <span class="sidebar-icon w-7 min-w-[28px] text-sm flex items-center justify-center tracking-widest font-black leading-none text-amber-300">•••</span>
+    <!-- « Plus » toujours visible en bas du menu : son menu (profil, amis, notifications…) s'ouvre sur le côté -->
+    <div class="w-full px-2 pt-1.5 border-t border-white/10">
+      <button onclick="togglePlusMenu(event)" id="sidebarPlusBtn" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-amber-300 hover:text-white hover:bg-amber-500/20 border border-transparent hover:border-amber-400/30 transition group text-left cursor-pointer" title="Plus (Menu Complet)">
+        <span class="sidebar-icon relative w-7 min-w-[28px] text-sm flex items-center justify-center tracking-widest font-black leading-none text-amber-300">
+          •••
+          <span id="plusNotifBadgeMobile" class="hidden absolute -top-2 -right-2 px-1.5 py-0.2 text-[9px] font-black tracking-normal rounded-full bg-rose-500 text-white animate-pulse">0</span>
+        </span>
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-extrabold text-xs text-amber-200 group-hover:text-white">Plus (Menu Complet)</span>
           <span class="text-xs text-amber-300 ml-1">›</span>
@@ -331,18 +334,17 @@
       <!-- Groupe Gauche : Bouton menu sur téléphone (◫) + Logo -->
       <div class="flex items-center gap-2 sm:gap-3">
         <!-- Bouton Menu sur téléphone uniquement (◫) -->
-        <button onclick="toggleMainSidebar(event)" id="mobileSidebarToggleBtn" class="flex md:hidden w-10 h-10 rounded-xl bg-white/5 hover:bg-white/15 text-stone-300 hover:text-amber-300 border border-white/10 items-center justify-center transition active:scale-95 cursor-pointer shadow" title="Menu des jeux (◫)">
+        <button onclick="toggleMainSidebar(event)" id="mobileSidebarToggleBtn" class="relative flex md:hidden w-10 h-10 rounded-xl bg-white/5 hover:bg-white/15 text-stone-300 hover:text-amber-300 border border-white/10 items-center justify-center transition active:scale-95 cursor-pointer shadow" title="Menu des jeux (◫)">
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
+          <span id="plusNotifBadgeDesktop" class="hidden absolute -top-1.5 -right-1.5 px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
         </button>
 
-        <!-- Logo Masque + As de Pique : 5 clics rapides demande le mot de passe BATMAN -->
-        <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
-          <div class="fl-logo w-10 h-10 rounded-xl text-lg" style="--c: 251, 191, 36">
-            <i class="fa-solid fa-masks-theater"></i>
-          </div>
+        <!-- Logo du casino : 5 clics rapides demande le mot de passe BATMAN. Caché à l'accueil sur PC, où le menu de côté le montre déjà -->
+        <div id="headerBrand" class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoSecretClick()">
+          <img src="icon/logo.png" alt="Les Flambeurs" class="w-10 h-10 rounded-xl">
           <div>
             <div class="flex items-center gap-1.5">
               <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES FLAMBEURS</span>
@@ -353,37 +355,8 @@
         </div>
       </div>
 
-      <!-- Navigation rapide entre les salles (PC) - SANS LE QUIZ -->
-      <div class="hidden xl:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10 text-xs">
-        <button onclick="switchRoom('hall')" id="nav-hall" class="px-3 py-1.5 rounded-full font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40"><i class="fa-solid fa-house fl-ic" style="--c: 251, 191, 36"></i> Accueil</button>
-        <button onclick="openPoker()" id="nav-poker" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fl-spade fl-ic" style="--c: 239, 68, 68"></i> Poker</button>
-        <button onclick="switchRoom('crash')" id="nav-crash" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fa-solid fa-rocket fl-ic" style="--c: 56, 189, 248"></i> Crash</button>
-        <button onclick="switchRoom('slots')" id="nav-slots" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fl-slot fl-ic" style="--c: 236, 72, 153"></i> Machine</button>
-        <button onclick="switchRoom('mines')" id="nav-mines" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fa-solid fa-vault fl-ic" style="--c: 45, 212, 191"></i> Chambre Forte</button>
-        <button onclick="switchRoom('blackjack')" id="nav-blackjack" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fl-cards fl-ic" style="--c: 245, 158, 11"></i> Blackjack</button>
-        <button onclick="switchRoom('cups')" id="nav-cups" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white"><i class="fl-cups fl-ic" style="--c: 251, 146, 60"></i> Gobelets</button>
-        <button onclick="handleBlindTestClick()" id="nav-blindtest" class="px-2.5 py-1.5 rounded-full font-medium text-fuchsia-300 hover:text-white flex items-center gap-1.5 transition">
-          <span><i class="fa-solid fa-clapperboard fl-ic" style="--c: 232, 121, 249"></i> Blind Test</span>
-          <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold">Nouveau</span>
-        </button>
-        <button onclick="switchRoom('shop')" id="nav-shop" class="px-2.5 py-1.5 rounded-full font-medium text-amber-300 hover:text-white"><i class="fa-solid fa-cart-shopping fl-ic" style="--c: 192, 132, 252"></i> Boutique</button>
-        <button onclick="switchRoom('bank')" id="nav-bank" class="px-2.5 py-1.5 rounded-full font-medium text-emerald-300 hover:text-white"><i class="fa-solid fa-building-columns fl-ic" style="--c: 52, 211, 153"></i> Banque</button>
-        <button onclick="togglePlusMenu(event)" id="nav-plus-desktop" class="relative px-3 py-1.5 rounded-full font-bold text-amber-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 flex items-center gap-1.5 transition cursor-pointer select-none" title="Menu Plus">
-          <span class="text-sm leading-none font-black tracking-wider">•••</span>
-          <span class="text-xs font-bold">Plus</span>
-          <span id="plusNotifBadgeDesktop" class="hidden px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
-        </button>
-      </div>
-
-      <!-- Solde épuré + Profil (et Plus sur smartphone en haut à gauche) -->
-      <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-        <!-- Bouton Plus Mobile (remplace Son, Amis et Notifications en haut à gauche) -->
-        <button onclick="togglePlusMenu(event)" id="btn-plus-mobile" class="relative flex xl:hidden items-center gap-1.5 bg-stone-900/95 hover:bg-stone-800 border border-white/20 rounded-full px-3 py-1.5 text-xs font-extrabold text-stone-200 transition shadow-inner active:scale-95 cursor-pointer select-none" title="Menu Plus">
-          <span class="text-sm leading-none font-black tracking-wider">•••</span>
-          <span class="text-xs font-bold">Plus</span>
-          <span id="plusNotifBadgeMobile" class="hidden px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 text-white animate-pulse">0</span>
-        </button>
-
+      <!-- Solde épuré + Profil (le menu « Plus » est en bas du menu de côté) -->
+      <div class="flex items-center justify-end gap-2 w-full sm:w-auto">
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1.5 bg-stone-900/95 border border-amber-500/40 rounded-full px-3.5 py-1.5 shadow-inner">
             <span class="coin-slot"></span>
@@ -2895,7 +2868,8 @@
         }
       });
       if (typeof closePlusMenu === 'function') closePlusMenu();
-      if (typeof collapseSidebar === 'function') collapseSidebar();
+      // Fixé à l'accueil, le menu de côté fait partie de la page : ouvrir une fenêtre ne le replie pas
+      if (typeof collapseSidebar === 'function' && !document.body.classList.contains('sidebar-deplie')) collapseSidebar();
     }
 
     function openSettingsModal() {
@@ -2951,6 +2925,8 @@
         sb.classList.remove('w-[60px]');
         sb.classList.add('w-64', 'shadow-2xl');
       }
+      // Sur PC, plus de voile sombre : à l'accueil le menu pousse la page, dans les jeux il passe par-dessus
+      document.body.classList.toggle('sidebar-deplie', !isMobile && currentRoomKey === 'hall');
 
       if (brand) {
         brand.classList.remove('hidden');
@@ -2975,11 +2951,12 @@
       });
       document.querySelectorAll('.sidebar-section-title').forEach(el => el.classList.remove('hidden'));
 
-      if (backdrop) backdrop.classList.remove('hidden');
+      if (backdrop) backdrop.classList.toggle('hidden', !isMobile);
     }
 
     function collapseSidebar() {
       _isSidebarExpanded = false;
+      document.body.classList.remove('sidebar-deplie');
       const sb = document.getElementById('mainSidebar');
       const backdrop = document.getElementById('sidebarBackdrop');
       const brand = document.getElementById('sidebarBrand');
@@ -3052,25 +3029,22 @@
       updateSoundUI();
       updateNotificationsBadge();
 
-      // Positionnement selon le bouton cliqué (Desktop ou Mobile)
-      const isDesktop = window.innerWidth >= 1280;
-      const triggerBtn = isDesktop ? document.getElementById('nav-plus-desktop') : document.getElementById('btn-plus-mobile');
+      backdrop.classList.remove('hidden');
+      dropdown.classList.remove('hidden');
 
-      if (triggerBtn) {
+      // Sur PC, le menu s'ouvre sur le côté : à droite du menu de côté, à hauteur du bouton « Plus ».
+      // Sur téléphone, le menu de côté se referme et le menu s'ouvre en haut à gauche.
+      const triggerBtn = document.getElementById('sidebarPlusBtn');
+      if (triggerBtn && window.innerWidth >= 768) {
         const rect = triggerBtn.getBoundingClientRect();
-        dropdown.style.top = `${Math.min(window.innerHeight - 380, Math.max(10, rect.bottom + 8))}px`;
-        if (isDesktop) {
-          dropdown.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, rect.left - 60))}px`;
-        } else {
-          dropdown.style.left = '12px';
-        }
+        const hauteur = dropdown.offsetHeight;
+        dropdown.style.left = `${document.getElementById('mainSidebar').getBoundingClientRect().right + 8}px`;
+        dropdown.style.top = `${Math.max(10, Math.min(rect.bottom - hauteur, window.innerHeight - hauteur - 10))}px`;
       } else {
+        collapseSidebar();
         dropdown.style.top = '60px';
         dropdown.style.left = '12px';
       }
-
-      backdrop.classList.remove('hidden');
-      dropdown.classList.remove('hidden');
       requestAnimationFrame(() => {
         dropdown.classList.remove('scale-95', 'opacity-0');
         dropdown.classList.add('scale-100', 'opacity-100');
@@ -5161,6 +5135,11 @@
     }
     window.addEventListener('load', () => setTimeout(refreshHome3dBanner, 300));
 
+    // La page s'ouvre sur l'accueil : sur PC, le menu de côté y est déplié
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.innerWidth >= 768 && currentRoomKey === 'hall') expandSidebar();
+    });
+
     function enter3dHall() {
       window.__f3dPlace = 'hall';
       switchRoom('world3d');
@@ -5214,9 +5193,9 @@
 
       document.getElementById('navBreadcrumb').textContent = ROOM_TITLES[room] || '/ Accueil';
 
-      if (window.innerWidth < 768 && typeof collapseSidebar === 'function') {
-        collapseSidebar();
-      }
+      // Menu de côté : déplié à l'accueil sur PC, replié dans les jeux et sur téléphone
+      if (window.innerWidth >= 768 && room === 'hall') expandSidebar();
+      else collapseSidebar();
 
       if (!fromHistory) {
         try {
@@ -12394,7 +12373,7 @@
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (typeof _isSidebarExpanded !== 'undefined' && _isSidebarExpanded) collapseSidebar();
+        if (typeof _isSidebarExpanded !== 'undefined' && _isSidebarExpanded && !document.body.classList.contains('sidebar-deplie')) collapseSidebar();
         if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) closePlusMenu();
         if (typeof closeAchievementsModal === 'function') closeAchievementsModal();
         if (typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
@@ -12403,17 +12382,16 @@
     });
 
     window.addEventListener('click', (e) => {
-      if (typeof _isSidebarExpanded !== 'undefined' && _isSidebarExpanded) {
+      const dd = document.getElementById('plusMenuDropdown');
+      if (typeof _isSidebarExpanded !== 'undefined' && _isSidebarExpanded && !document.body.classList.contains('sidebar-deplie')) {
         const sb = document.getElementById('mainSidebar');
-        if (sb && !sb.contains(e.target)) {
+        // Un clic dans le menu « Plus », ouvert à côté, ne referme pas le menu de côté
+        if (sb && !sb.contains(e.target) && !(dd && dd.contains(e.target))) {
           collapseSidebar();
         }
       }
       if (typeof _isPlusMenuOpen !== 'undefined' && _isPlusMenuOpen) {
-        const dd = document.getElementById('plusMenuDropdown');
-        const btnM = document.getElementById('btn-plus-mobile');
-        const btnD = document.getElementById('nav-plus-desktop');
-        if (dd && !dd.contains(e.target) && (!btnM || !btnM.contains(e.target)) && (!btnD || !btnD.contains(e.target))) {
+        if (dd && !dd.contains(e.target)) {
           closePlusMenu();
         }
       }

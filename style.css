@@ -891,6 +891,27 @@ select {
   #mainSidebar.w-64 {
     width: 256px !important;
   }
+
+  /* À l'accueil, le menu déplié pousse la page au lieu de la recouvrir, et son logo remplace celui de l'en-tête */
+  body {
+    transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body.sidebar-deplie {
+    padding-left: 256px;
+  }
+  body.sidebar-deplie #headerBrand {
+    display: none;
+  }
+
+  /* Le menu « Plus » s'ouvre à côté du menu de côté : pas de voile sombre derrière */
+  #plusMenuBackdrop {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  #plusMenuDropdown > div {
+    background-color: #0c0a09;
+  }
 }
 
 .sidebar-item {
