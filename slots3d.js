@@ -853,7 +853,7 @@
     this.room.drawBoard(topSlotWins());
 
     // bornes en arc de cercle, tournées vers le centre
-    var n = opts.cabinets || (this.low ? 4 : 6);
+    var n = opts.cabinets || 6;   // même salle sur PC et téléphone (multijoueur : mêmes bornes pour tout le monde)
     this.cabs = [];
     for (var i = 0; i < n; i++) {
       var th = (i - (n - 1) / 2) * ARC.stepDeg * Math.PI / 180;
@@ -944,6 +944,8 @@
     window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku);
     this._esc = function (e) { if (e.code === 'Escape' && self.full) self.setFull(false); };
     window.addEventListener('keydown', this._esc);
+    this._ph = function () { if (self.netOn) self._post({ action: 'leave' }); };
+    window.addEventListener('pagehide', this._ph);
   };
 
   SlotsExperience.prototype._setHint = function () {
@@ -986,6 +988,7 @@
   /* ---------- s'asseoir / se lever ---------- */
   SlotsExperience.prototype.sit = function (entry) {
     if (this.mode === 'seat' || !entry) return;
+    if (entry.occBy) { this._flash('Borne ' + entry.n + ' occupée par ' + entry.occBy + ' — choisis-en une autre'); return; }
     this.seatCab = entry; this.cab = entry.cab; this.mode = 'seat';
     var v = this.view; v.mode = 'play'; v.yaw = v.yawG = 0; v.lastDrag = -99;
     this.elCam.textContent = '🔭 Reculer';
@@ -993,9 +996,14 @@
     this._computeGoals(); v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG; v.pitch = v.pitchG;
     this.keys = {}; this.stick.x = this.stick.y = 0;
     this.syncHud(true);
+    var self = this, tried = entry;
+    this._post({ action: 'sit', seat: entry.n - 1 }).then(function (r) {
+      if (r && r.ok === false && r._status === 409 && self.seatCab === tried) { self.stand(true); self._flash(r.error || 'Borne occupée.'); }
+    });
   };
-  SlotsExperience.prototype.stand = function () {
-    if (this.mode !== 'seat' || this.cab.isBusy()) return;
+  SlotsExperience.prototype.stand = function (force) {
+    if (this.mode !== 'seat' || (this.cab.isBusy() && !force)) return;
+    this._post({ action: 'stand' });
     var e = this.seatCab;
     this.player.x = e.x + Math.sin(e.rotY) * 2.3; this.player.z = e.z + Math.cos(e.rotY) * 2.3;
     this.player.yaw = -e.rotY; this.player.pitch = -0.04;
@@ -1125,7 +1133,8 @@
     var best = null, bd = 1.8, p = this.player;
     if (this.mode === 'room' && this.blend === 0) {
       for (var i = 0; i < this.cabs.length; i++) {
-        var c = this.cabs[i], d = Math.hypot(p.x - (c.x + Math.sin(c.rotY) * 2.1), p.z - (c.z + Math.cos(c.rotY) * 2.1));
+        var c = this.cabs[i]; if (c.occBy) continue;
+        var d = Math.hypot(p.x - (c.x + Math.sin(c.rotY) * 2.1), p.z - (c.z + Math.cos(c.rotY) * 2.1));
         if (d < bd) { bd = d; best = c; }
       }
     }
@@ -1156,6 +1165,7 @@
     if (this.clock - (this.hintShown || 0) > 9 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
     var i;
     for (i = 0; i < this.cabs.length; i++) this.cabs[i].cab.update(dt);
+    this._updateRemotes(dt);
 
     var target = this.mode === 'seat' ? 1 : 0;
     this.blend += Math.sign(target - this.blend) * dt / 1.1;
@@ -1204,11 +1214,196 @@
     this.camera.lookAt(tx, ty, tz);
   };
 
-  SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; this.setFull(false); };
-  SlotsExperience.prototype.resume = function () { this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
+    /* ===================================================================
+     MULTIJOUEUR (étape 3) : les autres joueurs de la salle, leurs bornes et leurs tirages.
+     Tout passe par /api/slots (présence ~1 fois par seconde). Purement visuel : les soldes et
+     les gains ne passent jamais par là.
+     =================================================================== */
+  var SKIN_TONES = [0xf1c9a5, 0xe0ac82, 0xc68642, 0x8d5524, 0xffdbac, 0xd9a066];
+  var SHIRTS = [0x7c1d2e, 0x1f4e79, 0x2d6a4f, 0x6b3fa0, 0xb8860b, 0x374151, 0xa13d63, 0x0f766e];
+  var HAIRS = [0x1a1210, 0x3b2314, 0x6b4423, 0xb8863b, 0x222222, 0x8a2b1c];
+  function nameHash(n) { var h = 7; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return h; }
+  var personGeo = null;
+  function geo() {
+    if (!personGeo) personGeo = {
+      torso: new THREE.CylinderGeometry(0.2, 0.17, 0.55, 14), hips: new THREE.CylinderGeometry(0.18, 0.18, 0.18, 14),
+      head: new THREE.SphereGeometry(0.14, 16, 12), hair: new THREE.SphereGeometry(0.152, 16, 10, 0, TAU, 0, Math.PI * 0.55),
+      neck: new THREE.CylinderGeometry(0.05, 0.06, 0.1, 8), eye: new THREE.SphereGeometry(0.016, 6, 5),
+      thigh: new THREE.CylinderGeometry(0.085, 0.07, 0.46, 10), shin: new THREE.CylinderGeometry(0.068, 0.058, 0.46, 10),
+      arm: new THREE.CylinderGeometry(0.058, 0.048, 0.56, 8), foot: new THREE.BoxGeometry(0.1, 0.06, 0.2), hand: new THREE.SphereGeometry(0.05, 8, 6)
+    };
+    return personGeo;
+  }
+
+  // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
+  function createPerson(name, avatar) {
+    var h = nameHash(name), G = geo();
+    var skin = new THREE.MeshLambertMaterial({ color: SKIN_TONES[h % SKIN_TONES.length] });
+    var shirt = new THREE.MeshLambertMaterial({ color: SHIRTS[(h >> 3) % SHIRTS.length] });
+    var pants = new THREE.MeshLambertMaterial({ color: 0x171a24 });
+    var hairM = new THREE.MeshLambertMaterial({ color: HAIRS[(h >> 6) % HAIRS.length] });
+    var dark = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    var mats = [skin, shirt, pants, hairM, dark];
+    var g = new THREE.Group();
+    function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); return m; }
+    add(G.hips, pants, 0, 0.98, 0); add(G.torso, shirt, 0, 1.3, 0); add(G.neck, skin, 0, 1.62, 0);
+    var head = add(G.head, skin, 0, 1.75, 0);
+    if ((h >> 9) % 5 !== 0) add(G.hair, hairM, 0, 1.76, -0.005);          // 1 personne sur 5 est chauve
+    add(G.eye, dark, -0.05, 1.77, 0.125); add(G.eye, dark, 0.05, 1.77, 0.125);
+    var hips = [], knees = [], arms = [];
+    [-1, 1].forEach(function (s) {
+      var hip = new THREE.Group(); hip.position.set(s * 0.09, 0.92, 0); g.add(hip); hips.push(hip);
+      add(G.thigh, pants, 0, -0.23, 0, hip);
+      var knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee); knees.push(knee);
+      add(G.shin, pants, 0, -0.23, 0, knee); add(G.foot, dark, 0, -0.49, 0.04, knee);
+      var sh = new THREE.Group(); sh.position.set(s * 0.26, 1.5, 0); g.add(sh); arms.push(sh);
+      add(G.arm, shirt, 0, -0.28, 0, sh); add(G.hand, skin, 0, -0.58, 0, sh);
+    });
+    // étiquette au-dessus de la tête : avatar + pseudo
+    var cv = mkCanvas(320, 72), c = cv.getContext('2d');
+    roundRectPath(c, 4, 4, 312, 64, 22); c.fillStyle = 'rgba(8,5,12,0.82)'; c.fill(); c.strokeStyle = 'rgba(201,162,39,0.8)'; c.lineWidth = 3; c.stroke();
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#f4e3b0'; c.font = '700 32px ' + MONO;
+    c.fillText(((avatar ? avatar + ' ' : '') + name).slice(0, 16), 160, 38, 292);
+    var tex = mkTex(cv);
+    var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    tag.scale.set(0.9, 0.2, 1); tag.position.set(0, 2.1, 0); g.add(tag);
+    return {
+      group: g, hips: hips, knees: knees, arms: arms, phase: 0, seated: false,
+      setSeated: function (on) {
+        if (on === this.seated) return; this.seated = on;
+        g.position.y = on ? -0.3 : 0;                                   // hanches posées sur le tabouret
+        hips.forEach(function (hp) { hp.rotation.x = on ? -Math.PI / 2 : 0; });
+        knees.forEach(function (k) { k.rotation.x = on ? Math.PI / 2 : 0; });
+        arms.forEach(function (a) { a.rotation.x = on ? -1.05 : 0; });
+      },
+      walk: function (dt, speed) {
+        if (this.seated) return;
+        this.phase += dt * (3 + speed * 2.5);
+        var sw = Math.min(1, speed / 1.2) * 0.65 * Math.sin(this.phase);
+        hips[0].rotation.x = sw; hips[1].rotation.x = -sw; arms[0].rotation.x = -sw * 0.8; arms[1].rotation.x = sw * 0.8;
+      },
+      stopWalk: function () { if (!this.seated) { hips.forEach(function (hp) { hp.rotation.x = 0; }); arms.forEach(function (a) { a.rotation.x = 0; }); } },
+      dispose: function () { mats.forEach(function (m) { m.dispose(); }); tex.dispose(); tag.material.dispose(); }
+    };
+  }
+
+  SlotsExperience.prototype._me = function () { try { return (typeof state !== 'undefined' && state && state.username ? state.username : '').toLowerCase().trim(); } catch (e) { return ''; } };
+  SlotsExperience.prototype._token = function () { try { return typeof getAuthToken === 'function' ? getAuthToken() : ''; } catch (e) { return ''; } };
+  SlotsExperience.prototype._post = function (body) {
+    var tok = this._token();
+    if (!tok) return Promise.resolve(null);
+    var nm = '', av = '';
+    try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (e) { /* pas connecté */ }
+    return fetch('/api/slots', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', 'X-Auth-Token': tok }, body: JSON.stringify(Object.assign({ name: nm, avatar: av }, body)) })
+      .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { if (j) j._status = r.status; return j; }); })
+      .catch(function () { return null; });
+  };
+  SlotsExperience.prototype._flash = function (msg) {
+    this.elHint.textContent = msg; this.elHint.style.display = ''; this.hintShown = this.clock;
+    var self = this; clearTimeout(this._flashT); this._flashT = setTimeout(function () { if (!self.dead) self._setHint(); }, 3500);
+  };
+  SlotsExperience.prototype._netStart = function () {
+    if (this.netOn || this.dead) return;
+    this.netOn = true; this.remote = this.remote || {}; this.occ = this.occ || {};
+    this._netTick();
+  };
+  SlotsExperience.prototype._netStop = function () {
+    this.netOn = false; clearTimeout(this._netTimer);
+    this._post({ action: 'leave' });
+    var self = this;
+    Object.keys(this.remote || {}).forEach(function (k) { self._removeRemote(k); });
+    this.occ = {};
+    this.cabs.forEach(function (e) { if (e.occBy) { e.occBy = null; if (e !== self.seatCab) e.cab.setMessage('Libre — viens jouer !'); } });
+  };
+  SlotsExperience.prototype._netTick = function () {
+    var self = this;
+    if (!this.netOn || this.dead) return;
+    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, 900); };
+    if (document.hidden) { next(); return; }
+    var p = this.player, e = this.seatCab, x = p.x, z = p.z, yaw = p.yaw;
+    if (e) { x = e.x + Math.sin(e.rotY) * 2.2; z = e.z + Math.cos(e.rotY) * 2.2; yaw = -e.rotY; }
+    var req = this._token() ? this._post({ action: 'presence', x: x, z: z, yaw: yaw })
+      : fetch('/api/slots').then(function (r) { return r.json(); }).catch(function () { return null; });
+    req.then(function (d) { if (d && d.players) self._applyNet(d); next(); });
+  };
+  SlotsExperience.prototype._applyNet = function (d) {
+    var self = this, me = this._me(), seen = {}, i;
+    this.occ = {};
+    Object.keys(d.players).forEach(function (k) {
+      var p = d.players[k];
+      if (k === me) {
+        // le serveur m'a oublié alors que je suis assis (coupure réseau) : je reprends ma place
+        if (self.mode === 'seat' && self.seatCab && p.seat !== self.seatCab.n - 1 && !self._resitting) {
+          self._resitting = true;
+          self._post({ action: 'sit', seat: self.seatCab.n - 1 }).then(function (r) { self._resitting = false; if (r && r.ok === false && r._status === 409) { self.stand(true); self._flash(r.error || 'Borne occupée.'); } });
+        }
+        return;
+      }
+      seen[k] = true;
+      if (p.seat >= 0) self.occ[p.seat] = p.name;
+      var r = self.remote[k];
+      if (!r) {
+        r = self.remote[k] = { name: p.name, person: createPerson(p.name, p.avatar), tx: p.x, tz: p.z, tyaw: p.yaw, lastFx: null, fresh: true, vx: 0 };
+        r.person.group.position.set(p.x, 0, p.z); r.px = p.x; r.pz = p.z;
+        self.scene.add(r.person.group);
+      }
+      r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.seat = p.seat;
+      var fx = p.fx;
+      if (fx && p.seat >= 0 && self.cabs[p.seat]) {
+        var key = fx.id + ':' + fx.phase, cab = self.cabs[p.seat].cab;
+        if (r.lastFx !== key) {
+          var first = r.fresh; r.lastFx = key;
+          if (!first) {
+            if (fx.phase === 'start') { if (!cab.isSpinning()) cab.startSpin(); }
+            else if (fx.finals) {
+              if (!cab.isSpinning()) cab.startSpin();
+              cab.stopReels(fx.finals, function () { cab.showResult(fx.finals, fx.mult || 0, fx.win || 0, fx.bet || 0); });
+            }
+          }
+        }
+      }
+      r.fresh = false;
+    });
+    Object.keys(this.remote).forEach(function (k) { if (!seen[k]) self._removeRemote(k); });
+    for (i = 0; i < this.cabs.length; i++) {      // étiquette « occupée / libre » sur l'écran de chaque borne
+      var ent = this.cabs[i], who = this.occ[i] || null;
+      if (ent.occBy !== who) {
+        ent.occBy = who;
+        if (ent !== this.seatCab) ent.cab.setMessage(who ? 'Occupée — ' + who : 'Libre — viens jouer !');
+      }
+    }
+  };
+  SlotsExperience.prototype._removeRemote = function (k) {
+    var r = this.remote[k]; if (!r) return;
+    this.scene.remove(r.person.group); r.person.dispose(); delete this.remote[k];
+  };
+  SlotsExperience.prototype._updateRemotes = function (dt) {
+    var self = this, kk = 1 - Math.exp(-dt * 4.5);
+    Object.keys(this.remote || {}).forEach(function (k) {
+      var r = self.remote[k], g = r.person.group, tx = r.tx, tz = r.tz, yaw = r.tyaw;
+      if (r.seat >= 0 && self.cabs[r.seat]) {      // assis : sur le tabouret, face à la borne
+        var e = self.cabs[r.seat];
+        tx = e.x + Math.sin(e.rotY) * 1.6; tz = e.z + Math.cos(e.rotY) * 1.6; yaw = -e.rotY;
+        r.person.setSeated(true);
+      } else r.person.setSeated(false);
+      var ox = g.position.x, oz = g.position.z;
+      g.position.x += (tx - ox) * kk; g.position.z += (tz - oz) * kk;
+      var sp = Math.hypot(g.position.x - ox, g.position.z - oz) / Math.max(dt, 0.001);
+      var ty = Math.PI - yaw, dy = ((ty - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
+      g.rotation.y += dy * Math.min(1, dt * 6);
+      if (sp > 0.12 && !r.person.seated) r.person.walk(dt, sp); else r.person.stopWalk();
+    });
+  };
+  SlotsExperience.prototype._fx = function (phase, finals, mult, win, bet) {
+    if (phase === 'start') this.fxId = Date.now().toString(36) + Math.floor(Math.random() * 99);
+    this._post({ action: 'fx', phase: phase, id: this.fxId || String(Date.now()), finals: finals, mult: mult, win: win, bet: bet });
+  };
+
+SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; this.setFull(false); this._netStop(); };
+  SlotsExperience.prototype.resume = function () { this._netStart(); this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
   SlotsExperience.prototype.dispose = function () {
     this.dead = true; cancelAnimationFrame(this._raf);
-    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); window.removeEventListener('keyup', this._ku);
+    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); this._netStop(); window.removeEventListener('keyup', this._ku); window.removeEventListener('pagehide', this._ph);
     this.cabs.forEach(function (c) { c.cab.dispose(); });
     this.renderer.dispose();
     if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
@@ -1239,6 +1434,7 @@
       }
     } else { exp.resume(); }
     st.classList.remove('hidden');
+    if (exp) exp._netStart();
     var cw = classicWrap(); if (cw) cw.classList.add('hidden');
     return true;
   }
@@ -1252,11 +1448,12 @@
     close: close,
     isActive: function () { return !!exp; },
     getExperience: function () { return exp; },
-    onSpinStart: function () { if (exp) exp.cab.startSpin(); },
+    onSpinStart: function () { if (exp) { exp.cab.startSpin(); exp._fx('start'); } },
     onResult: function (finals, mult, win, bet) {
       if (!exp) return;
       var cab = exp.cab;
       cab.stopReels(finals, function () { cab.showResult(finals, mult || 0, win || 0, bet || 0); });
+      exp._fx('result', finals, mult || 0, win || 0, bet || 0);
     },
     onError: function () { if (exp) exp.cab.abortSpin(); }
   };
