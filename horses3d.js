@@ -421,6 +421,62 @@
     }
     placeHorses(0, 0, null, false);
 
+    /* ----- sons (fabriqués avec WebAudio : aucun fichier à charger) ----- */
+    var snd = { ctx: null, nb: null, on: true, beat: -1, crowd: 0, tick: -1 };
+    try { if (localStorage.getItem('f3d_horses_snd') === '0') snd.on = false; } catch (e) { /* stockage bloqué : son activé */ }
+    function ac() {
+      if (!snd.on) return null;
+      if (!snd.ctx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC || !(navigator.userActivation && navigator.userActivation.hasBeenActive)) return null;   // le navigateur exige un clic avant tout son
+        try { snd.ctx = new AC(); } catch (e) { return null; }
+      }
+      if (snd.ctx.state === 'suspended') snd.ctx.resume();
+      return snd.ctx;
+    }
+    function tone(f, dur, type, vol, delay, slide) {
+      var c = ac(); if (!c) return;
+      var t = c.currentTime + (delay || 0), o = c.createOscillator(), v = c.createGain();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+      v.gain.setValueAtTime(0.0001, t); v.gain.exponentialRampToValueAtTime(vol || 0.1, t + 0.012); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(v); v.connect(c.destination); o.start(t); o.stop(t + dur + 0.05);
+    }
+    function noise(dur, vol, ftype, freq, delay, q, swell) {
+      var c = ac(); if (!c) return;
+      if (!snd.nb) { var n = c.sampleRate, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (var k = 0; k < n; k++) d[k] = Math.random() * 2 - 1; snd.nb = b; }
+      var t = c.currentTime + (delay || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), v = c.createGain();
+      src.buffer = snd.nb; f.type = ftype || 'bandpass'; f.frequency.value = freq || 1000; f.Q.value = q || 1;
+      v.gain.setValueAtTime(0.0001, t); v.gain.exponentialRampToValueAtTime(vol || 0.1, t + (swell || 0.01)); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(v); v.connect(c.destination); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
+    }
+    var SND = {
+      chip: function () { tone(1900, 0.05, 'sine', 0.07); noise(0.05, 0.08, 'highpass', 4000); tone(1300, 0.08, 'sine', 0.05, 0.05); },
+      tick: function (last) { tone(last ? 1320 : 880, 0.09, 'square', 0.05); },
+      start: function () { noise(0.25, 0.18, 'bandpass', 1800, 0, 4); tone(660, 0.9, 'triangle', 0.12); tone(990, 0.9, 'triangle', 0.08); tone(440, 0.5, 'sawtooth', 0.04, 0.05); },
+      hoof: function (v) { noise(0.09, 0.22 * v, 'lowpass', 260, 0, 1); tone(75, 0.1, 'sine', 0.16 * v, 0, 45); },
+      crowd: function (v) { noise(0.7, 0.05 * v, 'bandpass', 700 + Math.random() * 500, 0, 0.7, 0.3); },
+      cheer: function () { noise(2.2, 0.22, 'bandpass', 1100, 0, 0.6, 0.35); noise(1.6, 0.12, 'bandpass', 2600, 0.1, 0.8, 0.3); tone(523, 0.18, 'square', 0.06); tone(659, 0.18, 'square', 0.06, 0.16); tone(784, 0.5, 'square', 0.06, 0.32); },
+      win: function () { [523, 659, 784, 1047, 1319].forEach(function (f, k) { tone(f, 0.28, 'triangle', 0.1, k * 0.11); }); for (var k = 0; k < 6; k++) { noise(0.05, 0.1, 'highpass', 5000, 0.5 + k * 0.07); tone(2100 + k * 120, 0.06, 'sine', 0.04, 0.5 + k * 0.07); } },
+      lose: function () { tone(262, 0.35, 'sawtooth', 0.06, 0, 200); tone(196, 0.6, 'sawtooth', 0.06, 0.3, 140); }
+    };
+    room.sndToggle = function () {
+      snd.on = !snd.on; try { localStorage.setItem('f3d_horses_snd', snd.on ? '1' : '0'); } catch (e) { /* sans importance */ }
+      if (room.elSnd) room.elSnd.textContent = snd.on ? '🔊 Son' : '🔇 Muet';
+      if (snd.on) SND.chip();
+    };
+    // appelée à chaque image : décompte, galop, foule
+    function raceSounds(ph, st) {
+      if (!snd.on) return;
+      if (ph.phase === 'betting') {
+        var sec = Math.ceil(ph.left - CLOSE_MS / 1000);
+        if (sec !== snd.tick) { snd.tick = sec; if (sec >= 1 && sec <= 5) SND.tick(sec <= 2); }
+      } else snd.tick = -1;
+      if (ph.phase !== 'racing') { snd.beat = -1; return; }
+      var b = Math.floor(ph.t / 0.125), best = Math.min.apply(null, st.finish), near = ph.t > best - 4 ? 1.6 : 1;
+      if (b !== snd.beat) { snd.beat = b; if (b % 4 !== 3) SND.hoof((b % 4 === 0 ? 1 : 0.7) * (0.7 + 0.3 * Math.min(1, ph.t / 6))); }
+      if (ph.t - snd.crowd > 0.45) { snd.crowd = ph.t; SND.crowd(near * (0.5 + ph.t / 40)); }
+    }
+
     /* ----- grand écran : ce qui s'affiche ----- */
     function drawScreen(info) {
       var c = sctx, W = 1024, H = 576, i;
@@ -471,6 +527,7 @@
         else { idx.sort(function (a, b) { return horses[b].pr - horses[a].pr; }); rows = idx.map(function (k) { return { i: k, txt: horses[k].pr >= 1 ? 'ARRIVÉ' : Math.min(99, Math.round(horses[k].pr * 100)) + ' %' }; }); }
       }
       room.info = { phase: ph.phase, left: ph.left, t: ph.t, rows: rows, id: st.id, open: !!ph.open };
+      if (st.finish || ph.phase === 'betting') raceSounds(ph, st);
       if (ph.phase !== room.lastPhase) { var prev = room.lastPhase; room.lastPhase = ph.phase; room.onPhase(ph.phase, prev); }
       gateY += ((ph.phase === 'betting' || ph.phase === 'waiting' ? 0 : 0.9) - gateY) * Math.min(1, dt * 5);
       gate.position.y = TY + 0.2 - gateY * 0.3;
@@ -482,7 +539,7 @@
     injectBetCss();
     var horseBtns = HORSES.map(function (h) { return '<button data-h="' + h.n + '" title="' + h.name + '"><i style="background:' + hex(h.silk) + ';color:' + h.ink + '">' + h.n + '</i><b data-o="' + h.n + '"></b></button>'; }).join('');
     var placeBtns = [1, 2, 3, 4, 5, 6, 7, 8].map(function (p) { return '<button data-p="' + p + '">' + (p === 1 ? '1ᵉʳ' : p + 'ᵉ') + '</button>'; }).join('');
-    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Vue d\'en haut</button>' +
+    room.hudTop = '<button class="s3d-cam" data-s3d="snd">🔊 Son</button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Vue d\'en haut</button>' +
       '<div class="s3d-hint" data-s3d="hbanner" style="top:52px;font-size:13px;letter-spacing:.08em"></div>';
     room.hudBottom =
       '<div class="hbet s3d-seat-only"><div class="hb-msg" data-s3d="hmsg"></div>' +
@@ -497,7 +554,7 @@
     room.odds = null; room.history = []; room.myBets = []; room.said = {};
     room.bindHud = function (hud) {
       function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
-      room.elCam = q('cam'); room.elStand = q('stand'); room.elBanner = q('hbanner');
+      room.elSnd = q('snd'); room.elSnd.textContent = snd.on ? '🔊 Son' : '🔇 Muet'; room.elSnd.addEventListener('click', function () { room.sndToggle(); }); room.elCam = q('cam'); room.elStand = q('stand'); room.elBanner = q('hbanner');
       room.elMsg = q('hmsg'); room.elPlaces = q('hplaces'); room.elAmt = q('hamt'); room.elGo = q('hgo'); room.elMine = q('hmine'); room.elMg = q('mg'); room.elMp = q('mp');
       room.elHud = hud;
       room.elCam.addEventListener('click', function () { room.toggleCamera(); });
@@ -563,11 +620,14 @@
           room.said[id] = true;
           var total = room.myBets.reduce(function (a, b) { return a + (b.win || 0); }, 0);
           room.say(total > 0 ? '🎉 Gagné ! +' + fmt(total) + ' €' : 'Pas de chance cette fois…');
+          if (total > 0) SND.win(); else SND.lose();
         }
         room.syncHud();
       });
     };
     room.onPhase = function (ph, prev) {
+      if (ph === 'racing' && prev) SND.start();
+      if (ph === 'results' && prev) SND.cheer();
       if (room.demo) return;
       if (ph === 'results' && room.myBets.length) { room.refreshMine(true); setTimeout(function () { if (!world.dead) room.refreshMine(true); }, 1500); }
       if (ph === 'waiting' && prev) { room.myBets = []; room._minePaint = null; room.say(''); }
@@ -580,7 +640,7 @@
       var av = ''; try { av = state.avatarEmoji || ''; } catch (e) { /* pas connecté */ }
       room.elGo.disabled = true;
       world.post('/api/horses', { action: 'bet', horse: s.horse, kind: s.kind, place: s.kind === 'place' ? s.place : 0, amount: s.amount, avatar: av }).then(function (r) {
-        if (r && r.ok) { balanceTo(r.balance); if (r.state && r.state.serverNow) { room.clockOffset = r.state.serverNow - Date.now(); room.setState(r.state); } room.say('✅ Pari enregistré : ' + HORSES[s.horse - 1].name + ' (x' + r.mult + ')'); return room.refreshMine(false); }
+        if (r && r.ok) { SND.chip(); balanceTo(r.balance); if (r.state && r.state.serverNow) { room.clockOffset = r.state.serverNow - Date.now(); room.setState(r.state); } room.say('✅ Pari enregistré : ' + HORSES[s.horse - 1].name + ' (x' + r.mult + ')'); return room.refreshMine(false); }
         room.say((r && r.error) || 'Pas de réponse du serveur.');
       }).then(function () { room.syncHud(); });
     };
