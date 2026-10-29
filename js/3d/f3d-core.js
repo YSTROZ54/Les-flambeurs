@@ -96,6 +96,7 @@
 
   // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
   function createPerson(name, avatar) {
+    if (/^[?\s]*$|^(null|undefined)$/.test(String(avatar == null ? '' : avatar))) avatar = '';   // avatar abîmé (« ?? » venu d'un mauvais encodage) : on n'affiche que le pseudo
     var h = nameHash(name), G = geo();
     var skin = new THREE.MeshLambertMaterial({ color: SKIN_TONES[h % SKIN_TONES.length] });
     var shirt = new THREE.MeshLambertMaterial({ color: SHIRTS[(h >> 3) % SHIRTS.length] });

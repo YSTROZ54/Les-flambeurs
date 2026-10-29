@@ -165,19 +165,34 @@
     var w = spec.w || 1.7, h = spec.h || 2.7, col = spec.color || 0xffd24a;
     var g = new THREE.Group(); g.position.set(spec.x, 0, spec.z); g.rotation.y = Math.atan2(spec.nx, spec.nz);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.6, emissive: 0x2a1d00 });
-    // lueur derrière les battants : « l'autre salle »
-    var gc = mkCanvas(64, 128), gx = gc.getContext('2d'), gg = gx.createLinearGradient(0, 0, 0, 128);
-    var c3 = new THREE.Color(col);
-    var cs = 'rgb(' + Math.round(c3.r * 255) + ',' + Math.round(c3.g * 255) + ',' + Math.round(c3.b * 255) + ')';
-    gg.addColorStop(0, '#fff6d8'); gg.addColorStop(0.45, cs); gg.addColorStop(1, '#1a0d05');
-    gx.fillStyle = gg; gx.fillRect(0, 0, 64, 128);
-    var portal = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(gc) }));
-    portal.position.set(0, h / 2, 0.04); g.add(portal);
+    // derrière les battants : « l'autre salle », un tunnel de néons de la couleur de la porte qui file vers le fond.
+    // Le plan est posé devant les moulures du mur (sinon leur barre dorée traverse l'ouverture) et n'est repeint que porte ouverte.
+    var c3 = new THREE.Color(col), cr = Math.round(c3.r * 255), cg = Math.round(c3.g * 255), cb = Math.round(c3.b * 255);
+    var cs = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
+    var PW = 160, PH = 256, pc = mkCanvas(PW, PH), px = pc.getContext('2d'), ptex = mkTex(pc);
+    function paintPortal(t) {
+      px.globalAlpha = 1; px.shadowBlur = 0; px.fillStyle = '#06020a'; px.fillRect(0, 0, PW, PH);
+      var gl = px.createRadialGradient(PW / 2, PH * 0.55, 4, PW / 2, PH * 0.55, PH * 0.62);
+      gl.addColorStop(0, 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (0.5 + 0.2 * Math.sin(t * 3)).toFixed(2) + ')'); gl.addColorStop(1, 'rgba(' + cr + ',' + cg + ',' + cb + ',0)');
+      px.fillStyle = gl; px.fillRect(0, 0, PW, PH);
+      px.lineJoin = 'round'; px.shadowColor = cs;
+      for (var i = 0; i < 6; i++) {                                         // six cadres néon qui rétrécissent vers le centre
+        var k = (t * 0.35 + i / 6) % 1, s = 1 - k * 0.94, a = Math.sin(Math.PI * k), rw = (PW - 10) * s, rh = (PH - 10) * s;
+        px.globalAlpha = a; px.shadowBlur = 14; px.strokeStyle = cs; px.lineWidth = 2 + 5 * (1 - k);
+        px.strokeRect((PW - rw) / 2, (PH - rh) / 2, rw, rh);
+        px.shadowBlur = 0; px.strokeStyle = '#fff'; px.lineWidth = 1 + 1.5 * (1 - k);   // filament blanc au cœur du tube
+        px.strokeRect((PW - rw) / 2, (PH - rh) / 2, rw, rh);
+      }
+      px.globalAlpha = 1; ptex.needsUpdate = true;
+    }
+    paintPortal(0);
+    var portal = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: ptex }));
+    portal.position.set(0, h / 2, 0.097); g.add(portal);   // devant la moulure du mur (face avant à 0.09), derrière les battants (0.105)
     function box(bw, bh, bd, x, y, z) { var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), gold); m.position.set(x, y, z); g.add(m); }
     box(0.14, h + 0.22, 0.22, -(w / 2 + 0.07), (h + 0.22) / 2, 0.1); box(0.14, h + 0.22, 0.22, w / 2 + 0.07, (h + 0.22) / 2, 0.1);
     box(w + 0.28, 0.18, 0.22, 0, h + 0.1, 0.1);
     var wood = new THREE.MeshStandardMaterial({ color: 0x4a1220, roughness: 0.55, metalness: 0.15 });
-    var leafGeo = new THREE.BoxGeometry(w / 2 - 0.02, h - 0.04, 0.07);
+    var leafGeo = new THREE.BoxGeometry(w / 2 + 0.01, h - 0.04, 0.07);     // les deux battants se recouvrent de 1 cm : porte fermée, aucune fente au milieu
     function leaf(sx) {
       var piv = new THREE.Group(); piv.position.set(sx * (w / 2), 0, 0.14); g.add(piv);
       var m = new THREE.Mesh(leafGeo, wood); m.position.set(-sx * (w / 4), h / 2, 0); piv.add(m);
@@ -195,7 +210,7 @@
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sc) }));
     sign.position.set(0, h + 0.62, 0.2); g.add(sign);
     room.group.add(g);
-    var d = { spec: spec, g: g, L: L, R: R, open: 0 };
+    var d = { spec: spec, g: g, L: L, R: R, open: 0, paint: paintPortal };
     room.doors.push(d);
     return d;
   };
@@ -208,6 +223,7 @@
       var dn = dx * s.nx + dz * s.nz, lat = dx * s.nz - dz * s.nx;
       var near = this.mode === 'room' && this.blend === 0 && !this.trans && Math.abs(lat) < (s.w || 1.7) / 2 + 0.5 && dn > -0.4 && dn < 2.6;
       d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt * 5);
+      if (d.open > 0.02 && d.paint) d.paint(performance.now() / 1000);       // néons animés derrière la porte, seulement tant qu'elle est entrouverte
       var a = d.open * 1.5;
       d.L.rotation.y = a; d.R.rotation.y = -a;
       if (near && d.open > 0.55 && Math.abs(lat) < (s.w || 1.7) / 2 - 0.1 && dn < 0.9) { this._useDoor(d); return; }
@@ -689,7 +705,7 @@
     if (!force && this._rtT > 0 && seatNow === this._rtSeat) return;
     this._rtT = moving ? 0.066 : 1.0; this._rtSeat = seatNow;
     var nm = '', av = '';
-    try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
+    try { nm = state.username || ''; av = (typeof getAvatarDisplay === 'function' && getAvatarDisplay()) || state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
     var r3 = function (v) { return Math.round(v * 1000) / 1000; };
     this.rt.send('pos', {
       k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
