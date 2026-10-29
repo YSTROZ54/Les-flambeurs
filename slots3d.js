@@ -793,7 +793,7 @@
     this.cab = this.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
 
     this.player = { x: 0, z: 10.2, yaw: 0, pitch: -0.04 };
-    this.keys = {}; this.stick = { x: 0, y: 0 };
+    this.keys = {}; this.stick = { x: 0, y: 0 }; this.mouse = { nx: 0, ny: 0, inside: false };
     this.mode = 'room'; this.blend = 0; this.near = null;
     this.view = { yaw: 0, pitch: 0.06, yawG: 0, pitchG: 0.06, r: 3.2, rG: 3.2, ty: 1.95, tyG: 1.95, fov: 40, fovG: 40, mode: 'play', lastDrag: -99 };
     this.clock = 0; this.last = 0; this.w = 0; this.h = 0; this.running = true; this.dead = false; this.hudT = 0;
@@ -826,7 +826,7 @@
     function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
     this.elBal = q('bal'); this.elBet = q('bet'); this.elSpin = q('spin'); this.elCam = q('cam');
     this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
-    this.elHint.textContent = this.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir' : 'ZQSD / flèches : marcher · glisser : regarder · clic sur une borne : s\'asseoir';
+    this.elHint.textContent = this.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir' : 'ZQSD / flèches : marcher · souris vers les bords : regarder autour · clic sur une borne : s\'asseoir';
     if (this.touch) this.elStick.style.display = '';
     this.elCam.addEventListener('click', function () { self.toggleCamera(); });
     this.elStand.addEventListener('click', function () { self.stand(); });
@@ -943,11 +943,20 @@
       drag = { x: e.clientX, y: e.clientY, yaw: self.view.yawG, pitch: self.view.pitchG, pyaw: self.player.yaw, ppitch: self.player.pitch, moved: 0, mouse: e.pointerType === 'mouse' };
       try { dom.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
     });
+    // Souris (PC) : la vue suit la position du curseur sur la scène, sans avoir à cliquer
+    this.container.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse') return;
+      var rc = dom.getBoundingClientRect();
+      self.mouse.nx = ((e.clientX - rc.left) / rc.width) * 2 - 1;
+      self.mouse.ny = ((e.clientY - rc.top) / rc.height) * 2 - 1;
+      self.mouse.inside = true;
+    });
+    this.container.addEventListener('pointerleave', function () { self.mouse.inside = false; });
     dom.addEventListener('pointermove', function (e) {
       if (!drag) return;
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
-      if (drag.moved < 6) return;
+      if (drag.moved < 6 || drag.mouse) return;
       if (self.mode === 'room') {
         if (self.blend > 0) return;
         self.player.yaw = drag.pyaw + dx * 0.005;
@@ -1054,7 +1063,15 @@
     this.blend += Math.sign(target - this.blend) * dt / 1.1;
     this.blend = Math.max(0, Math.min(1, this.blend));
     if (Math.abs(target - this.blend) < 0.004) this.blend = target;
-    if (this.mode === 'room' && this.blend === 0) this._movePlayer(dt);
+    var ms = this.mouse, mouseLook = ms.inside && !this.touch;
+    function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
+    if (this.mode === 'room' && this.blend === 0) {
+      if (mouseLook) {   // curseur vers les bords = on tourne la tête, haut/bas = on regarde en l'air / au sol
+        this.player.yaw += dz(ms.nx, 0.3) * 1.4 * dt;
+        this.player.pitch = Math.max(-0.6, Math.min(0.5, -0.04 - dz(ms.ny, 0.3) * 0.45));
+      }
+      this._movePlayer(dt);
+    }
     this._findNear();
     var w = this.blend * this.blend * (3 - 2 * this.blend);   // adoucit le trajet
 
@@ -1066,6 +1083,11 @@
 
     if (this.seatCab && this.blend > 0) {
       var e = this.seatCab, v = this.view, k = 1 - Math.exp(-dt * 4);
+      if (mouseLook && this.mode === 'seat' && this.blend > 0.9) {
+        v.yawG = dz(ms.nx, 0.35) * (v.mode === 'play' ? 0.55 : 1.4);
+        v.pitchG = (v.mode === 'play' ? 0.06 : 0.2) + dz(ms.ny, 0.35) * 0.1;
+        v.lastDrag = this.clock;
+      }
       if (v.mode === 'play' && this.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
       v.yaw += (v.yawG - v.yaw) * k; v.pitch += (v.pitchG - v.pitch) * k;
       v.r += (v.rG - v.r) * k; v.ty += (v.tyG - v.ty) * k; v.fov += (v.fovG - v.fov) * k;
