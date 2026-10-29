@@ -249,10 +249,8 @@
     var matMetal = new THREE.MeshStandardMaterial({ color: 0x1b2433, roughness: 0.35, metalness: 0.7 });
     var neonB = new THREE.MeshBasicMaterial({ color: 0x3a8dff }), neonC = new THREE.MeshBasicMaterial({ color: 0x56e6ff });
 
-    /* ----- salle : sol de dalles bleu nuit, tapis autour de la table, murs capitonnés à néons, plafond sombre avec spots ----- */
-    var ledMats = [], li;                                   // LED qui courent autour de la table (couleurs animées dans room.update)
-    for (li = 0; li < 12; li++) ledMats.push(new THREE.MeshBasicMaterial({ color: 0x3a8dff }));
-    var ledA = new THREE.MeshBasicMaterial({ color: 0x56e6ff }), ledB = new THREE.MeshBasicMaterial({ color: 0xc84bff });   // bandeaux lumineux des murs, du plafond, du sol
+    /* ----- salle : sol de dalles bleu nuit, tapis autour de la table, murs capitonnés à néons, plafond en bandes LED ----- */
+    var ledA = new THREE.MeshBasicMaterial({ color: 0x56e6ff }), ledB = new THREE.MeshBasicMaterial({ color: 0xc84bff }), ledDim = new THREE.MeshBasicMaterial({ color: 0x0b1d3d });   // bandeaux lumineux des murs, du plafond, du sol
     var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), fgr = fx.createLinearGradient(0, 0, 256, 256);
     fgr.addColorStop(0, '#13244a'); fgr.addColorStop(1, '#0a1530'); fx.fillStyle = fgr; fx.fillRect(0, 0, 256, 256);
     fx.fillStyle = 'rgba(8,14,30,0.55)'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);          // damier discret
@@ -286,9 +284,9 @@
     [[HX * 2 - 6, 0.08, 0.08, 0, 5.94, -HZ + 3], [HX * 2 - 6, 0.08, 0.08, 0, 5.94, HZ - 3], [0.08, 0.08, HZ * 2 - 6, -HX + 3, 5.94, 0], [0.08, 0.08, HZ * 2 - 6, HX - 3, 5.94, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080b12 }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; g.add(ceil);
-    var spotM = new THREE.MeshBasicMaterial({ color: 0xfff0d0 }), spotG = new THREE.CylinderGeometry(0.16, 0.2, 0.18, 10), spots = new THREE.Group(); g.add(spots);
-    for (var sx = -8; sx <= 8; sx += 4) for (var sz = -10; sz <= 10; sz += 4) { var sp = new THREE.Mesh(spotG, spotM); sp.position.set(sx, 5.9, sz); spots.add(sp); }
-
+    var ceilFx = new THREE.Group(); g.add(ceilFx);                                  // masqué quand on regarde d'en haut (la caméra est au-dessus du plafond)
+    [-8, -4, 0, 4, 8].forEach(function (cx, k) { box(0.14, 0.05, HZ * 2 - 1.6, cx, 5.96, 0, k % 2 ? ledB : ledA, ceilFx); box(0.5, 0.02, HZ * 2 - 1.6, cx, 5.985, 0, ledDim, ceilFx); });
+    [-9, -3, 3, 9].forEach(function (cz, k) { box(HX * 2 - 1.6, 0.05, 0.14, 0, 5.94, cz, k % 2 ? ledA : ledB, ceilFx); });
     /* ----- la table de jeu ----- */
     var tt = trackTexture();
     var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0 }));
@@ -311,13 +309,22 @@
     });
     // départ : une barrière légère qui se lève quand la course commence
     var gate = box(laneR(7) - laneR(0) + 0.35, 0.025, 0.025, (laneR(0) + laneR(7)) / 2, TY + 0.2, Z0 + 0.3, new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    // les LED : deux rangées d'ampoules autour de la table (le dessus du rebord et le tablier), qui courent en sens inverse
-    var bulbG = new THREE.SphereGeometry(0.034, 8, 6), bulbN = 0, bulbStep = low ? 0.26 : 0.13;
-    function bulbRow(r, y, dir, off) {
-      var L = laneLen(r), cnt = Math.round(L / bulbStep), bp = {}, k, b;
-      for (k = 0; k < cnt; k++) { lanePos(r, k / cnt * L, bp); b = new THREE.Mesh(bulbG, ledMats[(((dir > 0 ? k : -k) + off) % 12 + 12) % 12]); b.position.set(bp.x, y, bp.z); g.add(b); bulbN++; }
+    // les LED : de vraies petites diodes qui brillent (points lumineux avec halo), deux rangées sur le rebord qui courent en sens inverse
+    var glowTex = (function () {
+      var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
+    })();
+    var ledRows = [];
+    function ledRow(r, y, step, size, dir, parent) {
+      var L = laneLen(r), cnt = Math.round(L / step), bp = {}, pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), k, geo = new THREE.BufferGeometry();
+      for (k = 0; k < cnt; k++) { lanePos(r, k / cnt * L, bp); pos[k * 3] = bp.x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = bp.z; }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+      var pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: size, map: glowTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      pts.frustumCulled = false; (parent || g).add(pts); ledRows.push({ geo: geo, col: col, cnt: cnt, dir: dir });
     }
-    bulbRow(R_OUT + 0.78, TY + 0.082, 1, 0); bulbRow(R_OUT + 0.5, TY + 0.082, -1, 6);
+    ledRow(R_OUT + 0.78, TY + 0.09, low ? 0.12 : 0.065, 0.16, 1); ledRow(R_OUT + 0.5, TY + 0.09, low ? 0.12 : 0.065, 0.16, -1);
+    ledRow(R_OUT + 4.4, 5.93, 0.14, 0.26, 1, ceilFx); ledRow(R_OUT + 2.4, 5.93, 0.12, 0.22, -1, ceilFx);
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
@@ -352,7 +359,7 @@
     var n = 0;
     // deskX / chairX / standX : où sont la table, la chaise et l'endroit où l'on se relève (côté s : 1 = est, -1 = ouest)
     var STATIONS = [
-      { deskX: 3.95, chairX: 4.55, standX: 5.85, zs: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5] }
+      { deskX: 3.95, chairX: 5.0, standX: 6.4, zs: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5] }
     ];
     STATIONS.forEach(function (st) {
       [1, -1].forEach(function (s) {          // s = 1 : côté est (regarde vers -x) ; s = -1 : côté ouest
@@ -726,13 +733,18 @@
     room.update = function (dt) {
       updateRace(dt);
       ledT += dt;
-      for (var lm = 0; lm < 12; lm++) {          // arc-en-ciel qui défile + vague de luminosité
-        var wv = 0.5 + 0.5 * Math.sin(lm / 12 * TAU - ledT * 6);
-        ledMats[lm].color.copy(ledCol.setHSL((lm / 12 + ledT * 0.07) % 1, 1, 0.22 + 0.4 * wv));
-      }
+      ledRows.forEach(function (row) {          // arc-en-ciel qui défile + vague de luminosité qui court le long de la rangée
+        var k, h, wv, v;
+        for (k = 0; k < row.cnt; k++) {
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 14 - ledT * 6 * row.dir);
+          h = (k / row.cnt * 2 + ledT * 0.07) % 1; v = 0.12 + 0.88 * wv * wv;
+          ledCol.setHSL(h, 1, 0.5); row.col[k * 3] = ledCol.r * v; row.col[k * 3 + 1] = ledCol.g * v; row.col[k * 3 + 2] = ledCol.b * v;
+        }
+        row.geo.attributes.color.needsUpdate = true;
+      });
       ledA.color.copy(ledCol.setHSL(0.5 + 0.12 * Math.sin(ledT * 0.9), 1, 0.52 + 0.1 * Math.sin(ledT * 3)));
       ledB.color.copy(ledCol.setHSL(0.78 + 0.1 * Math.sin(ledT * 0.7 + 1), 1, 0.5 + 0.12 * Math.sin(ledT * 2.2)));
-      spots.visible = !(world.mode === 'seat' && room.view.mode === 'top');   // la vue d'en haut est au-dessus des spots du plafond
+      ceilFx.visible = !(world.mode === 'seat' && room.view.mode === 'top');   // la vue d'en haut est au-dessus du plafond
       // places occupées : celles où un autre joueur est assis
       var occ = {}, k;
       Object.keys(world.remote).forEach(function (key) { var r = world.remote[key]; if (r.seat >= 0) occ[r.seat] = r.name; });
