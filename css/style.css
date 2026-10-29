@@ -2218,47 +2218,6 @@ body.s3d-full-on #sidebarBackdrop {
 }
 
 /* barre de navigation en bas du téléphone */
-.ph-tabs {
-  display: flex;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(6, 3, 12, 0.95);
-  padding: 4px 0 6px;
-  flex-shrink: 0;
-}
-.ph-tabs button {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 4px 4px;
-  border: none;
-  background: none;
-  color: #4b5563;
-  font-size: 15px;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  position: relative;
-}
-.ph-tabs button > span {
-  font-size: 9.5px;
-  font-weight: 700;
-}
-.ph-tabs button:hover { color: #9ca3af; }
-.ph-tabs button.on { color: #f59e0b; }
-.ph-tabs button.on::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 2px;
-  border-radius: 2px;
-  background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
-}
-
 /* ================= ANIMATIONS HUD ================= */
 @keyframes ph-slideUp {
   from { opacity: 0; transform: translateY(12px); }
@@ -2290,26 +2249,6 @@ body.s3d-full-on #sidebarBackdrop {
 }
 
 /* ================= INVENTAIRE, CHAT, FERMETURE DU TÉLÉPHONE ================= */
-.ph-close {
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  z-index: 3;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  background: #1a1226;
-  color: #e5e7eb;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.ph-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
-
 .ph-hotbar {
   position: absolute;
   left: 50%;
@@ -2505,3 +2444,183 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-cp-form input:focus { border-color: #f59e0b; }
 .ph-cp-form button { width: 40px; height: 38px; border: 0; border-radius: 12px; background: #f59e0b; color: #1a1000; font-size: 14px; cursor: pointer; }
 .ph-cp-form button:hover { background: #fbbf24; }
+
+/* annonce du monde 3D (World.flash) : grosse pastille au centre haut, animée */
+.s3d-toast {
+  position: absolute;
+  left: 50%;
+  top: 15%;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  gap: 18px;
+  max-width: min(88vw, 780px);
+  padding: 20px 34px 24px 28px;
+  border-radius: 22px;
+  border: 2px solid #f59e0b;
+  background: linear-gradient(135deg, #1c1228 0%, #0c0814 100%);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #fef3c7;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  overflow: hidden;
+  pointer-events: none;
+}
+.s3d-toast.on { display: flex; animation: s3dToastIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.s3d-toast.out { animation: s3dToastOut 0.45s ease forwards; }
+.s3d-toast::before {          /* reflet doré qui traverse la pastille */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 224, 138, 0.3) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: s3dToastShine 1.4s 0.35s ease-out 2;
+}
+.s3d-toast-ic {
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 1;
+  animation: s3dToastIc 1.1s ease-in-out infinite;
+}
+.s3d-toast-tx { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.s3d-toast-tx b { font-size: clamp(20px, 2.6vw, 32px); font-weight: 900; letter-spacing: 0.01em; line-height: 1.2; }
+.s3d-toast-tx small { color: #d9c88f; font-size: clamp(13px, 1.45vw, 17px); font-weight: 700; }
+.s3d-toast-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 5px;
+  background: #f59e0b;
+  transform-origin: left;
+  animation: s3dToastBar 3.4s linear forwards;
+}
+@keyframes s3dToastIn {
+  from { opacity: 0; transform: translate(-50%, -46px) scale(0.78); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes s3dToastOut {
+  from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -26px) scale(0.94); }
+}
+@keyframes s3dToastShine { to { transform: translateX(120%); } }
+@keyframes s3dToastIc { 0%, 100% { transform: rotate(-9deg) scale(1); } 50% { transform: rotate(9deg) scale(1.12); } }
+@keyframes s3dToastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .s3d-toast.on, .s3d-toast::before, .s3d-toast-ic { animation: none; }
+  .s3d-toast.on { transform: translate(-50%, 0); }
+}
+
+/* bouton plein écran à droite des FPS */
+.ph-fsbtn {
+  color: #e5e7eb;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ph-fsbtn i { color: #fbbf24; font-size: 11px; }
+.ph-fsbtn:hover { border-color: #f59e0b; color: #fff; }
+
+/* téléphone : fond d'écran, applis, bouton rouge en bas */
+.ph-body.home {
+  background:
+    radial-gradient(120% 55% at 15% 0%, rgba(245, 158, 11, 0.30), transparent 62%),
+    radial-gradient(100% 60% at 100% 100%, rgba(190, 24, 93, 0.38), transparent 62%),
+    repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(-45deg, rgba(245, 158, 11, 0.05) 0 1px, transparent 1px 22px),
+    linear-gradient(165deg, #43102a 0%, #1d0a30 55%, #0a0614 100%);
+}
+.ph-body.home::after {          /* grande flamme en filigrane sur le fond d'écran */
+  content: '\f06d';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  position: absolute;
+  left: 50%;
+  bottom: 70px;
+  transform: translateX(-50%);
+  font-size: 190px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+.ph-screen.menu { padding: 12px 14px 8px; }
+.ph-hclock { display: flex; flex-direction: column; align-items: center; margin: 6px 0 22px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55); }
+.ph-hclock b { color: #fff; font-family: 'Orbitron', 'JetBrains Mono', monospace; font-size: 50px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; }
+.ph-hclock span { margin-top: 8px; color: #f3e3c3; font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.ph-icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px 4px; }
+.ph-ico {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.ph-ico-sq {
+  width: 64px;
+  height: 64px;
+  border-radius: 19px;
+  background: rgb(var(--c));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 27px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.15s ease;
+}
+.ph-ico:hover .ph-ico-sq { transform: translateY(-3px) scale(1.06); }
+.ph-ico:active .ph-ico-sq { transform: scale(0.94); }
+.ph-ico-nm { font-size: 11.5px; font-weight: 800; letter-spacing: 0.01em; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7); }
+
+.ph-ah { display: flex; align-items: center; gap: 12px; padding: 2px 2px 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.ph-ah .fl-logo { width: 40px; height: 40px; border-radius: 12px; font-size: 18px; }
+.ph-ah b { display: block; color: #fef3c7; font-size: 17px; font-weight: 900; letter-spacing: 0.01em; }
+.ph-ah small { display: block; margin-top: 2px; color: #9ca3af; font-size: 11px; font-weight: 600; }
+.ph-screen.chat .ph-ah { flex-shrink: 0; }
+
+.ph-homebar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 70px;
+  background: rgba(4, 2, 10, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ph-body.home .ph-homebar { background: none; border-top-color: transparent; }
+.ph-home {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  background: #dc2626;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.ph-home:hover { background: #ef4444; }
+.ph-home:active { transform: scale(0.9); }
+
+/* photos de profil dans le Chat du téléphone */
+.ph-crow { display: flex; align-items: flex-end; gap: 8px; align-self: flex-start; max-width: 96%; }
+.ph-crow.me { align-self: flex-end; flex-direction: row-reverse; }
+.ph-crow .ph-cl { align-self: auto; max-width: none; min-width: 0; }
+.ph-cav {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 158, 11, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fef3c7;
+  font-size: 17px;
+  font-weight: 800;
+}
+.ph-crow.me .ph-cav { border-color: rgba(254, 243, 199, 0.7); }

@@ -2,10 +2,12 @@
    hud3d.js — HUD du joueur, roue des danses et téléphone (monde 3D complet, PC)
    ---------------------------------------------------------------------
    - HUD en bas à gauche : chat de la salle, avatar, pseudo, rang, solde, et quatre boutons-logos (Danses [E], Emotes [A], Téléphone [T], Chat [Entrée]).
-   - Inventaire en bas au milieu : 5 cases (touches 1 à 5 ou clic pour utiliser, molette pour changer de case), le téléphone est au milieu (3e case).
+   - Inventaire en bas au milieu : 5 cases (touches 1 à 5 ou clic sur la case pour l'utiliser, molette pour changer de case), le téléphone est au milieu (3e case).
+     Case du téléphone choisie : un clic gauche ou droit dans le monde ouvre le téléphone.
    - Menu pause : Échap (ou la souris libérée par le navigateur en grand écran) ; Échap ou « Reprendre » pour revenir.
    - Roue des danses / emotes : touche E (ou B), 1 à 8 pour choisir, Tab pour passer des danses aux emotes.
-   - Téléphone : touche T, bouton ✕ pour le fermer, on le déplace en attrapant l'encoche en haut au milieu.
+   - Téléphone : touche T. Écran d'accueil avec fond d'écran et applis (DanceFloor, Réactions, Chat, Carte VIP, Réglages) ; le bouton rouge en bas
+     revient à l'accueil, puis ferme. On le déplace en attrapant l'encoche en haut au milieu.
    - Chat : Entrée pour écrire, Entrée pour envoyer, Échap pour fermer. Rien ne s'affiche à l'écran : le message sort en bulle au-dessus de la tête
      de celui qui parle (trois points pendant qu'il écrit), et l'historique est dans l'onglet Chat du téléphone. Canal temps réel de la salle (« chat », « typing »).
      * Onglet Danses : déclencher danses et emotes depuis le téléphone avec les logos colorés.
@@ -66,18 +68,13 @@
         '<div class="ph-body"><div class="ph-notch"></div>' +
           '<div class="ph-status"><b data-ph="clock">12:00</b><span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-battery-full"></i></span></div>' +
           '<div class="ph-screen" data-ph="screen"></div>' +
-          '<nav class="ph-tabs">' +
-            '<button data-page="dance">' + fa('fa-music') + '<span>Danses</span></button>' +
-            '<button data-page="chat">' + fa('fa-comments') + '<span>Chat</span></button>' +
-            '<button data-page="settings">' + fa('fa-gear') + '<span>Paramètres</span></button>' +
-            '<button data-page="home">' + fa('fa-user') + '<span>Profil</span></button>' +
-          '</nav>' +
+          '<div class="ph-homebar"><button class="ph-home" data-act="phone-home" title="Accueil · puis fermer le téléphone (T)"></button></div>' +
         '</div>' +
-        '<button class="ph-close" data-act="close-phone" title="Fermer le téléphone (T)">' + fa('fa-xmark') + '</button>' +
       '</div>' +
       '<div class="ph-top-right">' +
-        '<div class="ph-stat-pill ph-online" title="Joueurs dans cette salle"><i class="fa-solid fa-users"></i> <b data-ph="onlineval">1</b> <span class="ph-stat-label">en ligne</span></div>' +
+        '<div class="ph-stat-pill ph-online" title="Joueurs en ligne (toutes les salles)"><i class="fa-solid fa-users"></i> <b data-ph="onlineval">1</b> <span class="ph-stat-label">en ligne</span></div>' +
         '<div class="ph-stat-pill ph-fps" title="Images par seconde (FPS)"><span class="ph-fps-dot" data-ph="fpsdot"></span><b data-ph="fpsval">--</b> <span class="ph-stat-label">FPS</span></div>' +
+        '<button class="ph-stat-pill ph-fsbtn" data-act="fullscreen" data-ph="fsbtn" title="Plein écran"><i class="fa-solid fa-expand"></i><span class="ph-stat-label">Plein écran</span></button>' +
       '</div>';
     w.hud.insertBefore(root, w.elFade);
     w.hud.classList.add('has-ph');
@@ -89,7 +86,17 @@
     var elPause = q('pause'), elPauseFull = q('pausefull');
     var elChat = q('chat'), elChatForm = q('chatform'), elChatIn = q('chatin'), elHotbar = q('hotbar');
     var elFpsVal = q('fpsval'), elFpsDot = q('fpsdot'), elOnlineVal = q('onlineval');
-    var tab = 'dance', page = 'settings', last = {};
+    var tab = 'dance', page = 'menu', last = {};
+    // les applis du téléphone : nom, sous-titre, icône, couleur
+    var APPS = [
+      { id: 'dance', name: 'DanceFloor', sub: 'Danses en boucle · marche pour arrêter', ic: 'fa-music', c: '232,121,249' },
+      { id: 'emote', name: 'Réactions', sub: 'Emotes instantanées', ic: 'fa-face-smile', c: '251,191,36' },
+      { id: 'chat', name: 'Chat', sub: 'Discute avec la salle', ic: 'fa-comments', c: '52,211,153' },
+      { id: 'profile', name: 'Carte VIP', sub: 'Ton profil de Flambeur', ic: 'fa-id-card', c: '56,189,248' },
+      { id: 'settings', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' }
+    ];
+    function appById(id) { for (var i = 0; i < APPS.length; i++) if (APPS[i].id === id) return APPS[i]; return null; }
+    function dateFr() { try { return new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); } catch (e) { return ''; } }
     try { var tv = localStorage.getItem('f3d_wheel_tab'); if (tv === 'dance' || tv === 'emote') tab = tv; } catch (e) { /* ok */ }
 
     /* ---------- HUD ---------- */
@@ -112,6 +119,7 @@
       if (e) put(elNowName, 'now', e.name);
       // Joueurs en ligne dans la salle (moi + remotes actifs)
       var onlineCount = 1;
+      if (F.presence) { F.presence.ensure(); F.presence.setRoom(w.room && w.room.id); }   // présence de tout le casino, toutes salles
       if (w && w.remote) {
         var nowT = performance.now();
         Object.keys(w.remote).forEach(function (k) {
@@ -119,7 +127,8 @@
           if (rem && (!rem.recv || nowT - rem.recv < 3500)) onlineCount++;
         });
       }
-      put(elOnlineVal, 'online', String(onlineCount));
+      put(q('fsbtn'), 'fs', '<i class="fa-solid ' + (w.full ? 'fa-compress' : 'fa-expand') + '"></i><span class="ph-stat-label">' + (w.full ? 'Quitter' : 'Plein écran') + '</span>', true);
+      put(elOnlineVal, 'online', String(Math.max(onlineCount, F.presence ? F.presence.count() : 0)));   // le plus grand des deux : salle ou casino entier
       // FPS en direct dans l'encadré en haut à droite
       var fpsVal = (F.quality && F.quality.fps) ? F.quality.fps : (w.lastFps || 0);
       if (fpsVal > 0) {
@@ -132,7 +141,8 @@
         }
       }
       if (phoneOpen) {
-        var d = new Date(); put(elClock, 'clock', ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2));
+        var d = new Date(), hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); put(elClock, 'clock', hm);
+        var hc = q('hclock'); if (hc && hc.textContent !== hm) hc.textContent = hm;
         if (page === 'settings') {
           var qLab = F.quality && F.quality.label ? F.quality.label() : 'Auto';
           var elQL = root.querySelector('[data-ph="quallabel"]');
@@ -236,7 +246,7 @@
             '</div>' +
             '<button class="ph-row-btn ph-btn-danger" data-act="classic-menu"><span>Retour au menu 2D</span>' + fa('fa-door-open') + '</button>' +
           '</div>';
-      } else if (page === 'home') {
+      } else if (page === 'profile') {
         var s = st(), name = s && s.username ? s.username : 'Invité', av = '';
         try { av = typeof getAvatarDisplay === 'function' ? getAvatarDisplay() : ''; } catch (e) {}
         if (!av || av === '🎭') av = name.charAt(0).toUpperCase();
@@ -255,41 +265,57 @@
             logo(fa('fa-person-walking'), '245,158,11') +
             '<span><b>Casino 3D immersif</b>Explore le hall et les salles à pied pour découvrir les machines, tables et la boutique !</span>' +
           '</div>' +
-          '<div class="ph-sect">Raccourcis</div>' +
           '<div class="ph-apps">' +
             app('data-act', 'profile', fa('fa-user-pen'), '251,191,36', 'Mon Profil') +
-            app('data-act', 'settings-tab', fa('fa-gear'), '192,132,252', 'Paramètres') +
             app('data-act', 'classic-menu', fa('fa-table-columns'), '148,163,184', 'Menu 2D') +
           '</div>';
       } else if (page === 'chat') {
         h = '<div class="ph-cp"><div class="ph-cp-list" data-ph="cplist"></div>' +
           '<form class="ph-cp-form" data-ph="cpform"><input data-ph="cpin" maxlength="120" placeholder="Écrire à la salle…" autocomplete="off" spellcheck="false"><button type="submit" title="Envoyer">' + fa('fa-paper-plane') + '</button></form></div>';
+      } else if (page === 'dance' || page === 'emote') {
+        var list2 = page === 'dance' ? F.DANCES : F.EMOTES;
+        h = '<div class="ph-apps">' + list2.map(function (e) { return app('data-emo', e.id, '<i class="fa-solid ' + e.icon + '"></i>', e.color, e.name); }).join('') + '</div>';
       } else {
-        h = '<div class="ph-sect">Danses (en boucle)</div><div class="ph-apps">' +
-          F.DANCES.map(function (e) { return app('data-emo', e.id, '<i class="fa-solid ' + e.icon + '"></i>', e.color, e.name); }).join('') + '</div>' +
-          '<div class="ph-sect">Emotes (instantanées)</div><div class="ph-apps">' +
-          F.EMOTES.map(function (e) { return app('data-emo', e.id, '<i class="fa-solid ' + e.icon + '"></i>', e.color, e.name); }).join('') + '</div>';
+        // écran d'accueil : grosse horloge puis les applis sur le fond d'écran
+        var dn = new Date();
+        h = '<div class="ph-hclock"><b data-ph="hclock">' + ('0' + dn.getHours()).slice(-2) + ':' + ('0' + dn.getMinutes()).slice(-2) + '</b><span>' + dateFr() + '</span></div>' +
+          '<div class="ph-icons">' + APPS.map(function (a) {
+            return '<button class="ph-ico" data-page="' + a.id + '"><span class="ph-ico-sq" style="--c:' + a.c + '"><i class="fa-solid ' + a.ic + '"></i></span><span class="ph-ico-nm">' + a.name + '</span></button>';
+          }).join('') + '</div>';
       }
+      var ap = appById(page);
+      if (ap) h = '<div class="ph-ah">' + logo(fa(ap.ic), ap.c) + '<span><b>' + ap.name + '</b><small>' + ap.sub + '</small></span></div>' + h;
       elScreen.innerHTML = h; elScreen.scrollTop = 0;
       elScreen.classList.toggle('chat', page === 'chat');
+      elScreen.classList.toggle('menu', page === 'menu');
+      elPhone.querySelector('.ph-body').classList.toggle('home', page === 'menu');          // fond d'écran seulement sur l'accueil
       if (page === 'chat') paintChatPage();
-      Array.prototype.forEach.call(root.querySelectorAll('.ph-tabs [data-page]'), function (b) { b.classList.toggle('on', b.getAttribute('data-page') === page); });
     }
 
     function openPhone(p) {
       if (!w.canEmote()) return;
       closeWheel();
-      if (p) page = p;
+      page = p || 'menu';                                              // on arrive toujours sur l'écran d'accueil, sauf si on demande une appli
       w._libererSouris();
       renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; placePhone(); sync();
     }
-    function closePhone() { elPhone.hidden = true; phoneOpen = false; typingNotify(false); markHotbar(); }
+    // en grand écran, reprend la souris (le curseur disparaît, la vue la suit) ; refusé par le navigateur sans geste de l'utilisateur : un clic sur la vue la reprendra
+    function relock() {
+      if (!w.full || !w.canEmote() || document.pointerLockElement === w.dom || !w.dom.requestPointerLock) return;
+      try { var lock = w.dom.requestPointerLock(); if (lock && lock.catch) lock.catch(function () { /* refusé */ }); } catch (e) { /* ok */ }
+    }
+    // reprendreSouris : à la fermeture voulue par le joueur (bouton rouge, T, case, Échap), pas quand une autre fenêtre prend la place
+    function closePhone(reprendreSouris) {
+      var etaitOuvert = phoneOpen;
+      elPhone.hidden = true; phoneOpen = false; typingNotify(false); markHotbar();
+      if (reprendreSouris && etaitOuvert) relock();
+    }
     function closeAll() { closeWheel(); closePhone(); closeChat(); closePause(); }
 
     /* ---------- inventaire (5 cases) ---------- */
     // Une case = un objet { id, name, icon, color } ; null = vide. Le téléphone est au milieu (3e case).
     var INV = [null, null, { id: 'phone', name: 'Téléphone', icon: 'fa-mobile-screen-button', color: '56,189,248' }, null, null];
-    var sel = 2;   // case choisie (molette) ; le téléphone au départ
+    var sel = 0;   // case choisie (molette) ; une case vide au départ, sinon le premier clic ouvrirait le téléphone au lieu de verrouiller la souris
     function renderHotbar() {
       elHotbar.innerHTML = INV.map(function (it, i) {
         return '<button class="ph-inv' + (it ? '' : ' empty') + '" data-slot="' + i + '"' + (it ? ' title="' + it.name + '"' : ' tabindex="-1"') + '>' +
@@ -320,7 +346,7 @@
       var it = INV[i];
       if (!it) return;
       if (typeof it.use === 'function') { it.use(); return; }
-      if (it.id === 'phone') { if (phoneOpen) closePhone(); else openPhone(); }
+      if (it.id === 'phone') { if (phoneOpen) closePhone(true); else openPhone(); }
     }
 
     // molette : change de case (en grand écran ou souris verrouillée, hors fenêtres ouvertes)
@@ -337,6 +363,20 @@
     }
     window.addEventListener('wheel', onWheel, { passive: false });
 
+    // case du téléphone choisie : un clic gauche ou droit sur la vue ouvre le téléphone (comme un objet qu'on tient en main)
+    function phoneEnMain() { var it = INV[sel]; return !!it && it.id === 'phone'; }
+    function onWorldDown(ev) {
+      if (ev.target !== w.dom || ev.pointerType !== 'mouse') return;
+      if (phoneOpen || wheelOpen || pauseOpen) { ev.stopPropagation(); return; }   // fenêtre ouverte : un clic à côté ne reprend pas la souris, le curseur reste visible
+      if (ev.button !== 0 && ev.button !== 2) return;
+      if (!phoneEnMain() || !w.running || w.dead || !w.canEmote() || chatOpen) return;
+      ev.stopPropagation(); ev.preventDefault();                       // le monde ne verrouille pas la souris pour ce clic
+      openPhone();
+    }
+    function onWorldMenu(ev) { if (ev.target === w.dom && phoneEnMain()) ev.preventDefault(); }   // pas de menu du navigateur sur le clic droit
+    w.container.addEventListener('pointerdown', onWorldDown, true);
+    w.container.addEventListener('contextmenu', onWorldMenu, true);
+
     /* ---------- menu pause (Échap) ---------- */
     var pauseOpen = false, pauseT = 0;
     function openPause() {
@@ -346,12 +386,10 @@
       elPauseFull.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
       elPause.hidden = false; pauseOpen = true; pauseT = performance.now();
     }
-    function closePause(relock) {
+    function closePause(reprendre) {
       if (!pauseOpen) return;
       elPause.hidden = true; pauseOpen = false;
-      if (relock && w.full && w.canEmote() && document.pointerLockElement !== w.dom && w.dom.requestPointerLock) {
-        try { var lock = w.dom.requestPointerLock(); if (lock && lock.catch) lock.catch(function () { /* refusé : un clic sur la vue le reprendra */ }); } catch (e) { /* ok */ }
-      }
+      if (reprendre) relock();
     }
     // en grand écran, Échap rend la souris au navigateur sans que la touche nous parvienne : on ouvre la pause à ce moment
     function onLockChange() {
@@ -391,12 +429,29 @@
     /* ---------- chat de la salle ---------- */
     // Rien à l'écran : bulle au-dessus de la tête de celui qui parle, historique dans l'onglet Chat du téléphone.
     var chatOpen = false, chatLast = 0, chatHist = [], typingOn = false, typingSent = 0;
+    // photo de profil : l'emoji de l'avatar, ou à défaut l'initiale du pseudo (« ?? » venu d'un mauvais encodage compris)
+    function cleanAv(av, name) {
+      av = String(av == null ? '' : av).trim();
+      if (!av || /^[?\s]*$|^(null|undefined)$/.test(av)) av = String(name || '?').charAt(0).toUpperCase();
+      return Array.from(av).slice(0, 3).join('');
+    }
+    function myAv() {
+      var a = '';
+      try { a = typeof getAvatarDisplay === 'function' ? getAvatarDisplay() : ''; } catch (e) { /* page pas prête */ }
+      var s = st();
+      return cleanAv(a, s && s.username);
+    }
+    function avBg(name) { var h = 7, i; for (i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360; return 'hsl(' + h + ',38%,26%)'; }
     function chatNode(m) {
       var line = document.createElement('div');
       line.className = 'ph-cl' + (m.cls ? ' ' + m.cls : '');
       if (m.name) { var nb = document.createElement('b'); nb.textContent = m.name; line.appendChild(nb); }
       var sp = document.createElement('span'); sp.textContent = m.text; line.appendChild(sp);
-      return line;
+      if (!m.name) return line;                                        // message système : pas de photo
+      var row = document.createElement('div'); row.className = 'ph-crow' + (m.cls === 'me' ? ' me' : '');
+      var av = document.createElement('span'); av.className = 'ph-cav'; av.style.background = avBg(m.name); av.textContent = m.av || cleanAv('', m.name);
+      row.appendChild(av); row.appendChild(line);
+      return row;
     }
     function paintChatPage() {
       var list = q('cplist');
@@ -406,8 +461,8 @@
       chatHist.forEach(function (m) { list.appendChild(chatNode(m)); });
       list.scrollTop = list.scrollHeight;
     }
-    function chatAdd(name, text, cls) {
-      chatHist.push({ name: name, text: text, cls: cls || '' });
+    function chatAdd(name, text, cls, av) {
+      chatHist.push({ name: name, text: text, cls: cls || '', av: av || '' });
       if (chatHist.length > 100) chatHist.shift();
       var list = q('cplist');
       if (!list) return;
@@ -432,8 +487,8 @@
       chatLast = now;
       var s = st(), name = String((s && s.username) || 'Invité').slice(0, 20);
       var sent = false;
-      try { sent = !!(w.rt && w.rt.ready && w.rt.send('chat', { k: w._me(), name: name, text: text })); } catch (e) { /* ok */ }
-      chatAdd(name, text, 'me');
+      try { sent = !!(w.rt && w.rt.ready && w.rt.send('chat', { k: w._me(), name: name, av: myAv(), text: text })); } catch (e) { /* ok */ }
+      chatAdd(name, text, 'me', myAv());
       if (w.selfPerson && w.selfPerson.say) w.selfPerson.say(text);   // visible si tu danses (caméra devant toi)
       if (!sent) chatAdd('', 'Hors ligne : personne n\'a reçu ton message.', 'sys');
       return true;
@@ -476,7 +531,7 @@
     root.addEventListener('keydown', function (ev) {
       if (!ev.target || !ev.target.getAttribute || ev.target.getAttribute('data-ph') !== 'cpin') return;
       ev.stopPropagation();
-      if (ev.code === 'Escape') { ev.preventDefault(); ev.target.blur(); closePhone(); }
+      if (ev.code === 'Escape') { ev.preventDefault(); ev.target.blur(); closePhone(true); }
     });
     root.addEventListener('focusout', function (ev) {
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'cpin') typingNotify(false);
@@ -485,7 +540,8 @@
       if (!m || typeof m.text !== 'string') return;
       var text = m.text.replace(/\s+/g, ' ').trim().slice(0, 120);
       if (!text) return;
-      chatAdd(String(m.name || m.k || '?').slice(0, 20), text);
+      var cn = String(m.name || m.k || '?').slice(0, 20);
+      chatAdd(cn, text, '', cleanAv(m.av, cn));
       var r = w.remote && w.remote[m.k];
       if (r && r.person && r.person.say) r.person.say(text);
     }
@@ -530,8 +586,8 @@
       var a = t.getAttribute('data-act');
       if (a === 'wheel-dance') { if (wheelOpen && tab === 'dance') closeWheel(); else openWheel('dance'); }
       else if (a === 'wheel-emote') { if (wheelOpen && tab === 'emote') closeWheel(); else openWheel('emote'); }
-      else if (a === 'phone') { if (phoneOpen) closePhone(); else openPhone(); }
-      else if (a === 'close-phone') closePhone();
+      else if (a === 'phone') { if (phoneOpen) closePhone(true); else openPhone(); }
+      else if (a === 'phone-home') { if (page !== 'menu') { page = 'menu'; renderPhone(); } else closePhone(true); }   // bouton rouge : accueil, puis ferme et la souris est reprise
       else if (a === 'resume') closePause(true);
       else if (a === 'pause-settings') { closePause(); openPhone('settings'); }
       else if (a === 'pause-profile') { closePause(); try { if (typeof openProfileModal === 'function') { w.setFull(false); openProfileModal(); } } catch (e) {} }
@@ -540,7 +596,6 @@
       else if (t.hasAttribute('data-slot')) useSlot(+t.getAttribute('data-slot'));
       else if (a === 'stop') w.stopEmote();
       else if (a === 'profile') { try { if (typeof openProfileModal === 'function') { w.setFull(false); openProfileModal(); } } catch (e) {} }
-      else if (a === 'settings-tab') { page = 'settings'; renderPhone(); }
       else if (a === 'classic-menu') { closeAll(); if (w.opts.onMenu) w.opts.onMenu(); else w.exitGame('hall'); }
       else if (a === 'toggle-mute') {
         try { if (typeof toggleSoundMute === 'function') toggleSoundMute(); } catch (e) {}
@@ -555,6 +610,7 @@
           if (qb) qb.textContent = F.quality.label();
         }
       }
+      else if (a === 'fullscreen') { w.setFull(!w.full); sync(); }
       else if (a === 'toggle-full') {
         w.setFull(!w.full);
         var fb = root.querySelector('[data-ph="fulllabel"]');
@@ -572,6 +628,14 @@
     });
     root.addEventListener('mouseout', function (ev) { if (ev.target.closest && ev.target.closest('.ph-slot')) wheelIdle(); });
 
+    // clic droit sur une case de l'inventaire : comme le clic gauche (pas de menu du navigateur)
+    root.addEventListener('contextmenu', function (ev) {
+      var t = ev.target.closest ? ev.target.closest('[data-slot]') : null;
+      if (!t) return;
+      ev.preventDefault();
+      useSlot(+t.getAttribute('data-slot'));
+    });
+
     /* ---------- clavier ---------- */
     function kd(ev) {
       if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev) || !w.running || w.dead || !w.container.clientWidth) return;
@@ -579,7 +643,7 @@
         if (pauseOpen) {
           if (performance.now() - pauseT < 250) { ev.stopImmediatePropagation(); ev.preventDefault(); return; }   // même geste que celui qui vient d'ouvrir la pause
           ev.stopImmediatePropagation(); ev.preventDefault(); closePause(true);
-        } else if (wheelOpen || phoneOpen) { ev.stopImmediatePropagation(); ev.preventDefault(); closeAll(); }
+        } else if (wheelOpen || phoneOpen) { var tel = phoneOpen; ev.stopImmediatePropagation(); ev.preventDefault(); closeAll(); if (tel) relock(); }
         else if (w.canEmote()) { ev.stopImmediatePropagation(); ev.preventDefault(); openPause(); }
         return;
       }
@@ -602,7 +666,7 @@
       } else if (ev.code === 'KeyT' || ev.key === 't' || ev.key === 'T') {
         ev.preventDefault();
         ev.stopImmediatePropagation();
-        if (phoneOpen) closePhone(); else openPhone();
+        if (phoneOpen) closePhone(true); else openPhone();
       } else if (wheelOpen && ev.code === 'Tab') {
         ev.preventDefault();
         setTab(tab === 'dance' ? 'emote' : 'dance');
@@ -627,6 +691,8 @@
       dispose: function () {
         window.removeEventListener('keydown', kd, true);
         window.removeEventListener('wheel', onWheel);
+        w.container.removeEventListener('pointerdown', onWorldDown, true);
+        w.container.removeEventListener('contextmenu', onWorldMenu, true);
         document.removeEventListener('pointerlockchange', onLockChange);
         if (root.parentNode) root.parentNode.removeChild(root);
         w.hud.classList.remove('has-ph');

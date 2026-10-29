@@ -269,6 +269,48 @@
     return o;
   }
 
+  /* ---------- présence : tous les joueurs connectés, toutes salles confondues (compteur « en ligne ») ---------- */
+  // Un canal commun à tout le casino : chaque navigateur connecté y signale sa présence toutes les 4 s (avec la salle où il est) et
+  // note celle des autres ; quelqu'un qu'on n'a pas entendu depuis 11 s est parti. Ça marche aussi pour qui est dans le menu 2D.
+  var PRES = { rt: null, seen: {}, me: '', room: '', timer: 0 };
+  function presSend() {
+    var nm = '';
+    try { nm = state.username || ''; } catch (e) { /* pas connecté */ }
+    if (PRES.rt && PRES.rt.ready && PRES.me) PRES.rt.send('p', { k: PRES.me, name: String(nm).slice(0, 20), room: PRES.room });
+  }
+  function presBye() { if (PRES.rt && PRES.rt.ready && PRES.me) PRES.rt.send('bye', { k: PRES.me }); }
+  F.presence = {
+    ensure: function () {
+      var me = F.me();
+      if (!me) { if (PRES.rt) F.presence.stop(); return; }                // déconnecté : on n'est plus « en ligne »
+      if (PRES.rt && PRES.me === me) return;
+      F.presence.stop();
+      PRES.me = me; PRES.seen = {};
+      PRES.rt = createRealtime('flambeurs-presence', function (ev, m) {
+        if (!m || typeof m.k !== 'string' || !m.k || m.k === PRES.me) return;
+        if (ev === 'bye') { delete PRES.seen[m.k]; return; }
+        PRES.seen[m.k] = Date.now();
+        if (ev === 'hello') presSend();                                    // un nouvel arrivant demande qui est là : on répond tout de suite
+      });
+      PRES.rt.onReady = function () { presSend(); PRES.rt.send('hello', { k: PRES.me }); };
+      PRES.timer = setInterval(presSend, 4000);
+      window.addEventListener('pagehide', presBye);
+    },
+    stop: function () {
+      presBye(); clearInterval(PRES.timer); window.removeEventListener('pagehide', presBye);
+      var old = PRES.rt; PRES.rt = null; PRES.me = ''; PRES.seen = {};
+      if (old) setTimeout(function () { old.close(); }, 150);
+    },
+    setRoom: function (r) { PRES.room = r || ''; },
+    // nombre de joueurs en ligne (toi compris), ou 0 tant que le canal n'est pas prêt
+    count: function () {
+      if (!PRES.rt || !PRES.rt.ready) return 0;
+      var n = 1, now = Date.now(), k;
+      for (k in PRES.seen) { if (now - PRES.seen[k] < 11000) n++; else delete PRES.seen[k]; }
+      return n;
+    }
+  };
+
   F.createPerson = createPerson;
   F.createRealtime = createRealtime;
 

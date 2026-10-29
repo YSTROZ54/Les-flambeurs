@@ -135,7 +135,7 @@
       x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · BIENTÔT', color: 0xff7a1a,
       go: function (w) {                                                    // la salle n'existe pas encore : on repousse le joueur et on l'annonce
         w.player.z = HZ - 1.9; w.pv.x = w.pv.z = 0;
-        var t = Date.now(); if (t - soonT > 3000) { soonT = t; w.flash('🎬 Le cinéma de Tropi Stream arrive bientôt !'); }
+        var t = Date.now(); if (t - soonT > 3000) { soonT = t; w.flash('🎬 Le cinéma de Tropi Stream arrive bientôt !', 'La salle ouvre très prochainement : reviens vite.'); }
       }
     });
 
