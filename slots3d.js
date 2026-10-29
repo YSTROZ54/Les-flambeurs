@@ -626,7 +626,7 @@
       '.s3d-bal{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:6px 10px;font-weight:800;font-size:13px;white-space:nowrap}' +
       '.s3d-cam{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:8px 12px;min-height:40px;color:#f3cf62;font-weight:800;font-size:12px}' +
       '.s3d-cam[disabled]{opacity:.45}' +
-      '.s3d-hud .s3d-full-btn{background:linear-gradient(180deg,#e6b932,#8a6410);color:#1a1000;border-color:#ffe08a;box-shadow:0 0 14px rgba(255,200,60,.4)}' +
+      '.s3d-hud .s3d-full-btn{display:flex;align-items:center;gap:8px;background:rgba(14,9,6,.88);color:#f3cf62;border:1.5px solid #c9a227;border-radius:999px;padding:8px 16px;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;box-shadow:0 0 16px rgba(255,200,60,.28);transition:box-shadow .15s,background .15s}.s3d-hud .s3d-full-btn:hover{background:rgba(40,26,10,.95);box-shadow:0 0 22px rgba(255,200,60,.55)}.s3d-hud .s3d-full-btn.on{color:#ff9a9a;border-color:#d65a5a;box-shadow:0 0 16px rgba(255,90,90,.35)}.s3d-full-btn svg{width:16px;height:16px;flex:none}' +
       '.s3d-full{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;min-height:0!important;z-index:60!important;border-radius:0!important;border:0!important}' +
       'body.s3d-full-on #smartHeader{display:none!important}' +
       '.s3d-hint{position:absolute;top:56px;left:8px;right:8px;text-align:center;font-size:11px;font-weight:700;color:#d9c88f;text-shadow:0 1px 4px #000}' +
@@ -767,23 +767,46 @@
       rTex.needsUpdate = true;
     })();
     var rulesMat = new THREE.MeshBasicMaterial({ map: rTex });
-    var pcv = mkCanvas(768, 160), px = pcv.getContext('2d'), pTex = mkTex(pcv);
+    var pcv = mkCanvas(768, 192), px = pcv.getContext('2d'), pTex = mkTex(pcv);
     function drawPlaque(full) {
-      var g = px.createLinearGradient(0, 0, 0, 160); g.addColorStop(0, '#e6b932'); g.addColorStop(1, '#8a6410');
-      px.fillStyle = g; px.fillRect(0, 0, 768, 160);
-      px.strokeStyle = '#ffe08a'; px.lineWidth = 8; px.strokeRect(6, 6, 756, 148);
-      px.fillStyle = '#1a1000'; px.textAlign = 'center'; px.textBaseline = 'middle'; px.font = '900 52px ' + SERIF;
-      px.fillText(full ? '❌ QUITTER LE GRAND ÉCRAN' : '🖥️ GRAND ÉCRAN', 384, 82, 720);
+      var W = 768, H = 192, col = full ? '#ff8a8a' : '#f3cf62', col2 = full ? '#b83a3a' : '#a07d1a';
+      px.clearRect(0, 0, W, H);
+      px.save(); px.shadowColor = full ? 'rgba(255,90,90,0.8)' : 'rgba(255,200,60,0.8)'; px.shadowBlur = 22;
+      roundRectPath(px, 22, 22, W - 44, H - 44, 48);
+      var g = px.createLinearGradient(0, 22, 0, H - 22); g.addColorStop(0, 'rgba(34,20,12,0.96)'); g.addColorStop(1, 'rgba(10,6,6,0.96)');
+      px.fillStyle = g; px.fill(); px.restore();
+      var bg = px.createLinearGradient(0, 0, W, 0); bg.addColorStop(0, col2); bg.addColorStop(0.5, col); bg.addColorStop(1, col2);
+      roundRectPath(px, 22, 22, W - 44, H - 44, 48); px.strokeStyle = bg; px.lineWidth = 5; px.stroke();
+      // icône : coins (agrandir) ou coins rentrants (quitter)
+      px.strokeStyle = col; px.lineWidth = 7; px.lineCap = 'round'; px.lineJoin = 'round';
+      var cx = 120, cy = H / 2, r = 34, k = 16;
+      px.beginPath();
+      if (!full) {
+        px.moveTo(cx - r, cy - r + k); px.lineTo(cx - r, cy - r); px.lineTo(cx - r + k, cy - r);
+        px.moveTo(cx + r, cy - r + k); px.lineTo(cx + r, cy - r); px.lineTo(cx + r - k, cy - r);
+        px.moveTo(cx - r, cy + r - k); px.lineTo(cx - r, cy + r); px.lineTo(cx - r + k, cy + r);
+        px.moveTo(cx + r, cy + r - k); px.lineTo(cx + r, cy + r); px.lineTo(cx + r - k, cy + r);
+      } else {
+        px.moveTo(cx - r, cy - r + k + 6); px.lineTo(cx - r + k + 6, cy - r + k + 6); px.lineTo(cx - r + k + 6, cy - r);
+        px.moveTo(cx + r, cy - r + k + 6); px.lineTo(cx + r - k - 6, cy - r + k + 6); px.lineTo(cx + r - k - 6, cy - r);
+        px.moveTo(cx - r, cy + r - k - 6); px.lineTo(cx - r + k + 6, cy + r - k - 6); px.lineTo(cx - r + k + 6, cy + r);
+        px.moveTo(cx + r, cy + r - k - 6); px.lineTo(cx + r - k - 6, cy + r - k - 6); px.lineTo(cx + r - k - 6, cy + r);
+      }
+      px.stroke();
+      px.fillStyle = col; px.textAlign = 'left'; px.textBaseline = 'middle'; px.font = '700 ' + (full ? 40 : 50) + 'px ' + SERIF;
+      try { px.letterSpacing = '3px'; } catch (e) { /* ancien navigateur */ }
+      px.fillText(full ? 'QUITTER LE GRAND ÉCRAN' : 'GRAND ÉCRAN', 190, H / 2 + 3, 520);
+      try { px.letterSpacing = '0px'; } catch (e) { /* ok */ }
       pTex.needsUpdate = true;
     }
     drawPlaque(false);
     var plaques = [];
     [[-1, Math.PI / 2], [1, -Math.PI / 2]].forEach(function (s) {
       var x = s[0] * (ROOM.wall - 0.06);
-      var fr = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.5, 8.7), goldMat); fr.position.set(x - s[0] * 0.01, 3.8, 4.5); scene.add(fr);
-      var rb = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 4.32), rulesMat); rb.position.set(x + (-s[0]) * 0.06, 3.8, 4.5); rb.rotation.y = s[1]; scene.add(rb);
-      var pl = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.71), new THREE.MeshBasicMaterial({ map: pTex }));
-      pl.position.set(x + (-s[0]) * 0.06, 1.45, 4.5); pl.rotation.y = s[1]; pl.userData.action = 'fs'; scene.add(pl); plaques.push(pl);
+      var fr = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.5, 8.7), goldMat); fr.position.set(x - s[0] * 0.01, 4.0, 4.5); scene.add(fr);
+      var rb = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 4.32), rulesMat); rb.position.set(x + (-s[0]) * 0.06, 4.0, 4.5); rb.rotation.y = s[1]; scene.add(rb);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.7), new THREE.MeshBasicMaterial({ map: pTex, transparent: true }));
+      pl.position.set(x + (-s[0]) * 0.09, 1.45, 4.5); pl.rotation.y = s[1]; pl.userData.action = 'fs'; scene.add(pl); plaques.push(pl);
     });
     return { drawBoard: drawBoard, drawPlaque: drawPlaque, plaques: plaques };
   }
@@ -864,7 +887,7 @@
     var hud = document.createElement('div'); hud.className = 's3d-hud'; hud.setAttribute('data-mode', 'room');
     hud.innerHTML =
       '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div>' +
-      '<div class="s3d-btns"><button class="s3d-cam s3d-full-btn" data-s3d="full">🖥️ Grand écran</button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
+      '<div class="s3d-btns"><button class="s3d-cam s3d-full-btn" data-s3d="full"></button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
       '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none">🪑 S\'asseoir</button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
@@ -878,7 +901,7 @@
     function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
     this.elBal = q('bal'); this.elBet = q('bet'); this.elSpin = q('spin'); this.elCam = q('cam');
     this.elFull = q('full'); this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
-    this.full = false; this._setHint();
+    this.full = false; this._setHint(); this._paintFullBtn(); var selfRef = this; setTimeout(function () { if (!selfRef.dead) selfRef.room.drawPlaque(selfRef.full); }, 1500);
     if (this.touch) this.elStick.style.display = '';
     this.elCam.addEventListener('click', function () { self.toggleCamera(); });
     this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
@@ -929,12 +952,17 @@
       : "ZQSD / flèches : marcher · clique-glisse : regarder · clic sur une borne : s'asseoir · règles sur les murs de côté";
     this.elHint.style.display = ''; this.hintShown = this.clock || 0;
   };
+  SlotsExperience.prototype._paintFullBtn = function () {
+    var enter = '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', exit = '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>';
+    this.elFull.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + (this.full ? exit : enter) + '</svg><span>' + (this.full ? 'Quitter le grand écran' : 'Grand écran') + '</span>';
+    this.elFull.classList.toggle('on', this.full);
+  };
   SlotsExperience.prototype.setFull = function (on) {
     on = !!on; if (on === this.full) return;
     this.full = on; this.mouse.inside = false;
     this.container.classList.toggle('s3d-full', on);
     document.body.classList.toggle('s3d-full-on', on);
-    this.elFull.textContent = on ? '❌ Quitter le grand écran' : '🖥️ Grand écran';
+    this._paintFullBtn();
     this.room.drawPlaque(on);
     this.w = 0; this._setHint();
   };
@@ -1137,8 +1165,8 @@
     function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
     if (this.mode === 'room' && this.blend === 0) {
       if (mouseLook) {   // curseur vers les bords = on tourne la tête, haut/bas = on regarde en l'air / au sol
-        this.player.yaw += dz(ms.nx, 0.3) * 1.4 * dt;
-        this.player.pitch = Math.max(-0.6, Math.min(0.5, -0.04 - dz(ms.ny, 0.3) * 0.45));
+        this.player.yaw += dz(ms.nx, 0.12) * 3.4 * dt;
+        this.player.pitch = Math.max(-0.7, Math.min(0.6, -0.04 - dz(ms.ny, 0.12) * 0.9));
       }
       this._movePlayer(dt);
     }
@@ -1154,8 +1182,8 @@
     if (this.seatCab && this.blend > 0) {
       var e = this.seatCab, v = this.view, k = 1 - Math.exp(-dt * 4);
       if (mouseLook && this.mode === 'seat' && this.blend > 0.9) {
-        v.yawG = dz(ms.nx, 0.35) * (v.mode === 'play' ? 0.55 : 1.4);
-        v.pitchG = (v.mode === 'play' ? 0.06 : 0.2) + dz(ms.ny, 0.35) * 0.1;
+        v.yawG = dz(ms.nx, 0.15) * (v.mode === 'play' ? 0.9 : 2.4);
+        v.pitchG = (v.mode === 'play' ? 0.06 : 0.2) + dz(ms.ny, 0.15) * 0.22;
         v.lastDrag = this.clock;
       }
       if (v.mode === 'play' && this.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
