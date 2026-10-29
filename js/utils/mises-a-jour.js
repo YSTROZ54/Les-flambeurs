@@ -4,6 +4,16 @@
 // fichier dans index.html et Les_Flambeurs.html.
 window.MISES_A_JOUR = [
   {
+    version: '1.4',
+    date: '29 octobre 2026',
+    title: 'Roue des emotes plus grande',
+    notes: [
+      { icon: 'fa-expand', color: '#e879f9', text: 'La roue des danses et des emotes est bien plus grande : les icônes et les noms se lisent d\'un coup d\'œil.' },
+      { icon: 'fa-face-smile', color: '#fbbf24', text: 'Nouvelle touche A pour ouvrir directement la roue des emotes, comme E pour les danses.' },
+      { icon: 'fa-horse', color: '#34d399', text: 'Courses : le bord de la table est propre, plus de dents ni de bande qui dépasse.' },
+    ],
+  },
+  {
     version: '1.3',
     date: '29 octobre 2026',
     title: 'Optimisation & rangement',
