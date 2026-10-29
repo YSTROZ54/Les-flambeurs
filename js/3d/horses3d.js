@@ -87,16 +87,36 @@
   /* ---------- outils de dessin ---------- */
   function hex(c) { return '#' + ('000000' + c.toString(16)).slice(-6); }
 
-  function stadiumShape(R, hole) {
-    var sh = hole ? new THREE.Path() : new THREE.Shape();
-    var k, STEPS = 20;
-    sh.moveTo(R, -HS); for (k = 1; k <= STEPS; k++) sh.lineTo(R, -HS + S * k / STEPS); sh.absarc(0, HS, R, 0, Math.PI, false);
-    for (k = 1; k <= STEPS; k++) sh.lineTo(-R, HS - S * k / STEPS); sh.absarc(0, -HS, R, Math.PI, TAU, false);
-    return sh;
+  // contour de la table (même nombre de points pour tous les rayons) : côté est, bout nord, côté ouest, bout sud
+  function stadiumPts(R) {
+    var pts = [], M = 20, K = 40, k, a;
+    for (k = 0; k < M; k++) pts.push([R, -HS + S * k / M]);
+    for (k = 0; k < K; k++) { a = Math.PI * k / K; pts.push([R * Math.cos(a), HS + R * Math.sin(a)]); }
+    for (k = 0; k < M; k++) pts.push([-R, HS - S * k / M]);
+    for (k = 0; k < K; k++) { a = Math.PI + Math.PI * k / K; pts.push([R * Math.cos(a), -HS + R * Math.sin(a)]); }
+    return pts;
   }
-  function flatExtrude(shape, depth, y, mat, bevel) {
-    var g = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: !!bevel, bevelThickness: bevel || 0, bevelSize: bevel || 0, bevelSegments: 2, curveSegments: 60 });
-    var m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
+  // plaque en forme de stade (pleine, ou percée si ri est donné) : dessus, dessous et côtés faits à la main (pas de découpe automatique, qui oubliait des triangles)
+  function slab(ro, ri, y0, y1, mat) {
+    var po = stadiumPts(ro), pi = ri ? stadiumPts(ri) : null, n = po.length, pos = [], i, a, b;
+    function tri(p, q, r) { pos.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2]); }
+    function quad(p, q, r, t) { tri(p, q, r); tri(p, r, t); }
+    for (i = 0; i < n; i++) {
+      a = po[i]; b = po[(i + 1) % n];
+      quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]]);                                   // paroi extérieure
+      if (pi) {
+        var c = pi[i], d = pi[(i + 1) % n];
+        quad([c[0], y0, c[1]], [d[0], y0, d[1]], [d[0], y1, d[1]], [c[0], y1, c[1]]);                                 // paroi intérieure
+        quad([a[0], y1, a[1]], [b[0], y1, b[1]], [d[0], y1, d[1]], [c[0], y1, c[1]]);                                 // dessus
+        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [d[0], y0, d[1]], [c[0], y0, c[1]]);                                 // dessous
+      } else {
+        tri([0, y1, 0], [a[0], y1, a[1]], [b[0], y1, b[1]]);
+        tri([0, y0, 0], [a[0], y0, a[1]], [b[0], y0, b[1]]);
+      }
+    }
+    var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    var m = mat.clone(); m.side = THREE.DoubleSide;
+    return new THREE.Mesh(g, m);
   }
   // bande verticale qui suit le contour de la table (vitre, néons…) : rayon rb en bas, rt en haut
   function ribbon(rb, rt, y0, y1, mat) {
@@ -241,7 +261,7 @@
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.28, metalness: 0.45 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var rugA = flatExtrude(stadiumShape(R_OUT + 3.0), 0.02, 0, new THREE.MeshStandardMaterial({ color: 0x0b1f4a, roughness: 0.95 })); g.add(rugA);
+    var rugA = slab(R_OUT + 3.0, 0, 0, 0.02, new THREE.MeshStandardMaterial({ color: 0x0b1f4a, roughness: 0.95 })); g.add(rugA);
     var wc = mkCanvas(512, 512), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 0, 512);
     wgr.addColorStop(0, '#0d2250'); wgr.addColorStop(1, '#091630'); wx.fillStyle = wgr; wx.fillRect(0, 0, 512, 512);
     for (var wp = 0; wp < 4; wp++) {                                                                         // 4 panneaux capitonnés par motif
@@ -273,9 +293,8 @@
     var tt = trackTexture();
     var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0 }));
     felt.rotation.x = -Math.PI / 2; felt.position.y = TY; g.add(felt);
-    g.add(flatExtrude(stadiumShape(R_OUT + 0.88), TY - 0.02, 0, new THREE.MeshStandardMaterial({ color: 0x0b111c, roughness: 0.85, metalness: 0.05 })));                                   // le coffre de la table
-    var rimShape = stadiumShape(R_OUT + 0.9); rimShape.holes.push(stadiumShape(R_OUT + 0.06, true));
-    g.add(flatExtrude(rimShape, 0.09, TY - 0.01, matDark));                                                 // le rebord qui porte les bornes
+    g.add(slab(R_OUT + 0.88, 0, 0, TY - 0.02, new THREE.MeshStandardMaterial({ color: 0x0b111c, roughness: 0.85, metalness: 0.05 })));                                   // le coffre de la table
+    g.add(slab(R_OUT + 0.9, R_OUT + 0.06, TY - 0.01, TY + 0.08, matDark));                                                 // le rebord qui porte les bornes
     var base1 = ribbon(R_OUT + 0.895, R_OUT + 0.895, 0.1, 0.17, ledB); base1.material.side = THREE.DoubleSide; g.add(base1);       // lignes de couleur au bas de la table
     var base2 = ribbon(R_OUT + 0.895, R_OUT + 0.895, 0.03, 0.06, ledA); base2.material.side = THREE.DoubleSide; g.add(base2);
     var edge = ribbon(R_OUT + 0.915, R_OUT + 0.915, TY + 0.02, TY + 0.075, neonC); edge.material.side = THREE.DoubleSide; g.add(edge);
@@ -283,8 +302,8 @@
     g.add(ribbon(R_OUT + 0.08, R_OUT + 0.08, TY + 0.08, TY + 0.36, glassMat));                              // la vitre
     var glassTop = ribbon(R_OUT + 0.08, R_OUT + 0.08, TY + 0.36, TY + 0.38, neonC); glassTop.material.side = THREE.DoubleSide; g.add(glassTop);
     // l'île du milieu : un plateau vert arrondi avec un petit dôme
-    var isl = flatExtrude(stadiumShape(R_IN - 0.02), 0.1, TY, new THREE.MeshStandardMaterial({ color: 0x1f7a62, roughness: 0.6 }), 0.03); g.add(isl);
-    var pad = flatExtrude(stadiumShape(R_IN - 0.3), 0.07, TY + 0.13, new THREE.MeshStandardMaterial({ color: 0x2aa37e, roughness: 0.5 }), 0.02); g.add(pad);
+    var isl = slab(R_IN - 0.02, 0, TY, TY + 0.1, new THREE.MeshStandardMaterial({ color: 0x1f7a62, roughness: 0.6 })); g.add(isl);
+    var pad = slab(R_IN - 0.3, 0, TY + 0.13, TY + 0.2, new THREE.MeshStandardMaterial({ color: 0x2aa37e, roughness: 0.5 })); g.add(pad);
     [[0, -1.7], [0, 1.7]].forEach(function (p) {
       var d = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.2, 18), new THREE.MeshStandardMaterial({ color: 0x14533f, roughness: 0.5, metalness: 0.3 }));
       d.position.set(p[0], TY + 0.2, p[1] * 0.5); g.add(d);
