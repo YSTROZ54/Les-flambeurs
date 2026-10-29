@@ -145,36 +145,64 @@
       salle.draw(null);
     });
 
-    // couloirs entre les salles + enseigne au-dessus de chaque ouverture
-    var wallM = new THREE.MeshStandardMaterial({ color: 0x2a0d14, roughness: 0.85 });
+    // couloirs entre les salles : boiseries sombres à lattes et dorures, plafond à spots, tapis noir et or
     var goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.6, emissive: 0x2a1d00 });
-    var floorM = new THREE.MeshStandardMaterial({ color: 0x17141a, roughness: 0.4, metalness: 0.2 });
+    var floorM = new THREE.MeshStandardMaterial({ color: 0x1c1a1f, roughness: 0.3, metalness: 0.25 });
     var glowM = new THREE.MeshBasicMaterial({ color: 0xffe8c4 });
-    function plate(text, sub) {
-      var c = mkCanvas(512, 128), x = c.getContext('2d');
-      x.fillStyle = '#12080f'; x.fillRect(0, 0, 512, 128); x.strokeStyle = '#c9a227'; x.lineWidth = 6; x.strokeRect(4, 4, 504, 120);
-      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#f3cf62'; x.shadowColor = '#ffb300'; x.shadowBlur = 10;
-      x.font = '800 44px ' + SERIF; x.fillText(text, 256, sub ? 48 : 66, 480);
-      if (sub) { x.shadowBlur = 0; x.fillStyle = '#d9c88f'; x.font = '600 24px ' + MONO; x.fillText(sub, 256, 96, 480); }
-      return new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), new THREE.MeshBasicMaterial({ map: mkTex(c) }));
-    }
+    var ceilM = new THREE.MeshStandardMaterial({ color: 0x1a1412, roughness: 0.8 });
+    function repeatTex(tex, rx, ry) { var t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; }
+    var slatTex = (function () {
+      var cv = mkCanvas(256, 256), x = cv.getContext('2d');
+      x.fillStyle = '#3a281c'; x.fillRect(0, 0, 256, 256);
+      for (var i = 0; i < 8; i++) {
+        x.fillStyle = i % 2 ? '#47321f' : '#32211a'; x.fillRect(i * 32, 0, 32, 256);
+        x.fillStyle = 'rgba(0,0,0,0.4)'; x.fillRect(i * 32, 0, 2, 256);
+        x.fillStyle = 'rgba(255,220,150,0.08)'; x.fillRect(i * 32 + 3, 0, 2, 256);
+        for (var k = 0; k < 6; k++) { x.fillStyle = 'rgba(0,0,0,0.10)'; x.fillRect(i * 32 + 4 + (k * 37 + i * 11) % 24, 0, 1, 256); }
+      }
+      return mkTex(cv);
+    })();
+    var runnerTex = (function () {
+      var cv = mkCanvas(512, 128), x = cv.getContext('2d');
+      x.fillStyle = '#1b1a22'; x.fillRect(0, 0, 512, 128);
+      x.fillStyle = 'rgba(212,166,42,0.9)'; x.fillRect(0, 6, 512, 4); x.fillRect(0, 118, 512, 4);
+      x.fillStyle = 'rgba(212,166,42,0.45)'; x.fillRect(0, 16, 512, 2); x.fillRect(0, 110, 512, 2);
+      for (var d = 0; d < 4; d++) {
+        var cx = 64 + d * 128;
+        x.fillStyle = 'rgba(212,166,42,0.5)'; x.beginPath(); x.moveTo(cx, 28); x.lineTo(cx + 36, 64); x.lineTo(cx, 100); x.lineTo(cx - 36, 64); x.closePath(); x.fill();
+        x.fillStyle = '#1b1a22'; x.beginPath(); x.moveTo(cx, 44); x.lineTo(cx + 20, 64); x.lineTo(cx, 84); x.lineTo(cx - 20, 64); x.closePath(); x.fill();
+        x.fillStyle = 'rgba(212,166,42,0.9)'; x.beginPath(); x.arc(cx, 64, 5, 0, 7); x.fill();
+      }
+      return mkTex(cv);
+    })();
     for (var c = 0; c < ROOMS.length - 1; c++) {
       // le couloir s'arrête pile au mur de chaque salle (il ne dépasse pas à l'intérieur)
       var hw = WALL_R * Math.sin(0.17), edge = WALL_R * Math.cos(0.17);
       var x0 = c * D + edge, x1 = (c + 1) * D - edge, len = x1 - x0, mid = (x0 + x1) / 2;
       var fl = new THREE.Mesh(new THREE.PlaneGeometry(len, hw * 2), floorM); fl.rotation.x = -Math.PI / 2; fl.position.set(mid, 0.003, 0); g.add(fl);
-      var cl = new THREE.Mesh(new THREE.PlaneGeometry(len, hw * 2), new THREE.MeshBasicMaterial({ color: 0x0b060c })); cl.rotation.x = Math.PI / 2; cl.position.set(mid, CEIL, 0); g.add(cl);
+      var cl = new THREE.Mesh(new THREE.PlaneGeometry(len, hw * 2), ceilM); cl.rotation.x = Math.PI / 2; cl.position.set(mid, CEIL, 0); g.add(cl);
       [-1, 1].forEach(function (s) {
-        var w = new THREE.Mesh(new THREE.PlaneGeometry(len, CEIL), wallM); w.position.set(mid, CEIL / 2, s * hw); w.rotation.y = s > 0 ? Math.PI : 0; g.add(w);
+        var w = new THREE.Mesh(new THREE.PlaneGeometry(len, CEIL), new THREE.MeshStandardMaterial({ map: repeatTex(slatTex, len, 1), roughness: 0.6 }));
+        w.position.set(mid, CEIL / 2, s * hw); w.rotation.y = s > 0 ? Math.PI : 0; g.add(w);
         var tr = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.04), goldM); tr.position.set(mid, 0.9, s * (hw - 0.01)); g.add(tr);
-        var st = new THREE.Mesh(new THREE.BoxGeometry(len - 0.6, 0.05, 0.05), glowM); st.position.set(mid, CEIL - 0.12, s * (hw - 0.03)); g.add(st);
+        var tr2 = new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, 0.04), goldM); tr2.position.set(mid, CEIL - 0.35, s * (hw - 0.01)); g.add(tr2);
+        var st = new THREE.Mesh(new THREE.BoxGeometry(len - 0.4, 0.05, 0.05), glowM); st.position.set(mid, CEIL - 0.12, s * (hw - 0.04)); g.add(st);
+        [x0 + 0.03, x1 - 0.03].forEach(function (px) {   // montants dorés qui encadrent chaque ouverture
+          var pil = new THREE.Mesh(new THREE.BoxGeometry(0.07, CEIL, 0.07), goldM); pil.position.set(px, CEIL / 2, s * (hw - 0.03)); g.add(pil);
+        });
       });
-      var cp = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.1), new THREE.MeshStandardMaterial({ color: 0x5a0f1d, roughness: 0.95 })); cp.rotation.x = -Math.PI / 2; cp.position.set(mid, 0.008, 0); g.add(cp);
-      var lt = new THREE.PointLight(0xffe0b0, 0.9, 7); lt.position.set(mid, CEIL - 0.3, 0); g.add(lt);
-      // enseignes : côté salle de gauche (→ salle suivante) et côté salle de droite (← salle précédente)
-      var sR = plate(ROOMS[c + 1].name, '▶'), sL = plate(ROOMS[c].name, '◀');
-      sR.position.set(c * D + WALL_R - 0.45, CEIL + 0.45, 0); sR.rotation.y = -Math.PI / 2; g.add(sR);
-      sL.position.set((c + 1) * D - WALL_R + 0.45, CEIL + 0.45, 0); sL.rotation.y = Math.PI / 2; g.add(sL);
+      var rn = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.1), new THREE.MeshStandardMaterial({ map: repeatTex(runnerTex, len / 4.4, 1), roughness: 0.95 }));
+      rn.rotation.x = -Math.PI / 2; rn.position.set(mid, 0.008, 0); g.add(rn);
+      // spots encastrés au plafond (anneau doré + disque lumineux)
+      var nSpots = Math.max(3, Math.round(len / 1.1));
+      for (var si = 0; si < nSpots; si++) {
+        var sx = x0 + (si + 0.5) * len / nSpots;
+        [-0.5, 0.5].forEach(function (zz) {
+          var ring = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 24), goldM); ring.rotation.x = Math.PI / 2; ring.position.set(sx, CEIL - 0.01, zz); g.add(ring);
+          var disc = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), glowM); disc.rotation.x = Math.PI / 2; disc.position.set(sx, CEIL - 0.012, zz); g.add(disc);
+        });
+      }
+      [mid - len / 4, mid + len / 4].forEach(function (lx) { var pl = new THREE.PointLight(0xffe0b0, 0.7, 6); pl.position.set(lx, CEIL - 0.35, 0); g.add(pl); });
     }
     // ces enseignes sont dans le mur : on les décale vers l'intérieur de la salle (dos au linteau)
     function inside(px, pz) {

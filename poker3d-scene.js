@@ -383,55 +383,101 @@
     }, rep);
   }
 
-  function marbleTexture(T) {
+  const seeded = (s) => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+
+  // Sol : parquet de Versailles (salle rouge) ou damier de marbre (émeraude, saphir) ; un motif = 512 px, répété par la salle
+  function floorTexture(themeKey) {
     return canvasTex(512, 512, (c, w, h) => {
-      c.fillStyle = T.marble; c.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26; i++) {
-        c.strokeStyle = 'rgba(190,180,200,' + (0.03 + Math.random() * 0.06) + ')';
-        c.lineWidth = 1 + Math.random() * 2;
-        c.beginPath();
-        let x = Math.random() * w, y = Math.random() * h;
-        c.moveTo(x, y);
-        for (let k = 0; k < 6; k++) { x += (Math.random() - 0.5) * 140; y += (Math.random() - 0.3) * 140; c.lineTo(x, y); }
-        c.stroke();
+      const rnd = seeded(77 + themeKey.length);
+      if (themeKey === 'rouge') {
+        const tones = ['#5e3a22', '#52301b', '#6b4326', '#4a2b18', '#5a3620'];
+        for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
+          const vert = (bx + by) % 2 === 1;
+          for (let i = 0; i < 4; i++) {
+            const x = bx * 128 + (vert ? i * 32 : 0), y = by * 128 + (vert ? 0 : i * 32), pw = vert ? 32 : 128, ph = vert ? 128 : 32;
+            c.fillStyle = tones[Math.floor(rnd() * tones.length)]; c.fillRect(x, y, pw, ph);
+            const g = c.createLinearGradient(x, y, vert ? x + pw : x, vert ? y : y + ph);
+            g.addColorStop(0, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.2)'); c.fillStyle = g; c.fillRect(x, y, pw, ph);
+            c.fillStyle = 'rgba(0,0,0,0.09)';
+            for (let k = 0; k < 3; k++) { if (vert) c.fillRect(x + 4 + rnd() * (pw - 8), y, 1, ph); else c.fillRect(x, y + 4 + rnd() * (ph - 8), pw, 1); }
+            c.strokeStyle = 'rgba(22,9,3,0.75)'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, pw - 1, ph - 1);
+          }
+        }
+      } else {
+        const em = themeKey === 'emeraude';
+        const dark = em ? ['#0c3a2c', '#14503c'] : ['#0e1f4a', '#1a3470'];
+        const light = em ? ['#e6ebdd', '#cdd9c8'] : ['#e2e8f4', '#c4d0e6'];
+        for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
+          const isDark = (bx + by) % 2 === 0, pal = isDark ? dark : light, x = bx * 256, y = by * 256;
+          const g = c.createLinearGradient(x, y, x + 256, y + 256); g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]); c.fillStyle = g; c.fillRect(x, y, 256, 256);
+          for (let i = 0; i < 7; i++) {
+            c.strokeStyle = isDark ? 'rgba(235,240,230,' + (0.08 + rnd() * 0.16) + ')' : 'rgba(90,100,110,' + (0.08 + rnd() * 0.14) + ')';
+            c.lineWidth = 0.8 + rnd() * 2; c.beginPath();
+            let px = x + rnd() * 256, py = y + rnd() * 256; c.moveTo(px, py);
+            for (let k = 0; k < 5; k++) { px = Math.max(x, Math.min(x + 256, px + (rnd() - 0.4) * 90)); py = Math.max(y, Math.min(y + 256, py + (rnd() - 0.4) * 90)); c.lineTo(px, py); }
+            c.stroke();
+          }
+          c.strokeStyle = 'rgba(212,166,42,0.55)'; c.lineWidth = 3; c.strokeRect(x + 1.5, y + 1.5, 253, 253);
+        }
       }
-      c.strokeStyle = 'rgba(212,166,42,0.35)'; c.lineWidth = 3;
-      c.strokeRect(0, 0, w, h);
-    }, [18, 18]);
+    });
   }
 
+  // Papier peint : motif qui se raccorde parfaitement sur ses bords (répété par `tiled` dans buildRoom, calé sur l'angle du mur)
   function damaskTexture(T) {
     return canvasTex(256, 256, (c, w, h) => {
       c.fillStyle = T.wall; c.fillRect(0, 0, w, h);
-      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-        const cx = (x * 128 + 64 + (y % 2 ? 64 : 0)) % 256, cy = y * 128 + 64;
-        c.fillStyle = T.wallPat;
+      c.fillStyle = 'rgba(255,255,255,0.035)';
+      [0, 128].forEach((x) => { c.fillRect(x - 10, 0, 20, h); c.fillRect(x + w - 10, 0, 20, h); });
+      const gold = (a) => 'rgba(212,166,42,' + a + ')';
+      const motif = (x, y) => {
+        c.fillStyle = T.wallPat; c.strokeStyle = gold(0.45); c.lineWidth = 2;
         if (T.wallStyle === 'diamond') {
-          c.beginPath(); c.moveTo(cx, cy - 42); c.lineTo(cx + 26, cy); c.lineTo(cx, cy + 42); c.lineTo(cx - 26, cy); c.closePath(); c.fill();
-          c.fillStyle = 'rgba(212,166,42,0.30)';
-          c.beginPath(); c.moveTo(cx, cy - 14); c.lineTo(cx + 8, cy); c.lineTo(cx, cy + 14); c.lineTo(cx - 8, cy); c.closePath(); c.fill();
+          c.beginPath(); c.moveTo(x, y - 52); c.lineTo(x + 30, y); c.lineTo(x, y + 52); c.lineTo(x - 30, y); c.closePath(); c.fill();
+          c.beginPath(); c.moveTo(x, y - 32); c.lineTo(x + 18, y); c.lineTo(x, y + 32); c.lineTo(x - 18, y); c.closePath(); c.stroke();
+          c.fillStyle = gold(0.38); c.beginPath(); c.moveTo(x, y - 14); c.lineTo(x + 8, y); c.lineTo(x, y + 14); c.lineTo(x - 8, y); c.closePath(); c.fill();
         } else if (T.wallStyle === 'stripe') {
-          c.fillRect(cx - 12, 0, 24, h);
-          c.fillStyle = 'rgba(212,166,42,0.30)'; c.fillRect(cx - 2, 0, 4, h);
+          c.fillRect(x - 14, 0, 28, h); c.fillStyle = gold(0.4); c.fillRect(x - 1.5, 0, 3, h); c.fillStyle = gold(0.25); c.fillRect(x - 23, 0, 2, h); c.fillRect(x + 21, 0, 2, h);
         } else {
-          c.beginPath(); c.ellipse(cx, cy, 22, 40, 0, 0, Math.PI * 2); c.fill();
-          c.fillStyle = 'rgba(212,166,42,0.30)';
-          c.beginPath(); c.ellipse(cx, cy, 7, 14, 0, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(x, y, 26, 46, 0, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(x, y, 15, 32, 0, 0, Math.PI * 2); c.stroke();
+          c.fillStyle = gold(0.38); c.beginPath(); c.ellipse(x, y, 7, 14, 0, 0, Math.PI * 2); c.fill();
         }
-      }
-    }, [30, 3]);
+        c.fillStyle = gold(0.35); [[-64, 0], [64, 0]].forEach((d) => { c.beginPath(); c.arc(x + d[0], y + d[1], 3.5, 0, Math.PI * 2); c.fill(); });
+      };
+      [-w, 0, w].forEach((ox) => [-h, 0, h].forEach((oy) => { motif(64 + ox, 64 + oy); motif(192 + ox, 192 + oy); }));
+    });
   }
 
+  // Lambris : un panneau encadré par carré
   function woodPanelTexture(T) {
     return canvasTex(256, 256, (c, w, h) => {
       c.fillStyle = T.wood; c.fillRect(0, 0, w, h);
       for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.12) + ')'; c.fillRect(0, Math.random() * h, w, 1 + Math.random() * 2); }
-      c.strokeStyle = 'rgba(212,166,42,0.45)'; c.lineWidth = 3;
-      c.strokeRect(22, 20, w - 44, h - 40);
-      c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 2;
-      c.strokeRect(34, 32, w - 68, h - 64);
-    }, [24, 1]);
+      c.strokeStyle = 'rgba(212,166,42,0.45)'; c.lineWidth = 3; c.strokeRect(22, 20, w - 44, h - 40);
+      c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 2; c.strokeRect(34, 32, w - 68, h - 64);
+    });
   }
+
+  // Cuir capitonné : losanges bombés, coutures sombres et boutons dorés
+  function quiltTexture(color) {
+    return canvasTex(128, 128, (c, w, h) => {
+      c.fillStyle = color; c.fillRect(0, 0, w, h);
+      [[64, 64], [0, 0], [128, 0], [0, 128], [128, 128]].forEach((p) => {
+        const path = () => { c.beginPath(); c.moveTo(p[0], p[1] - 64); c.lineTo(p[0] + 64, p[1]); c.lineTo(p[0], p[1] + 64); c.lineTo(p[0] - 64, p[1]); c.closePath(); };
+        c.save(); path(); c.clip();
+        const g = c.createRadialGradient(p[0], p[1], 4, p[0], p[1], 64);
+        g.addColorStop(0, 'rgba(255,255,255,0.22)'); g.addColorStop(0.6, 'rgba(255,255,255,0.03)'); g.addColorStop(1, 'rgba(0,0,0,0.4)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h); c.restore();
+        path(); c.strokeStyle = 'rgba(0,0,0,0.55)'; c.lineWidth = 2; c.stroke();
+      });
+      [[64, 0], [0, 64], [128, 64], [64, 128]].forEach((p) => {
+        c.fillStyle = '#e2b93b'; c.beginPath(); c.arc(p[0], p[1], 5, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1.5; c.stroke();
+      });
+    });
+  }
+
 
   // Vue des baies : une scène par salle (ville de nuit / jardin au crépuscule / port au clair de lune), une variante par baie
   function viewTexture(themeKey, idx) {
@@ -529,14 +575,16 @@
   P.buildRoom = function (themeKey, gaps, lights, noSofa) {
     themeKey = THEMES[themeKey] ? themeKey : 'rouge';
     const T = THEMES[themeKey];
+    const themeIdx = ['rouge', 'emeraude', 'saphir'].indexOf(themeKey);
     gaps = gaps || [];
     noSofa = noSofa || [];
     const room = new THREE.Group();
-    const colliders = [];       // obstacles (x, z, r) dans le repère de la salle : banquettes, plantes, tables basses, appliques
+    const colliders = [];       // obstacles (x, z, r) dans le repère de la salle : banquettes, plantes, tables basses
     const FLOOR = -1.2;
     const R = 12;                 // rayon du mur
     const H = 7.6;                // hauteur du mur
     const TWO_PI = Math.PI * 2;
+    const normA = (a) => ((a % TWO_PI) + TWO_PI) % TWO_PI;
     const goldM = mat(0xb8902f, 0.3, 0.85);
     const dbl = (m) => { m.side = THREE.DoubleSide; return m; };
     // position polaire : a = 0 vers la caméra (+Z), a = π derrière le croupier (-Z)
@@ -544,7 +592,6 @@
     const place = (obj, a, r, y) => { const p = polar(a, r); obj.position.set(p.x, y, p.z); obj.rotation.y = a + Math.PI; return obj; };
     // ouvertures dans le mur : on découpe les cylindres en arcs qui laissent passer chaque gap (largeur 2 x GAP_HW radians)
     const GAP_HW = 0.17;
-    const normA = (a) => ((a % TWO_PI) + TWO_PI) % TWO_PI;
     const isGap = (a) => gaps.some((g) => { const d = Math.abs(normA(g) - normA(a)); return Math.min(d, TWO_PI - d) < 0.01; });
     const arcs = () => {
       if (!gaps.length) return [[0, TWO_PI]];
@@ -558,6 +605,20 @@
         room.add(m);
       });
     };
+    // texture répétée à l'échelle réelle (tile = [largeur, hauteur] d'un motif) et calée sur l'angle/la hauteur : les motifs se raccordent d'un morceau de mur à l'autre
+    const tiled = (tex, start, len, radius, yBottom, h, tile) => {
+      const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(len * radius / tile[0], h / tile[1]); t.offset.set(start * radius / tile[0], yBottom / tile[1]);
+      return t;
+    };
+    const wallArcTex = (radius, h, y, base, tex, tile) => {
+      arcs().forEach((a) => {
+        const m = base.clone(); m.map = tiled(tex, a[0], a[1], radius, y - h / 2, h, tile);
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, h, 96, 1, true, a[0], a[1]), m);
+        mesh.position.y = y;
+        room.add(mesh);
+      });
+    };
 
     /* ---- Lumière d'ambiance ---- */
     room.add(new THREE.HemisphereLight(T.hemi, T.hemiGround, 0.34));
@@ -567,9 +628,12 @@
       room.add(l);
     });
 
-    /* ---- Sol : marbre sombre + tapis rond autour de la table ---- */
-    const marble = new THREE.Mesh(new THREE.CircleGeometry(R, 96), mat(0xffffff, 0.35, 0.1));
-    marble.material.map = marbleTexture(T);
+    /* ---- Sol : parquet ou damier de marbre + tapis rond autour de la table ---- */
+    const floorMap = floorTexture(themeKey);
+    floorMap.wrapS = floorMap.wrapT = THREE.RepeatWrapping;
+    floorMap.repeat.set(themeKey === 'rouge' ? 6 : 9, themeKey === 'rouge' ? 6 : 9);
+    const marble = new THREE.Mesh(new THREE.CircleGeometry(R, 96), mat(0xffffff, themeKey === 'rouge' ? 0.32 : 0.16, 0.08));
+    marble.material.map = floorMap;
     marble.rotation.x = -Math.PI / 2;
     marble.position.y = FLOOR + 0.002;
     marble.receiveShadow = true;
@@ -585,22 +649,18 @@
     rugRing.position.y = FLOOR + 0.012;
     room.add(rugRing);
 
-    /* ---- Murs (360°) : lambris bois, mur capitonné, moulures dorées ---- */
-    const wainM = dbl(mat(0xffffff, 0.55));
-    wainM.map = woodPanelTexture(T);
-    wallArc(R, 1.7, FLOOR + 0.85, wainM);
-    const wallM = dbl(mat(0xffffff, 0.85));
-    wallM.map = damaskTexture(T);
-    wallArc(R, H - 1.7, FLOOR + 1.7 + (H - 1.7) / 2, wallM);
-    // au-dessus de chaque ouverture : un linteau (mur plein) bordé d'or
+    /* ---- Murs (360°) : lambris bois, papier peint raccordé, moulures dorées ---- */
+    wallArcTex(R, 1.7, FLOOR + 0.85, dbl(mat(0xffffff, 0.55)), woodPanelTexture(T), [1.7, 1.7]);
+    const wallBase = dbl(mat(0xffffff, 0.85)), wallTex = damaskTexture(T), WTILE = [2.6, 2.6];
+    wallArcTex(R, H - 1.7, FLOOR + 1.7 + (H - 1.7) / 2, wallBase, wallTex, WTILE);
+    // au-dessus de chaque ouverture : un linteau (mur plein), même papier peint, motif dans le prolongement du mur
     const LINTEL = 4.2;
     gaps.forEach((g) => {
-      const lin = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H - LINTEL, 24, 1, true, normA(g) - GAP_HW - 0.01, GAP_HW * 2 + 0.02), wallM);
-      lin.position.y = FLOOR + LINTEL + (H - LINTEL) / 2;
+      const s = normA(g) - GAP_HW - 0.01, L = GAP_HW * 2 + 0.02, hh = H - LINTEL, y = FLOOR + LINTEL + hh / 2;
+      const m = wallBase.clone(); m.map = tiled(wallTex, s, L, R, y - hh / 2, hh, WTILE);
+      const lin = new THREE.Mesh(new THREE.CylinderGeometry(R, R, hh, 24, 1, true, s, L), m);
+      lin.position.y = y;
       room.add(lin);
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.03, R - 0.03, 0.16, 24, 1, true, normA(g) - GAP_HW - 0.01, GAP_HW * 2 + 0.02), dbl(goldM));
-      band.position.y = FLOOR + LINTEL;
-      room.add(band);
     });
     [[FLOOR + 0.06, 0.12], [FLOOR + 1.72, 0.14]].forEach((m) => wallArc(R - 0.02, m[1], m[0], dbl(goldM)));
     {
@@ -690,29 +750,39 @@
           room.add(bar);
         });
       } else {
-        // tableau encadré, bien à plat contre le mur
+        // tableau : fond plein collé au mur (rien ne passe derrière), toile, cadre doré épais qui recouvre les bords de la toile
         const art = new THREE.Group();
+        const back = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.95, 0.1), mat(0x120a06, 0.8));
+        art.add(back);
         const cvs = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.65), new THREE.MeshStandardMaterial({ map: paintingTexture(k, T), roughness: 0.6, emissive: 0x221108, emissiveIntensity: 0.5 }));
+        cvs.position.z = 0.055;
         art.add(cvs);
-        [[0, 1.4, 2.25, 0.1], [0, -1.4, 2.25, 0.1], [1.07, 0, 0.1, 2.9], [-1.07, 0, 0.1, 2.9]].forEach((f) => {
-          const part = new THREE.Mesh(new THREE.BoxGeometry(f[2], f[3], 0.08), goldM);
-          part.position.set(f[0], f[1], 0.02);
+        [[0, 1.4, 2.3, 0.15], [0, -1.4, 2.3, 0.15], [1.075, 0, 0.15, 3.0], [-1.075, 0, 0.15, 3.0]].forEach((f) => {
+          const part = new THREE.Mesh(new THREE.BoxGeometry(f[2], f[3], 0.12), goldM);
+          part.position.set(f[0], f[1], 0.06);
           art.add(part);
         });
-        place(art, a, R - 0.08, FLOOR + 3.6);
+        place(art, a, R - 0.04, FLOOR + 3.6);
         room.add(art);
       }
     }
 
-    /* ---- Banquettes rouges en demi-cercle devant chaque baie (sauf aux colonnes) ---- */
-    const leatherM = dbl(mat(T.sofa, 0.45, 0.05));
+    /* ---- Banquettes en cuir capitonné en demi-cercle devant chaque baie (sauf aux colonnes) ---- */
+    const LEATHER = [ '#4e0e1b', '#6b3f1d', '#14295e' ][themeIdx];
+    const leatherM = dbl(mat(LEATHER, 0.36, 0.06));
+    const quiltTex = quiltTexture(LEATHER);
+    const quilted = (len, radius, h) => {
+      const m = dbl(mat(0xffffff, 0.4, 0.06)); m.map = quiltTex.clone(); m.map.needsUpdate = true;
+      m.map.wrapS = m.map.wrapT = THREE.RepeatWrapping; m.map.repeat.set(Math.max(1, Math.round(len * radius / 0.8)), Math.max(1, Math.round(h / 0.8)));
+      return m;
+    };
     const sofaR0 = 9.5, sofaR1 = 10.55;
     for (let k = 0; k < 8; k++) {
       const a = (k * TWO_PI) / 8;
       if (isGap(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // pas de banquette devant une ouverture ni une porte
       const half = 0.27;
       const t0 = a - half, len = half * 2;
-      const front = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0, sofaR0, 0.55, 24, 1, true, t0, len), leatherM);
+      const front = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0, sofaR0, 0.55, 24, 1, true, t0, len), quilted(len, sofaR0, 0.55));
       front.position.y = FLOOR + 0.28;
       room.add(front);
       const seatTop = new THREE.Mesh(new THREE.RingGeometry(sofaR0, sofaR1, 24, 1, Math.PI / 2 - (a + half), len), leatherM);
@@ -722,7 +792,7 @@
       const back = new THREE.Mesh(new THREE.CylinderGeometry(sofaR1, sofaR1, 1.5, 24, 1, true, t0, len), leatherM);
       back.position.y = FLOOR + 1.3;
       room.add(back);
-      const backFront = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0 + 0.65, sofaR0 + 0.65, 1.5, 24, 1, true, t0, len), leatherM);
+      const backFront = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0 + 0.65, sofaR0 + 0.65, 1.5, 24, 1, true, t0, len), quilted(len, sofaR0 + 0.65, 1.5));
       backFront.position.y = FLOOR + 1.3;
       room.add(backFront);
       // accoudoirs pleins aux deux bouts : la banquette est fermée sur les côtés
@@ -741,41 +811,105 @@
       top.rotation.x = Math.PI / 2;
       top.position.y = FLOOR + 2.05;
       room.add(top);
-      // petite table basse ronde avec lampe devant la banquette
+      // belle table basse ronde (plateau de marbre, pied doré, vase fleuri, bougie) devant la banquette
       if (k % 2 === 1) {
         const tb = new THREE.Group();
-        const topT = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 28), mat(0x111116, 0.15, 0.6));
-        topT.position.y = 0.5;
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.18, 0.5, 14), mat(0x111116, 0.3, 0.6));
-        leg.position.y = 0.25;
-        const vase = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 12), glow);
-        vase.position.y = 0.65;
-        tb.add(topT, leg, vase);
+        const topT = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.08, 40), mat(0xf1ece0, 0.12, 0.15));
+        topT.position.y = 0.7;
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.035, 8, 40), goldM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.7;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.22, 0.66, 18), goldM); stem.position.y = 0.33;
+        const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.06, 28), goldM); foot.position.y = 0.03;
+        const vase = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.3, 16), mat(0xe9e2d2, 0.3, 0.1)); vase.position.set(-0.3, 0.89, 0);
+        const bloomCol = [0xe8508a, 0xf6d34a, 0xa77be6][themeIdx];
+        const bouquet = [];
+        for (let b = 0; b < 5; b++) { const bl = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), mat(b % 2 ? 0xf8f4ea : bloomCol, 0.6)); bl.position.set(-0.3 + Math.cos(b * 1.26) * 0.1, 1.12 + (b % 2) * 0.06, Math.sin(b * 1.26) * 0.1); bouquet.push(bl); }
+        const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), glow); candle.position.set(0.4, 0.83, 0.1);
+        tb.add(topT, rim, stem, foot, vase, candle, ...bouquet);
         tb.children.forEach((m) => { m.castShadow = true; });
-        const p = polar(a, 8.5);
+        const p = polar(a, 8.2);
         tb.position.set(p.x, FLOOR, p.z);
         room.add(tb);
-        colliders.push({ x: p.x, z: p.z, r: 0.8 });
+        colliders.push({ x: p.x, z: p.z, r: 1.2 });
       }
     }
 
-    /* ---- Plantes : dans les angles entre les banquettes, en avant du mur ---- */
+    /* ---- Plantes variées (feuillage, fleurs, palmier, arbuste taillé), dans les angles entre les banquettes ---- */
+    const potColors = [0x201410, 0xe9e2d2, 0xb8902f, 0x2c2c34];
+    const blooms = [[0xe8508a, 0xf6c1d6], [0xf8f4ea, 0xf6d34a], [0xa77be6, 0xf4efff]][themeIdx];
     for (let k = 0; k < 8; k++) {
       const a = Math.PI / 8 + (k * TWO_PI) / 8;
       const p = polar(a, 10.0);
-      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.32, 0.7, 20), mat(0x201410, 0.5, 0.1));
+      const kind = (k + themeIdx) % 4;
+      const potColor = potColors[(k + themeIdx * 2) % 4];
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.32, 0.7, 20), mat(potColor, 0.4, potColor === 0xb8902f ? 0.8 : 0.1));
       pot.position.set(p.x, FLOOR + 0.35, p.z);
       pot.castShadow = true;
       room.add(pot);
+      const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 20), goldM);
+      lip.position.set(p.x, FLOOR + 0.7, p.z);
+      room.add(lip);
       colliders.push({ x: p.x, z: p.z, r: 1.1 });
-      const leaves = mat(0x1d5a2c, 0.7);
-      for (let i = 0; i < 12; i++) {
-        const lf = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), leaves);
-        lf.scale.set(1, 1.9, 0.5);
-        const la = (i / 12) * TWO_PI;
-        lf.position.set(p.x + Math.cos(la) * 0.22, FLOOR + 1.2 + (i % 3) * 0.28, p.z + Math.sin(la) * 0.22);
-        lf.rotation.set(Math.sin(la) * 0.35, la, Math.cos(la) * 0.35);
-        room.add(lf);
+      const topY = FLOOR + 0.72;
+      if (kind === 0) {
+        // plante à grandes feuilles
+        const leaves = mat([0x1d5a2c, 0x2f7d3a, 0x3d8f3a][(k >> 1) % 3], 0.7);
+        for (let i = 0; i < 12; i++) {
+          const lf = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), leaves);
+          lf.scale.set(1, 1.9, 0.5);
+          const la = (i / 12) * TWO_PI;
+          lf.position.set(p.x + Math.cos(la) * 0.22, FLOOR + 1.2 + (i % 3) * 0.28, p.z + Math.sin(la) * 0.22);
+          lf.rotation.set(Math.sin(la) * 0.35, la, Math.cos(la) * 0.35);
+          room.add(lf);
+        }
+      } else if (kind === 1) {
+        // arbuste fleuri
+        const fol = mat(0x1f5a30, 0.8);
+        for (let i = 0; i < 7; i++) {
+          const s = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), fol);
+          const la = i * 2.4;
+          s.position.set(p.x + Math.cos(la) * 0.22 * (i % 3), topY + 0.45 + (i % 3) * 0.2, p.z + Math.sin(la) * 0.22 * (i % 3));
+          room.add(s);
+        }
+        const cx0 = p.x, cy0 = topY + 0.75, cz0 = p.z;
+        for (let i = 0; i < 26; i++) {
+          const phi = Math.acos(1 - 1.5 * (i + 0.5) / 26), ang = i * 2.39996;
+          const bl = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), mat(blooms[i % 2], 0.55));
+          bl.scale.y = 0.8;
+          bl.position.set(cx0 + Math.sin(phi) * Math.cos(ang) * 0.62, cy0 + Math.cos(phi) * 0.5, cz0 + Math.sin(phi) * Math.sin(ang) * 0.62);
+          room.add(bl);
+        }
+      } else if (kind === 2) {
+        // palmier : tronc fin et palmes arquées
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.9, 10), mat(0x5a3e22, 0.8));
+        trunk.position.set(p.x, topY + 0.95, p.z);
+        room.add(trunk);
+        const fr = mat(0x2a7a3a, 0.7);
+        for (let i = 0; i < 9; i++) {
+          const piv = new THREE.Group();
+          piv.position.set(p.x, topY + 1.9, p.z);
+          piv.rotation.order = "YXZ"; piv.rotation.y = (i / 9) * TWO_PI;
+          piv.rotation.x = 0.45 + (i % 3) * 0.12;
+          const fm = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 6), fr);
+          fm.scale.set(0.3, 0.05, 1.5);
+          fm.position.z = 0.7;
+          piv.add(fm);
+          room.add(piv);
+        }
+      } else {
+        // arbuste taillé en boules, parsemé de petites fleurs blanches
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.0, 8), mat(0x4a3320, 0.8));
+        trunk.position.set(p.x, topY + 0.5, p.z);
+        room.add(trunk);
+        const fol = mat(0x1a5a2a, 0.8);
+        const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.58, 18, 14), fol); b1.position.set(p.x, topY + 1.45, p.z);
+        const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), fol); b2.position.set(p.x, topY + 2.25, p.z);
+        room.add(b1, b2);
+        for (let i = 0; i < 14; i++) {
+          const phi = Math.acos(1 - (i + 0.5) / 7), ang = i * 2.39996;
+          const bl = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(blooms[1], 0.5));
+          bl.position.set(p.x + Math.sin(phi) * Math.cos(ang) * 0.59, topY + 1.45 + Math.cos(phi) * 0.59, p.z + Math.sin(phi) * Math.sin(ang) * 0.59);
+          room.add(bl);
+        }
       }
     }
 
