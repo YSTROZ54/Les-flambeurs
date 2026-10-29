@@ -17,9 +17,9 @@
   <script src="poker3d-anim.js?v=1.3"></script>
   <script src="poker-multi.js?v=2.1"></script>
   <script src="f3d-core.js?v=1.1"></script>
-  <script src="world3d.js?v=1.1"></script>
+  <script src="world3d.js?v=1.2"></script>
   <script src="hall3d.js?v=1.3"></script>
-  <script src="slots3d.js?v=6.0"></script>
+  <script src="slots3d.js?v=6.1"></script>
   <script src="horses3d.js?v=1.1"></script>
 </head>
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
@@ -415,10 +415,6 @@
           <p class="text-xs md:text-sm text-stone-300">Marche dans le hall, pousse les portes, retrouve les autres joueurs et assieds-toi aux machines à sous. Le menu classique reste disponible à tout moment.</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-          <label class="flex items-center gap-2 text-xs text-stone-300 cursor-pointer select-none">
-            <input id="home3dSlotsToggle" type="checkbox" class="accent-amber-400 w-4 h-4" onchange="if(window.F3D)F3D.setSlotsIn3d(this.checked)">
-            Ouvrir la machine à sous en 3D
-          </label>
           <button onclick="enter3dHall()" class="px-5 py-2.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:brightness-110 transition shadow-lg">🚪 Entrer dans le hall 3D</button>
         </div>
       </div>
@@ -1142,110 +1138,12 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        <div id="slotRulesPanel" class="order-2 lg:order-1 lg:hidden rounded-2xl p-5 bg-[#1b0929]/95 border border-pink-500/30 space-y-4 shadow-xl">
-          <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="text-xs uppercase tracking-wider text-pink-300 font-bold">Mise par coup</label>
-              <span class="text-[11px] text-pink-400 font-semibold font-mono-num">Max : 100 000 €</span>
-            </div>
-            <div class="mt-1 flex items-center bg-black/60 border border-pink-500/30 rounded-xl overflow-hidden">
-              <input id="slotBetInput" type="number" value="50" min="1" max="100000" placeholder="Ex: 50 (Max: 100 000)" oninput="if(Number(this.value) > 100000) this.value = 100000;" class="w-full bg-transparent px-4 py-2.5 text-white font-mono-num text-base font-bold focus:outline-none">
-            </div>
-            <div class="grid grid-cols-5 gap-1.5 mt-2">
-              <button type="button" onclick="setSlotQuickBet(50)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">50</button>
-              <button type="button" onclick="setSlotQuickBet(500)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">500</button>
-              <button type="button" onclick="setSlotQuickBet(5000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">5k</button>
-              <button type="button" onclick="setSlotQuickBet(25000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-white/10 hover:bg-pink-500/30 text-stone-200 border border-white/10 transition">25k</button>
-              <button type="button" onclick="setSlotQuickBet(100000)" class="py-1 rounded-lg text-xs font-mono-num font-bold bg-pink-500/30 hover:bg-pink-500/50 text-pink-200 border border-pink-400/50 transition">100k</button>
-            </div>
-          </div>
-
-          <button onclick="pullSlotLever()" class="lg:hidden w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-red-500 via-pink-500 to-amber-400 text-black hover:brightness-110 transition shadow-lg">
-            🔴 Tirer le Levier Rouge
-          </button>
-
-          <!-- TABLEAU DES 3 SYMBOLES IDENTIQUES -->
-          <div class="pt-2 border-t border-pink-500/20 space-y-1.5 text-xs">
-            <div class="text-amber-300 font-serif-title font-extrabold text-sm uppercase mb-1">🏆 3 Symboles Identiques :</div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-red-500/20 border border-red-400/40">
-              <span class="font-extrabold text-amber-200">🔥 🔥 🔥 Trois Flammes (Jackpot)</span>
-              <span class="font-mono-num text-amber-300 font-extrabold text-sm">×200</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">👑 👑 👑 Trois Couronnes</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×100</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">7️⃣ 7️⃣ 7️⃣ Trois Sept</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×50</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">💎 💎 💎 Trois Diamants</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×30</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">🔔 🔔 🔔 Trois Cloches</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×12</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">🍋 🍋 🍋 Trois Citrons</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×5</span>
-            </div>
-            <div class="flex justify-between items-center py-1 px-2.5 rounded-lg bg-black/40 border border-white/5">
-              <span class="font-bold">🍒 🍒 🍒 Trois Cerises</span>
-              <span class="font-mono-num text-amber-300 font-extrabold">×3</span>
-            </div>
-
-            <!-- TABLEAU DES 2 SYMBOLES IDENTIQUES RÉÉQUILIBRÉS -->
-            <div class="text-pink-300 font-serif-title font-extrabold text-sm uppercase pt-2 mb-1">✨ 2 Symboles Identiques :</div>
-            <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔥 🔥 2 Flammes</span><strong class="font-mono-num text-amber-300">×2,5</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>👑 👑 2 Couronnes</span><strong class="font-mono-num text-amber-300">×2,0</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>7️⃣ 7️⃣ 2 Sept</span><strong class="font-mono-num text-amber-300">×1,8</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>💎 💎 2 Diamants</span><strong class="font-mono-num text-amber-300">×1,5</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🔔 🔔 2 Cloches</span><strong class="font-mono-num text-pink-200">×1,1</strong></div>
-              <div class="flex justify-between py-1 px-2 rounded bg-pink-500/15 border border-pink-400/30"><span>🍋 🍋 2 Citrons</span><strong class="font-mono-num text-pink-200">×0,8</strong></div>
-              <div class="col-span-2 flex justify-between py-1 px-2.5 rounded bg-pink-500/15 border border-pink-400/30"><span>🍒 🍒 2 Cerises (Lot consolation)</span><strong class="font-mono-num text-pink-200">×0,4</strong></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="order-1 lg:order-2 lg:col-span-12 min-w-0">
-          <!-- Borne 3D (slots3d.js) : remplace la borne classique ci-dessous dès que WebGL est disponible -->
-          <div id="slot3dStage" class="hidden relative w-full rounded-2xl overflow-hidden border border-amber-400/30 h-[min(78vh,720px)] min-h-[480px] lg:h-[min(90vh,1100px)]" style="background:#07050c"></div>
-        <div id="slotClassicWrap" class="flex flex-col items-center justify-center py-4">
-          <div class="flex items-center">
-            <div id="slotCabinetBox" class="slot-cabinet p-5 sm:p-8 w-[310px] sm:w-[490px]">
-              <div class="bg-black/85 border-2 border-amber-400 rounded-2xl py-3 px-4 mb-6 text-center shadow-lg">
-                <div class="font-serif-title text-xl sm:text-3xl font-black text-amber-300 tracking-wider">
-                  JACKPOT FLAMBEUR
-                </div>
-                <div class="text-xs text-pink-300 font-bold uppercase tracking-widest mt-0.5">🔥 🔥 🔥 = Mise ×200</div>
-              </div>
-
-              <div class="relative bg-black/90 p-3 sm:p-4 rounded-2xl border-2 border-pink-500/40">
-                <div class="pointer-events-none absolute left-2 right-2 top-1/2 -translate-y-1/2 h-1.5 bg-red-500/95 shadow-[0_0_14px_#ef4444] z-20 rounded-full"></div>
-                <div class="grid grid-cols-3 gap-2.5 sm:gap-3.5">
-                  <div class="slot-reel-window"><div id="slotStrip0" class="slot-strip"><div class="slot-item">🔥</div></div></div>
-                  <div class="slot-reel-window"><div id="slotStrip1" class="slot-strip"><div class="slot-item">👑</div></div></div>
-                  <div class="slot-reel-window"><div id="slotStrip2" class="slot-strip"><div class="slot-item">7️⃣</div></div></div>
-                </div>
-              </div>
-
-              <div id="slotResultBanner" class="mt-6 py-3.5 px-4 rounded-xl bg-black/90 border border-amber-400/40 text-center font-mono-num text-xs sm:text-sm text-amber-200 font-bold">
-                Clique sur la boule rouge à droite pour lancer les rouleaux !
-              </div>
-            </div>
-
-            <div class="lever-base flex items-center justify-center">
-              <div id="slotLeverRod" class="lever-rod">
-                <div onclick="pullSlotLever()" title="Tirer le levier !" class="lever-ball"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
+      <!-- Machine à sous : uniquement en 3D (slots3d.js). Ces éléments cachés ne servent qu'à garder la mise et le skin équipé. -->
+      <div id="slot3dStage" class="hidden relative w-full rounded-2xl overflow-hidden border border-amber-400/30 h-[min(78vh,720px)] min-h-[480px] lg:h-[min(90vh,1100px)]" style="background:#07050c"></div>
+      <div id="slotNo3d" class="hidden rounded-2xl p-6 bg-stone-950/90 border border-amber-400/30 text-center text-amber-200 text-sm font-bold">La machine à sous demande la 3D (WebGL), indisponible sur cet appareil ou ce navigateur. Essaie un autre navigateur.</div>
+      <div hidden aria-hidden="true">
+        <input id="slotBetInput" type="number" value="50" min="1" max="100000">
+        <div id="slotCabinetBox" class="slot-cabinet"></div>
       </div>
     </section>
 
@@ -5257,8 +5155,6 @@
       try {
         const can = !!(window.F3D && F3D.canWorld());
         if (b) b.classList.toggle('hidden', !can);
-        const t = document.getElementById('home3dSlotsToggle');
-        if (t && can) t.checked = F3D.slotsIn3d();
       } catch (e) {}
     }
     window.addEventListener('load', () => setTimeout(refreshHome3dBanner, 300));
@@ -8590,7 +8486,6 @@
     // Rééquilibré (rendement ~94 % avec la chance par défaut de 35 %) : avant, la machine rendait ~650 % de la mise.
     const SLOT_PAY_3 = { '🔥': 200, '👑': 100, '7️⃣': 50, '💎': 30, '🔔': 12, '🍋': 5, '🍒': 3 };
     const SLOT_PAY_2 = { '🔥': 2.5, '👑': 2.0, '7️⃣': 1.8, '💎': 1.5, '🔔': 1.1, '🍋': 0.8, '🍒': 0.4 };
-    const ITEM_HEIGHT = 176;
     let slotSpinning = false;
 
     function setSlotQuickBet(amount) {
@@ -8619,66 +8514,26 @@
       slotSpinning = true;
       try { if (window.Slots3D) Slots3D.onSpinStart(); } catch (e3d) {}
 
-      const rod = document.getElementById('slotLeverRod');
-      rod.classList.add('pulled');
-      setTimeout(() => rod.classList.remove('pulled'), 420);
       playSlotMachineLeverSound();
 
-      document.getElementById('slotResultBanner').textContent = '🎰 Les 3 rouleaux défilent...';
-
-      // Les rouleaux se mettent à tourner tout de suite ; le résultat est tiré par le serveur (qui met aussi le solde à jour).
-      [0, 1, 2].forEach((reelIdx) => {
-        const strip = document.getElementById(`slotStrip${reelIdx}`);
-        const spinItems = Array.from({ length: 40 }, () => `<div class="slot-item">${SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)]}</div>`);
-        strip.style.transition = 'none';
-        strip.style.transform = 'translateY(0px)';
-        strip.innerHTML = spinItems.join('');
-        void strip.offsetHeight;
-        strip.style.transition = 'transform 6s linear';
-        strip.style.transform = `translateY(-${39 * ITEM_HEIGHT}px)`;
-      });
+      // Le tirage est fait par le serveur (qui met aussi le solde à jour) ; la borne 3D anime les rouleaux.
       const srv = await serverGame({ action: 'slots_spin', bet }, { silent: true });
       if (!srv.ok || !Array.isArray(srv.finals)) {
-        [0, 1, 2].forEach((i) => { const st = document.getElementById(`slotStrip${i}`); st.style.transition = 'none'; });
         slotSpinning = false;
         try { if (window.Slots3D) Slots3D.onError(); } catch (e3d) {}
-        document.getElementById('slotResultBanner').textContent = 'Prêt à jouer.';
         return showToast('❌ ' + (srv.error || 'Machine indisponible, réessaie.'));
       }
       const finals = srv.finals;
       try { if (window.Slots3D) Slots3D.onResult(finals, srv.mult || 0, srv.win || 0, bet); } catch (e3d) {}
-
-      [0, 1, 2].forEach((reelIdx) => {
-        const strip = document.getElementById(`slotStrip${reelIdx}`);
-        const count = 14 + reelIdx * 6;
-        const items = [];
-        for (let i = 0; i < count - 1; i++) {
-          items.push(`<div class="slot-item">${SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)]}</div>`);
-        }
-        items.push(`<div class="slot-item">${finals[reelIdx]}</div>`);
-        strip.style.transition = 'none';
-        strip.style.transform = 'translateY(0px)';
-        strip.innerHTML = items.join('');
-
-        void strip.offsetHeight;
-        const duration = 1.0 + reelIdx * 0.9;
-        strip.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.8, 0.18, 1)`;
-        strip.style.transform = `translateY(-${(count - 1) * ITEM_HEIGHT}px)`;
-        setTimeout(() => playSlotReelStopSound(reelIdx), Math.round(duration * 1000));
-      });
+      [0, 1, 2].forEach((reelIdx) => setTimeout(() => playSlotReelStopSound(reelIdx), Math.round((1.0 + reelIdx * 0.9) * 1000)));
 
       setTimeout(() => {
         const mult = srv.mult || 0;
         if (mult > 0 && srv.win > (state.slotBestWin || 0)) state.slotBestWin = srv.win;
         updateGlobalUI();
-        const banner = document.getElementById('slotResultBanner');
         if (mult > 0) {
-          const win = srv.win;
           playCoinWinSound();
-          banner.textContent = `🎉 GAGNÉ ! ${finals.join(' ')} → +${fmt(win)} pièces (×${String(mult).replace('.', ',')})`;
-          showToast(`🎰 +${fmt(win)} pièces (×${String(mult).replace('.', ',')}) !`);
-        } else {
-          banner.textContent = `${finals.join(' ')} — Pas de gain sur ce coup, retente ta chance !`;
+          showToast(`🎰 +${fmt(srv.win)} pièces (×${String(mult).replace('.', ',')}) !`);
         }
         slotSpinning = false;
       }, 2900);

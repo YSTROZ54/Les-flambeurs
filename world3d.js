@@ -590,7 +590,6 @@
        - monde complet (PC) dans #world3dStage : hall + salles, portes, temps réel
        - mode « machine à sous seule » (téléphone) dans #slot3dStage
      =================================================================== */
-  var PREF = 'f3d_slots3d';
   var hasWebGL = null;
   function webgl() {
     if (hasWebGL === null) {
@@ -600,9 +599,7 @@
   }
   // le monde complet n'est proposé que sur ordinateur
   F.canWorld = function () { return webgl() && !mainFailed && !F.isMobile() && !F.isTouch() && !!document.getElementById('world3dStage'); };
-  F.slotsIn3d = function () { try { return localStorage.getItem(PREF) !== '0'; } catch (e) { return true; } };
-  F.setSlotsIn3d = function (on) { try { localStorage.setItem(PREF, on ? '1' : '0'); } catch (e) { /* ok */ } };
-  F.wantsWorldForSlots = function () { return F.canWorld() && F.slotsIn3d(); };
+  F.wantsWorldForSlots = function () { return F.canWorld(); };
 
   var main = null, mainFailed = false, solo = null, soloFailed = false;
   F.active = null;

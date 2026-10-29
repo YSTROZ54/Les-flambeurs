@@ -1068,24 +1068,18 @@
      PONT AVEC LA PAGE (branché sur pullSlotLever, sans toucher au jeu)
      =================================================================== */
   function stage() { return document.getElementById('slot3dStage'); }
-  function classicWrap() { return document.getElementById('slotClassicWrap'); }
-  function showRulesPanelOnPc() { var p = document.getElementById('slotRulesPanel'); if (p) p.classList.remove('lg:hidden'); }
+  function no3d(show) { var m = document.getElementById('slotNo3d'); if (m) m.classList.toggle('hidden', !show); }
 
   window.Slots3D = {
     createSlotCabinet: createSlotCabinet,
     levelFor: levelFor,
-    // vue « Machine à sous » de la page : téléphone = salle 3D seule ; PC = machine classique (le PC passe par le monde 3D)
+    // vue « Machine à sous » de la page : il n'y a plus de version 2D. PC = monde 3D (switchRoom y redirige) ; téléphone = salle 3D seule ; sans WebGL = message
     open: function () {
-      var cw = classicWrap(), st = stage();
-      if (!F.isMobile() && !F.isTouch()) {
-        if (st) st.classList.add('hidden');
-        if (cw) cw.classList.remove('hidden');
-        showRulesPanelOnPc();
-        return false;
-      }
-      if (!F.openSolo()) { showRulesPanelOnPc(); return false; }
-      if (cw) cw.classList.add('hidden');
-      return true;
+      var st = stage();
+      if (!F.isMobile() && !F.isTouch()) { if (st) st.classList.add('hidden'); no3d(true); return false; }
+      var ok = F.openSolo();
+      no3d(!ok);
+      return ok;
     },
     close: function () { F.closeSolo(); },
     isActive: function () { return !!F.getSlotsRoom(); },
