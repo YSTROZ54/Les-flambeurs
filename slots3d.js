@@ -1,21 +1,20 @@
 /* =====================================================================
-   slots3d.js — Borne de machine à sous 3D « Les Flambeurs » (Three.js r128)
+   slots3d.js — Machines à sous 3D « Les Flambeurs » (Three.js r128)
    ---------------------------------------------------------------------
-   - createSlotCabinet(opts)  : fabrique UNE borne (réutilisable : position, rotation, qualité).
-   - SlotsExperience          : une scène avec une borne, caméra, boutons (étape 1, solo).
-   - window.Slots3D           : seule chose exposée (open/close/onSpinStart/onResult/onError).
-   Tout le reste est privé (IIFE) : aucun nom global ne peut écraser ceux du gros script de la page.
-   Les symboles, les gains et le solde restent gérés par le jeu existant (pullSlotLever + serveur) :
-   ce fichier ne fait que MONTRER le tirage que le serveur a déjà décidé.
+   - createSlotCabinet(opts) : UNE borne réutilisable (position, rotation, qualité).
+   - salle « slots » : 6 bornes en arc, tableau des meilleurs gains, règles sur les murs,
+     branchée sur le monde commun (f3d-core.js + world3d.js).
+   - window.Slots3D : pont avec la page (pullSlotLever). Les symboles, gains et le solde restent
+     gérés par le jeu existant : ce fichier ne fait que MONTRER le tirage que le serveur a décidé.
+   Tout est dans une IIFE : aucun nom global ne peut écraser ceux du gros script de la page.
    ===================================================================== */
 (function () {
   'use strict';
 
+  var F = window.F3D;
+  var EMOJI_FONT = F.EMOJI_FONT, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
+  var fmtN = F.fmtN, isMobile = F.isMobile, mkCanvas = F.mkCanvas, mkTex = F.mkTex, roundRectPath = F.roundRectPath;
   var SYMS = ['🔥', '👑', '7️⃣', '💎', '🔔', '🍋', '🍒'];
-  var EMOJI_FONT = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
-  var SERIF = '"Cinzel",Georgia,serif';
-  var MONO = '"Orbitron","JetBrains Mono",monospace';
-  var TAU = Math.PI * 2;
   var BET_STEPS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
   // Habillages de la boutique -> couleur des garnitures de la borne 3D
   var SKINS = { '': 0xc9a227, 'cab-neon': 0x35d4ff, 'cab-emerald': 0x20c585, 'cab-gold': 0xffd24a };
@@ -28,22 +27,7 @@
     { dur: 14.0, coins: 170, sparks: 220, shake: 0.014, rate: 60, title: 'JACKPOT' }
   ];
 
-  function fmtN(n) { return Math.round(n).toLocaleString('fr-FR').replace(/\s/g, ' '); }
   function levelFor(mult) { return mult >= 100 ? 4 : mult >= 30 ? 3 : mult >= 12 ? 2 : mult >= 3 ? 1 : 0; }
-  function isMobile() {
-    try { return window.matchMedia('(max-width: 767px)').matches || /Mobi|Android|iPhone/i.test(navigator.userAgent); } catch (e) { return false; }
-  }
-  function mkCanvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
-  function mkTex(c) {
-    var t = new THREE.CanvasTexture(c);
-    t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false;
-    return t;
-  }
-  function roundRectPath(c, x, y, w, h, r) {
-    c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
-    c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h); c.lineTo(x + r, y + h);
-    c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath();
-  }
   function hash(i, k, salt) {
     var h = (Math.imul(k + 7919 * (i + 1) + salt * 131, 2654435761) ^ Math.imul(k * 31 + salt, 40503)) >>> 0;
     return SYMS[Math.floor(h / 4294967296 * SYMS.length)];
@@ -609,44 +593,7 @@
     };
   }
 
-  /* ===================================================================
-     SALLE DES MACHINES (étape 2) : plusieurs bornes, on marche, on choisit, on s'assoit.
-     Une seule borne est « active » (celle où le joueur est assis) : c'est elle que le jeu fait tourner.
-     =================================================================== */
-  var CSS_ID = 's3d-style';
-  function injectCss() {
-    if (document.getElementById(CSS_ID)) return;
-    var st = document.createElement('style'); st.id = CSS_ID;
-    st.textContent =
-      '.s3d-hud{position:absolute;inset:0;pointer-events:none;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#f4e3b0}' +
-      '.s3d-hud button{pointer-events:auto;cursor:pointer;touch-action:manipulation;font-family:inherit}' +
-      '.s3d-hud[data-mode=room] .s3d-seat-only,.s3d-hud[data-mode=seat] .s3d-room-only{display:none!important}' +
-      '.s3d-top{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:8px;align-items:center;justify-content:space-between}' +
-      '.s3d-btns{display:flex;gap:6px}' +
-      '.s3d-bal{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:6px 10px;font-weight:800;font-size:13px;white-space:nowrap}' +
-      '.s3d-cam{background:rgba(8,5,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:12px;padding:8px 12px;min-height:40px;color:#f3cf62;font-weight:800;font-size:12px}' +
-      '.s3d-cam[disabled]{opacity:.45}' +
-      '.s3d-hud .s3d-full-btn{display:flex;align-items:center;gap:8px;background:rgba(14,9,6,.88);color:#f3cf62;border:1.5px solid #c9a227;border-radius:999px;padding:8px 16px;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;box-shadow:0 0 16px rgba(255,200,60,.28);transition:box-shadow .15s,background .15s}.s3d-hud .s3d-full-btn:hover{background:rgba(40,26,10,.95);box-shadow:0 0 22px rgba(255,200,60,.55)}.s3d-hud .s3d-full-btn.on{color:#ff9a9a;border-color:#d65a5a;box-shadow:0 0 16px rgba(255,90,90,.35)}.s3d-full-btn svg{width:16px;height:16px;flex:none}' +
-      '.s3d-full{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;min-height:0!important;z-index:60!important;border-radius:0!important;border:0!important}' +
-      'body.s3d-full-on #smartHeader{display:none!important}' +
-      '.s3d-hint{position:absolute;top:56px;left:8px;right:8px;text-align:center;font-size:11px;font-weight:700;color:#d9c88f;text-shadow:0 1px 4px #000}' +
-      '.s3d-sit{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);min-height:52px;padding:0 22px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(180deg,#d8a928,#8a6410);color:#1a1000;font-weight:900;font-size:15px;box-shadow:0 0 18px rgba(255,200,60,.5);white-space:nowrap}' +
-      '.s3d-stick{position:absolute;left:18px;bottom:22px;width:112px;height:112px;border-radius:50%;background:rgba(8,5,12,.55);border:2px solid rgba(201,162,39,.5);pointer-events:auto;touch-action:none}' +
-      '.s3d-stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(243,207,98,.85);box-shadow:0 0 12px rgba(255,200,60,.5)}' +
-      '.s3d-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;align-items:stretch}' +
-      '.s3d-chips{display:flex;gap:6px;justify-content:center}' +
-      '.s3d-chips button{flex:1;max-width:72px;min-height:36px;border-radius:10px;border:1px solid rgba(201,162,39,.45);background:rgba(8,5,12,.78);color:#f4e3b0;font-weight:800;font-size:12px}' +
-      '.s3d-row{display:flex;gap:8px;align-items:stretch}' +
-      '.s3d-step{width:52px;min-height:52px;border-radius:14px;border:1px solid rgba(201,162,39,.55);background:rgba(8,5,12,.82);color:#f3cf62;font-size:24px;font-weight:900}' +
-      '.s3d-bet{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,5,12,.82);border:1px solid rgba(201,162,39,.45);border-radius:14px;font-size:11px;color:#9a8a58;font-weight:700;letter-spacing:.08em}' +
-      '.s3d-bet b{color:#ffd24a;font-size:19px;letter-spacing:0;font-family:"Orbitron",monospace}' +
-      '.s3d-spin{flex:1.3;min-height:52px;border-radius:14px;border:2px solid #ffb3ba;background:linear-gradient(180deg,#ff4a5a,#b3101f);color:#fff;font-weight:900;font-size:17px;letter-spacing:.06em;box-shadow:0 0 18px rgba(255,60,80,.5)}' +
-      '.s3d-spin[disabled]{filter:grayscale(.7) brightness(.6);box-shadow:none}' +
-      '@media (min-width:768px){.s3d-bottom{left:50%;right:auto;transform:translateX(-50%);width:430px}}';
-    document.head.appendChild(st);
-  }
 
-  // Dimensions de la salle (mètres) et placement des bornes en arc de cercle
   var ROOM = { xMax: 8.4, zMin: -2.6, zMax: 10.4, wall: 9, back: -3.2, front: 11 };
   var ARC = { cx: 0, cz: 4, r: 5.5, stepDeg: 26 };
 
@@ -833,752 +780,318 @@
     return out.slice(0, 5);
   }
 
-  function SlotsExperience(container, opts) {
-    opts = opts || {};
-    var self = this;
-    this.container = container;
-    this.low = opts.low !== undefined ? !!opts.low : isMobile();
-    this.touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    this.renderer = new THREE.WebGLRenderer({ antialias: !this.low, alpha: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.low ? 1.5 : 2));
-    this.renderer.setClearColor(0x07050c, 1);
-    var dom = this.dom = this.renderer.domElement;
-    dom.style.cssText = 'display:block;width:100%;height:100%;touch-action:pan-y;outline:none';
-    container.appendChild(dom);
+  /* ===================================================================
+     LA SALLE DES MACHINES (branchée sur le monde commun world3d.js)
+     6 bornes en arc de cercle ; on s'assoit sur une seule, c'est elle que le jeu fait tourner.
+     =================================================================== */
+  function createSlotsRoom(world, cfg) {
+    var low = world.low;
+    var room = {
+      title: 'SALLE DES MACHINES', subtitle: 'CHOISIS TA BORNE', topic: 'flambeurs-slots-room',
+      group: new THREE.Group(), doors: [], interactables: [], colliders: [], cabs: [],
+      seatCab: null, view: { yaw: 0, pitch: 0.06, yawG: 0, pitchG: 0.06, r: 3.2, rG: 3.2, ty: 1.95, tyG: 1.95, fov: 40, fovG: 40, mode: 'play', lastDrag: -99 },
+      aspect: 1
+    };
+    var built = buildRoom(room.group, low);
+    built.drawBoard(topSlotWins());
+    room.bounds = { xMin: -ROOM.xMax, xMax: ROOM.xMax, zMin: ROOM.zMin, zMax: ROOM.zMax };
 
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x07050c);
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 60);
-    this.room = buildRoom(this.scene, this.low);
-    this.room.drawBoard(topSlotWins());
-
-    // bornes en arc de cercle, tournées vers le centre
-    var n = opts.cabinets || 6;   // même salle sur PC et téléphone (multijoueur : mêmes bornes pour tout le monde)
-    this.cabs = [];
+    // bornes en arc de cercle, tournées vers le centre (même salle sur PC et téléphone)
+    var n = 6;
     for (var i = 0; i < n; i++) {
-      var th = (i - (n - 1) / 2) * ARC.stepDeg * Math.PI / 180;
-      var px = ARC.cx + ARC.r * Math.sin(th), pz = ARC.cz - ARC.r * Math.cos(th);
-      var cab = createSlotCabinet({ low: this.low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: -th, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
-      this.scene.add(cab.group);
-      var entry = { cab: cab, x: px, z: pz, rotY: -th, n: i + 1 };
-      cab.hit.userData.entry = entry;
-      this.cabs.push(entry);
+      (function (i) {
+        var th = (i - (n - 1) / 2) * ARC.stepDeg * Math.PI / 180;
+        var px = ARC.cx + ARC.r * Math.sin(th), pz = ARC.cz - ARC.r * Math.cos(th);
+        var cab = createSlotCabinet({ low: low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: -th, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
+        room.group.add(cab.group);
+        var e = { cab: cab, x: px, z: pz, rotY: -th, n: i + 1, occBy: null };
+        room.cabs.push(e);
+        room.colliders.push({ x: px, z: pz, r: 1.15 });
+        room.interactables.push({
+          hit: cab.hit, x: px + Math.sin(-th) * 2.1, z: pz + Math.cos(-th) * 2.1, radius: 1.8,
+          enabled: function () { return !e.occBy; },
+          prompt: function () { return '🪑 S\'asseoir — Borne ' + e.n; },
+          use: function () { room.sit(e); }
+        });
+      })(i);
     }
-    this.seatCab = null;
-    this.cab = this.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
+    room.cab = room.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
+    built.plaques.forEach(function (pl) { room.interactables.push({ hit: pl, use: function () { world.setFull(!world.full); } }); });
 
-    this.player = { x: 0, z: 10.2, yaw: 0, pitch: -0.04 };
-    this.keys = {}; this.stick = { x: 0, y: 0 }; this.mouse = { nx: 0, ny: 0, inside: false };
-    this.mode = 'room'; this.blend = 0; this.near = null;
-    this.view = { yaw: 0, pitch: 0.06, yawG: 0, pitchG: 0.06, r: 3.2, rG: 3.2, ty: 1.95, tyG: 1.95, fov: 40, fovG: 40, mode: 'play', lastDrag: -99 };
-    this.clock = 0; this.last = 0; this.w = 0; this.h = 0; this.running = true; this.dead = false; this.hudT = 0;
-    this.ray = new THREE.Raycaster(); this.ndc = new THREE.Vector2();
-    this._tmpA = new THREE.Vector3(); this._tmpB = new THREE.Vector3();
-    this._buildHud();
-    this._bindPointer();
-    this._bindKeys();
-    this._frame = function (now) { self._loop(now); };
-    this._raf = requestAnimationFrame(this._frame);
-  }
+    // porte de sortie vers le hall (seulement dans le monde complet)
+    if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: ROOM.front - 0.02, nx: 0, nz: -1, w: 1.7, label: 'HALL', sub: 'Sortie', color: 0xffe9b0, target: 'hall' });
 
-  SlotsExperience.prototype._buildHud = function () {
-    var self = this;
-    injectCss();
-    var hud = document.createElement('div'); hud.className = 's3d-hud'; hud.setAttribute('data-mode', 'room');
-    hud.innerHTML =
-      '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div>' +
-      '<div class="s3d-btns"><button class="s3d-cam s3d-full-btn" data-s3d="full"></button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button></div></div>' +
-      '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
-      '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none">🪑 S\'asseoir</button>' +
-      '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
+    room.spawn = function () { return { x: 0, z: 8.2, yaw: 0 }; };
+    room.hint = function (w) {
+      return w.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir · règles sur les murs de côté'
+        : w.full ? 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l\'écran) · clic sur une borne : s\'asseoir · Échap : quitter'
+        : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · clic sur une borne : s\'asseoir · règles sur les murs de côté';
+    };
+
+    /* ---------- interface propre aux machines ---------- */
+    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button>';
+    room.hudBottom =
       '<div class="s3d-bottom s3d-seat-only"><div class="s3d-chips">' +
       '<button data-bet="50">50</button><button data-bet="500">500</button><button data-bet="5000">5k</button><button data-bet="25000">25k</button><button data-bet="100000">MAX</button></div>' +
       '<div class="s3d-row"><button class="s3d-step" data-d="-1" aria-label="Mise moins">−</button>' +
       '<div class="s3d-bet">MISE<b data-s3d="bet">50</b></div><button class="s3d-step" data-d="1" aria-label="Mise plus">+</button>' +
       '<button class="s3d-spin" data-s3d="spin">🔴 TIRER</button></div></div>';
-    this.container.appendChild(hud);
-    this.hud = hud;
-    function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
-    this.elBal = q('bal'); this.elBet = q('bet'); this.elSpin = q('spin'); this.elCam = q('cam');
-    this.elFull = q('full'); this.elStand = q('stand'); this.elSit = q('sit'); this.elStick = q('stick'); this.elHint = q('hint');
-    this.full = false; this._setHint(); this._paintFullBtn(); var selfRef = this; setTimeout(function () { if (!selfRef.dead) selfRef.room.drawPlaque(selfRef.full); }, 1500);
-    if (this.touch) this.elStick.style.display = '';
-    this.elCam.addEventListener('click', function () { self.toggleCamera(); });
-    this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
-    this.elStand.addEventListener('click', function () { self.stand(); });
-    this.elSit.addEventListener('click', function () { if (self.near) self.sit(self.near); });
-    this.elSpin.addEventListener('click', function (e) { self.doSpin(e); });
-    hud.querySelectorAll('[data-bet]').forEach(function (b) {
-      b.addEventListener('click', function () { self.setBet(parseInt(b.getAttribute('data-bet'), 10)); });
-    });
-    hud.querySelectorAll('[data-d]').forEach(function (b) {
-      b.addEventListener('click', function () { self.stepBet(parseInt(b.getAttribute('data-d'), 10)); });
-    });
-    // joystick tactile
-    var knob = this.elStick.querySelector('i'), st = this.elStick, act = false;
-    function mv(e) {
-      var rc = st.getBoundingClientRect(), dx = e.clientX - (rc.left + rc.width / 2), dy = e.clientY - (rc.top + rc.height / 2);
-      var L = Math.hypot(dx, dy), M = rc.width / 2 - 10; if (L > M) { dx *= M / L; dy *= M / L; }
-      knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-      self.stick.x = dx / M; self.stick.y = -dy / M;
-    }
-    st.addEventListener('pointerdown', function (e) { act = true; try { st.setPointerCapture(e.pointerId); } catch (er) { /* ok */ } mv(e); });
-    st.addEventListener('pointermove', function (e) { if (act) mv(e); });
-    function end() { act = false; self.stick.x = 0; self.stick.y = 0; knob.style.transform = ''; }
-    st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
-  };
-
-  SlotsExperience.prototype._bindKeys = function () {
-    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
-    function ok(e) {
-      var t = e.target, tag = t && t.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
-      return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !e.ctrlKey && !e.metaKey && !e.altKey;
-    }
-    this._kd = function (e) {
-      if (!ok(e)) return;
-      if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
-      else if ((e.code === 'KeyE' || e.code === 'Enter') && self.near && self.blend === 0) { self.sit(self.near); e.preventDefault(); }
+    room.bindHud = function (hud) {
+      function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
+      room.elBet = q('bet'); room.elSpin = q('spin'); room.elCam = q('cam'); room.elStand = q('stand');
+      room.elCam.addEventListener('click', function () { room.toggleCamera(); });
+      room.elStand.addEventListener('click', function () { room.stand(); });
+      room.elSpin.addEventListener('click', function (e) { room.doSpin(e); });
+      hud.querySelectorAll('[data-bet]').forEach(function (b) { b.addEventListener('click', function () { room.setBet(parseInt(b.getAttribute('data-bet'), 10)); }); });
+      hud.querySelectorAll('[data-d]').forEach(function (b) { b.addEventListener('click', function () { room.stepBet(parseInt(b.getAttribute('data-d'), 10)); }); });
     };
-    this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
-    window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku);
-    this._blur = function () { self.keys = {}; };
-    window.addEventListener('blur', this._blur);
-    this._esc = function (e) { if (e.code === 'Escape' && self.full) self.setFull(false); };
-    window.addEventListener('keydown', this._esc);
-    this._ph = function () { if (self.netOn) self._post({ action: 'leave' }); };
-    window.addEventListener('pagehide', this._ph);
-  };
+    function betInput() { return document.getElementById('slotBetInput'); }
+    room.setBet = function (v) {
+      if (typeof window.setSlotQuickBet === 'function') window.setSlotQuickBet(v);
+      else { var el = betInput(); if (el) el.value = v; }
+      room.syncHud();
+    };
+    room.stepBet = function (d) {
+      var el = betInput(); if (!el) return;
+      var cur = parseInt(el.value, 10) || 50, k;
+      if (d > 0) { for (k = 0; k < BET_STEPS.length; k++) if (BET_STEPS[k] > cur) { room.setBet(BET_STEPS[k]); return; } room.setBet(BET_STEPS[BET_STEPS.length - 1]); }
+      else { for (k = BET_STEPS.length - 1; k >= 0; k--) if (BET_STEPS[k] < cur) { room.setBet(BET_STEPS[k]); return; } room.setBet(BET_STEPS[0]); }
+    };
+    room.doSpin = function (e) {
+      if (world.mode !== 'seat' || world.blend < 1 || room.cab.isBusy()) return;
+      if (typeof window.pullSlotLever === 'function') window.pullSlotLever(e);
+    };
+    room.syncHud = function () {
+      if (!room.elBet) return;
+      var el = betInput(), bet = el ? (parseInt(el.value, 10) || 0) : 0;
+      room.elBet.textContent = fmtN(bet);
+      if (world.mode === 'seat') room.cab.setBet(bet);
+      var busy = room.cab.isBusy(); room.elSpin.disabled = busy; room.elStand.disabled = busy;
+      room.elSpin.textContent = busy ? '… EN COURS' : '🔴 TIRER';
+      var box = document.getElementById('slotCabinetBox'), trim = SKINS[''];
+      if (box) Object.keys(SKINS).forEach(function (k) { if (k && box.classList.contains(k)) trim = SKINS[k]; });
+      room.cabs.forEach(function (c) { c.cab.setTrim(trim); });
+    };
 
-  SlotsExperience.prototype._setHint = function () {
-    this.elHint.textContent = this.touch ? "Joystick : marcher · glisse : regarder · touche une borne pour t'asseoir · règles sur les murs de côté"
-      : this.full ? "ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l'écran) · clic sur une borne : s'asseoir · Échap : quitter"
-      : "ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · clic sur une borne : s'asseoir · règles sur les murs de côté";
-    this.elHint.style.display = ''; this.hintShown = this.clock || 0;
-  };
-  SlotsExperience.prototype._paintFullBtn = function () {
-    var enter = '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', exit = '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>';
-    this.elFull.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + (this.full ? exit : enter) + '</svg><span>' + (this.full ? 'Quitter le grand écran' : 'Grand écran') + '</span>';
-    this.elFull.classList.toggle('on', this.full);
-  };
-  SlotsExperience.prototype.setFull = function (on) {
-    on = !!on; if (on === this.full) return;
-    this.full = on; this.mouse.inside = false;
-    this.container.classList.toggle('s3d-full', on);
-    document.body.classList.toggle('s3d-full-on', on);
-    this._paintFullBtn();
-    this.room.drawPlaque(on);
-    this.w = 0; this._setHint();
-  };
-  SlotsExperience.prototype.getBetInput = function () { return document.getElementById('slotBetInput'); };
-  SlotsExperience.prototype.setBet = function (n) {
-    if (typeof window.setSlotQuickBet === 'function') window.setSlotQuickBet(n);
-    else { var el = this.getBetInput(); if (el) el.value = n; }
-    this.syncHud(true);
-  };
-  SlotsExperience.prototype.stepBet = function (d) {
-    var el = this.getBetInput(); if (!el) return;
-    var cur = parseInt(el.value, 10) || 50, i;
-    if (d > 0) { for (i = 0; i < BET_STEPS.length; i++) if (BET_STEPS[i] > cur) { this.setBet(BET_STEPS[i]); return; } this.setBet(BET_STEPS[BET_STEPS.length - 1]); }
-    else { for (i = BET_STEPS.length - 1; i >= 0; i--) if (BET_STEPS[i] < cur) { this.setBet(BET_STEPS[i]); return; } this.setBet(BET_STEPS[0]); }
-  };
-  SlotsExperience.prototype.doSpin = function (e) {
-    if (this.mode !== 'seat' || this.blend < 1 || this.cab.isBusy()) return;
-    if (typeof window.pullSlotLever === 'function') window.pullSlotLever(e);
-  };
-
-  /* ---------- s'asseoir / se lever ---------- */
-  SlotsExperience.prototype.sit = function (entry) {
-    if (this.mode === 'seat' || !entry) return;
-    if (entry.occBy) { this._flash('Borne ' + entry.n + ' occupée par ' + entry.occBy + ' — choisis-en une autre'); return; }
-    this.seatCab = entry; this.cab = entry.cab; this.mode = 'seat';
-    var v = this.view; v.mode = 'play'; v.yaw = v.yawG = 0; v.lastDrag = -99;
-    this.elCam.textContent = '🔭 Reculer';
-    this.cab.setMessage('Tire le levier !');
-    this._computeGoals(); v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG; v.pitch = v.pitchG;
-    this.keys = {}; this.stick.x = this.stick.y = 0;
-    this.syncHud(true);
-    var self = this, tried = entry;
-    this._post({ action: 'sit', seat: entry.n - 1 }).then(function (r) {
-      if (r && r.ok === false && r._status === 409 && self.seatCab === tried) { self.stand(true); self._flash(r.error || 'Borne occupée.'); }
-    });
-  };
-  SlotsExperience.prototype.stand = function (force) {
-    if (this.mode !== 'seat' || (this.cab.isBusy() && !force)) return;
-    this._post({ action: 'stand' });
-    var e = this.seatCab;
-    this.player.x = e.x + Math.sin(e.rotY) * 2.3; this.player.z = e.z + Math.cos(e.rotY) * 2.3;
-    this.player.yaw = -e.rotY; this.player.pitch = -0.04;
-    e.cab.setMessage('Libre — viens jouer !');
-    this.mode = 'room'; this.seatCab = null;
-  };
-  SlotsExperience.prototype.toggleCamera = function () {
-    if (this.mode !== 'seat') return;
-    var v = this.view;
-    v.mode = v.mode === 'play' ? 'far' : 'play';
-    v.yawG = 0; v.lastDrag = -99;
-    this.elCam.textContent = v.mode === 'play' ? '🔭 Reculer' : '🎯 Rapprocher';
-    this._computeGoals();
-  };
-
-  SlotsExperience.prototype.syncHud = function () {
-    var el = this.getBetInput(), bet = el ? (parseInt(el.value, 10) || 0) : 0;
-    this.elBet.textContent = fmtN(bet);
-    if (this.mode === 'seat') this.cab.setBet(bet);
-    try { if (typeof state !== 'undefined' && state && typeof state.balance === 'number') this.elBal.textContent = fmtN(state.balance); } catch (e) { /* solde pas encore chargé */ }
-    var busy = this.cab.isBusy(); this.elSpin.disabled = busy; this.elStand.disabled = busy;
-    this.elSpin.textContent = busy ? '… EN COURS' : '🔴 TIRER';
-    var box = document.getElementById('slotCabinetBox'), trim = SKINS[''];
-    if (box) Object.keys(SKINS).forEach(function (k) { if (k && box.classList.contains(k)) trim = SKINS[k]; });
-    this.cabs.forEach(function (c) { c.cab.setTrim(trim); });
-    this.hud.setAttribute('data-mode', this.blend > 0.5 ? 'seat' : 'room');
-  };
-
-  SlotsExperience.prototype._computeGoals = function () {
-    var v = this.view, aspect = this.w / Math.max(1, this.h), fov = aspect < 0.9 ? 50 : 38;
-    var t = Math.tan(fov * Math.PI / 360);
-    if (v.mode === 'play') {
-      v.rG = Math.max(2.2 / 2 / t, 2.7 / 2 / (t * aspect)); v.tyG = 1.95; v.pitchG = 0.06;
-    } else {
-      v.rG = Math.max(5.2 / 2 / t, 4.4 / 2 / (t * aspect)); v.tyG = 1.65; v.pitchG = 0.2;
-    }
-    v.fovG = fov;
-  };
-
-  SlotsExperience.prototype._bindPointer = function () {
-    var self = this, dom = this.dom, drag = null;
-    dom.addEventListener('pointerdown', function (e) {
-      drag = { x: e.clientX, y: e.clientY, yaw: self.view.yawG, pitch: self.view.pitchG, pyaw: self.player.yaw, ppitch: self.player.pitch, moved: 0, mouse: e.pointerType === 'mouse' };
-      try { dom.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
-    });
-    // Souris (PC) : la vue suit la position du curseur sur la scène, sans avoir à cliquer
-    this.container.addEventListener('pointermove', function (e) {
-      if (e.pointerType !== 'mouse') return;
-      var rc = dom.getBoundingClientRect();
-      self.mouse.nx = ((e.clientX - rc.left) / rc.width) * 2 - 1;
-      self.mouse.ny = ((e.clientY - rc.top) / rc.height) * 2 - 1;
-      self.mouse.inside = true;
-    });
-    this.container.addEventListener('pointerleave', function () { self.mouse.inside = false; });
-    dom.addEventListener('pointermove', function (e) {
-      if (!drag) return;
-      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
-      if (drag.moved < 6 || (drag.mouse && self.full)) return;
-      if (self.mode === 'room') {
-        if (self.blend > 0) return;
-        self.player.yaw = drag.pyaw + dx * 0.005;
-        if (drag.mouse) self.player.pitch = Math.max(-0.6, Math.min(0.5, drag.ppitch + dy * 0.004));
-        return;
+    /* ---------- s'asseoir / se lever / caméra à la borne ---------- */
+    room.computeGoals = function () {
+      var v = room.view, aspect = room.aspect, fov = aspect < 0.9 ? 50 : 38, t = Math.tan(fov * Math.PI / 360);
+      if (v.mode === 'play') { v.rG = Math.max(2.2 / 2 / t, 2.7 / 2 / (t * aspect)); v.tyG = 1.95; v.pitchG = 0.06; }
+      else { v.rG = Math.max(5.2 / 2 / t, 4.4 / 2 / (t * aspect)); v.tyG = 1.65; v.pitchG = 0.2; }
+      v.fovG = fov;
+    };
+    room.onResize = function (w, h) { room.aspect = w / h; room.computeGoals(); var v = room.view; v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG; };
+    room.sit = function (entry) {
+      if (world.mode === 'seat' || !entry || world.trans) return;
+      if (entry.occBy) { world.flash('Borne ' + entry.n + ' occupée par ' + entry.occBy + ' — choisis-en une autre'); return; }
+      room.seatCab = entry; room.cab = entry.cab; world.sitDown(room);
+      var v = room.view; v.mode = 'play'; v.yaw = v.yawG = 0; v.lastDrag = -99;
+      if (room.elCam) room.elCam.textContent = '🔭 Reculer';
+      entry.cab.setMessage('Tire le levier !');
+      room.computeGoals(); v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG; v.pitch = v.pitchG;
+      room.syncHud();
+      world.post('/api/slots', { action: 'sit', seat: entry.n - 1 }).then(function (r) {
+        if (r && r.ok === false && r._status === 409 && room.seatCab === entry) { room.stand(true); world.flash(r.error || 'Borne occupée.'); }
+      });
+    };
+    room.stand = function (force) {
+      if (world.mode !== 'seat' || !room.seatCab || (room.cab.isBusy() && !force)) return;
+      world.post('/api/slots', { action: 'stand' });
+      var e = room.seatCab;
+      world.standUp(e.x + Math.sin(e.rotY) * 2.3, e.z + Math.cos(e.rotY) * 2.3, -e.rotY);
+      e.cab.setMessage('Libre — viens jouer !');
+      room.seatCab = null;
+    };
+    room.forceStand = function () { room.stand(true); };
+    room.toggleCamera = function () {
+      if (world.mode !== 'seat') return;
+      var v = room.view;
+      v.mode = v.mode === 'play' ? 'far' : 'play'; v.yawG = 0; v.lastDrag = -99;
+      room.elCam.textContent = v.mode === 'play' ? '🔭 Reculer' : '🎯 Rapprocher';
+      room.computeGoals();
+    };
+    room.seatPose = function (dt, ctx) {
+      var e = room.seatCab; if (!e) return null;
+      var v = room.view, k = 1 - Math.exp(-dt * 4);
+      room.aspect = ctx.aspect;
+      if (ctx.mouseLook) {
+        v.yawG = ctx.dz(ctx.ms.nx, 0.15) * (v.mode === 'play' ? 0.9 : 2.4);
+        v.pitchG = (v.mode === 'play' ? 0.06 : 0.2) + ctx.dz(ctx.ms.ny, 0.15) * 0.22;
+        v.lastDrag = ctx.clock;
       }
-      var v = self.view, lim = v.mode === 'play' ? 0.9 : Math.PI;
-      v.yawG = Math.max(-lim, Math.min(lim, drag.yaw - dx * 0.007));
-      if (drag.mouse) v.pitchG = Math.max(-0.05, Math.min(0.75, drag.pitch + dy * 0.005));
-      v.lastDrag = self.clock;
-    });
-    dom.addEventListener('pointerup', function (e) {
-      if (!drag) return;
-      var d = drag; drag = null;
-      if (d.moved < 6) self._click(e);
-    });
-    dom.addEventListener('pointercancel', function () { drag = null; });
-  };
-
-  SlotsExperience.prototype._click = function (e) {
-    var rc = this.dom.getBoundingClientRect();
-    this.ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
-    this.ray.setFromCamera(this.ndc, this.camera);
-    if (this.mode === 'room') {
-      if (this.blend > 0) return;
-      var hits = this.ray.intersectObjects(this.cabs.map(function (c) { return c.cab.hit; }).concat(this.room.plaques), false);
-      if (hits[0]) { if (hits[0].object.userData.action === 'fs') this.setFull(!this.full); else this.sit(hits[0].object.userData.entry); }
-      return;
-    }
-    if (this.blend < 1) return;
-    var hit = this.ray.intersectObjects(this.cab.buttons, false)[0];
-    if (!hit) return;
-    var a = hit.object.userData.action;
-    this.cab.pressButton(hit.object);
-    if (a === 'spin') this.doSpin(e);
-    else if (a === 'betDown') this.stepBet(-1);
-    else if (a === 'betUp') this.stepBet(1);
-    else if (a === 'max') this.setBet(100000);
-  };
-
-  SlotsExperience.prototype._resize = function () {
-    var w = this.container.clientWidth, h = this.container.clientHeight;
-    if (!w || !h || (w === this.w && h === this.h)) return;
-    this.w = w; this.h = h;
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
-    this._computeGoals();
-    var v = this.view; v.r = v.rG; v.ty = v.tyG; v.fov = v.fovG;
-  };
-
-  /* ---------- déplacement dans la salle ---------- */
-  SlotsExperience.prototype._movePlayer = function (dt) {
-    var k = this.keys, p = this.player;
-    p.yaw += ((k.tr ? 1 : 0) - (k.tl ? 1 : 0)) * 1.8 * dt;
-    var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x;
-    var len = Math.hypot(fwd, str);
-    if (len > 1) { fwd /= len; str /= len; }
-    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z;
-    this.running2 = run;
-    if (k.jump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
-    if (p.air) { p.vy -= 13 * dt; p.jy = (p.jy || 0) + p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; p.air = false; } }
-    p.x += (Math.sin(p.yaw) * fwd + Math.cos(p.yaw) * str) * sp;
-    p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
-    p.x = Math.max(-ROOM.xMax, Math.min(ROOM.xMax, p.x)); p.z = Math.max(ROOM.zMin, Math.min(ROOM.zMax, p.z));
-    for (var i = 0; i < this.cabs.length; i++) {          // on ne traverse pas les bornes
-      var c = this.cabs[i], dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
-      if (d < 1.15 && d > 0.0001) { p.x = c.x + dx / d * 1.15; p.z = c.z + dz / d * 1.15; }
-    }
-    var vk = Math.min(1, dt * 12), pv = this.pv || (this.pv = { x: 0, z: 0 });
-    pv.x += ((p.x - ox) / Math.max(dt, 0.001) - pv.x) * vk; pv.z += ((p.z - oz) / Math.max(dt, 0.001) - pv.z) * vk;
-  };
-  SlotsExperience.prototype._findNear = function () {
-    var best = null, bd = 1.8, p = this.player;
-    if (this.mode === 'room' && this.blend === 0) {
-      for (var i = 0; i < this.cabs.length; i++) {
-        var c = this.cabs[i]; if (c.occBy) continue;
-        var d = Math.hypot(p.x - (c.x + Math.sin(c.rotY) * 2.1), p.z - (c.z + Math.cos(c.rotY) * 2.1));
-        if (d < bd) { bd = d; best = c; }
-      }
-    }
-    if (best !== this.near) {
-      this.near = best;
-      this.elSit.style.display = best ? '' : 'none';
-      if (best) this.elSit.textContent = '🪑 S\'asseoir — Borne ' + best.n;
-    }
-  };
-
-  SlotsExperience.prototype._loop = function (now) {
-    if (this.dead) return;
-    this._raf = requestAnimationFrame(this._frame);
-    if (!this.running || !this.container.clientWidth) { this.last = 0; return; }
-    var dt = this.last ? (now - this.last) / 1000 : 0.016; this.last = now;
-    if (dt > 0.1) dt = 0.1;
-    this.step(dt);
-    this.renderer.render(this.scene, this.camera);
-    this.hudT += dt;
-    if (this.hudT > 0.25) { this.hudT = 0; this.syncHud(); }
-    if (this.clock - (this.boardT || 0) > 5) { this.boardT = this.clock; this.room.drawBoard(topSlotWins()); }
-  };
-
-  // Fait avancer la simulation de dt secondes et place la caméra (séparé du rendu pour pouvoir tester)
-  SlotsExperience.prototype.step = function (dt) {
-    this.clock += dt;
-    this._resize();
-    if (this.clock - (this.hintShown || 0) > 9 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
-    var i;
-    for (i = 0; i < this.cabs.length; i++) this.cabs[i].cab.update(dt);
-    this._updateRemotes(dt);
-    this._rtSend(false, dt);
-
-    var target = this.mode === 'seat' ? 1 : 0;
-    this.blend += Math.sign(target - this.blend) * dt / 1.1;
-    this.blend = Math.max(0, Math.min(1, this.blend));
-    if (Math.abs(target - this.blend) < 0.004) this.blend = target;
-    var ms = this.mouse, mouseLook = ms.inside && !this.touch && this.full;
-    function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
-    if (this.mode === 'room' && this.blend === 0) {
-      if (mouseLook) {   // curseur vers les bords = on tourne la tête, haut/bas = on regarde en l'air / au sol
-        this.player.yaw += dz(ms.nx, 0.12) * 3.4 * dt;
-        this.player.pitch = Math.max(-0.7, Math.min(0.6, -0.04 - dz(ms.ny, 0.12) * 0.9));
-      }
-      this._movePlayer(dt);
-    }
-    this._findNear();
-    var w = this.blend * this.blend * (3 - 2 * this.blend);   // adoucit le trajet
-
-    // pose « salle »
-    var p = this.player, cpp = Math.cos(p.pitch), A = this._tmpA, B = this._tmpB;
-    var rx = p.x, ry = 1.65 + (p.jy || 0), rz = p.z;
-    var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
-    var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = this.w / Math.max(1, this.h) < 0.9 ? 70 : 62;
-
-    if (this.seatCab && this.blend > 0) {
-      var e = this.seatCab, v = this.view, k = 1 - Math.exp(-dt * 4);
-      if (mouseLook && this.mode === 'seat' && this.blend > 0.9) {
-        v.yawG = dz(ms.nx, 0.15) * (v.mode === 'play' ? 0.9 : 2.4);
-        v.pitchG = (v.mode === 'play' ? 0.06 : 0.2) + dz(ms.ny, 0.15) * 0.22;
-        v.lastDrag = this.clock;
-      }
-      if (v.mode === 'play' && this.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
+      if (v.mode === 'play' && ctx.clock - v.lastDrag > 3) { v.yawG = 0; v.pitchG = 0.06; }
       v.yaw += (v.yawG - v.yaw) * k; v.pitch += (v.pitchG - v.pitch) * k;
       v.r += (v.rG - v.r) * k; v.ty += (v.tyG - v.ty) * k; v.fov += (v.fovG - v.fov) * k;
       var cp = Math.cos(v.pitch), lx = Math.sin(v.yaw) * cp * v.r, lz = 0.3 + Math.cos(v.yaw) * cp * v.r;
       var sn = Math.sin(e.rotY), cs = Math.cos(e.rotY);
       var sx = e.x + lx * cs + lz * sn, sz = e.z - lx * sn + lz * cs, sy = v.ty + Math.sin(v.pitch) * v.r;
-      var stx = e.x + 0.3 * sn, stz = e.z + 0.3 * cs, sty = v.ty;
-      var sh = this.cab.getShake();
-      if (sh > 0) { sx += Math.sin(this.clock * 61) * sh * v.r; sy += Math.cos(this.clock * 53) * sh * v.r; }
-      cx = rx + (sx - rx) * w; cy = ry + (sy - ry) * w; cz = rz + (sz - rz) * w;
-      tx = rtx + (stx - rtx) * w; ty = rty + (sty - rty) * w; tz = rtz + (stz - rtz) * w;
-      fov = fov + (v.fov - fov) * w;
-    }
-    if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
-    this.camera.position.set(cx, cy, cz);
-    this.camera.lookAt(tx, ty, tz);
-  };
-
-    /* ===================================================================
-     MULTIJOUEUR (étape 3) : les autres joueurs de la salle, leurs bornes et leurs tirages.
-     Tout passe par /api/slots (présence ~1 fois par seconde). Purement visuel : les soldes et
-     les gains ne passent jamais par là.
-     =================================================================== */
-  var SKIN_TONES = [0xf1c9a5, 0xe0ac82, 0xc68642, 0x8d5524, 0xffdbac, 0xd9a066];
-  var SHIRTS = [0x7c1d2e, 0x1f4e79, 0x2d6a4f, 0x6b3fa0, 0xb8860b, 0x374151, 0xa13d63, 0x0f766e];
-  var HAIRS = [0x1a1210, 0x3b2314, 0x6b4423, 0xb8863b, 0x222222, 0x8a2b1c];
-  function nameHash(n) { var h = 7; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return h; }
-  var personGeo = null;
-  function geo() {
-    if (!personGeo) personGeo = {
-      torso: new THREE.CylinderGeometry(0.2, 0.17, 0.55, 14), hips: new THREE.CylinderGeometry(0.18, 0.18, 0.18, 14),
-      head: new THREE.SphereGeometry(0.14, 16, 12), hair: new THREE.SphereGeometry(0.152, 16, 10, 0, TAU, 0, Math.PI * 0.55),
-      neck: new THREE.CylinderGeometry(0.05, 0.06, 0.1, 8), eye: new THREE.SphereGeometry(0.016, 6, 5),
-      thigh: new THREE.CylinderGeometry(0.085, 0.07, 0.46, 10), shin: new THREE.CylinderGeometry(0.068, 0.058, 0.46, 10),
-      arm: new THREE.CylinderGeometry(0.058, 0.048, 0.56, 8), foot: new THREE.BoxGeometry(0.1, 0.06, 0.2), hand: new THREE.SphereGeometry(0.05, 8, 6)
+      var sh = room.cab.getShake();
+      if (sh > 0) { sx += Math.sin(ctx.clock * 61) * sh * v.r; sy += Math.cos(ctx.clock * 53) * sh * v.r; }
+      return { cx: sx, cy: sy, cz: sz, tx: e.x + 0.3 * sn, ty: v.ty, tz: e.z + 0.3 * cs, fov: v.fov };
     };
-    return personGeo;
-  }
-
-  // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
-  function createPerson(name, avatar) {
-    var h = nameHash(name), G = geo();
-    var skin = new THREE.MeshLambertMaterial({ color: SKIN_TONES[h % SKIN_TONES.length] });
-    var shirt = new THREE.MeshLambertMaterial({ color: SHIRTS[(h >> 3) % SHIRTS.length] });
-    var pants = new THREE.MeshLambertMaterial({ color: 0x171a24 });
-    var hairM = new THREE.MeshLambertMaterial({ color: HAIRS[(h >> 6) % HAIRS.length] });
-    var dark = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    var mats = [skin, shirt, pants, hairM, dark];
-    var g = new THREE.Group();
-    function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); return m; }
-    add(G.hips, pants, 0, 0.98, 0); add(G.torso, shirt, 0, 1.3, 0); add(G.neck, skin, 0, 1.62, 0);
-    var head = add(G.head, skin, 0, 1.75, 0);
-    if ((h >> 9) % 5 !== 0) add(G.hair, hairM, 0, 1.76, -0.005);          // 1 personne sur 5 est chauve
-    add(G.eye, dark, -0.05, 1.77, 0.125); add(G.eye, dark, 0.05, 1.77, 0.125);
-    var hips = [], knees = [], arms = [];
-    [-1, 1].forEach(function (s) {
-      var hip = new THREE.Group(); hip.position.set(s * 0.09, 0.92, 0); g.add(hip); hips.push(hip);
-      add(G.thigh, pants, 0, -0.23, 0, hip);
-      var knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee); knees.push(knee);
-      add(G.shin, pants, 0, -0.23, 0, knee); add(G.foot, dark, 0, -0.49, 0.04, knee);
-      var sh = new THREE.Group(); sh.position.set(s * 0.26, 1.5, 0); g.add(sh); arms.push(sh);
-      add(G.arm, shirt, 0, -0.28, 0, sh); add(G.hand, skin, 0, -0.58, 0, sh);
-    });
-    // étiquette au-dessus de la tête : avatar + pseudo
-    var cv = mkCanvas(320, 72), c = cv.getContext('2d');
-    roundRectPath(c, 4, 4, 312, 64, 22); c.fillStyle = 'rgba(8,5,12,0.82)'; c.fill(); c.strokeStyle = 'rgba(201,162,39,0.8)'; c.lineWidth = 3; c.stroke();
-    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#f4e3b0'; c.font = '700 32px ' + MONO;
-    c.fillText(((avatar ? avatar + ' ' : '') + name).slice(0, 16), 160, 38, 292);
-    var tex = mkTex(cv);
-    var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    tag.scale.set(0.9, 0.2, 1); tag.position.set(0, 2.1, 0); g.add(tag);
-    return {
-      group: g, hips: hips, knees: knees, arms: arms, phase: 0, seated: false,
-      setSeated: function (on) {
-        if (on === this.seated) return; this.seated = on;
-        g.position.y = on ? -0.3 : 0;                                   // hanches posées sur le tabouret
-        hips.forEach(function (hp) { hp.rotation.x = on ? -Math.PI / 2 : 0; });
-        knees.forEach(function (k) { k.rotation.x = on ? Math.PI / 2 : 0; });
-        arms.forEach(function (a) { a.rotation.x = on ? -1.05 : 0; });
-      },
-      walk: function (dt, speed) {
-        if (this.seated) return;
-        this.phase += dt * (3 + speed * 2.5);
-        var sw = Math.min(1, speed / 1.2) * 0.65 * Math.sin(this.phase);
-        hips[0].rotation.x = sw; hips[1].rotation.x = -sw; arms[0].rotation.x = -sw * 0.8; arms[1].rotation.x = sw * 0.8;
-      },
-      stopWalk: function () { if (!this.seated) { hips.forEach(function (hp) { hp.rotation.x = 0; }); arms.forEach(function (a) { a.rotation.x = 0; }); } },
-      dispose: function () { mats.forEach(function (m) { m.dispose(); }); tex.dispose(); tag.material.dispose(); }
+    room.seatDragStart = function () { return { yaw: room.view.yawG, pitch: room.view.pitchG }; };
+    room.seatDrag = function (drag, dx, dy, w) {
+      var v = room.view, lim = v.mode === 'play' ? 0.9 : Math.PI;
+      v.yawG = Math.max(-lim, Math.min(lim, drag.seat.yaw - dx * 0.007));
+      if (drag.mouse) v.pitchG = Math.max(-0.05, Math.min(0.75, drag.seat.pitch + dy * 0.005));
+      v.lastDrag = w.clock;
     };
-  }
+    room.seatClick = function (ray, e) {
+      var hit = ray.intersectObjects(room.cab.buttons, false)[0];
+      if (!hit) return;
+      var a = hit.object.userData.action;
+      room.cab.pressButton(hit.object);
+      if (a === 'spin') room.doSpin(e);
+      else if (a === 'betDown') room.stepBet(-1);
+      else if (a === 'betUp') room.stepBet(1);
+      else if (a === 'max') room.setBet(100000);
+    };
 
-  SlotsExperience.prototype._me = function () { try { return (typeof state !== 'undefined' && state && state.username ? state.username : '').toLowerCase().trim(); } catch (e) { return ''; } };
-  SlotsExperience.prototype._token = function () { try { return typeof getAuthToken === 'function' ? getAuthToken() : ''; } catch (e) { return ''; } };
-  SlotsExperience.prototype._post = function (body) {
-    var tok = this._token();
-    if (!tok) return Promise.resolve(null);
-    var nm = '', av = '';
-    try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (e) { /* pas connecté */ }
-    return fetch('/api/slots', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json', 'X-Auth-Token': tok }, body: JSON.stringify(Object.assign({ name: nm, avatar: av }, body)) })
-      .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { if (j) j._status = r.status; return j; }); })
-      .catch(function () { return null; });
-  };
-  SlotsExperience.prototype._flash = function (msg) {
-    this.elHint.textContent = msg; this.elHint.style.display = ''; this.hintShown = this.clock;
-    var self = this; clearTimeout(this._flashT); this._flashT = setTimeout(function () { if (!self.dead) self._setHint(); }, 3500);
-  };
-  SlotsExperience.prototype._netStart = function () {
-    if (this.netOn || this.dead) return;
-    this.netOn = true; this.remote = this.remote || {}; this.occ = this.occ || {};
-    var selfRt = this;
-    this.rt = createRealtime(function (ev, m) { selfRt._rtMsg(ev, m); });
-    this.rt.onReady = function () { selfRt._rtSend(true); selfRt.rt.send('hello', { k: selfRt._me() }); };
-    this._netTick();
-  };
-  SlotsExperience.prototype._netStop = function () {
-    this.netOn = false; clearTimeout(this._netTimer);
-    if (this.rt) { this.rt.send('bye', { k: this._me() }); var rtOld = this.rt; this.rt = null; setTimeout(function () { rtOld.close(); }, 150); }
-    this._post({ action: 'leave' });
-    var self = this;
-    Object.keys(this.remote || {}).forEach(function (k) { self._removeRemote(k); });
-    this.occ = {};
-    this.cabs.forEach(function (e) { if (e.occBy) { e.occBy = null; if (e !== self.seatCab) e.cab.setMessage('Libre — viens jouer !'); } });
-  };
-  SlotsExperience.prototype._netTick = function () {
-    var self = this;
-    if (!this.netOn || this.dead) return;
-    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, (self.rt && self.rt.ready) ? 800 : 220); };
-    if (document.hidden) { next(); return; }
-    var p = this.player, e = this.seatCab, x = p.x, z = p.z, yaw = p.yaw;
-    if (e) { x = e.x + Math.sin(e.rotY) * 2.2; z = e.z + Math.cos(e.rotY) * 2.2; yaw = -e.rotY; }
-    // en mouvement : on envoie vite (position + vitesse) ; à l'arrêt : un signe de vie toutes les 1,8 s, le reste du temps on ne fait que regarder
-    var pv = this.pv || { x: 0, z: 0 }, moving = !e && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(yaw - (this._lastYaw || 0)) > 0.02);
-    var nowT = performance.now(), rtOk = this.rt && this.rt.ready, due = rtOk ? (!this._lastSend || nowT - this._lastSend > 1200) : (moving || this._wasMoving || !this._lastSend || nowT - this._lastSend > 1800);
-    this._wasMoving = moving; this._lastYaw = yaw;
-    var req;
-    if (this._token() && due) {
-      this._lastSend = nowT;
-      req = this._post({ action: 'presence', x: x, z: z, yaw: yaw, vx: e ? 0 : pv.x, vz: e ? 0 : pv.z, run: !!this.running2, jmp: p.jmp || 0 });
-    } else req = fetch('/api/slots').then(function (r) { return r.json(); }).catch(function () { return null; });
-    req.then(function (d) { if (d && d.players) self._applyNet(d); next(); });
-  };
-  SlotsExperience.prototype._applyNet = function (d) {
-    var self = this, me = this._me(), seen = {}, i;
-    this.occ = {};
-    Object.keys(d.players).forEach(function (k) {
-      var p = d.players[k];
-      if (k === me) {
-        // le serveur m'a oublié alors que je suis assis (coupure réseau) : je reprends ma place
-        if (self.mode === 'seat' && self.seatCab && p.seat !== self.seatCab.n - 1 && !self._resitting) {
-          self._resitting = true;
-          self._post({ action: 'sit', seat: self.seatCab.n - 1 }).then(function (r) { self._resitting = false; if (r && r.ok === false && r._status === 409) { self.stand(true); self._flash(r.error || 'Borne occupée.'); } });
-        }
-        return;
+    /* ---------- les autres joueurs ---------- */
+    room.seatPos = function () {
+      var e = room.seatCab;
+      return e ? { seat: e.n - 1, x: e.x + Math.sin(e.rotY) * 2.2, z: e.z + Math.cos(e.rotY) * 2.2, yaw: -e.rotY } : null;
+    };
+    room.remotePose = function (r) {
+      var e = room.cabs[r.seat];
+      return e ? { x: e.x + Math.sin(e.rotY) * 1.6, z: e.z + Math.cos(e.rotY) * 1.6, yaw: -e.rotY } : null;
+    };
+    room.remoteFx = function (r, fx) {
+      var key = fx.id + ':' + fx.phase, e = room.cabs[r.seat];
+      if (r.lastFx === key || !e) return;
+      r.lastFx = key;
+      var cab = e.cab;
+      if (fx.phase === 'start') { if (!cab.isSpinning()) cab.startSpin(); }
+      else if (fx.finals) {
+        if (!cab.isSpinning()) cab.startSpin();
+        cab.stopReels(fx.finals, function () { cab.showResult(fx.finals, fx.mult || 0, fx.win || 0, fx.bet || 0); });
       }
-      seen[k] = true;
-      if (p.seat >= 0) self.occ[p.seat] = p.name;
-      var r = self.remote[k];
-      if (!r) {
-        r = self.remote[k] = { name: p.name, person: createPerson(p.name, p.avatar), tx: p.x, tz: p.z, tyaw: p.yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: p.jmp || 0, jt: -1 };
-        r.person.group.position.set(p.x, 0, p.z); r.px = p.x; r.pz = p.z;
-        self.scene.add(r.person.group);
-      }
-      r.seat = p.seat;
-      if (!(r.rtT && performance.now() - r.rtT < 1500)) {      // le temps réel est plus précis : on ne le contredit pas
-        r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.vx = p.vx || 0; r.vz = p.vz || 0; r.recv = performance.now();
-        if ((p.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = p.jmp || 0; }
-      }
-      var fx = p.fx;
-      if (fx && p.seat >= 0 && self.cabs[p.seat]) {
-        var key = fx.id + ':' + fx.phase, cab = self.cabs[p.seat].cab;
-        if (r.lastFx !== key) {
-          var first = r.fresh; r.lastFx = key;
-          if (!first) {
-            if (fx.phase === 'start') { if (!cab.isSpinning()) cab.startSpin(); }
-            else if (fx.finals) {
-              if (!cab.isSpinning()) cab.startSpin();
-              cab.stopReels(fx.finals, function () { cab.showResult(fx.finals, fx.mult || 0, fx.win || 0, fx.bet || 0); });
-            }
+    };
+    room.onRtMsg = function (ev, m, r) { if (ev === 'fx' && m.fx && r && r.seat >= 0) room.remoteFx(r, m.fx); };
+
+    // serveur du site : qui est assis où (autorité sur les places) + secours si le temps réel est coupé
+    room.netStart = function () { room.netOn = true; room.netTick(); };
+    room.netStop = function () {
+      room.netOn = false; clearTimeout(room.netTimer);
+      world.post('/api/slots', { action: 'leave' });
+      room.occ = {};
+      room.cabs.forEach(function (e) { if (e.occBy) { e.occBy = null; if (e !== room.seatCab) e.cab.setMessage('Libre — viens jouer !'); } });
+    };
+    room.onPause = function () { /* netStop est appelé par le monde */ };
+    room.netTick = function () {
+      if (!room.netOn || world.dead) return;
+      var next = function () { if (room.netOn && !world.dead) room.netTimer = setTimeout(room.netTick, (world.rt && world.rt.ready) ? 800 : 220); };
+      if (document.hidden) { next(); return; }
+      var p = world.player, sp = room.seatPos(), x = p.x, z = p.z, yaw = p.yaw;
+      if (sp) { x = sp.x; z = sp.z; yaw = sp.yaw; }
+      var pv = world.pv, moving = !sp && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(yaw - (room._lastYaw || 0)) > 0.02);
+      var nowT = performance.now(), rtOk = world.rt && world.rt.ready;
+      var due = rtOk ? (!room._lastSend || nowT - room._lastSend > 1200) : (moving || room._wasMoving || !room._lastSend || nowT - room._lastSend > 1800);
+      room._wasMoving = moving; room._lastYaw = yaw;
+      var req;
+      if (F.token() && due) {
+        room._lastSend = nowT;
+        req = world.post('/api/slots', { action: 'presence', x: x, z: z, yaw: yaw, vx: sp ? 0 : pv.x, vz: sp ? 0 : pv.z, run: !!world.running2, jmp: p.jmp || 0 });
+      } else req = fetch('/api/slots').then(function (r) { return r.json(); }).catch(function () { return null; });
+      req.then(function (d) { if (d && d.players) room.applyNet(d); next(); });
+    };
+    room.applyNet = function (d) {
+      var me = F.me(), seen = {}, i;
+      room.occ = {};
+      Object.keys(d.players).forEach(function (k) {
+        var p = d.players[k];
+        if (k === me) {
+          // le serveur m'a oublié alors que je suis assis (coupure réseau) : je reprends ma place
+          if (world.mode === 'seat' && room.seatCab && p.seat !== room.seatCab.n - 1 && !room._resitting) {
+            room._resitting = true;
+            world.post('/api/slots', { action: 'sit', seat: room.seatCab.n - 1 }).then(function (r) {
+              room._resitting = false;
+              if (r && r.ok === false && r._status === 409) { room.stand(true); world.flash(r.error || 'Borne occupée.'); }
+            });
           }
+          return;
+        }
+        seen[k] = true;
+        if (p.seat >= 0) room.occ[p.seat] = p.name;
+        var r = world.ensureRemote(k, p.name, p.avatar, p.x, p.z, p.yaw);
+        r.seat = p.seat;
+        if (!(r.rtT && performance.now() - r.rtT < 1500)) {      // le temps réel est plus précis : on ne le contredit pas
+          r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.vx = p.vx || 0; r.vz = p.vz || 0; r.recv = performance.now();
+          if ((p.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = p.jmp || 0; }
+        }
+        var fx = p.fx;
+        if (fx && p.seat >= 0 && room.cabs[p.seat]) {
+          if (r.lastFx !== fx.id + ':' + fx.phase && !r.fresh) room.remoteFx(r, fx);
+          else if (r.fresh) r.lastFx = fx.id + ':' + fx.phase;
+        }
+        r.fresh = false;
+      });
+      Object.keys(world.remote).forEach(function (k) { var rr = world.remote[k]; if (!seen[k] && !(rr.rtT && performance.now() - rr.rtT < 4000)) world.removeRemote(k); });
+      for (i = 0; i < room.cabs.length; i++) {      // étiquette « occupée / libre » sur l'écran de chaque borne
+        var ent = room.cabs[i], who = room.occ[i] || null;
+        if (ent.occBy !== who) {
+          ent.occBy = who;
+          if (ent !== room.seatCab) ent.cab.setMessage(who ? 'Occupée — ' + who : 'Libre — viens jouer !');
         }
       }
-      r.fresh = false;
-    });
-    Object.keys(this.remote).forEach(function (k) { var rr = self.remote[k]; if (!seen[k] && !(rr.rtT && performance.now() - rr.rtT < 4000)) self._removeRemote(k); });
-    for (i = 0; i < this.cabs.length; i++) {      // étiquette « occupée / libre » sur l'écran de chaque borne
-      var ent = this.cabs[i], who = this.occ[i] || null;
-      if (ent.occBy !== who) {
-        ent.occBy = who;
-        if (ent !== this.seatCab) ent.cab.setMessage(who ? 'Occupée — ' + who : 'Libre — viens jouer !');
-      }
-    }
-  };
-  SlotsExperience.prototype._removeRemote = function (k) {
-    var r = this.remote[k]; if (!r) return;
-    this.scene.remove(r.person.group); r.person.dispose(); delete this.remote[k];
-  };
-  SlotsExperience.prototype._updateRemotes = function (dt) {
-    var self = this, kk = 1 - Math.exp(-dt * 11), nowT = performance.now();
-    Object.keys(this.remote || {}).forEach(function (k) {
-      var r = self.remote[k], g = r.person.group, tx = r.tx, tz = r.tz, yaw = r.tyaw;
-      var age = Math.min(0.6, (nowT - r.recv) / 1000 + (r.rtT && nowT - r.rtT < 1500 ? 0.03 : 0.1));          // on prolonge le mouvement connu : pas de saccade entre deux envois
-      if (!(r.seat >= 0)) { tx += r.vx * age; tz += r.vz * age; }
-      if (r.seat >= 0 && self.cabs[r.seat]) {      // assis : sur le tabouret, face à la borne
-        var e = self.cabs[r.seat];
-        tx = e.x + Math.sin(e.rotY) * 1.6; tz = e.z + Math.cos(e.rotY) * 1.6; yaw = -e.rotY;
-        r.person.setSeated(true);
-      } else r.person.setSeated(false);
-      var ox = g.position.x, oz = g.position.z;
-      g.position.x += (tx - ox) * kk; g.position.z += (tz - oz) * kk;
-      var sp = r.seat >= 0 ? 0 : Math.max(Math.hypot(r.vx, r.vz), Math.hypot(g.position.x - ox, g.position.z - oz) / Math.max(dt, 0.001) * 0.5);
-      if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = 4 * 0.6 * u * (1 - u); }
-      else if (!r.person.seated) g.position.y = 0;
-      var ty = Math.PI - yaw, dy = ((ty - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
-      g.rotation.y += dy * Math.min(1, dt * 6);
-      if (sp > 0.12 && !r.person.seated) r.person.walk(dt, sp); else r.person.stopWalk();
-    });
-  };
-
-  /* ---------- canal temps réel : les navigateurs se parlent directement (Supabase Realtime, sans base de données) ---------- */
-  var RT_URL = 'wss://gyjyncljhlatomnbmwxa.supabase.co/realtime/v1/websocket?apikey=sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee&vsn=1.0.0';
-  var RT_TOPIC = 'realtime:flambeurs-slots-room';
-  function createRealtime(onMsg) {
-    var o = { ready: false, ws: null, dead: false, ref: 1, hbT: null, retry: 0, onReady: null };
-    function later() { if (o.dead) return; o.retry++; setTimeout(open, Math.min(8000, 800 * o.retry)); }
-    function open() {
-      if (o.dead) return;
-      var ws;
-      try { ws = new WebSocket(RT_URL); } catch (e) { later(); return; }
-      o.ws = ws;
-      ws.onopen = function () {
-        ws.send(JSON.stringify({ topic: RT_TOPIC, event: 'phx_join', payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' } } }, ref: '1', join_ref: '1' }));
-      };
-      ws.onmessage = function (m) {
-        var d; try { d = JSON.parse(m.data); } catch (e) { return; }
-        if (d.event === 'phx_reply' && d.ref === '1') { if (d.payload && d.payload.status === 'ok') { o.ready = true; o.retry = 0; if (o.onReady) o.onReady(); } }
-        else if (d.event === 'broadcast' && d.payload && d.payload.payload) onMsg(d.payload.event, d.payload.payload);
-      };
-      ws.onclose = function () { o.ready = false; clearInterval(o.hbT); later(); };
-      ws.onerror = function () { try { ws.close(); } catch (e) { /* ok */ } };
-      clearInterval(o.hbT);
-      o.hbT = setInterval(function () { if (ws.readyState === 1) ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++o.ref) })); }, 25000);
-    }
-    o.send = function (event, payload) {
-      if (!o.ready || !o.ws || o.ws.readyState !== 1) return false;
-      o.ws.send(JSON.stringify({ topic: RT_TOPIC, event: 'broadcast', payload: { type: 'broadcast', event: event, payload: payload }, ref: String(++o.ref) }));
-      return true;
     };
-    o.close = function () { o.dead = true; o.ready = false; clearInterval(o.hbT); try { if (o.ws) o.ws.close(); } catch (e) { /* ok */ } };
-    open();
-    return o;
+
+    /* ---------- le tirage (appelé par la page, voir Slots3D plus bas) ---------- */
+    room.sendFx = function (phase, finals, mult, win, bet) {
+      if (phase === 'start') room.fxId = Date.now().toString(36) + Math.floor(Math.random() * 99);
+      var fxo = { id: room.fxId || String(Date.now()), phase: phase, finals: finals, mult: mult, win: win, bet: bet };
+      if (world.rt && room.seatCab) world.rt.send('fx', { k: F.me(), fx: fxo });
+      world.post('/api/slots', Object.assign({ action: 'fx' }, fxo));
+    };
+    room.spinStart = function () { room.cab.startSpin(); room.sendFx('start'); };
+    room.spinResult = function (finals, mult, win, bet) {
+      var cab = room.cab;
+      cab.stopReels(finals, function () { cab.showResult(finals, mult || 0, win || 0, bet || 0); });
+      room.sendFx('result', finals, mult || 0, win || 0, bet || 0);
+    };
+    room.spinError = function () { room.cab.abortSpin(); };
+
+    /* ---------- vie de la salle ---------- */
+    room.update = function (dt) {
+      for (var i = 0; i < room.cabs.length; i++) room.cabs[i].cab.update(dt);
+      room.boardT = (room.boardT || 0) + dt;
+      if (room.boardT > 5) { room.boardT = 0; built.drawBoard(topSlotWins()); }
+    };
+    room.onFull = function (on) { built.drawPlaque(on); };
+    room.onEnter = function () { setTimeout(function () { if (!world.dead) built.drawPlaque(world.full); }, 1500); };   // polices chargées
+    room.dispose = function () { room.cabs.forEach(function (e) { e.cab.dispose(); }); };
+    return room;
   }
-
-  SlotsExperience.prototype._ensureRemote = function (k, name, avatar, x, z, yaw) {
-    var r = this.remote[k];
-    if (!r) {
-      r = this.remote[k] = { name: name || k, person: createPerson(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1 };
-      r.person.group.position.set(x, 0, z);
-      this.scene.add(r.person.group);
-    }
-    return r;
-  };
-  SlotsExperience.prototype._rtMsg = function (ev, m) {
-    var me = this._me();
-    if (!m || typeof m.k !== 'string' || !m.k || m.k === me || !this.netOn) return;
-    if (ev === 'bye') { this._removeRemote(m.k); return; }
-    if (ev === 'hello') { this._rtSend(true); return; }
-    if (ev === 'pos') {
-      var x = Number(m.x), z = Number(m.z);
-      if (!isFinite(x) || !isFinite(z)) return;
-      var r = this._ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0);
-      r.tx = x; r.tz = z; r.tyaw = Number(m.yaw) || 0; r.vx = Number(m.vx) || 0; r.vz = Number(m.vz) || 0;
-      r.recv = performance.now(); r.rtT = r.recv;
-      if (typeof m.seat === 'number') r.seat = m.seat;
-      if ((m.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = m.jmp || 0; }
-      r.fresh = false;
-    } else if (ev === 'fx' && m.fx) {
-      var rr = this.remote[m.k];
-      if (rr && rr.seat >= 0) this._remoteFx(rr, m.fx);
-    }
-  };
-  SlotsExperience.prototype._remoteFx = function (r, fx) {
-    var key = fx.id + ':' + fx.phase, e = this.cabs[r.seat];
-    if (r.lastFx === key || !e) return;
-    r.lastFx = key;
-    var cab = e.cab;
-    if (fx.phase === 'start') { if (!cab.isSpinning()) cab.startSpin(); }
-    else if (fx.finals) {
-      if (!cab.isSpinning()) cab.startSpin();
-      cab.stopReels(fx.finals, function () { cab.showResult(fx.finals, fx.mult || 0, fx.win || 0, fx.bet || 0); });
-    }
-  };
-  // envoie ma position/vitesse aux autres : ~15 fois par seconde en mouvement, 1 fois par seconde à l'arrêt
-  SlotsExperience.prototype._rtSend = function (force, dt) {
-    var me = this._me();
-    if (!me || !this.rt || !this.rt.ready) return;
-    var e = this.seatCab, p = this.player, pv = this.pv || { x: 0, z: 0 };
-    var seatNow = e ? e.n - 1 : -1;
-    var moving = !e && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(p.yaw - (this._rtYaw || 0)) > 0.01);
-    this._rtYaw = p.yaw;
-    this._rtT = (this._rtT || 0) - (dt || 0);
-    if (moving && this._rtT > 0.066) this._rtT = 0.066;          // on se met à bouger : on n'attend pas la prochaine seconde
-    if (!force && this._rtT > 0 && seatNow === this._rtSeat) return;
-    this._rtT = moving ? 0.066 : 1.0; this._rtSeat = seatNow;
-    var nm = '', av = '';
-    try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
-    var r3 = function (v) { return Math.round(v * 1000) / 1000; };
-    this.rt.send('pos', {
-      k: me, name: nm, avatar: av, seat: seatNow,
-      x: r3(e ? e.x + Math.sin(e.rotY) * 2.2 : p.x), z: r3(e ? e.z + Math.cos(e.rotY) * 2.2 : p.z), yaw: r3(e ? -e.rotY : p.yaw),
-      vx: e ? 0 : r3(pv.x), vz: e ? 0 : r3(pv.z), run: !!this.running2, jmp: p.jmp || 0
-    });
-  };
-  SlotsExperience.prototype._fx = function (phase, finals, mult, win, bet) {
-    if (phase === 'start') this.fxId = Date.now().toString(36) + Math.floor(Math.random() * 99);
-    var fxo = { id: this.fxId || String(Date.now()), phase: phase, finals: finals, mult: mult, win: win, bet: bet };
-    if (this.rt && this.seatCab) this.rt.send('fx', { k: this._me(), fx: fxo });
-    this._post(Object.assign({ action: 'fx' }, fxo));
-  };
-
-SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; this.setFull(false); this._netStop(); };
-  SlotsExperience.prototype.resume = function () { this._netStart(); this.running = true; this.last = 0; this.w = 0; this.syncHud(); };
-  SlotsExperience.prototype.dispose = function () {
-    this.dead = true; cancelAnimationFrame(this._raf);
-    window.removeEventListener('keydown', this._kd); window.removeEventListener('keydown', this._esc); this.setFull(false); this._netStop(); window.removeEventListener('keyup', this._ku); window.removeEventListener('blur', this._blur); window.removeEventListener('pagehide', this._ph);
-    this.cabs.forEach(function (c) { c.cab.dispose(); });
-    this.renderer.dispose();
-    if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
-    if (this.hud && this.hud.parentNode) this.hud.parentNode.removeChild(this.hud);
-  };
+  F.registerRoom('slots', createSlotsRoom);
 
   /* ===================================================================
      PONT AVEC LA PAGE (branché sur pullSlotLever, sans toucher au jeu)
      =================================================================== */
-  var exp = null, failed = false, bannerObs = null;
-
   function stage() { return document.getElementById('slot3dStage'); }
   function classicWrap() { return document.getElementById('slotClassicWrap'); }
-
   function showRulesPanelOnPc() { var p = document.getElementById('slotRulesPanel'); if (p) p.classList.remove('lg:hidden'); }
-
-  function open() {
-    if (failed || typeof THREE === 'undefined') { showRulesPanelOnPc(); return false; }
-    var st = stage(); if (!st) return false;
-    if (!exp) {
-      try {
-        st.classList.remove('hidden');
-        exp = new SlotsExperience(st, {});
-      } catch (err) {
-        failed = true; exp = null; st.classList.add('hidden'); showRulesPanelOnPc();
-        if (window.console) console.warn('[Slots3D] WebGL indisponible, machine classique conservée.', err);
-        return false;
-      }
-    } else { exp.resume(); }
-    st.classList.remove('hidden');
-    if (exp) exp._netStart();
-    var cw = classicWrap(); if (cw) cw.classList.add('hidden');
-    return true;
-  }
-  function close() { if (exp) exp.pause(); }
 
   window.Slots3D = {
     createSlotCabinet: createSlotCabinet,
-    SlotsExperience: SlotsExperience,
     levelFor: levelFor,
-    open: open,
-    close: close,
-    isActive: function () { return !!exp; },
-    getExperience: function () { return exp; },
-    onSpinStart: function () { if (exp) { exp.cab.startSpin(); exp._fx('start'); } },
-    onResult: function (finals, mult, win, bet) {
-      if (!exp) return;
-      var cab = exp.cab;
-      cab.stopReels(finals, function () { cab.showResult(finals, mult || 0, win || 0, bet || 0); });
-      exp._fx('result', finals, mult || 0, win || 0, bet || 0);
+    // vue « Machine à sous » de la page : téléphone = salle 3D seule ; PC = machine classique (le PC passe par le monde 3D)
+    open: function () {
+      var cw = classicWrap(), st = stage();
+      if (!F.isMobile() && !F.isTouch()) {
+        if (st) st.classList.add('hidden');
+        if (cw) cw.classList.remove('hidden');
+        showRulesPanelOnPc();
+        return false;
+      }
+      if (!F.openSolo()) { showRulesPanelOnPc(); return false; }
+      if (cw) cw.classList.add('hidden');
+      return true;
     },
-    onError: function () { if (exp) exp.cab.abortSpin(); }
+    close: function () { F.closeSolo(); },
+    isActive: function () { return !!F.getSlotsRoom(); },
+    getExperience: function () { return F.getWorld(); },
+    onSpinStart: function () { var r = F.getSlotsRoom(); if (r) r.spinStart(); },
+    onResult: function (finals, mult, win, bet) { var r = F.getSlotsRoom(); if (r) r.spinResult(finals, mult, win, bet); },
+    onError: function () { var r = F.getSlotsRoom(); if (r) r.spinError(); }
   };
 })();

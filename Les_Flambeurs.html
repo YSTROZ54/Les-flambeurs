@@ -16,7 +16,10 @@
   <script src="poker3d-scene.js?v=1.4"></script>
   <script src="poker3d-anim.js?v=1.3"></script>
   <script src="poker-multi.js?v=2.1"></script>
-  <script src="slots3d.js?v=5.1"></script>
+  <script src="f3d-core.js?v=1.1"></script>
+  <script src="world3d.js?v=1.0"></script>
+  <script src="hall3d.js?v=1.2"></script>
+  <script src="slots3d.js?v=6.0"></script>
 </head>
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
 
@@ -405,6 +408,19 @@
     <!-- VUE 1 : ACCUEIL (HALL DES FLAMBEURS)                            -->
     <!-- =============================================================== -->
     <section id="view-hall" class="space-y-8">
+      <div id="home3dBanner" class="hidden rounded-2xl p-4 md:p-5 border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-900/30 to-amber-500/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div class="font-serif-title text-lg md:text-xl font-black text-amber-200">🎮 Casino en 3D <span class="text-[10px] align-middle px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold ml-1">NOUVEAU</span></div>
+          <p class="text-xs md:text-sm text-stone-300">Marche dans le hall, pousse les portes, retrouve les autres joueurs et assieds-toi aux machines à sous. Le menu classique reste disponible à tout moment.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="flex items-center gap-2 text-xs text-stone-300 cursor-pointer select-none">
+            <input id="home3dSlotsToggle" type="checkbox" class="accent-amber-400 w-4 h-4" onchange="if(window.F3D)F3D.setSlotsIn3d(this.checked)">
+            Ouvrir la machine à sous en 3D
+          </label>
+          <button onclick="enter3dHall()" class="px-5 py-2.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:brightness-110 transition shadow-lg">🚪 Entrer dans le hall 3D</button>
+        </div>
+      </div>
       <div class="rounded-3xl p-5 md:p-8 border border-amber-500/30 bg-stone-950/90 backdrop-blur-xl shadow-2xl">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           <div class="lg:col-span-8 space-y-3">
@@ -1230,6 +1246,13 @@
         </div>
         </div>
       </div>
+    </section>
+
+    <!-- =============================================================== -->
+    <!-- CASINO 3D (PC) : hall d'accueil + salles, voir world3d.js        -->
+    <!-- =============================================================== -->
+    <section id="view-world3d" class="space-y-6 hidden lg:w-[calc(100vw-100px)] lg:max-w-[2000px] lg:ml-[calc(50%-50vw+50px)]">
+      <div id="world3dStage" class="relative w-full rounded-2xl overflow-hidden border border-amber-400/30 h-[min(88vh,1000px)] min-h-[480px]" style="background:#07050c"></div>
     </section>
 
     <!-- =============================================================== -->
@@ -5212,9 +5235,9 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'scratch', 'blindtest', 'shop', 'bank'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'scratch', 'blindtest', 'shop', 'bank', 'world3d'];
     const ROOM_TITLES = {
-      hall: '/ Accueil', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
+      hall: '/ Accueil', world3d: '/ Casino 3D', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       cups: '/ Les Gobelets',
       scratch: '/ Grattage',
@@ -5227,9 +5250,27 @@
       switchRoom('blindtest');
     }
 
+    // bandeau « Casino en 3D » de l'accueil : seulement sur ordinateur avec WebGL
+    function refreshHome3dBanner() {
+      const b = document.getElementById('home3dBanner');
+      try {
+        const can = !!(window.F3D && F3D.canWorld());
+        if (b) b.classList.toggle('hidden', !can);
+        const t = document.getElementById('home3dSlotsToggle');
+        if (t && can) t.checked = F3D.slotsIn3d();
+      } catch (e) {}
+    }
+    window.addEventListener('load', () => setTimeout(refreshHome3dBanner, 300));
+
+    function enter3dHall() {
+      window.__f3dPlace = 'hall';
+      switchRoom('world3d');
+    }
+
     function switchRoom(room, fromHistory = false) {
       if (typeof closeAllModals === 'function') closeAllModals();
       if (!ALL_ROOMS.includes(room)) room = 'hall';
+      if (room === 'slots' && window.F3D && F3D.wantsWorldForSlots()) { room = 'world3d'; window.__f3dPlace = 'slots'; }
       const prevRoom = currentRoomKey;
 
       if (prevRoom && prevRoom !== room) {
@@ -5238,6 +5279,9 @@
         }
         if (prevRoom === 'slots' && window.Slots3D) {
           try { Slots3D.close(); } catch (e) {}
+        }
+        if (prevRoom === 'world3d' && window.F3D) {
+          try { F3D.closeWorld(); } catch (e) {}
         }
         if (prevRoom === 'blindtest' && typeof btOnExit === 'function') {
           try { btOnExit(); } catch (e) {}
@@ -5297,6 +5341,13 @@
       if (room === 'slots' && window.Slots3D) {
         try { Slots3D.open(); } catch (e) {}
       }
+      if (room === 'world3d') {
+        let ok = false;
+        try { ok = !!(window.F3D && F3D.openWorld(window.__f3dPlace || 'hall')); } catch (e) {}
+        window.__f3dPlace = null;
+        if (!ok) { setTimeout(() => switchRoom(prevRoom && prevRoom !== 'world3d' ? prevRoom : 'hall'), 0); showToast('🎮 La 3D n\'est pas disponible sur cet appareil : menu classique.'); }
+      }
+      if (room === 'hall') refreshHome3dBanner();
       if (room === 'blackjack') {
         renderBlackjack();
         updateLobbyUI('bj');
