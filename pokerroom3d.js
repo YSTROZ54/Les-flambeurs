@@ -291,7 +291,7 @@
       var ex = st.slot.x - ux * 0.65, ez = st.slot.z - uz * 0.65, ey = 1.6;
       var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + 0.65 - 0.5) + st.pitch;
       var tx = ex + Math.sin(a) * Math.cos(p) * 5, tz = ez - Math.cos(a) * Math.cos(p) * 5, ty = ey + Math.sin(p) * 5;
-      return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 62 };
+      return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 54 };
     };
     room.seatDragStart = function () { var st = room.seat; return st ? { yaw: st.yawG, pitch: st.pitchG } : { yaw: 0, pitch: 0 }; };
     room.seatDrag = function (drag, dx, dy) {
