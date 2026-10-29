@@ -89,8 +89,9 @@
 
   function stadiumShape(R, hole) {
     var sh = hole ? new THREE.Path() : new THREE.Shape();
-    sh.moveTo(R, -HS); sh.lineTo(R, HS); sh.absarc(0, HS, R, 0, Math.PI, false);
-    sh.lineTo(-R, -HS); sh.absarc(0, -HS, R, Math.PI, TAU, false);
+    var k, STEPS = 20;
+    sh.moveTo(R, -HS); for (k = 1; k <= STEPS; k++) sh.lineTo(R, -HS + S * k / STEPS); sh.absarc(0, HS, R, 0, Math.PI, false);
+    for (k = 1; k <= STEPS; k++) sh.lineTo(-R, HS - S * k / STEPS); sh.absarc(0, -HS, R, Math.PI, TAU, false);
     return sh;
   }
   function flatExtrude(shape, depth, y, mat, bevel) {
@@ -275,7 +276,7 @@
     var tt = trackTexture();
     var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0 }));
     felt.rotation.x = -Math.PI / 2; felt.position.y = TY; g.add(felt);
-    g.add(flatExtrude(stadiumShape(R_OUT + 0.88), TY - 0.02, 0, matMetal));                                   // le coffre de la table
+    g.add(flatExtrude(stadiumShape(R_OUT + 0.88), TY - 0.02, 0, new THREE.MeshStandardMaterial({ color: 0x0b111c, roughness: 0.85, metalness: 0.05 })));                                   // le coffre de la table
     var rimShape = stadiumShape(R_OUT + 0.9); rimShape.holes.push(stadiumShape(R_OUT + 0.06, true));
     g.add(flatExtrude(rimShape, 0.09, TY - 0.01, matDark));                                                 // le rebord qui porte les bornes
     var base1 = ribbon(R_OUT + 0.895, R_OUT + 0.895, 0.1, 0.17, ledB); base1.material.side = THREE.DoubleSide; g.add(base1);       // lignes de couleur au bas de la table
@@ -313,15 +314,24 @@
     box(SCW + 0.7, 0.1, 0.1, 0, SCY + SCH / 2 + 0.25, SCZ, ledA); box(SCW + 0.7, 0.1, 0.1, 0, SCY - SCH / 2 - 0.25, SCZ, ledA);
     box(0.1, SCH + 0.6, 0.1, -SCW / 2 - 0.3, SCY, SCZ, ledA); box(0.1, SCH + 0.6, 0.1, SCW / 2 + 0.3, SCY, SCZ, ledA);
 
-    /* ----- postes de pari : une petite table par chaise (6 de chaque côté de la table + 6 de chaque côté près des murs) ----- */
-    var consoleTex = (function () {
-      var c = mkCanvas(256, 128), x = c.getContext('2d'), k, gr = x.createLinearGradient(0, 0, 0, 128);
-      gr.addColorStop(0, '#0d2a5c'); gr.addColorStop(1, '#050d1e'); x.fillStyle = gr; x.fillRect(0, 0, 256, 128);
-      x.strokeStyle = '#56e6ff'; x.lineWidth = 4; x.strokeRect(3, 3, 250, 122); x.fillStyle = '#9fd0ff'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = '800 26px ' + MONO; x.fillText('PARIS OUVERTS', 128, 26);
-      for (k = 0; k < 8; k++) { x.beginPath(); x.arc(22 + k * 30.5, 66, 12, 0, TAU); x.fillStyle = hex(HORSES[k].silk); x.fill(); x.fillStyle = HORSES[k].ink; x.font = '900 14px ' + MONO; x.fillText(String(k + 1), 22 + k * 30.5, 67); }
-      x.fillStyle = '#f3cf62'; x.font = '700 16px ' + MONO; x.fillText('GROUPE x2   ·   PLACE x7', 128, 106); return mkTex(c);
-    })();
+    /* ----- terminaux le long des murs, comme dans la salle d'arcade ----- */
+    var termScreens = [];
+    for (var v = 0; v < 3; v++) {
+      var tc = mkCanvas(128, 96), tx = tc.getContext('2d'), grd = tx.createLinearGradient(0, 0, 0, 96);
+      grd.addColorStop(0, ['#2a7bff', '#2fc27a', '#c84bff'][v]); grd.addColorStop(1, '#0b1a3a'); tx.fillStyle = grd; tx.fillRect(0, 0, 128, 96);
+      tx.fillStyle = 'rgba(255,255,255,0.8)'; for (var l = 0; l < 6; l++) tx.fillRect(10, 10 + l * 13, 30 + Math.random() * 80, 6);
+      termScreens.push(new THREE.MeshBasicMaterial({ map: mkTex(tc) }));
+    }
+    var termBody = new THREE.BoxGeometry(0.8, 1.4, 0.7), termScr = new THREE.PlaneGeometry(0.62, 0.42);
+    [-1, 1].forEach(function (s) {
+      for (var tz = -9; tz <= 9; tz += 3) {
+        var tb = new THREE.Mesh(termBody, matDark); tb.position.set(s * (HX - 0.7), 0.7, tz); g.add(tb);
+        var ts = new THREE.Mesh(termScr, termScreens[Math.abs(tz / 3) % 3]); ts.position.set(s * (HX - 0.7) - s * 0.36, 1.1, tz); ts.rotation.y = -s * Math.PI / 2; g.add(ts);
+        room.colliders.push({ x: s * (HX - 0.7), z: tz, r: 0.75 });
+      }
+    });
+
+    /* ----- postes de pari : une petite table par chaise (6 de chaque côté de la table) ----- */
     var deckTex = (function () {                 // la partie « boutons » de la table
       var c = mkCanvas(512, 288), x = c.getContext('2d'), k, r, cc, gr = x.createLinearGradient(0, 0, 0, 288);
       gr.addColorStop(0, '#1a2a4a'); gr.addColorStop(1, '#0b1426'); x.fillStyle = gr; x.fillRect(0, 0, 512, 288);
@@ -343,8 +353,7 @@
     var n = 0;
     // deskX / chairX / standX : où sont la table, la chaise et l'endroit où l'on se relève (côté s : 1 = est, -1 = ouest)
     var STATIONS = [
-      { deskX: 3.95, chairX: 4.55, standX: 5.85, zs: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5] },
-      { deskX: 7.5, chairX: 8.4, standX: 9.3, zs: [-7.5, -4.5, -1.5, 1.5, 4.5, 7.5] }
+      { deskX: 3.95, chairX: 4.55, standX: 5.85, zs: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5] }
     ];
     STATIONS.forEach(function (st) {
       [1, -1].forEach(function (s) {          // s = 1 : côté est (regarde vers -x) ; s = -1 : côté ouest
@@ -356,10 +365,7 @@
           box(0.04, 0.05, 0.9, dx + s * 0.49, 0.86, czp, ledA);
           box(0.04, 0.06, 0.82, dx - s * 0.38, 0.05, czp, ledB);
           room.colliders.push({ x: dx, z: czp, r: 0.55 });
-          // écran incliné qui montre les chevaux, et panneau de boutons posé sur le plateau
-          var cs = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.31), new THREE.MeshBasicMaterial({ map: consoleTex })); cs.position.set(dx - s * 0.23, 1.04, czp); cs.rotation.set(0, -s * Math.PI / 2, 0); cs.rotateX(-0.5); g.add(cs);
-          box(0.66, 0.04, 0.03, dx - s * 0.25, 1.2, czp, ledA).rotation.y = s * Math.PI / 2;
-          box(0.04, 0.2, 0.04, dx - s * 0.23, 0.95, czp - 0.29, matMetal); box(0.04, 0.2, 0.04, dx - s * 0.23, 0.95, czp + 0.29, matMetal);
+          // panneau de boutons posé sur le plateau
           var dk = new THREE.Group(); dk.position.set(dx + s * 0.15, 0.874, czp); dk.rotation.y = s * Math.PI / 2; g.add(dk);
           var dp = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.35), new THREE.MeshBasicMaterial({ map: deckTex })); dp.rotation.x = -Math.PI / 2; dk.add(dp);
           // chaise haute avec repose-pieds
