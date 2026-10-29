@@ -280,7 +280,7 @@
     wall(HZ * 2, 1, -HX + 0.02, 0.5, 0, Math.PI / 2, wallLow); wall(HZ * 2, 1, HX - 0.02, 0.5, 0, -Math.PI / 2, wallLow);
     // bandeaux lumineux : au-dessus des plinthes, en haut des murs, et un cadre au plafond
     [[HX * 2, 0.07, 0.07, 0, 1.02, -HZ + 0.05], [HX * 2, 0.07, 0.07, 0, 1.02, HZ - 0.05], [0.07, 0.07, HZ * 2, -HX + 0.05, 1.02, 0], [0.07, 0.07, HZ * 2, HX - 0.05, 1.02, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
-    [[HX * 2, 0.1, 0.1, 0, 5.7, -HZ + 0.06], [HX * 2, 0.1, 0.1, 0, 5.7, HZ - 0.06], [0.1, 0.1, HZ * 2, -HX + 0.06, 5.7, 0], [0.1, 0.1, HZ * 2, HX - 0.06, 5.7, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledB); });
+    [[HX * 2, 0.1, 0.1, 0, 5.94, -HZ + 0.05], [HX * 2, 0.1, 0.1, 0, 5.94, HZ - 0.05], [0.1, 0.1, HZ * 2, -HX + 0.05, 5.94, 0], [0.1, 0.1, HZ * 2, HX - 0.05, 5.94, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledB); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080b12 }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; g.add(ceil);
     var ceilFx = new THREE.Group(); g.add(ceilFx);                                  // masqué quand on regarde d'en haut (la caméra est au-dessus du plafond)
