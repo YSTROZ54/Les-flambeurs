@@ -369,7 +369,7 @@
     p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
     var b = room.bounds;
     p.x = Math.max(b.xMin, Math.min(b.xMax, p.x)); p.z = Math.max(b.zMin, Math.min(b.zMax, p.z));
-    for (var i = 0; i < room.colliders.length; i++) {          // on ne traverse ni les bornes ni les meubles
+    if (!room.ghost) for (var i = 0; i < room.colliders.length; i++) {          // on ne traverse ni les bornes ni les meubles (sauf assis sur un canapé : room.ghost)
       var c = room.colliders[i], dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
       if (d < c.r && d > 0.0001) { p.x = c.x + dx / d * c.r; p.z = c.z + dz / d * c.r; }
     }

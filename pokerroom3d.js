@@ -469,13 +469,50 @@
     room.netStop = function () { room.netOn = false; clearTimeout(room.pollT); };
 
     room.hint = function (w) {
-      return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · les ouvertures à droite mènent aux autres salles · approche-toi d\'une chaise libre pour t\'asseoir (E ou clic)' + (w.full ? ' · Échap : quitter' : '');
+      return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · les ouvertures à droite mènent aux autres salles · approche-toi d\'une chaise ou d\'un canapé pour t\'asseoir (E ou clic)' + (w.full ? ' · Échap : quitter' : '');
     };
+    /* ----- s'asseoir sur les canapés : on garde la vue d'une personne assise, on regarde autour à la souris, on se lève en marchant ----- */
+    room.sofa = null; room.ghost = false;
+    function standFromSofa() {
+      var s = room.sofa, p = world.player;
+      room.sofa = null; room.ghost = false; p.jy = 0;
+      if (!s) return;
+      var dx = s.cx - s.x, dz = -s.z, d = Math.hypot(dx, dz) || 1;
+      p.x = s.x + dx / d * 1.5; p.z = s.z + dz / d * 1.5;
+    }
+    function sitOnSofa(s) {
+      if (world.trans || world.mode !== 'room' || room.sofa) return;
+      var p = world.player;
+      p.x = s.x; p.z = s.z; p.yaw = F.yawFor(s.cx - s.x, -s.z); p.pitch = -0.04; p.jy = -0.55; p.air = false; p.vy = 0;
+      room.sofa = s; room.ghost = true;
+      world.flash('Assis sur le canapé · bouge (ZQSD) pour te lever');
+    }
+    room.salles.forEach(function (salle) {
+      salle.ctx.roomSofas.forEach(function (a) {
+        [-0.17, 0, 0.17].forEach(function (off) {
+          var ang = a + off, spot = { cx: salle.cx, x: salle.cx + Math.sin(ang) * 9.75 * SC, z: Math.cos(ang) * 9.75 * SC };
+          var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.1, 10), new THREE.MeshBasicMaterial({ visible: false }));
+          hit.position.set(spot.x, 0.55, spot.z); g.add(hit);
+          room.interactables.push({
+            hit: hit, x: spot.x, z: spot.z, radius: 0.95,
+            enabled: function () { return !room.sofa && world.mode === 'room'; },
+            prompt: function () { return '🛋️ S\'asseoir sur le canapé'; },
+            use: function () { sitOnSofa(spot); }
+          });
+        });
+      });
+    });
+
     room.spawn = function () { return { x: 0, z: WALL_R - 2.4, yaw: 0 }; };
     var last = { x: 0, z: WALL_R - 2.4 };
     room.update = function (dt) {
       updateGame(dt);
       var p = world.player;
+      if (room.sofa) {          // assis sur un canapé : on se lève dès qu'on veut bouger
+        var kk = world.keys, sk = world.stick;
+        if (world.mode !== 'room' || world.trans || kk.f || kk.b || kk.l || kk.r || kk.jump || Math.abs(sk.x) > 0.3 || Math.abs(sk.y) > 0.3) standFromSofa();
+        else { p.x = room.sofa.x; p.z = room.sofa.z; p.jy = -0.55; }
+      }
       if (inside(p.x, p.z)) { last.x = p.x; last.z = p.z; }
       else if (inside(p.x, last.z)) p.z = last.z;                 // on glisse le long des murs plutôt que de les traverser
       else if (inside(last.x, p.z)) p.x = last.x;
@@ -485,7 +522,7 @@
         salle.sign.position.y = 2.45 + Math.sin(world.clock * 1.4 + salle.r) * 0.03;
       });
     };
-    room.onEnter = function () { last.x = world.player.x; last.z = world.player.z; };
+    room.onEnter = function () { room.sofa = null; room.ghost = false; world.player.jy = 0; last.x = world.player.x; last.z = world.player.z; };
     room.dispose = function () {
       window.removeEventListener('keydown', onKeyV); room.salles.forEach(function (s) { s.tex.dispose(); }); };
     return room;

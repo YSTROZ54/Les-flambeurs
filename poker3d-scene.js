@@ -385,28 +385,14 @@
 
   const seeded = (s) => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
 
-  // Sol : parquet de Versailles (salle rouge) ou damier de marbre (émeraude, saphir) ; un motif = 512 px, répété par la salle
+  // Sol : damier de marbre aux couleurs de la salle (rouge : noir et ivoire) ; un motif = 512 px, répété par la salle
   function floorTexture(themeKey) {
     return canvasTex(512, 512, (c, w, h) => {
       const rnd = seeded(77 + themeKey.length);
-      if (themeKey === 'rouge') {
-        const tones = ['#5e3a22', '#52301b', '#6b4326', '#4a2b18', '#5a3620'];
-        for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
-          const vert = (bx + by) % 2 === 1;
-          for (let i = 0; i < 4; i++) {
-            const x = bx * 128 + (vert ? i * 32 : 0), y = by * 128 + (vert ? 0 : i * 32), pw = vert ? 32 : 128, ph = vert ? 128 : 32;
-            c.fillStyle = tones[Math.floor(rnd() * tones.length)]; c.fillRect(x, y, pw, ph);
-            const g = c.createLinearGradient(x, y, vert ? x + pw : x, vert ? y : y + ph);
-            g.addColorStop(0, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.2)'); c.fillStyle = g; c.fillRect(x, y, pw, ph);
-            c.fillStyle = 'rgba(0,0,0,0.09)';
-            for (let k = 0; k < 3; k++) { if (vert) c.fillRect(x + 4 + rnd() * (pw - 8), y, 1, ph); else c.fillRect(x, y + 4 + rnd() * (ph - 8), pw, 1); }
-            c.strokeStyle = 'rgba(22,9,3,0.75)'; c.lineWidth = 1.5; c.strokeRect(x + 0.5, y + 0.5, pw - 1, ph - 1);
-          }
-        }
-      } else {
+      {
         const em = themeKey === 'emeraude';
-        const dark = em ? ['#0c3a2c', '#14503c'] : ['#0e1f4a', '#1a3470'];
-        const light = em ? ['#e6ebdd', '#cdd9c8'] : ['#e2e8f4', '#c4d0e6'];
+        const dark = em ? ['#0c3a2c', '#14503c'] : themeKey === 'rouge' ? ['#150a0e', '#24101a'] : ['#0e1f4a', '#1a3470'];
+        const light = em ? ['#e6ebdd', '#cdd9c8'] : themeKey === 'rouge' ? ['#e9dcc6', '#d6c4a6'] : ['#e2e8f4', '#c4d0e6'];
         for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
           const isDark = (bx + by) % 2 === 0, pal = isDark ? dark : light, x = bx * 256, y = by * 256;
           const g = c.createLinearGradient(x, y, x + 256, y + 256); g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]); c.fillStyle = g; c.fillRect(x, y, 256, 256);
@@ -579,6 +565,7 @@
     gaps = gaps || [];
     noSofa = noSofa || [];
     const room = new THREE.Group();
+    const sofas = [];           // angle du centre de chaque banquette (la salle de poker 3D y place des places assises)
     const colliders = [];       // obstacles (x, z, r) dans le repère de la salle : banquettes, plantes, tables basses
     const FLOOR = -1.2;
     const R = 12;                 // rayon du mur
@@ -631,8 +618,8 @@
     /* ---- Sol : parquet ou damier de marbre + tapis rond autour de la table ---- */
     const floorMap = floorTexture(themeKey);
     floorMap.wrapS = floorMap.wrapT = THREE.RepeatWrapping;
-    floorMap.repeat.set(themeKey === 'rouge' ? 6 : 9, themeKey === 'rouge' ? 6 : 9);
-    const marble = new THREE.Mesh(new THREE.CircleGeometry(R, 96), mat(0xffffff, themeKey === 'rouge' ? 0.32 : 0.16, 0.08));
+    floorMap.repeat.set(9, 9);
+    const marble = new THREE.Mesh(new THREE.CircleGeometry(R, 96), mat(0xffffff, 0.16, 0.08));
     marble.material.map = floorMap;
     marble.rotation.x = -Math.PI / 2;
     marble.position.y = FLOOR + 0.002;
@@ -768,7 +755,7 @@
     }
 
     /* ---- Banquettes en cuir capitonné en demi-cercle devant chaque baie (sauf aux colonnes) ---- */
-    const LEATHER = [ '#4e0e1b', '#6b3f1d', '#14295e' ][themeIdx];
+    const LEATHER = [ '#1b1517', '#6b3f1d', '#14295e' ][themeIdx];
     const leatherM = dbl(mat(LEATHER, 0.36, 0.06));
     const quiltTex = quiltTexture(LEATHER);
     const quilted = (len, radius, h) => {
@@ -806,6 +793,7 @@
         place(trim, ea, (sofaR0 + sofaR1) / 2, FLOOR + 1.0);
         room.add(armLow, armBack, trim);
       });
+      sofas.push(a);
       for (let q = 0; q <= 6; q++) { const pp = polar(a - half + (q / 6) * len, 9.9); colliders.push({ x: pp.x, z: pp.z, r: 0.95 }); }
       const top = new THREE.Mesh(new THREE.RingGeometry(sofaR0 + 0.65, sofaR1, 24, 1, Math.PI / 2 - (a + half), len), leatherM);
       top.rotation.x = Math.PI / 2;
@@ -822,7 +810,12 @@
         const vase = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.3, 16), mat(0xe9e2d2, 0.3, 0.1)); vase.position.set(-0.3, 0.89, 0);
         const bloomCol = [0xe8508a, 0xf6d34a, 0xa77be6][themeIdx];
         const bouquet = [];
-        for (let b = 0; b < 5; b++) { const bl = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), mat(b % 2 ? 0xf8f4ea : bloomCol, 0.6)); bl.position.set(-0.3 + Math.cos(b * 1.26) * 0.1, 1.12 + (b % 2) * 0.06, Math.sin(b * 1.26) * 0.1); bouquet.push(bl); }
+        for (let b = 0; b < 5; b++) {
+          const hx = -0.3 + Math.cos(b * 1.26) * 0.07, hz = Math.sin(b * 1.26) * 0.07, hy = 1.2 + (b % 3) * 0.1;
+          const stem2 = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, hy - 1.04, 5), mat(0x2f7d3a, 0.7)); stem2.position.set(hx, (hy + 1.04) / 2, hz);
+          const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), mat(b % 2 ? 0xf8f4ea : bloomCol, 0.5)); head.position.set(hx, hy, hz); head.scale.y = 0.7;
+          bouquet.push(stem2, head);
+        }
         const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), glow); candle.position.set(0.4, 0.83, 0.1);
         tb.add(topT, rim, stem, foot, vase, candle, ...bouquet);
         tb.children.forEach((m) => { m.castShadow = true; });
@@ -862,21 +855,19 @@
           room.add(lf);
         }
       } else if (kind === 1) {
-        // arbuste fleuri
-        const fol = mat(0x1f5a30, 0.8);
-        for (let i = 0; i < 7; i++) {
-          const s = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), fol);
-          const la = i * 2.4;
-          s.position.set(p.x + Math.cos(la) * 0.22 * (i % 3), topY + 0.45 + (i % 3) * 0.2, p.z + Math.sin(la) * 0.22 * (i % 3));
-          room.add(s);
-        }
-        const cx0 = p.x, cy0 = topY + 0.75, cz0 = p.z;
-        for (let i = 0; i < 26; i++) {
-          const phi = Math.acos(1 - 1.5 * (i + 0.5) / 26), ang = i * 2.39996;
-          const bl = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), mat(blooms[i % 2], 0.55));
-          bl.scale.y = 0.8;
-          bl.position.set(cx0 + Math.sin(phi) * Math.cos(ang) * 0.62, cy0 + Math.cos(phi) * 0.5, cz0 + Math.sin(phi) * Math.sin(ang) * 0.62);
-          room.add(bl);
+        // bambou : tiges vertes à nœuds dorés, touffes de feuilles fines en haut
+        const stemM = mat(0x6a9a3c, 0.5), nodeM = mat(0xc9b24a, 0.5), blade = mat(0x3f8a3a, 0.7);
+        for (let i = 0; i < 9; i++) {
+          const ang = i * 2.39996, rr = 0.06 + 0.17 * ((i * 5) % 4) / 3, hgt = 1.9 + ((i * 3) % 5) * 0.28;
+          const sx = p.x + Math.cos(ang) * rr, sz = p.z + Math.sin(ang) * rr;
+          const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, hgt, 8), stemM);
+          st.position.set(sx, topY + hgt / 2, sz); room.add(st);
+          for (let n = 1; n < 5; n++) { const nd = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 8), nodeM); nd.position.set(sx, topY + n * hgt / 5, sz); room.add(nd); }
+          for (let b = 0; b < 4; b++) {
+            const bl = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), blade);
+            bl.scale.set(0.35, 0.12, 2.6); bl.position.set(sx + Math.cos(b * 1.57 + ang) * 0.18, topY + hgt - 0.06 - (b % 2) * 0.12, sz + Math.sin(b * 1.57 + ang) * 0.18);
+            bl.rotation.y = -(b * 1.57 + ang) + Math.PI / 2; room.add(bl);
+          }
         }
       } else if (kind === 2) {
         // palmier : tronc fin et palmes arquées
@@ -896,25 +887,31 @@
           room.add(piv);
         }
       } else {
-        // arbuste taillé en boules, parsemé de petites fleurs blanches
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.0, 8), mat(0x4a3320, 0.8));
-        trunk.position.set(p.x, topY + 0.5, p.z);
+        // ficus : tronc fin qui se ramifie, couronne de petites feuilles ovales
+        const bark = mat(0x4a3320, 0.8);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.5, 8), bark);
+        trunk.position.set(p.x, topY + 0.75, p.z);
         room.add(trunk);
-        const fol = mat(0x1a5a2a, 0.8);
-        const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.58, 18, 14), fol); b1.position.set(p.x, topY + 1.45, p.z);
-        const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), fol); b2.position.set(p.x, topY + 2.25, p.z);
-        room.add(b1, b2);
-        for (let i = 0; i < 14; i++) {
-          const phi = Math.acos(1 - (i + 0.5) / 7), ang = i * 2.39996;
-          const bl = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(blooms[1], 0.5));
-          bl.position.set(p.x + Math.sin(phi) * Math.cos(ang) * 0.59, topY + 1.45 + Math.cos(phi) * 0.59, p.z + Math.sin(phi) * Math.sin(ang) * 0.59);
-          room.add(bl);
+        [-1, 1].forEach((sd) => {
+          const br = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.9, 6), bark);
+          br.position.set(p.x + sd * 0.22, topY + 1.7, p.z); br.rotation.z = -sd * 0.5;
+          room.add(br);
+        });
+        const lf = [mat(0x2f7d3a, 0.65), mat(0x3f9a45, 0.65), mat(0x23642f, 0.65)];
+        for (let i = 0; i < 70; i++) {
+          const phi = Math.acos(1 - 1.7 * (i + 0.5) / 70), ang = i * 2.39996, rr = 0.55 + 0.25 * ((i * 7) % 5) / 4;
+          const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), lf[i % 3]);
+          leaf.scale.set(1, 0.35, 1.7);
+          leaf.position.set(p.x + Math.sin(phi) * Math.cos(ang) * rr, topY + 2.05 + Math.cos(phi) * rr * 0.9, p.z + Math.sin(phi) * Math.sin(ang) * rr);
+          leaf.rotation.set(phi - 1.2, -ang, 0);
+          room.add(leaf);
         }
       }
     }
 
     if (this.scene.fog) this.scene.fog.density = 0.012;
     this.roomColliders = colliders;
+    this.roomSofas = sofas;
     this.roomGroup = room;
     this.scene.add(room);
   };
