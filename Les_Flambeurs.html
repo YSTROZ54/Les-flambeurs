@@ -257,11 +257,11 @@
       </button>
 
       <!-- Chevaux -->
-      <button onclick="handleComingSoonGame('chevaux')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Course de Chevaux (MàJ)">
+      <button onclick="handleComingSoonGame('chevaux')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Course de Chevaux (3D)">
         <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">🏇</span>
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Course de Chevaux</span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30 ml-1">MàJ</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 font-bold border border-sky-400/30 ml-1">3D</span>
         </div>
       </button>
 
@@ -637,7 +637,7 @@
             </button>
           </div>
 
-          <!-- 10. COURSE DE CHEVAUX (FUTUR MISE À JOUR) -->
+          <!-- 10. COURSE DE CHEVAUX (3D, PC) -->
           <div class="rounded-2xl p-6 bg-gradient-to-br from-[#122416]/95 via-[#0b170e]/95 to-black border border-emerald-500/40 hover:border-emerald-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
             <div class="absolute -top-10 -right-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
             <div>
@@ -646,19 +646,19 @@
                   <span>🏇</span> <span>Hippodrome VIP</span>
                 </span>
                 <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
-                  ( Futur mise à jour )
+                  PC · 3D
                 </span>
               </div>
               <h3 class="font-serif-title text-2xl font-extrabold text-emerald-200 mt-3 flex items-center gap-2">
                 <span>Course de Chevaux</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-sans font-bold border border-emerald-400/30">Bientôt</span>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-sans font-bold border border-emerald-400/30">Nouveau</span>
               </h3>
               <p class="text-xs text-emerald-100/80 mt-2 leading-relaxed">
-                Mise sur ton pur-sang favori, suis le sprint final sur la piste de l'hippodrome et empoche de superbes cotes !
+                8 chevaux, une course toutes les 70 secondes : parie sur ton favori (dans les 4 premiers, ou à la place exacte) et regarde la course en 3D, assis à la table ou d'en haut. Jusqu'à 3 paris par course.
               </p>
             </div>
             <button onclick="handleComingSoonGame('chevaux')" class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
-              <span>🏇</span> <span>Parier sur la course (futur mise à jour)</span>
+              <span>🏇</span> <span>Entrer à l'hippodrome 3D →</span>
             </button>
           </div>
 
@@ -8791,7 +8791,14 @@
 
     /* ================= JEUX À VENIR (GRATTAGE & COURSE DE CHEVAUX) ================= */
     function handleComingSoonGame(gameName) {
+      if (gameName === 'chevaux') { openHorses(); return; }
       showToast('futur mise a jour');
+    }
+
+    // Courses de chevaux : salle 3D (PC seulement), directement depuis le menu classique
+    function openHorses() {
+      if (window.F3D && F3D.canWorld()) { window.__f3dPlace = 'horses'; switchRoom('world3d'); }
+      else showToast('🏇 Les courses de chevaux sont en 3D : disponibles sur ordinateur pour le moment.');
     }
 
     /* ================= BLACKJACK (SOLO DIRECT VS CROUPIER & LOBBY MULTI SYNCHRONISÉ) ================= */
