@@ -188,6 +188,8 @@
         boxF(gr, 0.42, 0.14, 0.2, s * (w / 2 + 0.2), 0.07, goldM);
         boxF(gr, 0.42, 0.12, 0.2, s * (w / 2 + 0.2), h + 0.1, goldM);
       });
+      boxF(gr, w + 0.1, 0.24, 0.1, 0, h + 0.06, frameM);               // linteau : ferme l'espace entre les battants et l'entablement (plus de mur visible)
+      boxF(gr, w + 0.1, 0.04, 0.12, 0, h - 0.02, goldM);
       boxF(gr, w + 1.14, 0.3, 0.16, 0, h + 0.31, frameM);
       boxF(gr, w + 1.34, 0.08, 0.24, 0, h + 0.5, goldM);
       var bw = w + 1.34, ph = 0.55, shape = new THREE.Shape();
@@ -425,12 +427,26 @@
     var gameT = 0;
     function updateGame(dt) {
       gameT -= dt; if (gameT > 0) return; gameT = 0.12;
-      var PM = window.PokerMulti, view = PM && PM.inWorld && PM.mode === 'multi' ? PM.lastView : null;
+      var PM = window.PokerMulti, view = PM && PM.inWorld && PM.mode === 'multi' ? PM.lastView : null, nowMs = Date.now();
       room.salles.forEach(function (salle) {
         var mineTable = view && view.tableId === salle.def.table;
+        var sp = room.views[salle.def.table];
         if (mineTable) { salle.live = true; tickGame(salle, view, PM.game); }
+        else if (sp && nowMs - sp.at < 8000) { salle.live = true; tickGame(salle, sp.view, { communityCards: sp.view.community || [] }); }   // on regarde la partie des autres, sans y jouer
         else if (salle.live) { salle.live = false; clearGame(salle); }
       });
+    }
+    // parties des autres tables (cartes cachées, pot, mises, board) : lues sur le serveur comme un spectateur, pour les voir se jouer depuis la salle
+    room.views = {};
+    function spectate(I, me) {
+      var PM = window.PokerMulti, mine = PM && PM.inWorld && PM.mode === 'multi' ? PM.tableId : null;
+      return Promise.all(room.tables.filter(function (t) {
+        return t.count > 0 && t.id !== mine && ROOMS.some(function (d) { return d.table === t.id; });
+      }).map(function (t) {
+        return I.api('GET', { table: t.id, user: me || 'invité', device: I.deviceId() })
+          .then(function (d) { if (d && d.table) room.views[t.id] = { view: d.table, at: Date.now() }; })
+          .catch(function () { /* on réessaie au prochain tour */ });
+      }));
     }
     room.playSolo = function () {
       if (world.trans || !window.PokerMulti) return;
@@ -474,9 +490,9 @@
       var I = window.PokerMultiInternals, me = '';
       try { me = state.username || ''; } catch (e) { /* pas connecté */ }
       var p = I && I.api ? I.api('GET', { user: me || 'invité', device: I.deviceId() }) : Promise.reject(new Error('poker-multi absent'));
-      p.then(function (d) { room.tables = d.tables || []; room.offline = false; shownKey = ''; refreshSeats(); })
+      p.then(function (d) { room.tables = d.tables || []; room.offline = false; shownKey = ''; refreshSeats(); return spectate(I, me); })
         .catch(function () { room.offline = true; syncHud(); })
-        .then(function () { if (room.netOn && !world.dead) room.pollT = setTimeout(poll, 1800); });
+        .then(function () { if (room.netOn && !world.dead) room.pollT = setTimeout(poll, 1500); });
     }
     room.netStart = function () { room.netOn = true; clearTimeout(room.pollT); poll(); };
     room.netStop = function () { room.netOn = false; clearTimeout(room.pollT); };
