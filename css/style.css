@@ -29,6 +29,127 @@ body {
 .font-mono-num { font-family: 'JetBrains Mono', monospace; }
 .font-scifi { font-family: 'Orbitron', sans-serif; }
 
+/* ── Badges de rôle animés (reproduction exacte de Tropi Site : dégradé continu sans aller-retour) ── */
+.role-tag,
+.role-flambeur,
+.role-patron,
+.ph-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Base commune pour le texte en dégradé */
+.role-tag .role-label,
+.role-flambeur .role-label,
+.role-patron .role-label,
+.ph-rank .role-label {
+  display: inline-block;
+  white-space: nowrap;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── FLAMBEUR (identique au tag Fondateur "role-fire" de Tropi Site) ── */
+/* Éclat doré qui balaie un rouge rubis profond en translation continue infinie (aucun aller-retour) */
+.role-flambeur,
+.ph-rank:not(.role-patron):not(.boss) {
+  --rt-a: #ef4444;
+  --rt-glow: rgba(239, 68, 68, 0.7);
+}
+.role-flambeur .role-label,
+.ph-rank:not(.role-patron):not(.boss) .role-label {
+  background-image: linear-gradient(100deg, #7f1d1d 0%, #ef4444 15%, #ffe08a 25%, #ef4444 35%, #7f1d1d 50%, #ef4444 65%, #ffe08a 75%, #ef4444 85%, #7f1d1d 100%);
+  background-size: 300% auto;
+  filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.65));
+  animation: roleShimmer 8s linear infinite, roleFirePulse 3s ease-in-out infinite;
+}
+.role-flambeur .role-crown,
+.ph-rank:not(.role-patron):not(.boss) .role-crown,
+.ph-rank:not(.role-patron):not(.boss) > i {
+  color: #ef4444;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.75));
+  transform-origin: 50% 90%;
+  animation: roleFlame 2.2s ease-in-out infinite;
+}
+
+/* ── PATRON (Style Boss Or Royal Tropi Site) ── */
+/* Dégradé or étincelant avec balayage continu et couronne qui bascule */
+.role-patron,
+.ph-rank.boss,
+.ph-rank.role-patron {
+  --rt-a: #facc15;
+  --rt-glow: rgba(250, 204, 21, 0.65);
+}
+.role-patron .role-label,
+.ph-rank.boss .role-label,
+.ph-rank.role-patron .role-label {
+  background-image: linear-gradient(100deg, #78350f 0%, #eab308 15%, #fef9c3 25%, #eab308 35%, #78350f 50%, #eab308 65%, #fef9c3 75%, #eab308 85%, #78350f 100%);
+  background-size: 300% auto;
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.65));
+  animation: roleShimmer 7s linear infinite, roleGoldPulse 3s ease-in-out infinite;
+}
+.role-patron .role-crown,
+.ph-rank.boss .role-crown,
+.ph-rank.boss > i,
+.ph-rank.role-patron .role-crown {
+  color: #facc15;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.65));
+  animation: roleCrown 2.2s ease-in-out infinite;
+}
+
+/* ── SPECTATEUR (neutre, pas d'animation) ── */
+.role-spectateur .role-label {
+  color: #a1a1aa;
+  -webkit-text-fill-color: #a1a1aa;
+}
+.role-spectateur .role-crown {
+  color: #a1a1aa;
+  animation: none;
+}
+
+/* ── KEYFRAMES TROPI SITE (TRANSLATION 100% UNIDIRECTIONNELLE LINÉAIRE INFINIE) ── */
+@keyframes roleShimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: -300% center; }
+}
+@keyframes roleFirePulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.45)); }
+  50% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.85)); }
+}
+@keyframes roleGoldPulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.45)); }
+  50% { filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.85)); }
+}
+@keyframes roleFlame {
+  0%, 100% { transform: scale(1) rotate(-4deg); }
+  25% { transform: scale(1.15, 1.28) rotate(3deg); }
+  50% { transform: scale(0.95, 1.1) rotate(-2deg); }
+  75% { transform: scale(1.1, 1.22) rotate(4deg); }
+}
+@keyframes roleCrown {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-2px) rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-flambeur .role-label,
+  .role-patron .role-label,
+  .role-flambeur .role-crown,
+  .role-patron .role-crown,
+  .ph-rank .role-label,
+  .ph-rank .role-crown,
+  .ph-rank i {
+    animation: none !important;
+  }
+}
+
 /* SUPPRESSION TOTALE DES FLÈCHES WINDOWS & ANTI-ZOOM AUTO SUR MOBILE */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -1144,3 +1265,1026 @@ select {
 
 
 
+/* ================= NOTIFICATION DE MISE À JOUR (BAS DROITE, COMME TROPI SITE) ================= */
+/* Un rectangle qui glisse depuis la droite ; la barre du bas montre le temps avant qu'elle parte seule (en pause au survol) */
+.maj-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 125;
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border-radius: 14px;
+  background: #141418;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  animation: majToastEntree 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: bottom 0.3s ease;
+}
+
+.maj-toast-principal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 40px 14px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.maj-toast-etiquette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.maj-toast-fermer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: #71717a;
+  cursor: pointer;
+}
+.maj-toast-fermer:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.maj-toast-barre {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: #f59e0b;
+  transform-origin: left;
+  animation: majToastVie 12s linear forwards;
+}
+.maj-toast:hover .maj-toast-barre {
+  animation-play-state: paused;
+}
+
+@keyframes majToastEntree {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes majToastVie {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 640px) {
+  .maj-toast {
+    right: 16px;
+  }
+}
+
+/* ================= MONDE 3D EN GRAND ÉCRAN ================= */
+/* Pas de menu de côté par-dessus la 3D, et un viseur au centre quand la souris est verrouillée */
+body.s3d-full-on #mainSidebar,
+body.s3d-full-on #sidebarBackdrop {
+  display: none !important;
+}
+
+.s3d-locked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Monde 3D : réglage de sensibilité de la souris, et avertissement quand la carte graphique n'est pas utilisée */
+.s3d-hud .s3d-sensi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  cursor: default;
+}
+.s3d-sensi input {
+  width: 80px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+}
+.s3d-sensi b {
+  min-width: 22px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.s3d-gpu {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(127, 29, 29, 0.92);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #fee2e2;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: auto;
+}
+
+/* =====================================================================
+   HUD DU JOUEUR — Carte joueur, dock, roue des danses, téléphone
+   (hud3d.js — monde 3D complet, PC)
+   ===================================================================== */
+
+/* ---------- conteneur principal ---------- */
+.ph {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* ---------- HUD en bas à gauche (carte + dock) ---------- */
+.ph-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 12;
+  pointer-events: auto;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 32px));
+}
+
+/* indicateur de danse en cours */
+.ph-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(232, 121, 249, 0.18) 0%, rgba(10, 6, 18, 0.88) 100%);
+  border: 1px solid rgba(232, 121, 249, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f0abfc;
+  font-size: 12px;
+  font-weight: 700;
+  animation: ph-slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ph-now i { margin-right: 4px; }
+.ph-now b { color: #f5d0fe; }
+.ph-now button {
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 121, 249, 0.4);
+  background: rgba(232, 121, 249, 0.15);
+  color: #f0abfc;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ph-now button:hover {
+  background: rgba(232, 121, 249, 0.35);
+  color: #fff;
+}
+
+/* la carte joueur : avatar + pseudo + rang + solde */
+.ph-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(12, 8, 20, 0.92) 0%, rgba(20, 14, 32, 0.88) 100%);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: ph-slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 260px;
+}
+
+.ph-ava {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid rgba(245, 158, 11, 0.6);
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.2), rgba(12, 8, 20, 0.9));
+  color: #fde68a;
+  font-size: 18px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.ph-ava:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+  transform: scale(1.05);
+}
+.ph-ava::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.ph-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ph-name {
+  color: #fef3c7;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Badge de rôle joueur dans le HUD 3D (carte et profil) */
+.ph-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ph-rank i {
+  font-size: 10px;
+  display: inline-block;
+}
+
+.ph-bal {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ph-bal .fl-coin { font-size: 14px; }
+.ph-bal b {
+  color: #fcd34d;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Orbitron', 'JetBrains Mono', monospace;
+}
+
+/* le dock : trois boutons (Danses, Emotes, Téléphone) avec les fl-logo */
+.ph-dock {
+  display: flex;
+  gap: 6px;
+}
+.ph-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px 5px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(18, 12, 28, 0.88) 0%, rgba(8, 5, 14, 0.92) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.ph-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%);
+  pointer-events: none;
+}
+.ph-btn:hover {
+  background: linear-gradient(180deg, rgba(28, 18, 42, 0.92) 0%, rgba(14, 8, 22, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.ph-btn:active { transform: translateY(0) scale(0.97); }
+.ph-btn .fl-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ph-btn:hover .fl-logo {
+  transform: scale(1.12);
+  box-shadow: 0 0 16px rgba(var(--c), 0.35);
+}
+.ph-btn > span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.ph-btn kbd {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.4);
+  color: #9ca3af;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.3;
+}
+
+/* ================= ROUE DES DANSES / EMOTES ================= */
+.ph-wheel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, rgba(10, 6, 20, 0.75) 0%, rgba(4, 2, 10, 0.88) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+  animation: ph-fadeIn 0.2s ease;
+  cursor: pointer;
+}
+.ph-wheel-box {
+  position: relative;
+  width: 380px;
+  height: 380px;
+  cursor: default;
+  animation: ph-scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ph-ring {
+  position: absolute;
+  inset: 0;
+}
+.ph-slot {
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  border: 2px solid rgba(var(--c), 0.35);
+  background: linear-gradient(145deg, rgba(var(--c), 0.12) 0%, rgba(8, 5, 14, 0.88) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+.ph-slot:hover {
+  border-color: rgba(var(--c), 0.7);
+  background: linear-gradient(145deg, rgba(var(--c), 0.25) 0%, rgba(14, 8, 22, 0.92) 100%);
+  transform: scale(1.12);
+  box-shadow: 0 0 24px rgba(var(--c), 0.35), 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+.ph-slot:active { transform: scale(1.02); }
+.ph-slot.on {
+  border-color: rgba(var(--c), 0.8);
+  background: linear-gradient(145deg, rgba(var(--c), 0.3) 0%, rgba(var(--c), 0.08) 100%);
+  box-shadow: 0 0 20px rgba(var(--c), 0.4), inset 0 0 16px rgba(var(--c), 0.1);
+}
+.ph-slot .fl-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+.ph-slot kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.3;
+}
+
+/* centre de la roue */
+.ph-wheel-mid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  width: 120px;
+}
+.ph-wheel-mid b {
+  display: block;
+  color: #fef3c7;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 12px rgba(255, 200, 60, 0.4);
+}
+.ph-wheel-mid small {
+  display: block;
+  color: #9ca3af;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* onglets en bas de la roue */
+.ph-wheel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  animation: ph-slideUp 0.3s 0.1s both cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ph-wheel-tabs button {
+  padding: 6px 18px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(201, 162, 39, 0.35);
+  background: rgba(12, 8, 20, 0.85);
+  color: #d9c88f;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ph-wheel-tabs button:hover {
+  border-color: rgba(201, 162, 39, 0.65);
+  background: rgba(20, 14, 32, 0.9);
+}
+.ph-wheel-tabs button.on {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(201, 162, 39, 0.15));
+  border-color: #f59e0b;
+  color: #fef3c7;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3);
+}
+.ph-wheel-tabs > span {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+/* ================= TÉLÉPHONE ================= */
+.ph-phone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 22;
+  pointer-events: auto;
+  animation: ph-phoneIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ph-body {
+  width: 310px;
+  height: 560px;
+  border-radius: 32px;
+  background: linear-gradient(180deg, #0e0a18 0%, #0a0612 100%);
+  border: 2.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 20px 60px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(120, 80, 200, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+.ph-notch {
+  width: 100px;
+  height: 22px;
+  background: #000;
+  border-radius: 0 0 14px 14px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.ph-notch::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1a1a2e 40%, #0d0d1a 100%);
+  box-shadow: inset 0 0 2px rgba(80, 80, 180, 0.3);
+}
+
+/* barre d'état du téléphone */
+.ph-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 18px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.ph-status b { letter-spacing: 0.04em; }
+.ph-status span {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+/* écran du téléphone (scrollable) */
+.ph-screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 14px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.ph-screen::-webkit-scrollbar { width: 3px; }
+.ph-screen::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+
+/* sections du téléphone */
+.ph-sect {
+  font-size: 11px;
+  font-weight: 800;
+  color: #6b7280;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 12px 0 8px;
+  padding-left: 2px;
+}
+.ph-sect:first-child { margin-top: 4px; }
+
+/* grille d'apps (Accueil + Danses) */
+.ph-apps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.ph-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.ph-app:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+.ph-app:active { transform: scale(0.96); }
+.ph-app .fl-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+.ph-app > span {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #d1d5db;
+  line-height: 1.2;
+}
+.ph-app > small {
+  font-size: 9px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* ================= PARAMÈTRES DANS LE TÉLÉPHONE ================= */
+.ph-card-setting {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 8px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.ph-card-setting:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.ph-card-danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.04);
+}
+.ph-card-danger:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+.ph-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ph-row-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ph-row-title .fl-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.ph-row-title > span b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+.ph-row-title > span small {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.ph-val-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  letter-spacing: 0.02em;
+}
+.ph-slider {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.45), rgba(255, 255, 255, 0.12));
+  outline: none;
+  cursor: pointer;
+  accent-color: #f59e0b;
+  margin: 10px 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+.ph-slider:hover {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.65), rgba(255, 255, 255, 0.18));
+}
+.ph-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #f59e0b 55%, #d97706 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.75), 0 2px 6px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ph-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.95), 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+.ph-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+.ph-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #f59e0b 55%, #d97706 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.75), 0 2px 6px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+}
+.ph-setting-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.ph-btn-action {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ph-btn-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.ph-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+.ph-row-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+.ph-row-btn:active { transform: translateY(0); }
+.ph-btn-danger {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.ph-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fff;
+}
+
+/* Page Profil du téléphone */
+.ph-profile-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(12, 8, 20, 0.8) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  margin-bottom: 10px;
+}
+.ph-profile-ava {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 2px solid #f59e0b;
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.3), rgba(12, 8, 20, 0.95));
+  color: #fde68a;
+  font-size: 20px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ph-profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.ph-profile-name {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ph-explore-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  margin-bottom: 10px;
+}
+.ph-explore-note .fl-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+.ph-explore-note > span {
+  font-size: 10.5px;
+  color: #d1d5db;
+  line-height: 1.35;
+}
+.ph-explore-note > span b {
+  display: block;
+  color: #fbbf24;
+  font-size: 11px;
+}
+
+/* Quand le HUD joueur est actif (monde 3D), la barre du haut est masquée car tout est dans le téléphone */
+.has-ph .s3d-top {
+  display: none !important;
+}
+
+/* Encadrés en haut à droite (Joueurs en ligne + FPS) */
+.ph-top-right {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 12;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ph-stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 10px;
+  background: rgba(10, 6, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  font-family: 'JetBrains Mono', 'Orbitron', monospace;
+  animation: ph-fadeIn 0.3s ease;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+.ph-stat-pill:hover {
+  background: rgba(18, 12, 30, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.ph-online i {
+  color: #38bdf8;
+  font-size: 11px;
+}
+.ph-stat-pill b {
+  color: #f1f5f9;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ph-stat-label {
+  color: #94a3b8;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.ph-fps-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.85);
+  animation: ph-fpsDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes ph-fpsDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
+/* barre de navigation en bas du téléphone */
+.ph-tabs {
+  display: flex;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(6, 3, 12, 0.95);
+  padding: 4px 0 6px;
+  flex-shrink: 0;
+}
+.ph-tabs button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 4px;
+  border: none;
+  background: none;
+  color: #4b5563;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  position: relative;
+}
+.ph-tabs button > span {
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.ph-tabs button:hover { color: #9ca3af; }
+.ph-tabs button.on { color: #f59e0b; }
+.ph-tabs button.on::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
+/* ================= ANIMATIONS HUD ================= */
+@keyframes ph-slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ph-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ph-scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ph-phoneIn {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.92); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ================= RESPONSIVE HUD ================= */
+@media (max-width: 767px) {
+  .ph-hud { left: 8px; bottom: 8px; max-width: 240px; }
+  .ph-card { padding: 6px 10px 6px 6px; }
+  .ph-ava { width: 36px; height: 36px; font-size: 15px; border-radius: 10px; }
+  .ph-name { font-size: 12px; }
+  .ph-bal b { font-size: 11.5px; }
+  .ph-btn .fl-logo { width: 28px; height: 28px; font-size: 13px; }
+  .ph-body { width: 270px; height: 480px; border-radius: 26px; }
+  .ph-wheel-box { width: 320px; height: 320px; }
+  .ph-slot { width: 56px; height: 56px; border-radius: 14px; }
+  .ph-slot .fl-logo { width: 30px; height: 30px; font-size: 14px; }
+}

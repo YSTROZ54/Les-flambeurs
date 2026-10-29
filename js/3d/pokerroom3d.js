@@ -457,9 +457,9 @@
     /* ----- interface : l'état des trois salles + le solo ----- */
     injectCss();
     room.hudBottom =
-      '<div class="prm"><div class="prm-t">♠️ Salles de poker</div><div class="prm-list" data-s3d="prlist"></div>' +
+      '<div class="prm"><div class="prm-t"><i class="fl-spade" style="color:#ef4444"></i> Salles de poker</div><div class="prm-list" data-s3d="prlist"></div>' +
       '<div class="prm-info" data-s3d="prinfo"></div>' +
-      '<button class="prm-solo" data-s3d="prsolo">🤖 Jouer seul contre les bots</button></div>';
+      '<button class="prm-solo" data-s3d="prsolo"><i class="fa-solid fa-robot"></i> Jouer seul contre les bots</button></div>';
     room.bindHud = function (hud) {
       room.elHud = hud;
       room.elList = hud.querySelector('[data-s3d="prlist"]'); room.elInfo = hud.querySelector('[data-s3d="prinfo"]');
@@ -473,7 +473,10 @@
       var here = whichRoom();
       var html = ROOMS.map(function (d, r) {
         var t = room.tableOf(r);
-        return '<div class="prm-r' + (r === here ? ' on' : '') + '"><span>' + d.emoji + ' ' + d.name.replace('Salle ', '') + '</span><b>' + (t ? t.count + '/' + t.maxSeats : '–') + '</b></div>';
+        // pastille plate de la couleur de la salle à la place de l'emoji rond
+        var point = { '🔴': '#ef4444', '🟢': '#10b981', '🔵': '#3b82f6' }[d.emoji];
+        var pastille = point ? '<i class="fa-solid fa-circle" style="color:' + point + ';font-size:9px"></i>' : d.emoji;
+        return '<div class="prm-r' + (r === here ? ' on' : '') + '"><span>' + pastille + ' ' + d.name.replace('Salle ', '') + '</span><b>' + (t ? t.count + '/' + t.maxSeats : '–') + '</b></div>';
       }).join('');
       var t0 = room.tableOf(here);
       var info = !room.tables.length ? (room.offline ? 'Serveur de poker injoignable : la partie solo reste possible.' : 'Chargement des tables…') :
@@ -561,7 +564,7 @@
     if (document.getElementById('prm-css')) return;
     var st = document.createElement('style'); st.id = 'prm-css';
     st.textContent =
-      '.prm{position:absolute;left:14px;bottom:14px;width:270px;background:rgba(8,5,12,.86);border:1px solid rgba(201,162,39,.55);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
+      '.prm{position:absolute;right:14px;bottom:14px;width:270px;background:rgba(8,5,12,.86);border:1px solid rgba(201,162,39,.55);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
       '.s3d-hud[data-mode=seat] .prm{display:none}' +
       '.prm-t{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#f3cf62}' +
       '.prm-list{display:flex;flex-direction:column;gap:4px}' +

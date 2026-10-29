@@ -126,8 +126,34 @@
     var tex = mkTex(cv);
     var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
     tag.scale.set(0.9, 0.2, 1); tag.position.set(0, 2.1, 0); g.add(tag);
+    g.rotation.order = 'YXZ';                                          // cap, puis penché en avant, puis de côté (danses)
+    arms.forEach(function (a) { a.rotation.order = 'YXZ'; });          // bras : écart sur le côté, puis élan, puis rentré
+    function ease01(v) { v = v < 0 ? 0 : v > 1 ? 1 : v; return v * v * (3 - 2 * v); }
     return {
-      group: g, hips: hips, knees: knees, arms: arms, phase: 0, seated: false,
+      group: g, hips: hips, knees: knees, arms: arms, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
+      // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.
+      startEmote: function (id) { this.emoT = 0; if (F.emoteById && F.emoteById(id)) this.emoId = id; else this.clearEmote(); },
+      clearEmote: function () {
+        if (!this.emoId && !this.emoYaw && !g.rotation.x && !g.rotation.z) return;
+        this.emoId = ''; this.emoT = 0;
+        g.rotation.y -= this.emoYaw; this.emoYaw = 0; g.rotation.x = 0; g.rotation.z = 0;
+        hips.forEach(function (hp) { hp.rotation.set(0, 0, 0); }); knees.forEach(function (kn) { kn.rotation.set(0, 0, 0); }); arms.forEach(function (ar) { ar.rotation.set(0, 0, 0); });
+      },
+      playEmote: function (dt) {
+        var e = this.emoId && F.emoteById ? F.emoteById(this.emoId) : null;
+        if (!e || this.seated) return false;
+        this.emoT += dt;
+        if (e.dur && this.emoT > e.dur) { this.clearEmote(); return false; }
+        var p = e.pose(this.emoT, e.dur), k = ease01(this.emoT / 0.25), Z = [0, 0, 0];   // k : on entre dans la pose en douceur
+        var a0 = p.a0 || Z, a1 = p.a1 || Z;
+        g.position.y += (p.y || 0) * k;
+        g.rotation.y += (p.yaw || 0) * k - this.emoYaw; this.emoYaw = (p.yaw || 0) * k;
+        g.rotation.x = (p.lx || 0) * k; g.rotation.z = (p.lz || 0) * k;
+        hips[0].rotation.set((p.h0 || 0) * k, 0, -(p.hz0 || 0) * k); hips[1].rotation.set((p.h1 || 0) * k, 0, (p.hz1 || 0) * k);
+        knees[0].rotation.x = (p.k0 || 0) * k; knees[1].rotation.x = (p.k1 || 0) * k;
+        arms[0].rotation.set(-a0[1] * k, a0[2] * k, -a0[0] * k); arms[1].rotation.set(-a1[1] * k, -a1[2] * k, a1[0] * k);
+        return true;
+      },
       setSeated: function (on) {
         if (on === this.seated) return; this.seated = on;
         g.position.y = on ? -0.3 : 0;                                   // hanches posées sur le tabouret

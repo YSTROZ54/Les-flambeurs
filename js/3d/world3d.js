@@ -17,6 +17,14 @@
 
   // direction (dx, dz) -> angle de regard du joueur (0 = vers -z)
   F.yawFor = function (dx, dz) { return Math.atan2(dx, -dz); };
+  // Sensibilité de la souris verrouillée (×1 = 0,0022 rad par pixel), gardée d'une visite à l'autre
+  F.sensi = function (v) {
+    try {
+      if (v !== undefined) localStorage.setItem('f3d_sensi', String(v));
+      var n = parseFloat(localStorage.getItem('f3d_sensi'));
+      return n >= 0.2 && n <= 3 ? n : 1;
+    } catch (e) { return v || 1; }
+  };
 
   /* ===================== LE MONDE ===================== */
   function World(container, opts) {
@@ -33,6 +41,13 @@
     var dom = this.dom = this.renderer.domElement;
     dom.style.cssText = 'display:block;width:100%;height:100%;touch-action:pan-y;outline:none';
     container.appendChild(dom);
+    // Sans carte graphique (accélération matérielle coupée dans le navigateur), la 3D tombe vers 15-20 images/s : on prévient
+    this.sansGpu = false;
+    try {
+      var gl = this.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+      this.sansGpu = /swiftshader|basic render|llvmpipe|software/i.test(ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '');
+    } catch (e) { /* carte inconnue : on ne prévient pas */ }
+    this.sensi = F.sensi();
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x07050c);
@@ -43,6 +58,7 @@
     this.keys = {}; this.stick = { x: 0, y: 0 }; this.mouse = { nx: 0, ny: 0, inside: false };
     this.mode = 'room'; this.blend = 0; this.seatRoom = null; this.near = null;
     this.remote = {}; this.full = false; this.trans = false;
+    this.emoId = ''; this.emoN = 0; this.emoK = 0; this.emoYaw0 = 0; this.selfPerson = null;   // danse / emote en cours (voir « danses et emotes » plus bas)
     this.clock = 0; this.last = 0; this.w = 0; this.h = 0; this.running = true; this.dead = false; this.hudT = 0; this.pv = { x: 0, z: 0 };
     this.ray = new THREE.Raycaster(); this.ndc = new THREE.Vector2();
 
@@ -77,6 +93,7 @@
     if (prev === room) return true;
     if (prev) {
       if (this.mode === 'seat' && prev.forceStand) prev.forceStand();
+      this._resetEmote();
       this._netStop();
       this._clearRemotes();
       if (prev.onLeave) prev.onLeave(this);
@@ -99,14 +116,19 @@
     return true;
   };
 
-  // changement de salle avec fondu au noir
-  World.prototype.goRoom = function (id, from) {
+  // changement de salle avec fondu au noir ; at (facultatif) : { x, z, yaw } ou fonction(salle) qui le donne, pour arriver ailleurs qu'à l'entrée
+  World.prototype.goRoom = function (id, from, at) {
     var self = this;
     if (this.trans || !this.hasRoom(id)) return;
+    this.pv.x = 0; this.pv.z = 0;
+    this._rtSend(true);
+    this._rtBye();
     this.trans = true; this.elFade.classList.add('on');
     setTimeout(function () {
       if (self.dead) return;
       self.enterRoom(id, { from: from || (self.room && self.room.id) });
+      var pos = typeof at === 'function' ? at(self.room) : at;
+      if (pos) { var p = self.player; p.x = pos.x; p.z = pos.z; p.yaw = pos.yaw || 0; }
       setTimeout(function () { self.elFade.classList.remove('on'); self.trans = false; }, 120);
     }, 380);
   };
@@ -114,6 +136,10 @@
   World.prototype.exitGame = function (key, door) {
     var self = this;
     if (this.trans) return;
+    this._libererSouris();
+    this.pv.x = 0; this.pv.z = 0;
+    this._rtSend(true);
+    this._rtBye();
     this.trans = true; this.elFade.classList.add('on');
     if (door) {   // au retour, on se retrouve devant la porte
       this.player.x = door.spec.x + door.spec.nx * 2.8; this.player.z = door.spec.z + door.spec.nz * 2.8;
@@ -212,12 +238,14 @@
     F.injectCss();
     var hud = document.createElement('div'); hud.className = 's3d-hud'; hud.setAttribute('data-mode', 'room');
     hud.innerHTML =
-      '<div class="s3d-top"><div class="s3d-bal">💰 <span data-s3d="bal">0</span></div>' +
+      '<div class="s3d-top"><div class="s3d-bal s3d-bal-top"><i class="fl-coin"></i> <span data-s3d="bal">0</span></div>' +
       '<div class="s3d-btns">' +
-      (this.opts.menu ? '<button class="s3d-cam" data-s3d="menu">📋 Menu classique</button>' : '') +
-      '<button class="s3d-cam" data-s3d="qual">⚙ Qualité</button>' +
+      (this.opts.menu ? '<button class="s3d-cam" data-s3d="menu"><i class="fa-solid fa-house"></i> Accueil</button>' : '') +
+      (this.touch ? '' : '<label class="s3d-cam s3d-sensi" title="Sensibilité de la souris en grand écran"><i class="fa-solid fa-computer-mouse"></i> Sensi <input type="range" min="0.2" max="3" step="0.1" data-s3d="sensi"><b data-s3d="sensival"></b></label>') +
+      '<button class="s3d-cam" data-s3d="qual"><i class="fa-solid fa-gear"></i> Qualité</button>' +
       '<button class="s3d-cam s3d-full-btn" data-s3d="full"></button><span data-s3d="roomtop" style="display:contents"></span></div></div>' +
       '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
+      (this.sansGpu ? '<div class="s3d-gpu"><i class="fa-solid fa-triangle-exclamation"></i> Ta carte graphique n’est pas utilisée, la 3D est ralentie. Active « Utiliser l’accélération graphique si disponible » dans les paramètres de ton navigateur (rubrique Système), puis relance-le.</div>' : '') +
       '<div class="s3d-title" data-s3d="title"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none"></button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
@@ -230,9 +258,16 @@
     this.elTitle = q('title'); this.elFade = q('fade'); this.elQual = q('qual'); this.elMenu = q('menu');
     this.elRoomTop = q('roomtop'); this.elRoomBottom = q('roombottom');
     this._paintFullBtn();
+    if (this.opts.hall && F.initPlayerHud) this.ph = F.initPlayerHud(this);   // HUD du joueur, roue des emotes et téléphone (hud3d.js) : monde complet seulement
     if (this.touch) this.elStick.style.display = '';
     this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
     this.elQual.addEventListener('click', function () { Q.cycle(); self._applyQuality(); self.syncHud(); });
+    var sensi = q('sensi'), sensiVal = q('sensival');
+    if (sensi) {
+      sensi.value = String(this.sensi); sensiVal.textContent = this.sensi.toFixed(1);
+      sensi.addEventListener('input', function () { self.sensi = F.sensi(parseFloat(sensi.value)); sensiVal.textContent = self.sensi.toFixed(1); });
+      sensi.addEventListener('change', function () { sensi.blur(); });   // ZQSD refait marcher tout de suite
+    }
     if (this.elMenu) this.elMenu.addEventListener('click', function () { if (self.opts.onMenu) self.opts.onMenu(); });
     this.elSit.addEventListener('click', function () { if (self.near) self.near.use(self); });
     // joystick tactile
@@ -256,6 +291,11 @@
         : this.full ? 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l\'écran) · Échap : quitter'
         : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder';
     }
+    if (this.full && !this.touch) {
+      t = t.replace(/clique-glisse : regarder|la souris tourne la vue( (bords de l'écran))?/, 'clic : la souris pilote la vue');
+      if (t.indexOf('la souris pilote la vue') < 0) t += ' · clic : la souris pilote la vue';
+      t = t.replace('Échap : quitter', 'Échap : libérer la souris, puis quitter');
+    }
     this.elHint.textContent = t; this.elHint.style.display = ''; this.hintShown = this.clock || 0;
   };
   World.prototype.flash = function (msg) {
@@ -270,6 +310,7 @@
   World.prototype.setFull = function (on) {
     on = !!on; if (on === this.full) return;
     this.full = on; this.mouse.inside = false;
+    if (!on) this._libererSouris();
     this.container.classList.toggle('s3d-full', on);
     document.body.classList.toggle('s3d-full-on', on);
     this._paintFullBtn();
@@ -279,8 +320,9 @@
   World.prototype._applyQuality = function () { this.renderer.setPixelRatio(Q.pixelRatio()); this.w = 0; Q.resetGrace(); };
   World.prototype.syncHud = function () {
     try { if (typeof state !== 'undefined' && state && typeof state.balance === 'number') this.elBal.textContent = fmtN(state.balance); } catch (e) { /* solde pas encore chargé */ }
-    this.elQual.textContent = '⚙ ' + Q.label();
+    this.elQual.innerHTML = '<i class="fa-solid fa-gear"></i> ' + Q.label();
     this.hud.setAttribute('data-mode', this.blend > 0.5 ? 'seat' : 'room');
+    if (this.ph) this.ph.sync();
     if (this.room && this.room.syncHud) this.room.syncHud(this);
   };
 
@@ -295,11 +337,15 @@
     this._kd = function (e) {
       if (!ok(e)) return;
       if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
-      else if ((e.code === 'KeyE' || e.code === 'Enter') && self.near && self.blend === 0) { self.near.use(self); e.preventDefault(); }
+      else if ((e.code === 'KeyF' || e.code === 'Enter') && self.near && self.blend === 0) { self._libererSouris(); self.near.use(self); e.preventDefault(); }
     };
     this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
     this._blur = function () { self.keys = {}; };
-    this._esc = function (e) { if (e.code === 'Escape' && self.full) self.setFull(false); };
+    this._esc = function (e) {
+      if (e.code !== 'Escape' || !self.full) return;
+      if (document.pointerLockElement === self.dom || Date.now() - (self._libereLe || 0) < 300) return;
+      self.setFull(false);
+    };
     this._ph = function () { if (self.room && self.room.onPageHide) self.room.onPageHide(self); self._rtBye(); };
     window.addEventListener('keydown', this._kd); window.addEventListener('keyup', this._ku); window.addEventListener('blur', this._blur);
     window.addEventListener('keydown', this._esc); window.addEventListener('pagehide', this._ph);
@@ -308,6 +354,12 @@
   World.prototype._bindPointer = function () {
     var self = this, dom = this.dom, drag = null;
     dom.addEventListener('pointerdown', function (e) {
+      // Grand écran : comme dans les jeux, un clic verrouille la souris et la vue suit ses mouvements
+      if (self.full && e.pointerType === 'mouse' && self.mode === 'room' && self.blend === 0 && document.pointerLockElement !== dom && dom.requestPointerLock) {
+        try { var lock = dom.requestPointerLock(); if (lock && lock.catch) lock.catch(function () { /* refusé par le navigateur */ }); } catch (er) { /* refusé */ }
+        drag = null;
+        return;
+      }
       drag = { x: e.clientX, y: e.clientY, pyaw: self.player.yaw, ppitch: self.player.pitch, moved: 0, mouse: e.pointerType === 'mouse', seat: null };
       if (self.mode === 'seat' && self.seatRoom && self.seatRoom.seatDragStart) drag.seat = self.seatRoom.seatDragStart();
       try { dom.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
@@ -321,6 +373,17 @@
       self.mouse.inside = true;
     });
     this.container.addEventListener('pointerleave', function () { self.mouse.inside = false; });
+    var SENSIBILITE = 0.0022;   // radians par pixel de souris à « Sensi 1.0 », comme une souris de jeu
+    dom.addEventListener('mousemove', function (e) {
+      if (document.pointerLockElement !== dom || self.mode !== 'room' || self.blend > 0 || self.trans) return;
+      self.player.yaw += e.movementX * SENSIBILITE * self.sensi;
+      self.player.pitch = Math.max(-0.7, Math.min(0.6, self.player.pitch - e.movementY * SENSIBILITE * self.sensi));
+    });
+    document.addEventListener('pointerlockchange', function () {
+      var on = document.pointerLockElement === dom;
+      self.container.classList.toggle('s3d-locked', on);
+      if (!on) self._libereLe = Date.now();
+    });
     dom.addEventListener('pointermove', function (e) {
       if (!drag) return;
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -345,13 +408,14 @@
   World.prototype._click = function (e) {
     if (this.trans) return;
     var rc = this.dom.getBoundingClientRect();
-    this.ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
+    if (document.pointerLockElement === this.dom) this.ndc.set(0, 0);
+    else this.ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
     this.ray.setFromCamera(this.ndc, this.camera);
     if (this.mode === 'room') {
       if (this.blend > 0 || !this.room) return;
       var its = this.room.interactables.filter(function (i) { return i.hit; });
       var hits = this.ray.intersectObjects(its.map(function (i) { return i.hit; }), false);
-      if (hits[0]) for (var k = 0; k < its.length; k++) if (its[k].hit === hits[0].object) { its[k].use(this, e); break; }
+      if (hits[0]) for (var k = 0; k < its.length; k++) if (its[k].hit === hits[0].object) { this._libererSouris(); its[k].use(this, e); break; }
       return;
     }
     if (this.blend < 1) return;
@@ -373,6 +437,7 @@
     p.yaw += ((k.tr ? 1 : 0) - (k.tl ? 1 : 0)) * 1.8 * dt;
     var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x;
     var len = Math.hypot(fwd, str);
+    if (this.emoId && (len > 0.05 || k.jump)) this.stopEmote();           // marcher ou sauter arrête la danse
     if (len > 1) { fwd /= len; str /= len; }
     var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z;
     this.running2 = run;
@@ -439,10 +504,7 @@
     var ms = this.mouse, mouseLook = ms.inside && !this.touch && this.full;
     function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
     if (this.mode === 'room' && this.blend === 0 && !this.trans) {
-      if (mouseLook) {   // curseur vers les bords = on tourne la tête, haut/bas = on regarde en l'air / au sol
-        this.player.yaw += dz(ms.nx, 0.12) * 3.4 * dt;
-        this.player.pitch = Math.max(-0.7, Math.min(0.6, -0.04 - dz(ms.ny, 0.12) * 0.9));
-      }
+      // en grand écran, la vue suit la souris verrouillée (voir _bindPointer)
       this._movePlayer(dt);
       this._updateDoors(dt);
     } else this._updateDoors(dt);
@@ -463,13 +525,73 @@
         fov = fov + (sp.fov - fov) * w;
       }
     }
+    // danse ou emote : la caméra passe devant le joueur, qui devient visible (en vue à la première personne on ne se voit pas)
+    this._updateSelfEmote(dt);
+    if (this.emoK > 0) {
+      var ek = this.emoK * this.emoK * (3 - 2 * this.emoK), bd = room.bounds, dd = 2.7;
+      var ex = p.x + Math.sin(p.yaw) * dd, ez = p.z - Math.cos(p.yaw) * dd;
+      ex = Math.max(bd.xMin + 0.3, Math.min(bd.xMax - 0.3, ex)); ez = Math.max(bd.zMin + 0.3, Math.min(bd.zMax - 0.3, ez));
+      if (Math.hypot(ex - p.x, ez - p.z) < 1.4) { ex = p.x - Math.sin(p.yaw) * dd; ez = p.z + Math.cos(p.yaw) * dd; ex = Math.max(bd.xMin + 0.3, Math.min(bd.xMax - 0.3, ex)); ez = Math.max(bd.zMin + 0.3, Math.min(bd.zMax - 0.3, ez)); }   // un mur derrière : on se place de l'autre côté
+      var ey2 = Math.max(0.6, Math.min(2.8, 1.55 - p.pitch * 1.8));
+      cx += (ex - cx) * ek; cy += (ey2 - cy) * ek; cz += (ez - cz) * ek;
+      tx += (p.x - tx) * ek; ty += (1.05 - ty) * ek; tz += (p.z - tz) * ek;
+    }
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     this.camera.position.set(cx, cy, cz);
     this.camera.lookAt(tx, ty, tz);
   };
 
+  /* ---------- danses et emotes (catalogue : emotes3d.js, roue et téléphone : hud3d.js) ---------- */
+  // Le joueur ne se voit pas en vue à la première personne : pendant une danse son personnage apparaît et la caméra passe devant lui.
+  // Les autres voient la même danse : l'identifiant (emo) et un compteur (emn, pour relancer la même) partent avec la position.
+  World.prototype.canEmote = function () {
+    return this.running && !this.dead && !!this.room && this.mode === 'room' && this.blend === 0 && !this.trans && this.container.clientWidth > 0;
+  };
+  World.prototype.emote = function (id) {
+    var e = F.emoteById(id);
+    if (!e || !this.canEmote()) return false;
+    if (!this.selfPerson) {
+      var nm = '', av = '';
+      try { nm = state.username || ''; av = state.avatarEmoji || ''; } catch (er) { /* pas connecté */ }
+      this.selfPerson = F.createPerson(nm || 'Moi', av);
+      this.selfPerson.tag.visible = false;
+      this.selfPerson.group.visible = false;
+      this.scene.add(this.selfPerson.group);
+    }
+    var p = this.player, sp = this.selfPerson;
+    this.emoYaw0 = p.yaw;                                    // le personnage garde son cap, la caméra peut tourner autour de lui
+    sp.clearEmote();
+    sp.group.position.set(p.x, 0, p.z); sp.group.rotation.y = Math.PI - p.yaw;
+    sp.startEmote(id);
+    this.emoId = id; this.emoN++;
+    this.keys = {}; this.stick.x = this.stick.y = 0;
+    this._rtSend(true);
+    return true;
+  };
+  World.prototype.stopEmote = function () {
+    if (!this.emoId) return;
+    this.emoId = '';
+    if (this.selfPerson) this.selfPerson.clearEmote();
+    this._rtSend(true);
+  };
+  World.prototype._resetEmote = function () {
+    this.emoId = ''; this.emoK = 0;
+    if (this.selfPerson) { this.selfPerson.clearEmote(); this.selfPerson.group.visible = false; }
+  };
+  World.prototype._updateSelfEmote = function (dt) {
+    var sp = this.selfPerson, tk = this.emoId ? 1 : 0;
+    if (this.emoK !== tk) this.emoK = Math.max(0, Math.min(1, this.emoK + Math.sign(tk - this.emoK) * dt * (tk ? 3.2 : 4)));
+    if (!sp) return;
+    if (this.emoId) {
+      sp.group.position.y = 0;
+      if (!sp.playEmote(dt)) this.stopEmote();               // une emote courte se termine d'elle-même
+    }
+    sp.group.visible = this.emoK > 0.02;
+  };
+
   /* ---------- s'asseoir / se lever (la salle gère son siège, le monde gère la caméra) ---------- */
-  World.prototype.sitDown = function (room) { this.mode = 'seat'; this.seatRoom = room; this.keys = {}; this.stick.x = this.stick.y = 0; this.near = null; this.elSit.style.display = 'none'; };
+  World.prototype._libererSouris = function () { if (document.pointerLockElement === this.dom) document.exitPointerLock(); };
+  World.prototype.sitDown = function (room) { this._resetEmote(); this._libererSouris(); this.mode = 'seat'; this.seatRoom = room; this.keys = {}; this.stick.x = this.stick.y = 0; this.near = null; this.elSit.style.display = 'none'; };
   World.prototype.standUp = function (x, z, yaw) {
     this.player.x = x; this.player.z = z; this.player.yaw = yaw; this.player.pitch = -0.04;
     this.mode = 'room'; this.seatRoom = null;
@@ -509,7 +631,7 @@
   World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw) {
     var r = this.remote[k];
     if (!r) {
-      r = this.remote[k] = { name: name || k, person: F.createPerson(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1 };
+      r = this.remote[k] = { name: name || k, person: F.createPerson(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
       r.person.group.position.set(x, 0, z);
       this.scene.add(r.person.group);
     }
@@ -522,15 +644,29 @@
   World.prototype._rtMsg = function (ev, m) {
     var me = this._me(), room = this.room;
     if (!m || typeof m.k !== 'string' || !m.k || m.k === me || !this.netOn || !room) return;
-    if (ev === 'bye') { this.removeRemote(m.k); return; }
+    this.recentByes = this.recentByes || {};
+    if (ev === 'bye') {
+      this.recentByes[m.k] = performance.now();
+      this.removeRemote(m.k);
+      return;
+    }
     if (ev === 'hello') { this._rtSend(true); return; }
     if (ev === 'pos') {
+      // Si ce joueur vient d'envoyer un bye récemment, ignorer tout paquet pos résiduel ou tardif
+      if (this.recentByes[m.k] && (performance.now() - this.recentByes[m.k] < 4500)) return;
+      // Si le paquet indique une autre salle, le joueur n'est plus ici
+      if (m.room && m.room !== room.id) {
+        this.removeRemote(m.k);
+        return;
+      }
       var x = Number(m.x), z = Number(m.z);
       if (!isFinite(x) || !isFinite(z)) return;
       var r = this.ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0);
       r.tx = x; r.tz = z; r.tyaw = Number(m.yaw) || 0; r.vx = Number(m.vx) || 0; r.vz = Number(m.vz) || 0;
       r.recv = performance.now(); r.rtT = r.recv;
       if (typeof m.seat === 'number') r.seat = m.seat;
+      var eid = typeof m.emo === 'string' && F.emoteById(m.emo) ? m.emo : '', en = Number(m.emn) || 0;
+      if (eid !== r.emo || en !== r.emn) { r.emo = eid; r.emn = en; r.person.startEmote(eid); }   // nouvelle danse (ou la même relancée) ; '' = il s'arrête
       if ((m.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = m.jmp || 0; }
       r.fresh = false;
     } else if (room.onRtMsg) room.onRtMsg(ev, m, this.remote[m.k], this);
@@ -538,11 +674,12 @@
   // envoie ma position/vitesse aux autres : ~15 fois par seconde en mouvement, 1 fois par seconde à l'arrêt
   World.prototype._rtSend = function (force, dt) {
     var me = this._me(), room = this.room;
-    if (!me || !this.rt || !this.rt.ready || !room) return;
+    if (!me || !this.rt || !this.rt.ready || !room || (this.trans && !force)) return;
     var p = this.player, pv = this.pv, seated = this.mode === 'seat' && room.seatPos ? room.seatPos() : null;
     var seatNow = seated ? seated.seat : -1;
     if (this.mode === 'seat' && room.hideSelf) return;           // assis à une table dont la salle montre déjà le joueur : on n'envoie plus de position
-    var moving = !seated && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(p.yaw - (this._rtYaw || 0)) > 0.01);
+    var emo = !seated && this.emoId ? this.emoId : '';
+    var moving = !seated && !emo && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(p.yaw - (this._rtYaw || 0)) > 0.01);
     this._rtYaw = p.yaw;
     this._rtT = (this._rtT || 0) - (dt || 0);
     if (moving && this._rtT > 0.066) this._rtT = 0.066;          // on se met à bouger : on n'attend pas la prochaine seconde
@@ -552,33 +689,81 @@
     try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
     var r3 = function (v) { return Math.round(v * 1000) / 1000; };
     this.rt.send('pos', {
-      k: me, name: nm, avatar: av, seat: seatNow,
-      x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : p.yaw),
-      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0
+      k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
+      x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : emo ? this.emoYaw0 : p.yaw),   // en danse la caméra tourne, pas le personnage
+      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN
     });
   };
   World.prototype._updateRemotes = function (dt) {
     var self = this, room = this.room, kk = 1 - Math.exp(-dt * 11), nowT = performance.now();
     Object.keys(this.remote).forEach(function (k) {
-      var r = self.remote[k], g = r.person.group, tx = r.tx, tz = r.tz, yaw = r.tyaw;
+      var r = self.remote[k];
+      if (!r || !r.person || !r.person.group) return;
+      var g = r.person.group;
+      var silence = nowT - (r.recv || nowT);
+
+      // Si le joueur ne donne plus signe de vie depuis plus de 3.2s (déconnecté ou parti sans bye), on le retire
+      if (silence > 3200) {
+        self.removeRemote(k);
+        return;
+      }
+
+      // Si pas de nouveau paquet depuis plus de 200ms, amortir la vitesse vers 0 pour ne pas continuer à glisser
+      if (silence > 200) {
+        var dec = Math.exp(-dt * 8);
+        r.vx *= dec;
+        r.vz *= dec;
+        if (Math.hypot(r.vx, r.vz) < 0.04) { r.vx = 0; r.vz = 0; }
+      }
+
+      var tx = r.tx, tz = r.tz, yaw = r.tyaw;
       var sp0 = r.seat >= 0 && room.remotePose ? room.remotePose(r) : null;
-      var age = Math.min(0.6, (nowT - r.recv) / 1000 + (r.rtT && nowT - r.rtT < 1500 ? 0.03 : 0.1));   // on prolonge le mouvement connu : pas de saccade
+      var age = Math.min(0.4, silence / 1000);   // extrapolation courte et bornée
       if (sp0) { tx = sp0.x; tz = sp0.z; yaw = sp0.yaw; r.person.setSeated(true); }
       else { tx += r.vx * age; tz += r.vz * age; r.person.setSeated(false); }
+
+      // Empêcher strictement le personnage de traverser les murs et d'aller dans le vide
+      if (room.bounds) {
+        var pad = 0.25;
+        tx = Math.max(room.bounds.xMin + pad, Math.min(room.bounds.xMax - pad, tx));
+        tz = Math.max(room.bounds.zMin + pad, Math.min(room.bounds.zMax - pad, tz));
+      }
+
       var ox = g.position.x, oz = g.position.z;
-      g.position.x += (tx - ox) * kk; g.position.z += (tz - oz) * kk;
-      var sp = sp0 ? 0 : Math.max(Math.hypot(r.vx, r.vz), Math.hypot(g.position.x - ox, g.position.z - oz) / Math.max(dt, 0.001) * 0.5);
+      // Téléportation si distance trop grande (évite de glisser sur 20m)
+      if (Math.hypot(tx - ox, tz - oz) > 5.5) {
+        g.position.x = tx; g.position.z = tz;
+      } else {
+        g.position.x += (tx - ox) * kk; g.position.z += (tz - oz) * kk;
+      }
+
+      if (room.bounds) {
+        g.position.x = Math.max(room.bounds.xMin, Math.min(room.bounds.xMax, g.position.x));
+        g.position.z = Math.max(room.bounds.zMin, Math.min(room.bounds.zMax, g.position.z));
+      }
+
+      var movedDist = Math.hypot(g.position.x - ox, g.position.z - oz);
+      var actualSp = movedDist / Math.max(dt, 0.001);
+      var sp = sp0 ? 0 : Math.max(Math.hypot(r.vx, r.vz), actualSp * 0.45);
+
+      // Si le joueur ne bouge plus et qu'on n'a pas reçu de paquet récent, on coupe net l'animation de marche
+      if (silence > 380 && actualSp < 0.12) sp = 0;
+
       if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = 4 * 0.6 * u * (1 - u); }
       else if (!r.person.seated) g.position.y = 0;
-      var ty = Math.PI - yaw, dy = ((ty - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
-      g.rotation.y += dy * Math.min(1, dt * 6);
-      if (sp > 0.12 && !r.person.seated) r.person.walk(dt, sp); else r.person.stopWalk();
+
+      var ty = Math.PI - yaw, ey = r.person.emoYaw, base = g.rotation.y - ey, dy = ((ty - base + Math.PI * 3) % TAU) - Math.PI;
+      g.rotation.y = base + dy * Math.min(1, dt * 6) + ey;
+
+      if (sp > 0.12 && !r.person.seated) { r.person.clearEmote(); r.person.walk(dt, sp); }
+      else if (!r.person.playEmote(dt)) r.person.stopWalk();
     });
   };
 
   /* ---------- cycle de vie ---------- */
   World.prototype.pause = function () {
-    this.running = false; this.keys = {}; this.setFull(false); this._netStop();
+    this.running = false; this.keys = {}; this.setFull(false); this._resetEmote(); this._netStop();
+    if (this.ph) this.ph.close();
     if (this.room && this.room.onPause) this.room.onPause(this);
   };
   World.prototype.resume = function () {
@@ -588,10 +773,13 @@
     if (this.room && this.room.onResume) this.room.onResume(this);
   };
   World.prototype.dispose = function () {
+    this._libererSouris();
     this.dead = true; cancelAnimationFrame(this._raf);
     window.removeEventListener('keydown', this._kd); window.removeEventListener('keyup', this._ku); window.removeEventListener('blur', this._blur);
     window.removeEventListener('keydown', this._esc); window.removeEventListener('pagehide', this._ph);
     this.setFull(false); this._netStop(); this._clearRemotes();
+    if (this.ph) this.ph.dispose();
+    if (this.selfPerson) { this.scene.remove(this.selfPerson.group); this.selfPerson.dispose(); this.selfPerson = null; }
     Object.keys(this.rooms).forEach(function (k) { var r = this.rooms[k]; if (r.dispose) r.dispose(); }, this);
     this.renderer.dispose();
     if (this.dom.parentNode) this.dom.parentNode.removeChild(this.dom);
