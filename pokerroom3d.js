@@ -219,8 +219,8 @@
         salle.slots.forEach(function (s) {
           var p = seatsNow[s.seatIdx] || null;
           s.name = p ? p.username : '';
-          var mine = !!(room.seat && room.seat.slot === s);   // ma propre chaise : je ne vois pas mon personnage (je suis dedans)
-          s.person.visible = !!p && !mine; s.chair.visible = !p;
+          var mine = !!(room.seat && room.seat.slot === s && room.seat.first);   // en 1re personne seulement, je ne vois pas mon personnage (je suis dedans)
+          s.person.visible = !!p && !mine; s.chair.visible = !p && !mine;
           if (p) {
             if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.72, s.z); g.add(s.plate); }
             if (!salle.live) paintPlate(s.plate, (p.avatar || '') + ' ' + p.username, '', false);
@@ -290,7 +290,7 @@
       if (ctx2.mouseLook) { st.yawG = ctx2.dz(ctx2.ms.nx, 0.2) * 0.8; st.pitchG = ctx2.dz(ctx2.ms.ny, 0.2) * 0.3; }
       st.yaw += (st.yawG - st.yaw) * k; st.pitch += (st.pitchG - st.pitch) * k;
       // 3e personne : derrière la chaise, vue d'ensemble ; 1re personne : à hauteur des yeux, juste au-dessus de la table
-      var tgt = st.first ? { back: -0.12, h: 1.3, aim: 0.25, fov: 66 } : { back: 0.65, h: 1.6, aim: 0.5, fov: 54 };
+      var tgt = st.first ? { back: -0.12, h: 1.3, aim: 0.25, fov: 66 } : { back: Math.max(0.9, 3.2 - dl), h: 3.0, aim: 0.3, fov: 58 };
       if (!st.cam) st.cam = { back: tgt.back, h: tgt.h, aim: tgt.aim, fov: tgt.fov };
       ['back', 'h', 'aim', 'fov'].forEach(function (q) { st.cam[q] += (tgt[q] - st.cam[q]) * k; });
       var ex = st.slot.x - ux * st.cam.back, ez = st.slot.z - uz * st.cam.back, ey = st.cam.h;
@@ -306,7 +306,7 @@
     window.addEventListener('keydown', onKeyV);
     room.toggleView = function () {
       var st = room.seat; if (!st) return;
-      st.first = !st.first; st.yawG = st.pitchG = 0;
+      st.first = !st.first; st.yawG = st.pitchG = 0; shownKey = ''; refreshSeats();
       var l = document.querySelector('#pokerViewBtn .pv-label'); if (l) l.textContent = st.first ? '1re pers.' : '3e pers.';
     };
     room.seatDragStart = function () { var st = room.seat; return st ? { yaw: st.yawG, pitch: st.pitchG } : { yaw: 0, pitch: 0 }; };
