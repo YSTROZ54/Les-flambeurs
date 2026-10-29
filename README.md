@@ -28,6 +28,8 @@ node serveur-local.mjs
 puis ouvrez http://localhost:8080 . Les tables de poker sont alors gardées en mémoire. En ligne (Vercel), elles sont stockées dans Supabase.
 Sans serveur, ouvrir `index.html` fonctionne toujours pour le mode solo.
 
+Pour développer (Node.js 20.19+) : `npm install` une fois, puis `npm run dev`. Le site et le backend (`/api/*`) tournent ensemble à la même adresse, inutile de lancer `serveur-local.mjs` en plus. Vite recharge la page dès qu'un fichier change, et les routes `/api/*` relisent leur code modifié sans redémarrage (voir `vite.config.js`).
+
 ## ♠️ Poker multijoueur (architecture)
 - `api/_pokerEngine.js` : moteur de poker pur, **autoritaire côté serveur** (blindes, relances minimales, pots annexes, mélange cryptographique, chrono de 120 s).
 - `api/poker.js` : API (`GET` = état de la table, `POST` = actions). Chaque joueur est reconnu par son **jeton de connexion** ; les cartes adverses ne sont jamais envoyées. La mise de départ est **prélevée par le serveur** à l'assise, et les jetons rendus (départ, déconnexion, élimination) sont **versés par le serveur** sur le solde (registre `__poker_cashouts`, clés uniques anti double-paiement).
