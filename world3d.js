@@ -527,6 +527,7 @@
     if (!me || !this.rt || !this.rt.ready || !room) return;
     var p = this.player, pv = this.pv, seated = this.mode === 'seat' && room.seatPos ? room.seatPos() : null;
     var seatNow = seated ? seated.seat : -1;
+    if (this.mode === 'seat' && room.hideSelf) return;           // assis à une table dont la salle montre déjà le joueur : on n'envoie plus de position
     var moving = !seated && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(p.yaw - (this._rtYaw || 0)) > 0.01);
     this._rtYaw = p.yaw;
     this._rtT = (this._rtT || 0) - (dt || 0);

@@ -454,6 +454,11 @@
     }
     @media (max-width: 767px) { .poker-hud-overlay { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)) !important; } }
     .pm-seg.on { border-color:#fbbf24; background:rgba(245,158,11,.2); color:#fcd34d; }
+    /* assis dans la salle 3D : seule l'interface du poker est affichée, par-dessus le monde (la scène est celle du monde) */
+    #view-poker.pm-over { background:transparent !important; pointer-events:none; z-index:70 !important; }
+    #view-poker.pm-over #poker3dContainer, #view-poker.pm-over #nameplatesOverlay, #view-poker.pm-over button[title="Retour au Casino"] { display:none !important; }
+    #view-poker.pm-over .hud-interactive, #view-poker.pm-over #pmBar > div, #view-poker.pm-over #pmLobby, #view-poker.pm-over #pmBuyIn, #view-poker.pm-over #pmReadyBtn { pointer-events:auto; }
+    body.pm-over-on .s3d-top { display:none !important; }
   `;
 
   // « Duel • Salon 1 », « Table de 4 • Salon 2 »… (les noms « Salon n » se répètent d'un type à l'autre)
@@ -618,6 +623,8 @@
     lobbyView: 'home',       // home | solo | 1v1 | 4max | 6max
     lastView: null,
     leaving: false,
+    inWorld: false,          // assis dans la salle de poker 3D du monde (PC) : interface par-dessus le monde
+    worldRoom: null,
 
     /* ----- ouverture de la salle ----- */
     async open() {
@@ -648,6 +655,28 @@
         this.renderLobby();
       }
       this.startLobbyPolling();
+    },
+
+    showOverlay(on) {
+      const r = $('view-poker');
+      if (!r) return;
+      r.classList.toggle('hidden', !on);
+      r.classList.toggle('pm-over', !!on);
+      document.body.classList.toggle('pm-over-on', !!on);
+    },
+
+    // chaise choisie dans la salle 3D (PC) : on RESTE dans le monde, l'interface du poker s'affiche par-dessus
+    async openInWorld(roomObj, tableId, seat) {
+      buildDom();
+      if (!this.ensureExp()) return false;
+      try { this.exp.pause(); } catch (e) {}   // la scène cachée du poker ne dessine rien : c'est la salle du monde qu'on voit
+      this.worldRoom = roomObj;
+      this.inWorld = true;
+      this.showOverlay(true);
+      this.hideSoloOnlyUi(false);
+      this.fromWorld = true;
+      await this.openFromWorld({ tableId, seat });
+      return true;
     },
 
     // chaise choisie dans la salle 3D : on saute le lobby et on demande directement la mise de départ
@@ -686,8 +715,21 @@
       if (bar) bar.classList.add('hidden');
       const banner = $('winnerBannerModal');
       if (banner) banner.classList.add('hidden');
+      if (this.inWorld) { this.leaveWorldSeat(); return; }
       window.__f3dPlace = 'pokerroom';
       if (typeof switchRoom === 'function') switchRoom('world3d');
+    },
+
+    // on se relève de la table : l'interface disparaît, on est debout dans la salle
+    leaveWorldSeat() {
+      const r = this.worldRoom;
+      this.inWorld = false;
+      this.worldRoom = null;
+      this.fromWorld = false;
+      this.showOverlay(false);
+      const rb = $('pmReadyBox');
+      if (rb) rb.classList.remove('show');
+      if (r && r.leftTable) { try { r.leftTable(); } catch (e) {} }
     },
 
     ensureExp() {
@@ -1019,7 +1061,7 @@
       this.failures = 0;
       this.soloSuspended = false;
       this.hideSoloOnlyUi(true);
-      exp.resume();
+      if (this.inWorld) { try { exp.pause(); } catch (e) {} } else exp.resume();
       const banner = $('winnerBannerModal');
       if (banner) banner.classList.add('hidden');
       const bar = $('pmBar');
@@ -1027,6 +1069,7 @@
       if (firstData && firstData.table) this.onData(firstData);
       this.startPolling();
       this.startTick();
+      if (this.inWorld && this.worldRoom && this.worldRoom.takeSeat) { try { this.worldRoom.takeSeat(tableId); } catch (e) { console.warn(e); } }
     },
 
     startPolling() {
@@ -1306,6 +1349,7 @@
       } else if (this.mode === 'lobby') {
         this.mode = 'none';
       }
+      if (this.inWorld) this.leaveWorldSeat();
     }
   };
 

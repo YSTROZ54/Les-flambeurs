@@ -38,6 +38,25 @@
     { name: 'Salle Saphir', emoji: '🔵', theme: 'saphir', gaps: [-Math.PI / 2], felt: 0x3a1052, table: 'poker_6max_3' }
   ];
 
+  // petite étiquette flottante (montant d'une mise, pot…) : sw x sh mètres, texte repeint seulement quand il change
+  function makeLabel(sw, sh) {
+    var cv = mkCanvas(256, Math.round(256 * sh / sw)), x = cv.getContext('2d'), tx = mkTex(cv), last = null;
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
+    sp.scale.set(sw, sh, 1); sp.visible = false;
+    return {
+      sprite: sp,
+      set: function (text, color) {
+        if (!text) { sp.visible = false; last = null; return; }
+        sp.visible = true;
+        if (text + color === last) return;
+        last = text + color;
+        x.clearRect(0, 0, cv.width, cv.height); x.fillStyle = 'rgba(8,5,12,0.8)'; F.roundRectPath(x, 2, 2, cv.width - 4, cv.height - 4, cv.height / 3); x.fill();
+        x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = color || '#f3cf62'; x.font = '800 ' + Math.round(cv.height * 0.5) + 'px "Plus Jakarta Sans",system-ui,"Segoe UI Emoji",sans-serif';
+        x.fillText(text, cv.width / 2, cv.height / 2 + 2, cv.width - 20); tx.needsUpdate = true;
+      }
+    };
+  }
+
   function createPokerRoom(world, cfg) {
     var room = { title: 'SALLES DE POKER', subtitle: 'CHOISIS TA CHAISE', topic: 'flambeurs-poker-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group;
@@ -60,10 +79,14 @@
       ctx.buildPokerTable();
       ctx.buildRoom(def.theme, def.gaps, false);
       ctx.buildDealer();      // le croupier reste assis à côté de la table
+      ctx.buildCommunityCards();   // 5 cartes communes + emplacements + bouton dealer (affichés quand une partie se joue à cette table)
+      ctx.communityCardMeshes.forEach(function (m, i) { m.scale.setScalar(1.12); m.position.set((i - 2) * 0.5, 0.012, 0.05); m.visible = false; });
+      ctx.dealerButton.visible = false;
       var lamp = new THREE.PointLight(0xffe9c8, 1.0, 12); lamp.position.set(cx, 3.4, 0); g.add(lamp);
 
-      var salle = { r: r, def: def, cx: cx, slots: [] };
+      var salle = { r: r, def: def, cx: cx, slots: [], ctx: ctx, stage: stage, hole: [], bets: [], boardKey: '' };
       room.salles.push(salle);
+      salle.pot = makeLabel(1.1, 0.34, 0.96); salle.pot.sprite.position.set(cx, 1.0, -0.62); g.add(salle.pot.sprite);
 
       THETAS.forEach(function (theta, i) {
         var sc, pos, rotY, fit;
@@ -89,6 +112,15 @@
         var slot = { r: r, i: i, seatIdx: i, x: cx + pos.x * SC, z: pos.z * SC, person: person, chair: chair, hit: hit, name: '', plate: null };
         room.slots.push(slot); salle.slots.push(slot);
         room.colliders.push({ x: slot.x, z: slot.z, r: 0.42 });
+
+        // cartes de la main devant la chaise, étiquette de mise, plaque du joueur (montrées seulement pendant une partie à cette table)
+        var hx = Math.cos(theta) * 2.6, hz = Math.sin(theta) * 1.35, tx = -Math.sin(theta), tz = Math.cos(theta);
+        slot.hole = [0, 1].map(function () {
+          var m = ctx.createCardObject('A', '♠', true, 0.75); m.visible = false; stage.add(m); return m;
+        });
+        slot.holeBase = { x: hx, z: hz, tx: tx, tz: tz, rotZ: Math.PI / 2 - theta };
+        slot.bet = makeLabel(0.7, 0.25); slot.bet.sprite.position.set(cx + hx * 0.42 * SC, 0.86, hz * 0.42 * SC); g.add(slot.bet.sprite);
+        slot.theta = theta;
       });
       // table, croupier : on ne les traverse pas
       for (var k = -2; k <= 2; k++) room.colliders.push({ x: cx + k * HALF_STRAIGHT * SC / 2, z: 0, r: 1.42 });
@@ -149,17 +181,24 @@
     }
 
     // plaque de nom au-dessus d'un joueur assis
+    // nom (+ jetons et état pendant une partie) ; la couleur dorée = c'est à lui de parler
     function makePlate() {
-      var cv = mkCanvas(256, 64), x = cv.getContext('2d'), tx = mkTex(cv);
+      var cv = mkCanvas(256, 96), x = cv.getContext('2d'), tx = mkTex(cv);
       var m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false }));
-      m.scale.set(0.9, 0.225, 1); m.userData = { x: x, tex: tx };
+      m.scale.set(0.9, 0.34, 1); m.userData = { x: x, tex: tx, key: '' };
       return m;
     }
-    function paintPlate(sp, text) {
+    function paintPlate(sp, text, sub, turn) {
+      var k = text + '|' + sub + '|' + turn;
+      if (sp.userData.key === k) return;
+      sp.userData.key = k;
       var x = sp.userData.x;
-      x.clearRect(0, 0, 256, 64); x.fillStyle = 'rgba(8,5,12,0.78)'; F.roundRectPath(x, 2, 8, 252, 48, 16); x.fill();
+      x.clearRect(0, 0, 256, 96); x.fillStyle = turn ? 'rgba(90,60,6,0.92)' : 'rgba(8,5,12,0.78)'; F.roundRectPath(x, 2, 4, 252, 88, 18); x.fill();
+      if (turn) { x.strokeStyle = '#fbbf24'; x.lineWidth = 4; x.stroke(); }
       x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#f3e7c0'; x.font = '700 26px "Plus Jakarta Sans",system-ui,"Segoe UI Emoji",sans-serif';
-      x.fillText(text, 128, 34, 236); sp.userData.tex.needsUpdate = true;
+      x.fillText(text, 128, sub ? 32 : 48, 236);
+      if (sub) { x.fillStyle = turn ? '#fde68a' : '#a7e3b5'; x.font = '700 22px "Plus Jakarta Sans",system-ui,sans-serif'; x.fillText(sub, 128, 68, 236); }
+      sp.userData.tex.needsUpdate = true;
     }
 
     // la porte de sortie (derrière la chaise du bas de la première salle) vers le hall
@@ -180,10 +219,12 @@
         salle.slots.forEach(function (s) {
           var p = seatsNow[s.seatIdx] || null;
           s.name = p ? p.username : '';
-          s.person.visible = !!p; s.chair.visible = !p;
+          var mine = !!(room.seat && room.seat.slot === s);   // ma propre chaise : je ne vois pas mon personnage (je suis dedans)
+          s.person.visible = !!p && !mine; s.chair.visible = !p || mine;
           if (p) {
             if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.95, s.z); g.add(s.plate); }
-            paintPlate(s.plate, (p.avatar || '') + ' ' + p.username); s.plate.visible = true;
+            if (!salle.live) paintPlate(s.plate, (p.avatar || '') + ' ' + p.username, '', false);
+            s.plate.visible = !mine;
           } else if (s.plate) s.plate.visible = false;
         });
         salle.draw(t);
@@ -206,9 +247,113 @@
       if (!t || !window.PokerMulti) { world.flash('Table indisponible pour le moment.'); return; }
       if (s.name) { world.flash('Place occupée par ' + s.name); return; }
       if (t.count >= t.maxSeats) { world.flash('Table complète.'); return; }
-      window.PokerMulti.worldIntent = { tableId: t.id, seat: s.seatIdx };
-      world.exitGame('poker');
+      // on reste dans la salle : l'interface du poker s'affiche par-dessus (mise de départ, puis la partie à cette table)
+      room.pending = s;
+      window.PokerMulti.openInWorld(room, t.id, s.seatIdx);
     };
+
+    /* ----- assis à la table : la partie se joue ici, devant tout le monde ----- */
+    room.hideSelf = false;
+    room.takeSeat = function (tableId) {
+      var salle = room.salles.filter(function (q) { return q.def.table === tableId; })[0];
+      if (!salle || world.mode === 'seat') return;
+      var PM = window.PokerMulti, me = PM && PM.lastView && PM.lastView.me;
+      var slot = salle.slots[me ? me.seat : (room.pending ? room.pending.seatIdx : 0)] || salle.slots[0];
+      room.seat = { salle: salle, slot: slot, yaw: 0, pitch: 0, yawG: 0, pitchG: 0, init: false, wasFull: world.full };
+      room.hideSelf = true;
+      world._rtBye();
+      world.setFull(true);                       // plein écran : l'interface du poker (par-dessus) est calée sur l'écran
+      world.sitDown(room);
+      shownKey = ''; refreshSeats();
+    };
+    // on se relève (fin de partie, bouton Quitter, fermeture) : debout derrière la chaise
+    room.leftTable = function () {
+      var st = room.seat;
+      room.hideSelf = false; room.seat = null; room.pending = null;
+      if (!st) return;
+      var ux = st.slot.x - st.salle.cx, uz = st.slot.z, ul = Math.hypot(ux, uz) || 1;
+      if (world.mode === 'seat') world.standUp(st.slot.x + ux / ul * 1.0, st.slot.z + uz / ul * 1.0, F.yawFor(-ux, -uz));
+      if (!st.wasFull) world.setFull(false);
+      world._rtSend(true);
+      st.salle.live = false; clearGame(st.salle);
+      shownKey = ''; refreshSeats();
+    };
+    room.forceStand = function () { if (window.PokerMulti && window.PokerMulti.inWorld) window.PokerMulti.onLeaveRoom(); else room.leftTable(); };
+    room.onPause = function () { if (window.PokerMulti && window.PokerMulti.inWorld) window.PokerMulti.onLeaveRoom(); };
+    room.onPageHide = function () { if (window.PokerMulti && window.PokerMulti.inWorld) window.PokerMulti.onLeaveRoom(); };
+
+    // caméra : sur ma chaise, un peu en retrait, tournée vers le centre de la table ; on peut tourner la tête en glissant la souris
+    room.seatPose = function (dt, ctx2) {
+      var st = room.seat; if (!st) return null;
+      var k = 1 - Math.exp(-dt * 5), dx = st.salle.cx - st.slot.x, dz = -st.slot.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+      if (ctx2.mouseLook) { st.yawG = ctx2.dz(ctx2.ms.nx, 0.2) * 0.8; st.pitchG = ctx2.dz(ctx2.ms.ny, 0.2) * 0.3; }
+      st.yaw += (st.yawG - st.yaw) * k; st.pitch += (st.pitchG - st.pitch) * k;
+      var ex = st.slot.x - ux * 0.5, ez = st.slot.z - uz * 0.5, ey = 1.5;
+      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.8 - ey, dl + 0.5) + st.pitch;
+      var tx = ex + Math.sin(a) * Math.cos(p) * 5, tz = ez - Math.cos(a) * Math.cos(p) * 5, ty = ey + Math.sin(p) * 5;
+      return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 62 };
+    };
+    room.seatDragStart = function () { var st = room.seat; return st ? { yaw: st.yawG, pitch: st.pitchG } : { yaw: 0, pitch: 0 }; };
+    room.seatDrag = function (drag, dx, dy) {
+      var st = room.seat; if (!st) return;
+      st.yawG = Math.max(-0.9, Math.min(0.9, drag.seat.yaw - dx * 0.005));
+      st.pitchG = Math.max(-0.4, Math.min(0.4, drag.seat.pitch + dy * 0.003));
+    };
+
+    /* ----- la partie en cours à MA table, dessinée sur la table 3D de la salle ----- */
+    var SUITS = { '♠': 1, '♥': 1, '♦': 1, '♣': 1 };
+    function showCard(ctx, m, c) {
+      var key = c && c.rank && SUITS[c.suit] ? c.rank + c.suit : 'back';
+      if (m.userData.key === key) return;
+      m.userData.key = key;
+      if (key === 'back') ctx.setCardBack(m); else ctx.setCardFace(m, c.rank, c.suit);
+      m.userData.key = key;
+    }
+    function clearGame(salle) {
+      salle.ctx.communityCardMeshes.forEach(function (m) { m.visible = false; });
+      salle.ctx.dealerButton.visible = false; salle.pot.set('');
+      salle.slots.forEach(function (s) { s.hole.forEach(function (m) { m.visible = false; }); s.bet.set(''); });
+      salle.slots.forEach(function (s) { if (s.plate) s.plate.userData.key = ''; });
+    }
+    function tickGame(salle, view, game) {
+      var ctx = salle.ctx, bd = ctx.communityCardMeshes, comm = (game && game.communityCards) || [];
+      bd.forEach(function (m, i) { var c = comm[i]; m.visible = !!c; if (c) showCard(ctx, m, c); });
+      salle.pot.set(view.pot > 0 ? 'POT ' + view.pot.toLocaleString('fr-FR') + ' €' : '');
+      var dealer = view.status !== 'waiting' && view.dealerSeat != null ? salle.slots[view.dealerSeat] : null;
+      ctx.dealerButton.visible = !!dealer;
+      if (dealer) { var b = dealer.holeBase; ctx.dealerButton.position.set(b.x * 0.5 + b.tx * 0.5, 0.02, b.z * 0.5 + b.tz * 0.5); }
+      var heroKey = view.me && view.me.key;
+      salle.slots.forEach(function (s) {
+        var seat = view.seats[s.seatIdx] || null;
+        var mine = !!(seat && seat.key === heroKey), inHand = !!(seat && seat.inHand && !seat.folded && view.status !== 'waiting');
+        var b = s.holeBase, f = mine ? 0.66 : 0.8, cs = seat && seat.cards || [];
+        s.hole.forEach(function (m, i) {
+          m.visible = inHand;
+          if (!inHand) return;
+          var side = (i === 0 ? 1 : -1) * (mine ? 0.15 : 0.09);
+          m.position.set(b.x * f + b.tx * side, 0.015 + i * 0.001, b.z * f + b.tz * side);
+          m.rotation.set(-Math.PI / 2, 0, b.rotZ + (i === 0 ? 0.06 : -0.06));
+          m.scale.setScalar(mine ? 0.95 : 0.6);
+          showCard(ctx, m, cs[i] && !cs[i].hidden ? cs[i] : null);
+        });
+        s.bet.set(seat && seat.bet > 0 ? '🪙 ' + seat.bet.toLocaleString('fr-FR') : '');
+        if (seat && s.plate) {
+          var sub = seat.sittingOut ? 'attend la main' : seat.allIn ? 'TAPIS ' + seat.stack.toLocaleString('fr-FR') + ' €' : seat.stack.toLocaleString('fr-FR') + ' €' + (seat.folded && inHandBefore(seat) ? ' · couché' : '');
+          paintPlate(s.plate, (seat.avatar || '') + ' ' + seat.username, sub, view.status === 'playing' && view.turn === seat.key);
+        }
+      });
+    }
+    function inHandBefore(seat) { return !!seat.inHand; }
+    var gameT = 0;
+    function updateGame(dt) {
+      gameT -= dt; if (gameT > 0) return; gameT = 0.12;
+      var PM = window.PokerMulti, view = PM && PM.inWorld && PM.mode === 'multi' ? PM.lastView : null;
+      room.salles.forEach(function (salle) {
+        var mineTable = view && view.tableId === salle.def.table;
+        if (mineTable) { salle.live = true; tickGame(salle, view, PM.game); }
+        else if (salle.live) { salle.live = false; clearGame(salle); }
+      });
+    }
     room.playSolo = function () {
       if (world.trans || !window.PokerMulti) return;
       window.PokerMulti.worldIntent = { solo: true };
@@ -264,6 +409,7 @@
     room.spawn = function () { return { x: 0, z: WALL_R - 2.4, yaw: 0 }; };
     var last = { x: 0, z: WALL_R - 2.4 };
     room.update = function (dt) {
+      updateGame(dt);
       var p = world.player;
       if (inside(p.x, p.z)) { last.x = p.x; last.z = p.z; }
       else if (inside(p.x, last.z)) p.z = last.z;                 // on glisse le long des murs plutôt que de les traverser
