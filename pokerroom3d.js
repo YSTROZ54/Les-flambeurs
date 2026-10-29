@@ -119,7 +119,7 @@
           var m = ctx.createCardObject('A', '♠', true, 0.75); m.visible = false; stage.add(m); return m;
         });
         slot.holeBase = { x: hx, z: hz, tx: tx, tz: tz, rotZ: Math.PI / 2 - theta };
-        slot.bet = makeLabel(0.7, 0.25); slot.bet.sprite.position.set(cx + hx * 0.42 * SC, 0.86, hz * 0.42 * SC); g.add(slot.bet.sprite);
+        slot.bet = makeLabel(0.7, 0.25); slot.bet.sprite.position.set(cx + hx * 0.3 * SC, 0.9, hz * 0.3 * SC); g.add(slot.bet.sprite);
         slot.theta = theta;
       });
       // table, croupier : on ne les traverse pas
@@ -288,8 +288,8 @@
       var k = 1 - Math.exp(-dt * 5), dx = st.salle.cx - st.slot.x, dz = -st.slot.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
       if (ctx2.mouseLook) { st.yawG = ctx2.dz(ctx2.ms.nx, 0.2) * 0.8; st.pitchG = ctx2.dz(ctx2.ms.ny, 0.2) * 0.3; }
       st.yaw += (st.yawG - st.yaw) * k; st.pitch += (st.pitchG - st.pitch) * k;
-      var ex = st.slot.x - ux * 0.95, ez = st.slot.z - uz * 0.95, ey = 1.75;
-      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + 0.95) + st.pitch;
+      var ex = st.slot.x - ux * 0.65, ez = st.slot.z - uz * 0.65, ey = 1.6;
+      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + 0.65 - 0.5) + st.pitch;
       var tx = ex + Math.sin(a) * Math.cos(p) * 5, tz = ez - Math.cos(a) * Math.cos(p) * 5, ty = ey + Math.sin(p) * 5;
       return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 62 };
     };
@@ -330,10 +330,10 @@
         s.hole.forEach(function (m, i) {
           m.visible = inHand;
           if (!inHand) return;
-          var side = (i === 0 ? 1 : -1) * (mine ? 0.15 : 0.09);
+          var side = (i === 0 ? 1 : -1) * (mine ? 0.2 : 0.09);
           m.position.set(b.x * f + b.tx * side, 0.015 + i * 0.001, b.z * f + b.tz * side);
           m.rotation.set(-Math.PI / 2, 0, b.rotZ + (i === 0 ? 0.06 : -0.06));
-          m.scale.setScalar(mine ? 0.95 : 0.6);
+          m.scale.setScalar(mine ? 1.3 : 0.6);
           showCard(ctx, m, cs[i] && !cs[i].hidden ? cs[i] : null);
         });
         s.bet.set(seat && seat.bet > 0 ? '🪙 ' + seat.bet.toLocaleString('fr-FR') : '');
