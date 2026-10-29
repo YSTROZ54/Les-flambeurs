@@ -148,21 +148,9 @@
     [1, -1].forEach(function (s, si) {
       for (var i = 0; i < nPts.length - 1; i++) {
         var a = nPts[i], b = nPts[i + 1];
-        addBar(new THREE.Vector3(s * (a.x - 0.015), a.y, 0.37), new THREE.Vector3(s * (b.x - 0.015), b.y, 0.37), 0.014, i / (nPts.length - 1), si * 0.25);
+        addBar(new THREE.Vector3(s * (a.x + 0.005), a.y, 0.34), new THREE.Vector3(s * (b.x + 0.005), b.y, 0.34), 0.016, i / (nPts.length - 1), si * 0.25);
       }
     });
-    (function () {
-      var x0 = -0.66, x1 = 0.66, y0 = 1.1, y1 = 2.7, z = 0.4, loop = [];
-      var kx = low ? 3 : 5, ky = low ? 4 : 7, i;
-      for (i = 0; i < kx; i++) loop.push([x0 + (x1 - x0) * i / kx, y0]);
-      for (i = 0; i < ky; i++) loop.push([x1, y0 + (y1 - y0) * i / ky]);
-      for (i = 0; i < kx; i++) loop.push([x1 - (x1 - x0) * i / kx, y1]);
-      for (i = 0; i < ky; i++) loop.push([x0, y1 - (y1 - y0) * i / ky]);
-      loop.push(loop[0]);
-      for (i = 0; i < loop.length - 1; i++) {
-        addBar(new THREE.Vector3(loop[i][0], loop[i][1], z), new THREE.Vector3(loop[i + 1][0], loop[i + 1][1], z), 0.011, i / (loop.length - 1), 0.5);
-      }
-    })();
 
     /* ---------- panneaux latéraux animés ---------- */
     var PW = low ? 96 : 128, PH = low ? 480 : 640;
@@ -737,7 +725,7 @@
     var v = this.view, aspect = this.w / Math.max(1, this.h), fov = aspect < 0.9 ? 50 : 38;
     var t = Math.tan(fov * Math.PI / 360);
     if (v.mode === 'play') {
-      v.rG = Math.max(2.2 / 2 / t, 2.05 / 2 / (t * aspect)); v.tyG = 1.95; v.pitchG = 0.06;
+      v.rG = Math.max(2.2 / 2 / t, 2.7 / 2 / (t * aspect)); v.tyG = 1.95; v.pitchG = 0.06;
     } else {
       v.rG = Math.max(5.2 / 2 / t, 4.4 / 2 / (t * aspect)); v.tyG = 1.65; v.pitchG = 0.2;
     }
