@@ -126,10 +126,68 @@
     var tex = mkTex(cv);
     var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
     tag.scale.set(0.9, 0.2, 1); tag.position.set(0, 2.1, 0); g.add(tag);
+    // bulle de dialogue au-dessus de l'étiquette : un message (say) ou trois points qui bougent (typing)
+    var bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+    bub.visible = false; g.add(bub);
+    var bubFont = '600 30px "Plus Jakarta Sans",system-ui,sans-serif', bubTimer = 0, dotsTimer = 0, safeTimer = 0, dotsPhase = 0, sayOn = false;
+    function bubWrap(c, text) {
+      var lines = [], cur = '', MAXW = 470;
+      String(text).split(' ').forEach(function (word) {
+        while (c.measureText(word).width > MAXW) {                      // mot trop long : coupé en deux
+          var n = word.length; while (n > 1 && c.measureText(word.slice(0, n)).width > MAXW) n--;
+          if (cur) { lines.push(cur); cur = ''; }
+          lines.push(word.slice(0, n)); word = word.slice(n);
+        }
+        var t = cur ? cur + ' ' + word : word;
+        if (cur && c.measureText(t).width > MAXW) { lines.push(cur); cur = word; } else cur = t;
+      });
+      if (cur) lines.push(cur);
+      if (lines.length > 4) { lines.length = 4; lines[3] = lines[3].slice(0, -1) + '…'; }
+      return lines;
+    }
+    function bubDraw(text, dots) {
+      var meas = mkCanvas(8, 8).getContext('2d'), lines = [], W, H;
+      if (dots) { W = 150; H = 80; }
+      else {
+        meas.font = bubFont; lines = bubWrap(meas, text);
+        var mw = 0; lines.forEach(function (l) { mw = Math.max(mw, meas.measureText(l).width); });
+        W = Math.min(540, Math.ceil(mw) + 52); H = lines.length * 38 + 30;
+      }
+      var TAIL = 20, bc = mkCanvas(W, H + TAIL), x = bc.getContext('2d');
+      x.fillStyle = '#f8f3e6'; x.strokeStyle = '#c9a227'; x.lineWidth = 3;
+      roundRectPath(x, 3, 3, W - 6, H - 6, 24); x.fill(); x.stroke();
+      x.beginPath(); x.moveTo(W / 2 - 15, H - 5); x.lineTo(W / 2, H + TAIL - 2); x.lineTo(W / 2 + 15, H - 5); x.closePath(); x.fill();
+      x.fillStyle = '#f8f3e6'; x.fillRect(W / 2 - 13, H - 7, 26, 5);   // efface le trait du bas sous la pointe
+      if (dots) {
+        for (var i = 0; i < 3; i++) { x.fillStyle = i === dotsPhase ? '#1a1208' : '#9a8f78'; x.beginPath(); x.arc(W / 2 + (i - 1) * 32, H / 2 + (i === dotsPhase ? -3 : 0), 9, 0, TAU); x.fill(); }
+      } else {
+        x.fillStyle = '#1a1208'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = bubFont;
+        lines.forEach(function (l, i) { x.fillText(l, W / 2, 15 + 19 + i * 38 + 1); });
+      }
+      var old = bub.material.map; bub.material.map = mkTex(bc); bub.material.needsUpdate = true; if (old) old.dispose();
+      var ws = W * 0.0026, hs = (H + TAIL) * 0.0026;
+      bub.scale.set(ws, hs, 1); bub.position.set(0, 2.3 + hs / 2, 0); bub.visible = true;
+    }
+    function bubHide() { bub.visible = false; sayOn = false; }
+    function bubStopDots() { clearInterval(dotsTimer); dotsTimer = 0; clearTimeout(safeTimer); safeTimer = 0; }
     g.rotation.order = 'YXZ';                                          // cap, puis penché en avant, puis de côté (danses)
     arms.forEach(function (a) { a.rotation.order = 'YXZ'; });          // bras : écart sur le côté, puis élan, puis rentré
     function ease01(v) { v = v < 0 ? 0 : v > 1 ? 1 : v; return v * v * (3 - 2 * v); }
     return {
+      // say : affiche un message au-dessus de la tête quelques secondes ; typing : trois points tant que la personne écrit
+      say: function (text) {
+        bubStopDots(); clearTimeout(bubTimer);
+        text = String(text || '').trim(); if (!text) { bubHide(); return; }
+        bubDraw(text, false); sayOn = true;
+        bubTimer = setTimeout(bubHide, Math.min(10, 3.5 + text.length * 0.07) * 1000);
+      },
+      typing: function (on) {
+        if (!on) { bubStopDots(); if (!sayOn) bubHide(); return; }
+        clearTimeout(safeTimer); safeTimer = setTimeout(function () { bubStopDots(); if (!sayOn) bubHide(); }, 7000);   // plus de nouvelles : on arrête
+        if (dotsTimer) return;
+        clearTimeout(bubTimer); sayOn = false; dotsPhase = 0; bubDraw('', true);
+        dotsTimer = setInterval(function () { dotsPhase = (dotsPhase + 1) % 3; bubDraw('', true); }, 320);
+      },
       group: g, hips: hips, knees: knees, arms: arms, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
       // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.
       startEmote: function (id) { this.emoT = 0; if (F.emoteById && F.emoteById(id)) this.emoId = id; else this.clearEmote(); },
@@ -168,7 +226,11 @@
         hips[0].rotation.x = sw; hips[1].rotation.x = -sw; arms[0].rotation.x = -sw * 0.8; arms[1].rotation.x = sw * 0.8;
       },
       stopWalk: function () { if (!this.seated) { hips.forEach(function (hp) { hp.rotation.x = 0; }); arms.forEach(function (a) { a.rotation.x = 0; }); } },
-      dispose: function () { mats.forEach(function (m) { m.dispose(); }); tex.dispose(); tag.material.dispose(); }
+      dispose: function () {
+        clearTimeout(bubTimer); bubStopDots();
+        mats.forEach(function (m) { m.dispose(); }); tex.dispose(); tag.material.dispose();
+        if (bub.material.map) bub.material.map.dispose(); bub.material.dispose();
+      }
     };
   }
 
