@@ -28,7 +28,7 @@
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎟️ GRATTAGE', sub: 'TICKETS GAGNANTS', color: 0xffc0e0, target: 'scratch' },
     // mur de droite (regarde vers -x)
     { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LA MUSIQUE', color: 0xd9a0ff, target: 'blindtest' },
-    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ BOUTIQUE', sub: 'SKINS & BORNES', color: 0xffd24a, target: 'shop' },
+    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ BOUTIQUE', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d' },
     { x: HX, z: 5, nx: -1, nz: 0, label: '🏦 BANQUE', sub: 'VIREMENTS & COFFRE', color: 0xa0d8ff, target: 'bank' },
     // mur d'entrée (regarde vers -z), à côté de l'enseigne
     { x: 6.5, z: HZ, nx: 0, nz: -1, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses' }
