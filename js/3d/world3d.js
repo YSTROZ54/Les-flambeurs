@@ -591,7 +591,7 @@
   };
 
   /* ---------- s'asseoir / se lever (la salle gère son siège, le monde gère la caméra) ---------- */
-  World.prototype._libererSouris = function () { if (document.pointerLockElement === this.dom) document.exitPointerLock(); };
+  World.prototype._libererSouris = function () { if (document.pointerLockElement === this.dom) { this._relache = Date.now(); document.exitPointerLock(); } };
   World.prototype.sitDown = function (room) { this._resetEmote(); this._libererSouris(); this.mode = 'seat'; this.seatRoom = room; this.keys = {}; this.stick.x = this.stick.y = 0; this.near = null; this.elSit.style.display = 'none'; };
   World.prototype.standUp = function (x, z, yaw) {
     this.player.x = x; this.player.z = z; this.player.yaw = yaw; this.player.pitch = -0.04;
@@ -652,6 +652,8 @@
       return;
     }
     if (ev === 'hello') { this._rtSend(true); return; }
+    if (ev === 'chat') { if (this.ph && this.ph.chatIn) this.ph.chatIn(m); return; }   // message du chat (hud3d.js)
+    if (ev === 'typing') { if (this.ph && this.ph.typingIn) this.ph.typingIn(m); return; }   // « est en train d'écrire… »
     if (ev === 'pos') {
       // Si ce joueur vient d'envoyer un bye récemment, ignorer tout paquet pos résiduel ou tardif
       if (this.recentByes[m.k] && (performance.now() - this.recentByes[m.k] < 4500)) return;

@@ -2288,3 +2288,220 @@ body.s3d-full-on #sidebarBackdrop {
   .ph-body { width: 270px; height: 480px; border-radius: 26px; }
   .ph-wheel-box { width: min(360px, 90vw); height: min(360px, 90vw); }
 }
+
+/* ================= INVENTAIRE, CHAT, FERMETURE DU TÉLÉPHONE ================= */
+.ph-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #1a1226;
+  color: #e5e7eb;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.ph-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+.ph-hotbar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(8, 5, 14, 0.85);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  pointer-events: auto;
+}
+.ph-inv {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: #181222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ph-inv.empty { cursor: default; }
+.ph-inv:not(.empty):hover { border-color: #f59e0b; }
+.ph-inv.on { border-color: #f59e0b; background: #33260f; }
+.ph-inv kbd {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.ph-inv .fl-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+/* chat : au-dessus de la carte joueur, sans élargir le HUD */
+.ph-chat {
+  width: 0;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.ph-chat.open { pointer-events: auto; }
+.ph-chat-form input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  background: #100a1a;
+  color: #fef3c7;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  outline: none;
+}
+.ph-chat-form input::placeholder { color: #6b7280; }
+
+@media (max-width: 900px) {
+  .ph-inv { width: 44px; height: 44px; }
+  .ph-inv .fl-logo { width: 28px; height: 28px; font-size: 13px; }
+}
+
+/* case choisie à la molette, téléphone qu'on déplace, menu pause */
+.ph-inv.sel { border-color: #fef3c7; transform: translateY(-4px); }
+.ph-inv.sel:not(.on) { background: #261c36; }
+.ph-inv { transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease; }
+
+.ph-notch {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ph-notch::before {            /* zone de prise plus large que l'encoche */
+  content: '';
+  position: absolute;
+  inset: -8px -34px -12px;
+}
+.ph-phone.moving .ph-notch { cursor: grabbing; }
+
+.ph-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 2, 10, 0.78);
+  pointer-events: auto;
+  animation: ph-fadeIn 0.15s ease;
+}
+.ph-pause-box {
+  width: min(340px, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 22px 16px;
+  border-radius: 20px;
+  background: #0e0a18;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.ph-pause-box h2 {
+  margin: 0 0 8px;
+  color: #fef3c7;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+.ph-pause-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #181222;
+  color: #e5e7eb;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.ph-pause-btn i { width: 18px; text-align: center; color: #fbbf24; }
+.ph-pause-btn:hover { background: #231a33; border-color: #f59e0b; }
+.ph-pause-btn.main { background: #f59e0b; border-color: #f59e0b; color: #1a1000; font-weight: 800; }
+.ph-pause-btn.main i { color: #1a1000; }
+.ph-pause-btn.main:hover { background: #fbbf24; }
+.ph-pause-btn.danger i { color: #f87171; }
+.ph-pause-btn.danger:hover { border-color: #ef4444; }
+.ph-pause-box small {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* case choisie : cadre bien visible */
+.ph-inv.sel { border-color: #fef3c7; box-shadow: 0 0 0 3px #f59e0b; transform: translateY(-4px); }
+
+/* onglet Chat du téléphone */
+.ph-screen.chat { display: flex; flex-direction: column; padding: 6px 10px 10px; overflow: hidden; }
+.ph-cp { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.ph-cp-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 2px; }
+.ph-cl {
+  align-self: flex-start;
+  max-width: 92%;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #181222;
+  color: #e5e7eb;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ph-cl b { display: block; margin-bottom: 1px; color: #fbbf24; font-size: 11px; font-weight: 800; }
+.ph-cl.me { align-self: flex-end; background: #33260f; }
+.ph-cl.me b { color: #fef3c7; }
+.ph-cl.sys { align-self: center; max-width: 100%; background: none; color: #9ca3af; font-size: 11.5px; font-style: italic; text-align: center; }
+.ph-cp-empty { margin: auto; padding: 0 14px; color: #6b7280; font-size: 12px; font-weight: 600; line-height: 1.45; text-align: center; }
+.ph-cp-form { display: flex; gap: 6px; flex-shrink: 0; }
+.ph-cp-form input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #100a1a;
+  color: #fef3c7;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  outline: none;
+}
+.ph-cp-form input:focus { border-color: #f59e0b; }
+.ph-cp-form button { width: 40px; height: 38px; border: 0; border-radius: 12px; background: #f59e0b; color: #1a1000; font-size: 14px; cursor: pointer; }
+.ph-cp-form button:hover { background: #fbbf24; }
