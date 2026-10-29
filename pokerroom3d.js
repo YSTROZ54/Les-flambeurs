@@ -220,7 +220,7 @@
           var p = seatsNow[s.seatIdx] || null;
           s.name = p ? p.username : '';
           var mine = !!(room.seat && room.seat.slot === s);   // ma propre chaise : je ne vois pas mon personnage (je suis dedans)
-          s.person.visible = !!p && !mine; s.chair.visible = !p || mine;
+          s.person.visible = !!p && !mine; s.chair.visible = !p;
           if (p) {
             if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.72, s.z); g.add(s.plate); }
             if (!salle.live) paintPlate(s.plate, (p.avatar || '') + ' ' + p.username, '', false);
