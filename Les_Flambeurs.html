@@ -15,12 +15,13 @@
   <script src="poker3d.js?v=8.6"></script>
   <script src="poker3d-scene.js?v=1.4"></script>
   <script src="poker3d-anim.js?v=1.3"></script>
-  <script src="poker-multi.js?v=2.1"></script>
+  <script src="poker-multi.js?v=2.2"></script>
   <script src="f3d-core.js?v=1.1"></script>
-  <script src="world3d.js?v=1.2"></script>
-  <script src="hall3d.js?v=1.3"></script>
+  <script src="world3d.js?v=1.3"></script>
+  <script src="hall3d.js?v=1.4"></script>
   <script src="slots3d.js?v=6.1"></script>
   <script src="horses3d.js?v=1.2"></script>
+  <script src="pokerroom3d.js?v=1.0"></script>
 </head>
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">
 
@@ -206,7 +207,7 @@
       <div class="sidebar-section-title hidden px-2.5 pt-2 pb-0.5 text-[10px] uppercase tracking-wider font-extrabold text-stone-400">Salles de Jeux</div>
 
       <!-- Poker -->
-      <button onclick="switchRoom('poker')" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Poker">
+      <button onclick="openPoker()" class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer" title="Poker">
         <span class="sidebar-icon w-7 min-w-[28px] text-lg flex items-center justify-center">♠️</span>
         <span class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Poker</span>
       </button>
@@ -357,7 +358,7 @@
       <!-- Navigation rapide entre les salles (PC) - SANS LE QUIZ -->
       <div class="hidden xl:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10 text-xs">
         <button onclick="switchRoom('hall')" id="nav-hall" class="px-3 py-1.5 rounded-full font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40">🏛️ Accueil</button>
-        <button onclick="switchRoom('poker')" id="nav-poker" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">♠️ Poker</button>
+        <button onclick="openPoker()" id="nav-poker" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">♠️ Poker</button>
         <button onclick="switchRoom('crash')" id="nav-crash" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🚀 Crash</button>
         <button onclick="switchRoom('slots')" id="nav-slots" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🎰 Machine</button>
         <button onclick="switchRoom('mines')" id="nav-mines" class="px-2.5 py-1.5 rounded-full font-medium text-stone-300 hover:text-white">🔐 Chambre Forte</button>
@@ -494,7 +495,7 @@
                 Table en cuir noir et tapis vert (1v1, Table de 4 ou 6 max). Tous les modes Solo vs Bots et Entre Amis sont 100% jouables !
               </p>
             </div>
-            <button onclick="switchRoom('poker')" class="mt-5 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition">
+            <button onclick="openPoker()" class="mt-5 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition">
               S'asseoir au Poker →
             </button>
           </div>
@@ -8648,6 +8649,12 @@
     function handleComingSoonGame(gameName) {
       if (gameName === 'chevaux') { openHorses(); return; }
       showToast('futur mise a jour');
+    }
+
+    // Poker : sur PC on entre dans la salle de poker 3D (on marche, on choisit sa chaise) ; sinon le lobby classique
+    function openPoker() {
+      if (window.F3D && F3D.canWorld()) { window.__f3dPlace = 'pokerroom'; switchRoom('world3d'); }
+      else switchRoom('poker');
     }
 
     // Courses de chevaux : salle 3D (PC seulement), directement depuis le menu classique

@@ -19,7 +19,7 @@
   var DOORS = [
     // mur du fond (regarde vers +z)
     { x: -7.5, z: -HZ, nx: 0, nz: 1, label: '🎰 MACHINES', sub: 'À SOUS', color: 0xffb347, target: 'slots' },
-    { x: -2.5, z: -HZ, nx: 0, nz: 1, label: '♠️ POKER', sub: 'TEXAS HOLD\'EM', color: 0x7ee0a0, target: 'poker' },
+    { x: -2.5, z: -HZ, nx: 0, nz: 1, label: '♠️ POKER', sub: 'TEXAS HOLD\'EM', color: 0x7ee0a0, target: 'pokerroom' },
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash' },
     // mur de gauche (regarde vers +x)

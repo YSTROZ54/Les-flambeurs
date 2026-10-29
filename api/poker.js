@@ -315,13 +315,14 @@ export default async function handler(req, res) {
                 if (!Number.isFinite(buyIn) || buyIn < table.minBuyIn) error = `Mise de départ minimum : ${table.minBuyIn} €.`;
                 else if (buyIn > table.maxBuyIn) error = `Mise de départ maximum : ${table.maxBuyIn} €.`;
                 else if (!table.seats.some((k) => !k)) error = 'Table complète.';
+                else if (body.seat !== undefined && body.seat !== null && body.seat !== '' && Number.isInteger(Number(body.seat)) && table.seats[Number(body.seat)]) error = 'Cette place vient d’être prise.';
                 else {
                   try { await walletCharge(userKey, chargeKey, buyIn); charged = true; }
                   catch (e) { error = e instanceof GameError ? e.message : 'Paiement impossible, réessaie.'; }
                 }
               }
               if (!error) {
-                const r = E.seatPlayer(table, { username, avatar: body.avatar, buyIn, secretHash }, now);
+                const r = E.seatPlayer(table, { username, avatar: body.avatar, buyIn, secretHash, seat: body.seat }, now);
                 if (!r.ok) {
                   error = r.error;
                   if (charged) await walletPay(userKey, 'pjr:' + chargeKey, buyIn).catch(() => {});

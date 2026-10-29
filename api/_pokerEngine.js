@@ -318,7 +318,13 @@ export function seatPlayer(table, opts, now) {
   if (buyIn > table.maxBuyIn) {
     return { ok: false, error: `Mise de départ maximum : ${table.maxBuyIn} €.` };
   }
-  const seat = table.seats.findIndex((k) => !k);
+  // place demandée (chaise choisie dans la salle 3D) ; sinon la première libre
+  const want = opts.seat === undefined || opts.seat === null || opts.seat === '' ? -1 : Math.floor(Number(opts.seat));
+  let seat;
+  if (want >= 0 && want < table.seats.length) {
+    if (table.seats[want]) return { ok: false, error: 'Cette place vient d’être prise.' };
+    seat = want;
+  } else seat = table.seats.findIndex((k) => !k);
   if (seat < 0) return { ok: false, error: 'Table complète.' };
 
   const midHand = table.status === 'playing' || table.status === 'showdown' || table.status === 'countdown';
@@ -967,7 +973,7 @@ export function publicView(table, viewerKey, authed, now) {
 }
 
 export function tableSummary(table) {
-  const seated = seatedKeys(table).map((k) => ({ username: table.players[k].username, avatar: table.players[k].avatar }));
+  const seated = seatedKeys(table).map((k) => ({ username: table.players[k].username, avatar: table.players[k].avatar, seat: table.players[k].seat }));
   return {
     id: table.tableId,
     name: table.name,

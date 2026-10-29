@@ -525,7 +525,7 @@
       <div class="w-full max-w-sm bg-gradient-to-b from-[#12131c] to-[#090a0f] border-2 border-amber-500/50 rounded-3xl p-5 shadow-[0_0_50px_rgba(251,191,36,0.25)] space-y-3">
         <div class="flex items-center justify-between">
           <h3 id="pmBuyInTitle" class="font-black text-white uppercase tracking-wide text-sm"></h3>
-          <button onclick="PokerMulti.closeBuyIn()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 font-bold">✕</button>
+          <button onclick="PokerMulti.cancelBuyIn()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 font-bold">✕</button>
         </div>
         <div id="pmBuyInInfo" class="text-xs text-stone-400"></div>
         <div>
@@ -621,13 +621,16 @@
 
     /* ----- ouverture de la salle ----- */
     async open() {
+      const wi = this.worldIntent; this.worldIntent = null;   // vient de la salle de poker 3D ? { tableId, seat } ou { solo }
       buildDom();
       try { if (typeof refreshWallet === 'function') refreshWallet(); } catch (e) {} // jetons éventuellement rendus par le serveur
       if (!this.ensureExp()) return;
       this.hideSoloOnlyUi(false);
       if (this.mode === 'solo') { this.exp.resume(); return; }
       if (this.mode === 'multi' && this.tableId) { this.exp.resume(); this.startPolling(); return; }
-      this.lobbyView = 'home';
+      this.fromWorld = !!(wi && wi.tableId);
+      this.lobbyView = wi && wi.solo ? 'solo' : 'home';
+      if (this.fromWorld) { await this.openFromWorld(wi); return; }
       this.showLobby();
       try {
         const data = await api('GET', Object.assign({}, { user: base().username, device: deviceId() }));
@@ -645,6 +648,46 @@
         this.renderLobby();
       }
       this.startLobbyPolling();
+    },
+
+    // chaise choisie dans la salle 3D : on saute le lobby et on demande directement la mise de départ
+    async openFromWorld(wi) {
+      this.mode = 'lobby';
+      this.hideLobby();
+      try {
+        const data = await api('GET', { user: base().username, device: deviceId() });
+        if (data.pendingCashout > 0) await this.claim(true);
+        if (data.mySeat && !this.leaving) { this.enterMulti(data.mySeat.tableId, null); return; }
+        this.lobbyTables = data.tables || [];
+        const t = this.lobbyTables.find((x) => x.id === wi.tableId);
+        if (!t || t.count >= t.maxSeats || (wi.seat != null && t.players.some((p) => p && p.seat === wi.seat))) { toast('Cette place vient d’être prise.'); this.backToWorld(); return; }
+        this.openBuyIn({ tableId: t.id, name: fullName(t), min: t.minBuyIn, max: t.maxBuyIn, bb: t.bigBlind, create: null, seat: wi.seat });
+      } catch (e) {
+        toast('Connexion au serveur impossible.');
+        this.backToWorld();
+      }
+    },
+
+    // retour debout dans la salle de poker 3D (PC)
+    backToWorld() {
+      this.fromWorld = false;
+      this.stopPolling();
+      this.hideLobby();
+      const b = $('pmBuyIn');
+      if (b) b.classList.add('hidden');
+      this.pending = null;
+      this.mode = 'none';
+      this.tableId = null;
+      this.lastView = null;
+      this.leaving = false;
+      this.game = null;
+      if (this.exp) { this.exp.game = this.exp.soloGame; window.pokerGame = this.exp.soloGame; try { this.exp.pause(); } catch (e) {} }
+      const bar = $('pmBar');
+      if (bar) bar.classList.add('hidden');
+      const banner = $('winnerBannerModal');
+      if (banner) banner.classList.add('hidden');
+      window.__f3dPlace = 'pokerroom';
+      if (typeof switchRoom === 'function') switchRoom('world3d');
     },
 
     ensureExp() {
@@ -922,6 +965,12 @@
       this.pending = null;
     },
 
+    // croix de la fenêtre : si on venait de la salle 3D, on y retourne
+    cancelBuyIn() {
+      this.closeBuyIn();
+      if (this.fromWorld && this.mode === 'lobby') this.backToWorld();
+    },
+
     async confirmBuyIn() {
       const info = this.pending;
       if (!info) return;
@@ -937,6 +986,7 @@
       try {
         const payload = Object.assign(base(), { action: 'join', tableId: info.tableId, buyIn: amount });
         if (info.create) Object.assign(payload, { create: true, maxSeats: info.create.maxSeats, bigBlind: info.create.bigBlind });
+        if (info.seat != null) payload.seat = info.seat;
         const data = await api('POST', payload);
         if (!data.ok) { go.disabled = false; return fail(data.error || 'Impossible de rejoindre.'); }
         if (data.joined) addBalance(-amount); // les jetons sont maintenant à la table
@@ -1169,6 +1219,7 @@
       if (bar) bar.classList.add('hidden');
       const banner = $('winnerBannerModal');
       if (banner) banner.classList.add('hidden');
+      if (this.fromWorld && window.F3D && F3D.canWorld()) { this.backToWorld(); return; }
       this.showLobby();
       this.renderLobby();
       this.startLobbyPolling();
