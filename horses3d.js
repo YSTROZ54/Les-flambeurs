@@ -94,12 +94,12 @@
     return sh;
   }
   function flatExtrude(shape, depth, y, mat, bevel) {
-    var g = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: !!bevel, bevelThickness: bevel || 0, bevelSize: bevel || 0, bevelSegments: 2, curveSegments: 20 });
+    var g = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: !!bevel, bevelThickness: bevel || 0, bevelSize: bevel || 0, bevelSegments: 2, curveSegments: 60 });
     var m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
   }
   // bande verticale qui suit le contour de la table (vitre, néons…) : rayon rb en bas, rt en haut
   function ribbon(rb, rt, y0, y1, mat) {
-    var n = 120, pts = [], p = {}, i, L = laneLen(rb), pos = [], idx = [];
+    var n = 360, pts = [], p = {}, i, L = laneLen(rb), pos = [], idx = [];
     for (i = 0; i < n; i++) {
       lanePos(rb, i / n * L, p);
       // le haut de la bande est le même contour décalé vers l'extérieur de (rt - rb) ; la piste tourne à l'envers des aiguilles : l'extérieur est à droite
@@ -278,8 +278,7 @@
     g.add(flatExtrude(stadiumShape(R_OUT + 0.55), TY - 0.02, 0, matMetal));                                   // le coffre de la table
     var rimShape = stadiumShape(R_OUT + 0.9); rimShape.holes.push(stadiumShape(R_OUT + 0.06, true));
     g.add(flatExtrude(rimShape, 0.09, TY - 0.01, matDark));                                                 // le rebord qui porte les bornes
-    var skirt = ribbon(R_OUT + 0.56, R_OUT + 0.56, 0.42, 0.5, neonB); skirt.material.side = THREE.DoubleSide; g.add(skirt);
-    var edge = ribbon(R_OUT + 0.9, R_OUT + 0.9, TY + 0.06, TY + 0.1, neonC); edge.material.side = THREE.DoubleSide; g.add(edge);
+    var edge = ribbon(R_OUT + 0.915, R_OUT + 0.915, TY + 0.02, TY + 0.075, neonC); edge.material.side = THREE.DoubleSide; g.add(edge);
     var glassMat = new THREE.MeshStandardMaterial({ color: 0xa8d8ff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false });
     g.add(ribbon(R_OUT + 0.08, R_OUT + 0.08, TY + 0.08, TY + 0.36, glassMat));                              // la vitre
     var glassTop = ribbon(R_OUT + 0.08, R_OUT + 0.08, TY + 0.36, TY + 0.38, neonC); glassTop.material.side = THREE.DoubleSide; g.add(glassTop);
@@ -294,12 +293,12 @@
     // départ : une barrière légère qui se lève quand la course commence
     var gate = box(laneR(7) - laneR(0) + 0.35, 0.025, 0.025, (laneR(0) + laneR(7)) / 2, TY + 0.2, Z0 + 0.3, new THREE.MeshBasicMaterial({ color: 0xffffff }));
     // les LED : deux rangées d'ampoules autour de la table (le dessus du rebord et le tablier), qui courent en sens inverse
-    var bulbG = new THREE.SphereGeometry(0.038, 6, 5), bulbN = 0, bulbStep = low ? 0.34 : 0.17;
+    var bulbG = new THREE.SphereGeometry(0.03, 6, 5), bulbN = 0, bulbStep = low ? 0.34 : 0.17;
     function bulbRow(r, y, dir, off) {
       var L = laneLen(r), cnt = Math.round(L / bulbStep), bp = {}, k, b;
       for (k = 0; k < cnt; k++) { lanePos(r, k / cnt * L, bp); b = new THREE.Mesh(bulbG, ledMats[(((dir > 0 ? k : -k) + off) % 12 + 12) % 12]); b.position.set(bp.x, y, bp.z); g.add(b); bulbN++; }
     }
-    bulbRow(R_OUT + 0.72, TY + 0.125, 1, 0); bulbRow(R_OUT + 0.62, 0.46, -1, 6);
+    bulbRow(R_OUT + 0.72, TY + 0.115, 1, 0); bulbRow(R_OUT + 0.4, TY + 0.115, -1, 6);
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
