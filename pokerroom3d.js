@@ -222,7 +222,7 @@
           var mine = !!(room.seat && room.seat.slot === s);   // ma propre chaise : je ne vois pas mon personnage (je suis dedans)
           s.person.visible = !!p && !mine; s.chair.visible = !p || mine;
           if (p) {
-            if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.95, s.z); g.add(s.plate); }
+            if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.72, s.z); g.add(s.plate); }
             if (!salle.live) paintPlate(s.plate, (p.avatar || '') + ' ' + p.username, '', false);
             s.plate.visible = !mine;
           } else if (s.plate) s.plate.visible = false;
@@ -288,8 +288,8 @@
       var k = 1 - Math.exp(-dt * 5), dx = st.salle.cx - st.slot.x, dz = -st.slot.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
       if (ctx2.mouseLook) { st.yawG = ctx2.dz(ctx2.ms.nx, 0.2) * 0.8; st.pitchG = ctx2.dz(ctx2.ms.ny, 0.2) * 0.3; }
       st.yaw += (st.yawG - st.yaw) * k; st.pitch += (st.pitchG - st.pitch) * k;
-      var ex = st.slot.x - ux * 0.5, ez = st.slot.z - uz * 0.5, ey = 1.5;
-      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.8 - ey, dl + 0.5) + st.pitch;
+      var ex = st.slot.x - ux * 0.95, ez = st.slot.z - uz * 0.95, ey = 1.75;
+      var a = Math.atan2(ux, -uz) + st.yaw, p = Math.atan2(0.75 - ey, dl + 0.95) + st.pitch;
       var tx = ex + Math.sin(a) * Math.cos(p) * 5, tz = ez - Math.cos(a) * Math.cos(p) * 5, ty = ey + Math.sin(p) * 5;
       return { cx: ex, cy: ey, cz: ez, tx: tx, ty: ty, tz: tz, fov: 62 };
     };
