@@ -1173,6 +1173,7 @@
     var i;
     for (i = 0; i < this.cabs.length; i++) this.cabs[i].cab.update(dt);
     this._updateRemotes(dt);
+    this._rtSend(false, dt);
 
     var target = this.mode === 'seat' ? 1 : 0;
     this.blend += Math.sign(target - this.blend) * dt / 1.1;
@@ -1312,10 +1313,14 @@
   SlotsExperience.prototype._netStart = function () {
     if (this.netOn || this.dead) return;
     this.netOn = true; this.remote = this.remote || {}; this.occ = this.occ || {};
+    var selfRt = this;
+    this.rt = createRealtime(function (ev, m) { selfRt._rtMsg(ev, m); });
+    this.rt.onReady = function () { selfRt._rtSend(true); selfRt.rt.send('hello', { k: selfRt._me() }); };
     this._netTick();
   };
   SlotsExperience.prototype._netStop = function () {
     this.netOn = false; clearTimeout(this._netTimer);
+    if (this.rt) { this.rt.send('bye', { k: this._me() }); var rtOld = this.rt; this.rt = null; setTimeout(function () { rtOld.close(); }, 150); }
     this._post({ action: 'leave' });
     var self = this;
     Object.keys(this.remote || {}).forEach(function (k) { self._removeRemote(k); });
@@ -1325,13 +1330,13 @@
   SlotsExperience.prototype._netTick = function () {
     var self = this;
     if (!this.netOn || this.dead) return;
-    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, 220); };
+    var next = function () { if (self.netOn && !self.dead) self._netTimer = setTimeout(function () { self._netTick(); }, (self.rt && self.rt.ready) ? 800 : 220); };
     if (document.hidden) { next(); return; }
     var p = this.player, e = this.seatCab, x = p.x, z = p.z, yaw = p.yaw;
     if (e) { x = e.x + Math.sin(e.rotY) * 2.2; z = e.z + Math.cos(e.rotY) * 2.2; yaw = -e.rotY; }
     // en mouvement : on envoie vite (position + vitesse) ; à l'arrêt : un signe de vie toutes les 1,8 s, le reste du temps on ne fait que regarder
     var pv = this.pv || { x: 0, z: 0 }, moving = !e && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(yaw - (this._lastYaw || 0)) > 0.02);
-    var nowT = performance.now(), due = moving || this._wasMoving || !this._lastSend || nowT - this._lastSend > 1800;
+    var nowT = performance.now(), rtOk = this.rt && this.rt.ready, due = rtOk ? (!this._lastSend || nowT - this._lastSend > 1200) : (moving || this._wasMoving || !this._lastSend || nowT - this._lastSend > 1800);
     this._wasMoving = moving; this._lastYaw = yaw;
     var req;
     if (this._token() && due) {
@@ -1361,8 +1366,11 @@
         r.person.group.position.set(p.x, 0, p.z); r.px = p.x; r.pz = p.z;
         self.scene.add(r.person.group);
       }
-      r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.seat = p.seat; r.vx = p.vx || 0; r.vz = p.vz || 0; r.recv = performance.now();
-      if ((p.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = p.jmp || 0; }
+      r.seat = p.seat;
+      if (!(r.rtT && performance.now() - r.rtT < 1500)) {      // le temps réel est plus précis : on ne le contredit pas
+        r.tx = p.x; r.tz = p.z; r.tyaw = p.yaw; r.vx = p.vx || 0; r.vz = p.vz || 0; r.recv = performance.now();
+        if ((p.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = p.jmp || 0; }
+      }
       var fx = p.fx;
       if (fx && p.seat >= 0 && self.cabs[p.seat]) {
         var key = fx.id + ':' + fx.phase, cab = self.cabs[p.seat].cab;
@@ -1379,7 +1387,7 @@
       }
       r.fresh = false;
     });
-    Object.keys(this.remote).forEach(function (k) { if (!seen[k]) self._removeRemote(k); });
+    Object.keys(this.remote).forEach(function (k) { var rr = self.remote[k]; if (!seen[k] && !(rr.rtT && performance.now() - rr.rtT < 4000)) self._removeRemote(k); });
     for (i = 0; i < this.cabs.length; i++) {      // étiquette « occupée / libre » sur l'écran de chaque borne
       var ent = this.cabs[i], who = this.occ[i] || null;
       if (ent.occBy !== who) {
@@ -1396,7 +1404,7 @@
     var self = this, kk = 1 - Math.exp(-dt * 11), nowT = performance.now();
     Object.keys(this.remote || {}).forEach(function (k) {
       var r = self.remote[k], g = r.person.group, tx = r.tx, tz = r.tz, yaw = r.tyaw;
-      var age = Math.min(0.6, (nowT - r.recv) / 1000 + 0.1);          // on prolonge le mouvement connu : pas de saccade entre deux envois
+      var age = Math.min(0.6, (nowT - r.recv) / 1000 + (r.rtT && nowT - r.rtT < 1500 ? 0.03 : 0.1));          // on prolonge le mouvement connu : pas de saccade entre deux envois
       if (!(r.seat >= 0)) { tx += r.vx * age; tz += r.vz * age; }
       if (r.seat >= 0 && self.cabs[r.seat]) {      // assis : sur le tabouret, face à la borne
         var e = self.cabs[r.seat];
@@ -1413,9 +1421,106 @@
       if (sp > 0.12 && !r.person.seated) r.person.walk(dt, sp); else r.person.stopWalk();
     });
   };
+
+  /* ---------- canal temps réel : les navigateurs se parlent directement (Supabase Realtime, sans base de données) ---------- */
+  var RT_URL = 'wss://gyjyncljhlatomnbmwxa.supabase.co/realtime/v1/websocket?apikey=sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee&vsn=1.0.0';
+  var RT_TOPIC = 'realtime:flambeurs-slots-room';
+  function createRealtime(onMsg) {
+    var o = { ready: false, ws: null, dead: false, ref: 1, hbT: null, retry: 0, onReady: null };
+    function later() { if (o.dead) return; o.retry++; setTimeout(open, Math.min(8000, 800 * o.retry)); }
+    function open() {
+      if (o.dead) return;
+      var ws;
+      try { ws = new WebSocket(RT_URL); } catch (e) { later(); return; }
+      o.ws = ws;
+      ws.onopen = function () {
+        ws.send(JSON.stringify({ topic: RT_TOPIC, event: 'phx_join', payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' } } }, ref: '1', join_ref: '1' }));
+      };
+      ws.onmessage = function (m) {
+        var d; try { d = JSON.parse(m.data); } catch (e) { return; }
+        if (d.event === 'phx_reply' && d.ref === '1') { if (d.payload && d.payload.status === 'ok') { o.ready = true; o.retry = 0; if (o.onReady) o.onReady(); } }
+        else if (d.event === 'broadcast' && d.payload && d.payload.payload) onMsg(d.payload.event, d.payload.payload);
+      };
+      ws.onclose = function () { o.ready = false; clearInterval(o.hbT); later(); };
+      ws.onerror = function () { try { ws.close(); } catch (e) { /* ok */ } };
+      clearInterval(o.hbT);
+      o.hbT = setInterval(function () { if (ws.readyState === 1) ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++o.ref) })); }, 25000);
+    }
+    o.send = function (event, payload) {
+      if (!o.ready || !o.ws || o.ws.readyState !== 1) return false;
+      o.ws.send(JSON.stringify({ topic: RT_TOPIC, event: 'broadcast', payload: { type: 'broadcast', event: event, payload: payload }, ref: String(++o.ref) }));
+      return true;
+    };
+    o.close = function () { o.dead = true; o.ready = false; clearInterval(o.hbT); try { if (o.ws) o.ws.close(); } catch (e) { /* ok */ } };
+    open();
+    return o;
+  }
+
+  SlotsExperience.prototype._ensureRemote = function (k, name, avatar, x, z, yaw) {
+    var r = this.remote[k];
+    if (!r) {
+      r = this.remote[k] = { name: name || k, person: createPerson(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1 };
+      r.person.group.position.set(x, 0, z);
+      this.scene.add(r.person.group);
+    }
+    return r;
+  };
+  SlotsExperience.prototype._rtMsg = function (ev, m) {
+    var me = this._me();
+    if (!m || typeof m.k !== 'string' || !m.k || m.k === me || !this.netOn) return;
+    if (ev === 'bye') { this._removeRemote(m.k); return; }
+    if (ev === 'hello') { this._rtSend(true); return; }
+    if (ev === 'pos') {
+      var x = Number(m.x), z = Number(m.z);
+      if (!isFinite(x) || !isFinite(z)) return;
+      var r = this._ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0);
+      r.tx = x; r.tz = z; r.tyaw = Number(m.yaw) || 0; r.vx = Number(m.vx) || 0; r.vz = Number(m.vz) || 0;
+      r.recv = performance.now(); r.rtT = r.recv;
+      if (typeof m.seat === 'number') r.seat = m.seat;
+      if ((m.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = m.jmp || 0; }
+      r.fresh = false;
+    } else if (ev === 'fx' && m.fx) {
+      var rr = this.remote[m.k];
+      if (rr && rr.seat >= 0) this._remoteFx(rr, m.fx);
+    }
+  };
+  SlotsExperience.prototype._remoteFx = function (r, fx) {
+    var key = fx.id + ':' + fx.phase, e = this.cabs[r.seat];
+    if (r.lastFx === key || !e) return;
+    r.lastFx = key;
+    var cab = e.cab;
+    if (fx.phase === 'start') { if (!cab.isSpinning()) cab.startSpin(); }
+    else if (fx.finals) {
+      if (!cab.isSpinning()) cab.startSpin();
+      cab.stopReels(fx.finals, function () { cab.showResult(fx.finals, fx.mult || 0, fx.win || 0, fx.bet || 0); });
+    }
+  };
+  // envoie ma position/vitesse aux autres : ~15 fois par seconde en mouvement, 1 fois par seconde à l'arrêt
+  SlotsExperience.prototype._rtSend = function (force, dt) {
+    var me = this._me();
+    if (!me || !this.rt || !this.rt.ready) return;
+    var e = this.seatCab, p = this.player, pv = this.pv || { x: 0, z: 0 };
+    var seatNow = e ? e.n - 1 : -1;
+    var moving = !e && (Math.hypot(pv.x, pv.z) > 0.15 || p.air || Math.abs(p.yaw - (this._rtYaw || 0)) > 0.01);
+    this._rtYaw = p.yaw;
+    this._rtT = (this._rtT || 0) - (dt || 0);
+    if (moving && this._rtT > 0.066) this._rtT = 0.066;          // on se met à bouger : on n'attend pas la prochaine seconde
+    if (!force && this._rtT > 0 && seatNow === this._rtSeat) return;
+    this._rtT = moving ? 0.066 : 1.0; this._rtSeat = seatNow;
+    var nm = '', av = '';
+    try { nm = state.username || ''; av = state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
+    var r3 = function (v) { return Math.round(v * 1000) / 1000; };
+    this.rt.send('pos', {
+      k: me, name: nm, avatar: av, seat: seatNow,
+      x: r3(e ? e.x + Math.sin(e.rotY) * 2.2 : p.x), z: r3(e ? e.z + Math.cos(e.rotY) * 2.2 : p.z), yaw: r3(e ? -e.rotY : p.yaw),
+      vx: e ? 0 : r3(pv.x), vz: e ? 0 : r3(pv.z), run: !!this.running2, jmp: p.jmp || 0
+    });
+  };
   SlotsExperience.prototype._fx = function (phase, finals, mult, win, bet) {
     if (phase === 'start') this.fxId = Date.now().toString(36) + Math.floor(Math.random() * 99);
-    this._post({ action: 'fx', phase: phase, id: this.fxId || String(Date.now()), finals: finals, mult: mult, win: win, bet: bet });
+    var fxo = { id: this.fxId || String(Date.now()), phase: phase, finals: finals, mult: mult, win: win, bet: bet };
+    if (this.rt && this.seatCab) this.rt.send('fx', { k: this._me(), fx: fxo });
+    this._post(Object.assign({ action: 'fx' }, fxo));
   };
 
 SlotsExperience.prototype.pause = function () { this.running = false; this.keys = {}; this.setFull(false); this._netStop(); };
