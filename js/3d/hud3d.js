@@ -446,6 +446,7 @@
         } catch (e) {}
         var volIc = vol === 0 ? 'fa-volume-xmark' : (vol < 40 ? 'fa-volume-low' : 'fa-volume-high');
         var sensiVal = (w.sensi || 1.0).toFixed(1);
+        var mus = F.audio ? Math.round(F.audio.musicVol * 100) : 50, sfx = F.audio ? Math.round(F.audio.sfxVol * 100) : 70;
         var qualLab = (F.quality && F.quality.label) ? F.quality.label() : 'Auto';
         var fullLab = w.full ? 'Mode fenêtré' : 'Grand écran';
         var fullIc = w.full ? 'fa-compress' : 'fa-expand';
@@ -462,13 +463,28 @@
           // Son
           '<div class="ph-card-setting">' +
             '<div class="ph-row-head">' +
-              '<div class="ph-row-title"><span data-ph="soundlogo">' + logo(fa(volIc), '56,189,248') + '</span><span><b>Volume sonore</b><small>Ambiance & effets</small></span></div>' +
+              '<div class="ph-row-title"><span data-ph="soundlogo">' + logo(fa(volIc), '56,189,248') + '</span><span><b>Volume général</b><small>Tous les sons du jeu</small></span></div>' +
               '<span class="ph-val-badge" data-ph="soundval">' + (vol === 0 ? 'Muet' : vol + '%') + '</span>' +
             '</div>' +
             '<input type="range" min="0" max="100" step="1" value="' + vol + '" class="ph-slider" data-set="sound">' +
             '<div class="ph-setting-actions">' +
               '<button class="ph-btn-action" data-act="toggle-mute">' + (vol === 0 ? fa('fa-volume-high') + ' Activer le son' : fa('fa-volume-xmark') + ' Couper le son') + '</button>' +
             '</div>' +
+          '</div>' +
+          // Musique d'ambiance et bruitages (audio3d.js) : réglages en plus du volume général
+          '<div class="ph-card-setting">' +
+            '<div class="ph-row-head">' +
+              '<div class="ph-row-title">' + logo(fa('fa-music'), '232,121,249') + '<span><b>Musique d&rsquo;ambiance</b><small>Une musique par salle</small></span></div>' +
+              '<span class="ph-val-badge" data-ph="musicval">' + (mus === 0 ? 'Coupée' : mus + '%') + '</span>' +
+            '</div>' +
+            '<input type="range" min="0" max="100" step="1" value="' + mus + '" class="ph-slider" data-set="music">' +
+          '</div>' +
+          '<div class="ph-card-setting">' +
+            '<div class="ph-row-head">' +
+              '<div class="ph-row-title">' + logo(fa('fa-shoe-prints'), '52,211,153') + '<span><b>Bruitages</b><small>Pas, course, sauts</small></span></div>' +
+              '<span class="ph-val-badge" data-ph="sfxval">' + (sfx === 0 ? 'Coupés' : sfx + '%') + '</span>' +
+            '</div>' +
+            '<input type="range" min="0" max="100" step="1" value="' + sfx + '" class="ph-slider" data-set="sfx">' +
           '</div>' +
           // Qualité
           '<div class="ph-card-setting">' +
@@ -844,6 +860,11 @@
         w.sensi = F.sensi(v);
         var b = root.querySelector('[data-ph="sensival"]');
         if (b) b.textContent = w.sensi.toFixed(1);
+      } else if (s === 'music' || s === 'sfx') {
+        var pv = parseInt(t.value, 10) || 0;
+        if (F.audio) { if (s === 'music') F.audio.setMusicVol(pv / 100); else F.audio.setSfxVol(pv / 100); if (s === 'sfx' && pv > 0) F.audio.step(false, (w.room && w.room.id) || ''); }   // un pas pour entendre le réglage
+        var bd = root.querySelector('[data-ph="' + (s === 'music' ? 'musicval' : 'sfxval') + '"]');
+        if (bd) bd.textContent = pv === 0 ? (s === 'music' ? 'Coupée' : 'Coupés') : pv + '%';
       } else if (s === 'sound') {
         var pct = parseInt(t.value, 10);
         try {

@@ -584,7 +584,7 @@
     if (document.getElementById('prm-css')) return;
     var st = document.createElement('style'); st.id = 'prm-css';
     st.textContent =
-      '.prm{position:absolute;right:14px;bottom:14px;width:270px;background:rgba(8,5,12,.86);border:1px solid rgba(201,162,39,.55);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
+      '.prm{position:absolute;right:14px;bottom:62px;width:270px;background:rgba(8,5,12,.86);border:1px solid rgba(201,162,39,.55);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
       '.s3d-hud[data-mode=seat] .prm{display:none}' +
       '.prm-t{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#f3cf62}' +
       '.prm-list{display:flex;flex-direction:column;gap:4px}' +

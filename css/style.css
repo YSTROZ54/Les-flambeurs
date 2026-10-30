@@ -3135,3 +3135,12 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-pf-id { overflow: hidden; }
 .ph-pf-id .ph-bal { flex-shrink: 1; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 3px 8px; gap: 4px; font-size: 11px; }
 .ph-pf-id .ph-bal b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+
+/* assis à une table : la barre du haut revient avec les boutons de la salle (Se lever, Vue, Son), sans solde ni réglages (déjà dans le HUD et le téléphone) */
+.s3d-hud.has-ph[data-mode=seat] .s3d-top { display: flex !important; justify-content: flex-start; pointer-events: none; }
+.s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-btns { pointer-events: auto; }
+.s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-bal,
+.s3d-hud.has-ph[data-mode=seat] .s3d-top [data-s3d="menu"],
+.s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-sensi,
+.s3d-hud.has-ph[data-mode=seat] .s3d-top [data-s3d="qual"],
+.s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-full-btn { display: none !important; }

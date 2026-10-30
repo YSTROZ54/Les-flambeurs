@@ -1,1 +1,12 @@
-{"name":"les-flambeurs","private":true,"type":"module","scripts":{"dev":"vite"},"devDependencies":{"vite":"^7.3.7"}}
+{
+  "name": "les-flambeurs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "playlist": "node scripts/generer-playlist.mjs"
+  },
+  "devDependencies": {
+    "vite": "^7.3.7"
+  }
+}
