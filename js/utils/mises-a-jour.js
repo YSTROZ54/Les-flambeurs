@@ -4,6 +4,19 @@
 // fichier dans index.html et Les_Flambeurs.html.
 window.MISES_A_JOUR = [
   {
+    version: '1.5',
+    date: '30 octobre 2026',
+    title: 'Ton téléphone, tes avatars, le Tropi Shop',
+    notes: [
+      { icon: 'fa-mobile-screen-button', color: '#38bdf8', text: 'Le téléphone devient une vraie appli : Mon Profil, Tropi Bank (envoyer, encaisser, historique), bouton retour en bas et petit son à chaque clic.' },
+      { icon: 'fa-wand-magic-sparkles', color: '#fbbf24', text: 'Nouveaux avatars illustrés, dessinés à la main : renard, canard, lion, poulet, parrain… Choisis-les dans Mon Profil, ceux du Tropi Shop sont grisés tant que tu ne les as pas achetés.' },
+      { icon: 'fa-hand', color: '#34d399', text: 'Ta main s\'affiche à l\'écran et les autres joueurs voient ton personnage tenir un téléphone ou une carte à gratter.' },
+      { icon: 'fa-layer-group', color: '#f472b6', text: 'Barre du bas simplifiée à 5 cases, inventaire sur la touche Tab, et la roue des danses se pilote à la molette, sans curseur.' },
+      { icon: 'fa-cart-shopping', color: '#c084fc', text: 'La boutique devient le Tropi Shop, avec son nouveau logo. Tous les jeux ont aussi leur logo sur l\'accueil, le menu et les portes du hall 3D.' },
+      { icon: 'fa-expand', color: '#fb923c', text: 'Le hall 3D s\'ouvre en plein écran, l\'aide en bas de l\'écran est plus claire, et les flèches gauche/droite te font faire un pas sur le côté.' },
+    ],
+  },
+  {
     version: '1.4',
     date: '29 octobre 2026',
     title: 'Roue des emotes plus grande',
