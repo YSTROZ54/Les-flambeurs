@@ -2,12 +2,9 @@
    blackjack3d.js — La salle de blackjack (monde 3D, PC)
    ---------------------------------------------------------------------
    On y entre par la porte « BLACKJACK » du hall (hall3d.js) et on en ressort vers le hall.
-   Quatre tables en demi-cercle, chacune avec son croupier debout et cinq tabourets ; des robots (vrais personnages 3D, persona3d.js)
-   sont déjà assis à chaque table, il reste deux places libres où s'asseoir (F ou clic).
+   Quatre tables en demi-cercle, chacune avec son croupier assis en face et deux places de jeu (F ou clic pour s'asseoir) : on peut jouer seul.
    Assis, on mise puis on clique « Distribuer » : la manche est jouée contre le croupier EXACTEMENT comme le blackjack solo du menu
    (api/_games.js : bj_start / bj_hit / bj_stand / bj_double — le serveur tire les cartes, prélève la mise et paie les gains).
-   Les robots, eux, ne jouent que pour le décor : ils tirent leurs cartes dans un paquet local, jouent selon la stratégie de base
-   (ceux à ta droite avant toi, ceux à ta gauche après) et sont comparés à la main finale du croupier. Aucun argent ne leur est lié.
    Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/_games.js (serveur).
    ===================================================================== */
 (function () {
@@ -18,8 +15,8 @@
 
   var HX = 14, HZ = 11, H = 5.4;
   var TABLE_R = 1.9, SEAT_R = 2.5, TOP_Y = 0.86;
-  var TABLES = [{ x: -6.5, z: -4.6, bots: [0, 2, 4] }, { x: 6.5, z: -4.6, bots: [1, 3, 4] }, { x: -6.5, z: 2.6, bots: [0, 1, 3] }, { x: 6.5, z: 2.6, bots: [2, 3, 4] }];
-  var PHI = [-1.14, -0.57, 0, 0.57, 1.14];                 // angle des cinq places, autour de la table
+  var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }];
+  var PHI = [-0.55, 0.55];                                  // angle des deux places de jeu, autour de la table (le croupier est assis en face)
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
   var CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -102,18 +99,50 @@
     fx.fillStyle = 'rgba(201,162,39,0.3)'; [[0, 0], [256, 0], [0, 256], [256, 256], [128, 128]].forEach(function (p) { fx.beginPath(); fx.arc(p[0], p[1], 8, 0, TAU); fx.fill(); });
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.9, metalness: 0.02 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 0, 256);
-    wgr.addColorStop(0, '#4a0f1c'); wgr.addColorStop(1, '#2c0810'); wx.fillStyle = wgr; wx.fillRect(0, 0, 256, 256);
-    wx.strokeStyle = 'rgba(201,162,39,0.45)'; wx.lineWidth = 3; wx.strokeRect(14, 22, 228, 212); wx.strokeStyle = 'rgba(201,162,39,0.2)'; wx.strokeRect(24, 32, 208, 192);
+    // murs : papier peint damassé bordeaux, lambris de bois sombre, pilastres, corniche dorée et appliques
+    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 256, 0);
+    wgr.addColorStop(0, '#3a0a16'); wgr.addColorStop(0.5, '#4d1020'); wgr.addColorStop(1, '#3a0a16'); wx.fillStyle = wgr; wx.fillRect(0, 0, 256, 256);
+    wx.strokeStyle = 'rgba(201,162,39,0.2)'; wx.lineWidth = 2;
+    for (i = -256; i <= 256; i += 64) { wx.beginPath(); wx.moveTo(i, 0); wx.lineTo(i + 256, 256); wx.stroke(); wx.beginPath(); wx.moveTo(i + 256, 0); wx.lineTo(i, 256); wx.stroke(); }
+    [[64, 0], [192, 0], [0, 64], [128, 64], [256, 64], [64, 128], [192, 128], [0, 192], [128, 192], [256, 192], [64, 256], [192, 256]].forEach(function (q) {
+      wx.fillStyle = 'rgba(201,162,39,0.38)'; wx.beginPath(); wx.arc(q[0], q[1], 5, 0, TAU); wx.fill();
+      [[0, -11], [11, 0], [0, 11], [-11, 0]].forEach(function (o) { wx.beginPath(); wx.arc(q[0] + o[0], q[1] + o[1], 3.2, 0, TAU); wx.fill(); });
+    });
     var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
-    function wall(w, px, pz, ry) {
-      var wt = wallTex.clone(); wt.needsUpdate = true; wt.repeat.set(w / 3.5, 1);
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), new THREE.MeshStandardMaterial({ map: wt, roughness: 0.85 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m);
+    var wdc = mkCanvas(256, 256), wdx = wdc.getContext('2d'); wdx.fillStyle = '#2b150d'; wdx.fillRect(0, 0, 256, 256);
+    for (i = 0; i < 40; i++) { wdx.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.08) + ')'; wdx.fillRect(Math.random() * 256, 0, 1 + Math.random() * 2, 256); }
+    wdx.strokeStyle = 'rgba(201,162,39,0.55)'; wdx.lineWidth = 3; wdx.strokeRect(22, 22, 212, 212); wdx.strokeStyle = 'rgba(0,0,0,0.5)'; wdx.lineWidth = 6; wdx.strokeRect(34, 34, 188, 188);
+    var panelTex = new THREE.CanvasTexture(wdc); panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping; panelTex.anisotropy = 4;
+    var wood = std(0x2b150d, 0.55, 0.25), gold = std(0xc9a227, 0.35, 0.7);
+    // une paroi : le papier peint au-dessus, le lambris en bas (len : longueur, c : centre x/z, ry : orientation)
+    function wall(len, px, pz, ry) {
+      var wt = wallTex.clone(); wt.needsUpdate = true; wt.repeat.set(len / 2.2, (H - 1.3) / 2.2);
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: wt, roughness: 0.85 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m);
+      var pt = panelTex.clone(); pt.needsUpdate = true; pt.repeat.set(len / 1.4, 1);
+      var lam0 = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.2), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.6, metalness: 0.15 }));
+      lam0.position.set(px + Math.sin(ry) * 0.04, 0.6, pz + Math.cos(ry) * 0.04); lam0.rotation.y = ry; g.add(lam0);
     }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
-    var gold = std(0xc9a227, 0.35, 0.7);
-    [[HX * 2, 0.12, 0.12, 0, 1.1, -HZ + 0.06], [HX * 2, 0.12, 0.12, 0, 1.1, HZ - 0.06], [0.12, 0.12, HZ * 2, -HX + 0.06, 1.1, 0], [0.12, 0.12, HZ * 2, HX - 0.06, 1.1, 0],
-      [HX * 2, 0.16, 0.16, 0, H - 0.1, -HZ + 0.08], [HX * 2, 0.16, 0.16, 0, H - 0.1, HZ - 0.08], [0.16, 0.16, HZ * 2, -HX + 0.08, H - 0.1, 0], [0.16, 0.16, HZ * 2, HX - 0.08, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    // moulures : plinthe, main courante dorée, corniche
+    [[HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
+    [[HX * 2, 0.07, 0.12, 0, 1.22, -HZ + 0.06], [HX * 2, 0.07, 0.12, 0, 1.22, HZ - 0.06], [0.12, 0.07, HZ * 2, -HX + 0.06, 1.22, 0], [0.12, 0.07, HZ * 2, HX - 0.06, 1.22, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    [[HX * 2, 0.3, 0.3, 0, H - 0.15, -HZ + 0.15], [HX * 2, 0.3, 0.3, 0, H - 0.15, HZ - 0.15], [0.3, 0.3, HZ * 2, -HX + 0.15, H - 0.15, 0], [0.3, 0.3, HZ * 2, HX - 0.15, H - 0.15, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
+    [[HX * 2, 0.06, 0.06, 0, H - 0.33, -HZ + 0.34], [HX * 2, 0.06, 0.06, 0, H - 0.33, HZ - 0.34], [0.06, 0.06, HZ * 2, -HX + 0.34, H - 0.33, 0], [0.06, 0.06, HZ * 2, HX - 0.34, H - 0.33, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    // pilastres de bois avec base et chapiteau dorés, et une applique entre chaque
+    var sconceM = bas(0xffe6b0);
+    function pilaster(x, z, ry) {
+      var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; g.add(q);
+      box(q, 0.5, H - 0.3, 0.22, wood, 0, (H - 0.3) / 2, 0.11); box(q, 0.64, 0.16, 0.3, gold, 0, 0.08, 0.15); box(q, 0.64, 0.16, 0.3, gold, 0, H - 0.4, 0.15);
+    }
+    function sconce(x, z, ry) {
+      var q = new THREE.Group(); q.position.set(x, 2.6, z); q.rotation.y = ry; g.add(q);
+      box(q, 0.26, 0.4, 0.07, gold, 0, 0, 0.04); var l = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), sconceM); l.position.set(0, 0.05, 0.17); q.add(l);
+    }
+    [-10, -4.8, 4.8, 10].forEach(function (x) { pilaster(x, -HZ, 0); pilaster(x, HZ, Math.PI); });
+    [-7, 0, 7].forEach(function (z) { pilaster(-HX, z, Math.PI / 2); pilaster(HX, z, -Math.PI / 2); });
+    [-7.4, 7.4].forEach(function (x) { sconce(x, -HZ, 0); });
+    [-7, 7].forEach(function (x) { sconce(x, HZ, Math.PI); });
+    [-3.5, 3.5].forEach(function (z) { sconce(-HX, z, Math.PI / 2); sconce(HX, z, -Math.PI / 2); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0608 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     // enseigne néon au fond
     var sc0 = mkCanvas(1024, 256), sx = sc0.getContext('2d'); sx.fillStyle = '#12060a'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#ff5a6a'; sx.lineWidth = 10; sx.strokeRect(10, 10, 1004, 236);
@@ -121,14 +150,15 @@
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.9), new THREE.MeshBasicMaterial({ map: mkTex(sc0) })); sign.position.set(0, 3.7, -HZ + 0.07); g.add(sign);
 
     /* --- tables, croupiers, tabourets, robots --- */
-    var felt = std(0x0e6b3f, 0.95, 0), woodM = std(0x2a140c, 0.5, 0.2), seatM = std(0x8f0f20, 0.6, 0.1), chromeM = std(0xc9ced6, 0.35, 0.8);
+    var felt = std(0x0e6b3f, 0.95, 0), woodM = std(0x2a140c, 0.5, 0.2), feltD = new THREE.MeshStandardMaterial({ color: 0x0e6b3f, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }), woodD = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }), seatM = std(0x8f0f20, 0.6, 0.1), chromeM = std(0xc9ced6, 0.35, 0.8);
     var tables = [], seats = [], people = [], anims = [], timers = [], clockT = 0;
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     TABLES.forEach(function (td, ti) {
       var grp = new THREE.Group(); grp.position.set(td.x, 0, td.z); g.add(grp);
       // plateau en demi-disque : feutre vert dessus, bord en bois, pied central
-      var top = new THREE.Mesh(new THREE.CylinderGeometry(TABLE_R, TABLE_R, 0.1, 48, 1, false, Math.PI / 2, Math.PI), [woodM, felt, woodM]); top.position.y = TOP_Y - 0.05; grp.add(top);
-      box(grp, TABLE_R * 2, 0.1, 0.02, woodM, 0, TOP_Y - 0.05, 0);                             // le côté plat (côté croupier)
+      var top = new THREE.Mesh(new THREE.CylinderGeometry(TABLE_R, TABLE_R, 0.1, 48, 1, false, -Math.PI / 2, Math.PI), [woodD, feltD, woodD]); top.position.y = TOP_Y - 0.05; grp.add(top);   // demi-disque côté joueurs (+z), visible des deux faces
+      box(grp, TABLE_R * 2, 0.12, 0.05, woodM, 0, TOP_Y - 0.05, 0);                             // le côté plat (côté croupier)
+      var skirt = new THREE.Mesh(new THREE.CylinderGeometry(TABLE_R - 0.03, TABLE_R - 0.03, 0.16, 48, 1, true, -Math.PI / 2, Math.PI), woodD); skirt.position.y = TOP_Y - 0.16; grp.add(skirt);   // jupe sous le plateau
       var rim = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R, 0.05, 8, 48, Math.PI), woodM); rim.rotation.x = Math.PI / 2; rim.rotation.z = 0; rim.position.y = TOP_Y; grp.add(rim);
       var rimG = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R - 0.06, 0.012, 6, 48, Math.PI), gold); rimG.rotation.x = Math.PI / 2; rimG.position.y = TOP_Y + 0.045; grp.add(rimG);
       var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, TOP_Y - 0.1, 16), woodM); ped.position.set(0, (TOP_Y - 0.1) / 2, 0.45); grp.add(ped);
@@ -147,11 +177,16 @@
       tables.push(T);
       // croupier
       var dl = F.createPlayer ? F.createPlayer('Croupier ' + (ti + 1), '', ti % 2 ? 'h1010' : 'f1230') : null;
-      if (dl) { dl.group.position.set(td.x, 0, td.z - 0.6); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); g.add(dl.group); people.push({ p: dl, kind: 'dealer', t: T }); T.dealer = dl; }
+      if (dl) {
+        dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); people.push({ p: dl, kind: 'dealer', t: T }); T.dealer = dl;
+        // la chaise du croupier : assise capitonnée et dossier, derrière la table
+        box(grp, 0.5, 0.08, 0.5, seatM, 0, 0.5, -0.75); box(grp, 0.5, 0.55, 0.07, seatM, 0, 0.82, -1.0); box(grp, 0.06, 0.46, 0.06, chromeM, 0, 0.23, -0.75); box(grp, 0.46, 0.04, 0.46, chromeM, 0, 0.02, -0.75);
+        room.colliders.push({ x: td.x, z: td.z - 0.8, r: 0.5 });
+      }
       // places
       PHI.forEach(function (phi, k) {
         var sx0 = td.x + Math.sin(phi) * SEAT_R, sz0 = td.z + Math.cos(phi) * SEAT_R, dx = td.x - sx0, dz = td.z + 0.25 - sz0;
-        var s = { n: ti * 5 + k, x: sx0, z: sz0, yaw: Math.atan2(dx, -dz), tx: td.x, tz: td.z, table: T, i: k, phi: phi, bot: td.bots.indexOf(k) >= 0, sx: td.x + Math.sin(phi) * (SEAT_R + 0.9), sz: td.z + Math.cos(phi) * (SEAT_R + 0.9) };
+        var s = { n: ti * 2 + k, x: sx0, z: sz0, yaw: Math.atan2(dx, -dz), tx: td.x, tz: td.z, table: T, i: k, phi: phi, bot: td.bots.indexOf(k) >= 0, sx: td.x + Math.sin(phi) * (SEAT_R + 0.9), sz: td.z + Math.cos(phi) * (SEAT_R + 0.9) };
         seats.push(s); T.spots.push(s);
         // tabouret
         cyl(grp, 0.03, 0.03, 0.55, chromeM, sx0 - td.x, 0.3, sz0 - td.z, 8); cyl(grp, 0.2, 0.22, 0.03, chromeM, sx0 - td.x, 0.02, sz0 - td.z, 14);
@@ -305,7 +340,6 @@
             else if (r.result === 'bust') { txt = 'SAUTÉ'; col = '#ff8a80'; setMsg('💥 Tu as dépassé 21.', '#ff8a80'); }
             else { txt = 'PERDU'; col = '#ff8a80'; setMsg('Perdu : ' + r.pScore + ' contre ' + r.dScore + '.', '#ff8a80'); }
             label(T, mine.x, mine.z, txt, col);
-            if (T.dealer && r.result === 'win') T.dealer.startEmote && T.dealer.startEmote('salut');
             R.phase = 'result'; refreshUi();
             later(4.5, function () { if (R.phase === 'result') { clearCards(T); R.phase = 'idle'; setMsg('Choisis ta mise puis distribue.'); refreshUi(); } });
           });
@@ -359,7 +393,6 @@
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
       setMsg(loggedIn() ? 'Choisis ta mise puis distribue.' : 'Connecte-toi pour jouer.'); refreshUi();
-      if (s.table.dealer && s.table.dealer.startEmote) s.table.dealer.startEmote('salut');
     }
     function stand() {
       if (!seat) return;
@@ -399,13 +432,13 @@
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) {
       return w.touch ? 'Joystick : marcher · touche une place libre d\'une table pour t\'asseoir'
-        : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret libre (F ou clic) pour jouer au blackjack · assis : mise, Distribuer, Tirer, Rester, Doubler · F : se lever';
+        : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret (F ou clic) pour jouer au blackjack · assis : mise, Distribuer, Tirer, Rester, Doubler · F : se lever';
     };
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
       clockT += dt;
       // animations des personnages
-      people.forEach(function (o) { var p = o.p; if (o.kind === 'dealer') { if (p.emoId) { if (!p.playEmote(dt)) p.stopWalk(); } else p.stopWalk(); p.applyHold(dt); } else { p.stopWalk(); p.applyHold(dt); } });
+      people.forEach(function (o) { o.p.stopWalk(); o.p.applyHold(dt); });
       // minuteries
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { if (window.console) console.warn('[blackjack3d]', e); } } }
       // cartes qui glissent jusqu'à leur place
