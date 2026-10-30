@@ -110,6 +110,7 @@
     if (room.hudBottom) this.elRoomBottom.innerHTML = room.hudBottom;
     if (room.bindHud) room.bindHud(this.hud);
     if (room.onEnter) room.onEnter(this);
+    if (F.audio) F.audio.setRoom(room.id);                          // musique de la salle (audio3d.js)
     this._netStart();
     this._setHint();
     this.w = 0; Q.resetGrace();
@@ -192,9 +193,19 @@
     paintPortal(0);
     var portal = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: ptex }));
     portal.position.set(0, h / 2, 0.097); g.add(portal);   // devant la moulure du mur (face avant à 0.09), derrière les battants (0.105)
-    function box(bw, bh, bd, x, y, z) { var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), frameM); m.position.set(x, y, z); g.add(m); }
-    box(0.14, h + 0.22, 0.22, -(w / 2 + 0.07), (h + 0.22) / 2, 0.1); box(0.14, h + 0.22, 0.22, w / 2 + 0.07, (h + 0.22) / 2, 0.1);
-    box(w + 0.28, 0.18, 0.22, 0, h + 0.1, 0.1);
+    function box(bw, bh, bd, x, y, z, mat) { var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat || frameM); m.position.set(x, y, z); g.add(m); return m; }
+    // encadrement : deux pilastres (fût sombre, base et chapiteau dorés), linteau, corniche, et un néon de la couleur du jeu le long de l'ouverture
+    var stoneM = new THREE.MeshStandardMaterial({ color: 0x1b1519, roughness: 0.45, metalness: 0.3 }), neonM = new THREE.MeshBasicMaterial({ color: col });
+    [-1, 1].forEach(function (sd) {
+      var px2 = sd * (w / 2 + 0.17);
+      box(0.26, h + 0.1, 0.24, px2, (h + 0.1) / 2, 0.1, stoneM);
+      box(0.36, 0.2, 0.3, px2, 0.1, 0.12); box(0.36, 0.14, 0.3, px2, h + 0.03, 0.12);
+      box(0.03, h - 0.3, 0.012, px2 - sd * 0.07, h / 2 + 0.05, 0.226); box(0.03, h - 0.3, 0.012, px2 + sd * 0.07, h / 2 + 0.05, 0.226);
+      box(0.035, h, 0.03, sd * (w / 2 + 0.02), h / 2, 0.23, neonM);
+    });
+    box(w + 0.84, 0.22, 0.28, 0, h + 0.2, 0.11, stoneM); box(w + 1.0, 0.07, 0.36, 0, h + 0.36, 0.12);
+    box(w + 0.08, 0.035, 0.03, 0, h + 0.02, 0.23, neonM); box(w + 0.7, 0.025, 0.012, 0, h + 0.2, 0.256);
+    box(w + 0.5, 0.02, 0.6, 0, 0.01, 0.35);                                                 // seuil en laiton
     var wood = new THREE.MeshStandardMaterial({ color: th ? th.leaf : 0x4a1220, roughness: 0.55, metalness: 0.15 });
     var leafTex = null;
     if (th) {                                                              // un seul dessin pour les deux battants
@@ -209,7 +220,9 @@
         ? new THREE.Mesh(new THREE.PlaneGeometry(w / 2 - 0.2, h - 0.3), new THREE.MeshLambertMaterial({ map: leafTex, emissive: 0x666666, emissiveMap: leafTex }))
         : new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.3, h - 0.5, 0.02), gold);
       trim.position.set(-sx * (w / 4), h / 2, leafTex ? 0.037 : 0.045); piv.add(trim);
-      var knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), frameM); knob.position.set(-sx * (w / 2 - 0.12), h * 0.45, 0.07); piv.add(knob);
+      var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.6, 10), gold); bar.position.set(-sx * (w / 2 - 0.15), h * 0.47, 0.095); piv.add(bar);      // barre de tirage dorée
+      [-0.24, 0.24].forEach(function (oy) { var st2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.05), gold); st2.position.set(-sx * (w / 2 - 0.15), h * 0.47 + oy, 0.07); piv.add(st2); });
+      var kick = new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.22, 0.3, 0.012), frameM); kick.position.set(-sx * (w / 4), 0.2, 0.042); piv.add(kick);                      // plaque de protection
       return piv;
     }
     var L = leaf(-1), R = leaf(1);   // L : charnière à gauche (x=-w/2), R : à droite
@@ -218,7 +231,9 @@
       var tc = mkCanvas(640, 160), ttex = mkTex(tc);
       F.paintDoorSign(tc, spec, th, function () { ttex.needsUpdate = true; });
       var tsign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.75), new THREE.MeshBasicMaterial({ map: ttex }));
-      tsign.position.set(0, h + 0.7, 0.2); g.add(tsign);
+      tsign.position.set(0, h + 0.72, 0.235); g.add(tsign);
+      box(3.2, 0.9, 0.08, 0, h + 0.72, 0.19, stoneM); box(3.26, 0.05, 0.1, 0, h + 1.2, 0.2); box(3.26, 0.04, 0.1, 0, h + 0.25, 0.2); box(0.05, 0.9, 0.1, -1.6, h + 0.72, 0.2); box(0.05, 0.9, 0.1, 1.6, h + 0.72, 0.2);
+      box(3.0, 0.03, 0.012, 0, h + 1.12, 0.236, neonM);
       if (th.deco) th.deco(g, w, h);
     }
     var sc = mkCanvas(512, 128), sx = sc.getContext('2d');
@@ -228,7 +243,8 @@
     if (spec.sub) { sx.shadowBlur = 0; sx.fillStyle = '#d9c88f'; sx.font = '600 24px ' + MONO; sx.fillText(spec.sub, 256, 96, 480); }
     if (!th) {
       var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sc) }));
-      sign.position.set(0, h + 0.62, 0.2); g.add(sign);
+      sign.position.set(0, h + 0.72, 0.235); g.add(sign);
+      box(2.6, 0.78, 0.08, 0, h + 0.72, 0.19, stoneM); box(2.66, 0.05, 0.1, 0, h + 1.12, 0.2); box(2.66, 0.04, 0.1, 0, h + 0.32, 0.2); box(0.05, 0.8, 0.1, -1.3, h + 0.72, 0.2); box(0.05, 0.8, 0.1, 1.3, h + 0.72, 0.2);
     }
     room.group.add(g);
     var d = { spec: spec, g: g, L: L, R: R, open: 0, paint: paintPortal };
@@ -385,6 +401,7 @@
     this.elQual.innerHTML = '<i class="fa-solid fa-gear"></i> ' + Q.label();
     this.hud.setAttribute('data-mode', this.blend > 0.5 ? 'seat' : 'room');
     if (this.ph) this.ph.sync();
+    if (F.audio) F.audio.update();
     if (this.room && this.room.syncHud) this.room.syncHud(this);
   };
 
@@ -502,7 +519,7 @@
     var len = Math.hypot(fwd, str);
     if (this.emoId && (len > 0.05 || k.jump)) this.stopEmote();           // marcher ou sauter arrête la danse
     if (len > 1) { fwd /= len; str /= len; }
-    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z;
+    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z, wasAir = !!p.air;
     this.running2 = run;
     if (k.jump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
     if (p.air) { p.vy -= 13 * dt; p.jy = (p.jy || 0) + p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; p.air = false; } }
@@ -515,6 +532,12 @@
       if (d < c.r && d > 0.0001) { p.x = c.x + dx / d * c.r; p.z = c.z + dz / d * c.r; }
     }
     if (room.constrain) room.constrain(p);                       // limites non rectangulaires (salles rondes, couloirs)
+    if (F.audio) {                                               // bruits de pas : un pas tous les 1,5 m en marchant, 1,9 m en courant ; un « boum » à la réception d'un saut
+      var mv = Math.hypot(p.x - ox, p.z - oz), stride = run ? 1.9 : 1.5;
+      if (wasAir && !p.air) F.audio.land();
+      if (mv > 0.0005 && !p.air) { if (!this._stepOn) { this._stepOn = true; this._stepAcc = stride * 0.55; } this._stepAcc += mv; if (this._stepAcc >= stride) { this._stepAcc -= stride; F.audio.step(run, room.id); } }
+      else if (mv <= 0.0005) this._stepOn = false;
+    }
     var vk = Math.min(1, dt * 12), pv = this.pv;
     pv.x += ((p.x - ox) / Math.max(dt, 0.001) - pv.x) * vk; pv.z += ((p.z - oz) / Math.max(dt, 0.001) - pv.z) * vk;
   };
@@ -852,12 +875,14 @@
   World.prototype.pause = function () {
     this.running = false; this.keys = {}; this.setFull(false); this._resetEmote(); this._netStop();
     if (this.ph) this.ph.close();
+    if (F.audio) F.audio.setRoom('');
     if (this.room && this.room.onPause) this.room.onPause(this);
   };
   World.prototype.resume = function () {
     this.running = true; this.last = 0; this.w = 0; this.trans = false; this.elFade.classList.remove('on');
     Q.resetGrace();
     this._netStart(); this.syncHud(); this._setHint();
+    if (F.audio && this.room) F.audio.setRoom(this.room.id);
     if (this.room && this.room.onResume) this.room.onResume(this);
   };
   World.prototype.dispose = function () {

@@ -31,32 +31,37 @@
   F.HORSES = HORSES;
 
   /* ---------- la piste (mètres, table centrée en 0,0 ; le nord est vers -z, vers le grand écran) ---------- */
-  var S = 5;                          // longueur des lignes droites
+  var S = 2.8;                        // la table est un ovale : demi-axe ouest-est R, demi-axe nord-sud R + S / 2 (pas de côtés droits)
   var HS = S / 2;
   var R_OUT = 2.5, R_IN = 1.05;       // bord extérieur / île centrale
   var LANE0 = 1.32, LANE_STEP = 0.14; // rayon du couloir 1, écart entre couloirs
-  var Z0 = 1.0;                       // ligne de départ = ligne d'arrivée (ligne droite est)
+  var Z0 = 0;                         // ligne de départ = ligne d'arrivée (côté est de la table)
   var TY = 0.93;                      // hauteur du tapis vert
-  var HX = 11, HZ = 13;               // demi-largeur / demi-profondeur de la salle
+  var HX = 8.5, HZ = 10;              // demi-largeur / demi-profondeur de la salle
   var BET_MS = 12000, CLOSE_MS = 2000, RACE_MS = 30000, RESULT_MS = 10000;   // mêmes durées que api/horses.js
 
   function laneR(i) { return LANE0 + i * LANE_STEP; }
-  function laneLen(r) { return 2 * S + 2 * Math.PI * r; }
+  // un couloir est une ellipse de demi-axes r (est-ouest) et r + HS (nord-sud) : on en garde une table de longueurs cumulées pour se repérer à la distance parcourue
+  var laneCache = {};
+  function laneTab(r) {
+    var key = Math.round(r * 1000), t = laneCache[key];
+    if (t) return t;
+    var N = 720, rb = r + HS, cum = new Float32Array(N + 1), px = r, pz = 0, L = 0, i, a, x, z;
+    for (i = 1; i <= N; i++) { a = i / N * TAU; x = r * Math.cos(a); z = -rb * Math.sin(a); L += Math.hypot(x - px, z - pz); cum[i] = L; px = x; pz = z; }
+    return (laneCache[key] = { L: L, cum: cum, N: N, rb: rb });
+  }
+  function laneLen(r) { return laneTab(r).L; }
 
   // position et direction sur un couloir de rayon r, à la distance d depuis la ligne de départ (sens : nord d'abord, côté est)
   function lanePos(r, d, out) {
-    var L = laneLen(r), q1 = Z0 + HS, a = Math.PI * r, t;
+    var T = laneTab(r), L = T.L, lo = 0, hi = T.N, mid, f, a, hx, hz, len;
     out = out || {};
     d = ((d % L) + L) % L;
-    if (d < q1) { out.x = r; out.z = Z0 - d; out.hx = 0; out.hz = -1; return out; }
-    d -= q1;
-    if (d < a) { t = d / r; out.x = r * Math.cos(t); out.z = -HS - r * Math.sin(t); out.hx = -Math.sin(t); out.hz = -Math.cos(t); return out; }
-    d -= a;
-    if (d < S) { out.x = -r; out.z = -HS + d; out.hx = 0; out.hz = 1; return out; }
-    d -= S;
-    if (d < a) { t = d / r; out.x = -r * Math.cos(t); out.z = HS + r * Math.sin(t); out.hx = Math.sin(t); out.hz = Math.cos(t); return out; }
-    d -= a;
-    out.x = r; out.z = HS - d; out.hx = 0; out.hz = -1; return out;
+    while (hi - lo > 1) { mid = (lo + hi) >> 1; if (T.cum[mid] <= d) lo = mid; else hi = mid; }
+    f = (d - T.cum[lo]) / Math.max(1e-9, T.cum[lo + 1] - T.cum[lo]); a = (lo + f) / T.N * TAU;
+    out.x = r * Math.cos(a); out.z = -T.rb * Math.sin(a);
+    hx = -r * Math.sin(a); hz = -T.rb * Math.cos(a); len = Math.hypot(hx, hz) || 1; out.hx = hx / len; out.hz = hz / len;
+    return out;
   }
 
   // avancée d'un cheval (en tours : 0 = départ, 1 = arrivée) au bout de t secondes, sachant qu'il franchit la ligne à T secondes
@@ -87,13 +92,10 @@
   /* ---------- outils de dessin ---------- */
   function hex(c) { return '#' + ('000000' + c.toString(16)).slice(-6); }
 
-  // contour de la table (même nombre de points pour tous les rayons) : côté est, bout nord, côté ouest, bout sud
+  // contour de la table (même nombre de points pour tous les rayons) : une ellipse de demi-axes R et R + HS
   function stadiumPts(R) {
-    var pts = [], M = 20, K = 40, k, a;
-    for (k = 0; k < M; k++) pts.push([R, -HS + S * k / M]);
-    for (k = 0; k < K; k++) { a = Math.PI * k / K; pts.push([R * Math.cos(a), HS + R * Math.sin(a)]); }
-    for (k = 0; k < M; k++) pts.push([-R, HS - S * k / M]);
-    for (k = 0; k < K; k++) { a = Math.PI + Math.PI * k / K; pts.push([R * Math.cos(a), -HS + R * Math.sin(a)]); }
+    var pts = [], N = 160, k, a;
+    for (k = 0; k < N; k++) { a = k / N * TAU; pts.push([R * Math.cos(a), -(R + HS) * Math.sin(a)]); }
     return pts;
   }
   // plaque en forme de stade (pleine, ou percée si ri est donné) : dessus, dessous et côtés faits à la main (pas de découpe automatique, qui oubliait des triangles)
@@ -138,10 +140,9 @@
     var K = 100, W = 2 * R_OUT + 0.2, Hh = S + 2 * R_OUT + 0.2, c = mkCanvas(Math.round(W * K), Math.round(Hh * K)), x = c.getContext('2d');
     var cx = c.width / 2, cy = c.height / 2;
     function path(R) {
-      x.beginPath(); x.moveTo(cx - R * K, cy - HS * K); x.arc(cx, cy - HS * K, R * K, Math.PI, TAU, false);
-      x.lineTo(cx + R * K, cy + HS * K); x.arc(cx, cy + HS * K, R * K, 0, Math.PI, false); x.closePath();
+      x.beginPath(); x.ellipse(cx, cy, R * K, (R + HS) * K, 0, 0, TAU); x.closePath();
     }
-    x.fillStyle = '#0b1220'; x.fillRect(0, 0, c.width, c.height);
+    // le fond reste transparent : les coins du rectangle de la texture dépassaient du rebord de la table (angles gris)
     path(R_OUT); x.fillStyle = '#2e9a47'; x.fill();
     x.save(); path(R_OUT); x.clip();
     for (var rr = R_IN; rr < R_OUT; rr += 0.2) { path(rr + 0.1); x.strokeStyle = 'rgba(0,0,0,0.05)'; x.lineWidth = 0.1 * K; x.stroke(); }
@@ -249,44 +250,174 @@
     var matMetal = new THREE.MeshStandardMaterial({ color: 0x1b2433, roughness: 0.35, metalness: 0.7 });
     var neonB = new THREE.MeshBasicMaterial({ color: 0x3a8dff }), neonC = new THREE.MeshBasicMaterial({ color: 0x56e6ff });
 
-    /* ----- salle : sol de dalles bleu nuit, tapis autour de la table, murs capitonnés à néons, plafond en bandes LED ----- */
+    /* ----- salle : parquet, tapis ovale, murs lambrissés, plafond à caissons ----- */
     var ledA = new THREE.MeshBasicMaterial({ color: 0x56e6ff }), ledB = new THREE.MeshBasicMaterial({ color: 0xc84bff }), ledDim = new THREE.MeshBasicMaterial({ color: 0x0b1d3d });   // bandeaux lumineux des murs, du plafond, du sol
-    var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), fgr = fx.createLinearGradient(0, 0, 256, 256);
-    fgr.addColorStop(0, '#13244a'); fgr.addColorStop(1, '#0a1530'); fx.fillStyle = fgr; fx.fillRect(0, 0, 256, 256);
-    fx.fillStyle = 'rgba(8,14,30,0.55)'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);          // damier discret
-    fx.strokeStyle = 'rgba(86,230,255,0.55)'; fx.lineWidth = 3; fx.strokeRect(1.5, 1.5, 253, 253);
-    fx.strokeStyle = 'rgba(86,230,255,0.18)'; fx.lineWidth = 2; fx.beginPath(); fx.moveTo(128, 0); fx.lineTo(128, 256); fx.moveTo(0, 128); fx.lineTo(256, 128); fx.stroke();
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.28, metalness: 0.45 }));
+    var goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.32, metalness: 0.65, emissive: 0x2a1d00 });
+    var woodDark = new THREE.MeshStandardMaterial({ color: 0x2b170d, roughness: 0.55, metalness: 0.1 });
+    function tile(c, rx, ry) { var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; return t; }
+
+    // sol : grandes dalles de marbre noir bleuté très brillant, joints et filets cyan / violet (comme la table)
+    var pc = mkCanvas(512, 512), px = pc.getContext('2d');
+    var fg = px.createLinearGradient(0, 0, 512, 512); fg.addColorStop(0, '#101a2e'); fg.addColorStop(0.5, '#0b1220'); fg.addColorStop(1, '#0e1730'); px.fillStyle = fg; px.fillRect(0, 0, 512, 512);
+    for (var vi = 0; vi < 14; vi++) { px.strokeStyle = 'rgba(120,150,220,0.05)'; px.lineWidth = 1 + (vi % 3); px.beginPath(); px.moveTo(Math.random() * 512, 0); px.bezierCurveTo(Math.random() * 512, 170, Math.random() * 512, 340, Math.random() * 512, 512); px.stroke(); }   // veines du marbre
+    px.strokeStyle = 'rgba(86,230,255,0.5)'; px.lineWidth = 3; px.strokeRect(1.5, 1.5, 509, 509);
+    px.strokeStyle = 'rgba(200,75,255,0.35)'; px.lineWidth = 2; px.strokeRect(14, 14, 484, 484);
+    px.fillStyle = 'rgba(86,230,255,0.7)'; [[14, 14], [498, 14], [14, 498], [498, 498]].forEach(function (q) { px.beginPath(); px.arc(q[0], q[1], 4, 0, TAU); px.fill(); });
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: tile(pc, HX * 2 / 4, HZ * 2 / 4), roughness: 0.16, metalness: 0.55 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var rugA = slab(R_OUT + 3.0, 0, 0, 0.02, new THREE.MeshStandardMaterial({ color: 0x0b1f4a, roughness: 0.95 })); g.add(rugA);
-    var wc = mkCanvas(512, 512), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 0, 512);
-    wgr.addColorStop(0, '#0d2250'); wgr.addColorStop(1, '#091630'); wx.fillStyle = wgr; wx.fillRect(0, 0, 512, 512);
-    for (var wp = 0; wp < 4; wp++) {                                                                         // 4 panneaux capitonnés par motif
-      var wpg = wx.createLinearGradient(wp * 128, 0, wp * 128 + 128, 0); wpg.addColorStop(0, 'rgba(70,120,230,0.10)'); wpg.addColorStop(0.5, 'rgba(70,120,230,0.0)'); wpg.addColorStop(1, 'rgba(0,0,0,0.25)');
-      wx.fillStyle = wpg; wx.fillRect(wp * 128 + 6, 6, 116, 500);
-      wx.strokeStyle = 'rgba(86,230,255,0.35)'; wx.lineWidth = 2; wx.strokeRect(wp * 128 + 6, 6, 116, 500);
+    // tapis ovale autour de la table : bordeaux, liseré et filet dorés
+    g.add(slab(R_OUT + 3.0, 0, 0, 0.012, goldM));
+    g.add(slab(R_OUT + 2.86, 0, 0, 0.018, new THREE.MeshStandardMaterial({ color: 0x4a0f1e, roughness: 0.95 })));
+    g.add(slab(R_OUT + 2.4, R_OUT + 2.34, 0, 0.024, goldM));
+    g.add(slab(R_OUT + 1.2, R_OUT + 1.16, 0, 0.024, goldM));
+
+    // murs : lambris en noyer sur 1,2 m, tenture vert sapin à rayures et losanges dorés au-dessus
+    var wallC = mkCanvas(512, 512), wx = wallC.getContext('2d'), wi;
+    wx.fillStyle = '#0e3a33'; wx.fillRect(0, 0, 512, 512);
+    for (wi = 0; wi < 8; wi++) { wx.fillStyle = wi % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.12)'; wx.fillRect(wi * 64, 0, 64, 512); }
+    wx.strokeStyle = 'rgba(243,207,98,0.13)'; wx.lineWidth = 2;
+    for (wi = -8; wi < 16; wi++) { wx.beginPath(); wx.moveTo(wi * 64, 0); wx.lineTo(wi * 64 + 512, 512); wx.moveTo(wi * 64 + 512, 0); wx.lineTo(wi * 64, 512); wx.stroke(); }
+    var wnC = mkCanvas(256, 256), wn = wnC.getContext('2d');
+    wn.fillStyle = '#3a2314'; wn.fillRect(0, 0, 256, 256);
+    var wng = wn.createLinearGradient(0, 0, 0, 256); wng.addColorStop(0, '#5a3820'); wng.addColorStop(1, '#3a2314'); wn.fillStyle = wng; wn.fillRect(22, 22, 212, 212);
+    wn.strokeStyle = 'rgba(0,0,0,0.6)'; wn.lineWidth = 4; wn.strokeRect(22, 22, 212, 212); wn.strokeStyle = 'rgba(255,220,170,0.18)'; wn.lineWidth = 2; wn.strokeRect(30, 30, 196, 196);
+    var wallUp = new THREE.MeshStandardMaterial({ map: tile(wallC, 1, 1), roughness: 0.9, metalness: 0.02 }), wallDn = new THREE.MeshStandardMaterial({ map: tile(wnC, 1, 1), roughness: 0.5, metalness: 0.08 });
+    function wall(w, y0, y1, px0, pz0, ry, mat, rep) {
+      var m = mat.clone(); m.map = mat.map.clone(); m.map.needsUpdate = true; m.map.repeat.set(w / rep, 1);
+      var mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, y1 - y0), m); mesh.position.set(px0, (y0 + y1) / 2, pz0); mesh.rotation.y = ry; g.add(mesh);
     }
-    wx.strokeStyle = 'rgba(243,207,98,0.45)'; wx.lineWidth = 3; wx.beginPath(); wx.moveTo(0, 256); wx.lineTo(512, 256); wx.stroke();
-    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
-    var wallLow = new THREE.MeshStandardMaterial({ color: 0x0a1426, roughness: 0.4, metalness: 0.6 });
-    function wall(w, h, px, py, pz, ry, mat) {
-      var m;
-      if (!mat) { var wt = wallTex.clone(); wt.needsUpdate = true; wt.repeat.set(w / 3, 2); mat = new THREE.MeshStandardMaterial({ map: wt, roughness: 0.75, metalness: 0.1 }); }
-      m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m);
+    [[HX * 2, 0, -HZ, 0], [HX * 2, 0, HZ, Math.PI], [HZ * 2, -HX, 0, Math.PI / 2], [HZ * 2, HX, 0, -Math.PI / 2]].forEach(function (d) {
+      var ax = d[3] === 0 || d[3] === Math.PI;
+      wall(d[0], 1.2, 6, ax ? 0 : d[1], ax ? d[2] : 0, d[3], wallUp, 2.5); wall(d[0], 0, 1.2, ax ? 0 : d[1], ax ? d[2] : 0, d[3], wallDn, 1.4);
+    });
+    // moulures : plinthe, cimaise dorée, filet à 4,6 m, corniche
+    function trim(y, h, d, mat) {
+      [[HX * 2, h, d, 0, y, -HZ + d / 2], [HX * 2, h, d, 0, y, HZ - d / 2], [d, h, HZ * 2, -HX + d / 2, y, 0], [d, h, HZ * 2, HX - d / 2, y, 0]].forEach(function (q) { box(q[0], q[1], q[2], q[3], q[4], q[5], mat); });
     }
-    wall(HX * 2, 6, 0, 3, -HZ, 0); wall(HX * 2, 6, 0, 3, HZ, Math.PI); wall(HZ * 2, 6, -HX, 3, 0, Math.PI / 2); wall(HZ * 2, 6, HX, 3, 0, -Math.PI / 2);
-    wall(HX * 2, 1, 0, 0.5, -HZ + 0.02, 0, wallLow); wall(HX * 2, 1, 0, 0.5, HZ - 0.02, Math.PI, wallLow);
-    wall(HZ * 2, 1, -HX + 0.02, 0.5, 0, Math.PI / 2, wallLow); wall(HZ * 2, 1, HX - 0.02, 0.5, 0, -Math.PI / 2, wallLow);
-    // bandeaux lumineux : au-dessus des plinthes, en haut des murs, et un cadre au plafond
-    [[HX * 2, 0.07, 0.07, 0, 1.02, -HZ + 0.05], [HX * 2, 0.07, 0.07, 0, 1.02, HZ - 0.05], [0.07, 0.07, HZ * 2, -HX + 0.05, 1.02, 0], [0.07, 0.07, HZ * 2, HX - 0.05, 1.02, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledA); });
-    [[HX * 2, 0.1, 0.1, 0, 5.94, -HZ + 0.05], [HX * 2, 0.1, 0.1, 0, 5.94, HZ - 0.05], [0.1, 0.1, HZ * 2, -HX + 0.05, 5.94, 0], [0.1, 0.1, HZ * 2, HX - 0.05, 5.94, 0]].forEach(function (d) { box(d[0], d[1], d[2], d[3], d[4], d[5], ledB); });
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080b12 }));
+    trim(0.12, 0.24, 0.07, woodDark); trim(1.2, 0.09, 0.1, goldM); trim(4.6, 0.05, 0.05, goldM); trim(5.86, 0.22, 0.2, woodDark); trim(5.72, 0.05, 0.12, goldM);
+
+    // plafond : caissons d'acajou liserés d'or et grand ovale de lumière chaude au-dessus de la table
+    var ceilTex = (function () {
+      var W = 1024, H = Math.round(W * HZ / HX), c = mkCanvas(W, H), x = c.getContext('2d'), ppm = W / (HX * 2), cx = W / 2, cy = H / 2, i, j, cell = 2.2 * ppm;
+      var bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1b0f0a'); bg.addColorStop(0.5, '#26150d'); bg.addColorStop(1, '#1b0f0a'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+      for (i = -5; i <= 5; i++) for (j = -6; j <= 6; j++) {
+        var px0 = cx + (i - 0.5) * cell, py0 = cy + (j - 0.5) * cell, ex = (px0 + cell / 2 - cx) / (4.8 * ppm), ey = (py0 + cell / 2 - cy) / (6.4 * ppm);
+        if (ex * ex + ey * ey < 1) continue;
+        x.fillStyle = 'rgba(255,200,140,0.05)'; x.fillRect(px0 + 6, py0 + 6, cell - 12, cell - 12);
+        x.strokeStyle = 'rgba(243,207,98,0.55)'; x.lineWidth = 2.5; x.strokeRect(px0 + 6, py0 + 6, cell - 12, cell - 12);
+        x.strokeStyle = 'rgba(0,0,0,0.4)'; x.lineWidth = 6; x.strokeRect(px0 + 2, py0 + 2, cell - 4, cell - 4);
+      }
+      var og = x.createRadialGradient(cx, cy, 0, cx, cy, 6.2 * ppm); og.addColorStop(0, 'rgba(255,236,200,0.95)'); og.addColorStop(0.7, 'rgba(255,214,150,0.7)'); og.addColorStop(1, 'rgba(255,190,110,0.35)');
+      x.save(); x.beginPath(); x.ellipse(cx, cy, 4.6 * ppm, 6.2 * ppm, 0, 0, TAU); x.clip(); x.fillStyle = og; x.fillRect(0, 0, W, H); x.restore();
+      x.strokeStyle = '#e9c65a'; x.lineWidth = 0.09 * ppm; x.beginPath(); x.ellipse(cx, cy, 4.62 * ppm, 6.22 * ppm, 0, 0, TAU); x.stroke();
+      x.strokeStyle = 'rgba(243,207,98,0.5)'; x.lineWidth = 0.04 * ppm; x.beginPath(); x.ellipse(cx, cy, 5.0 * ppm, 6.6 * ppm, 0, 0, TAU); x.stroke();
+      return mkTex(c);
+    })();
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ map: ceilTex }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = 6; g.add(ceil);
     var ceilFx = new THREE.Group(); g.add(ceilFx);                                  // masqué quand on regarde d'en haut (la caméra est au-dessus du plafond)
+    var haloM = new THREE.MeshBasicMaterial({ color: 0xffe3b0, side: THREE.DoubleSide });
+    [[R_OUT + 1.7, 5.46, 5.54], [R_OUT + 2.1, 5.7, 5.76]].forEach(function (hr) { ceilFx.add(ribbon(hr[0], hr[0], hr[1], hr[2], haloM)); });   // deux anneaux lumineux suspendus au-dessus de la table
+
+    /* ----- de quoi remplir la salle : fanions des chevaux, vitrines à trophées, palmiers, salons, bar, statue, affiches ----- */
+    // fanions : un par cheval, à ses couleurs, avec son numéro (4 sur chaque mur latéral)
+    HORSES.forEach(function (h, k) {
+      var bc = mkCanvas(128, 256), bx = bc.getContext('2d');
+      bx.fillStyle = hex(h.silk); bx.beginPath(); bx.moveTo(0, 0); bx.lineTo(128, 0); bx.lineTo(128, 256); bx.lineTo(64, 214); bx.lineTo(0, 256); bx.closePath(); bx.fill();
+      bx.fillStyle = 'rgba(255,255,255,0.2)'; bx.beginPath(); bx.moveTo(0, 60); bx.lineTo(128, 20); bx.lineTo(128, 70); bx.lineTo(0, 110); bx.closePath(); bx.fill();
+      bx.strokeStyle = '#e9c65a'; bx.lineWidth = 6; bx.stroke();
+      bx.beginPath(); bx.arc(64, 112, 38, 0, TAU); bx.fillStyle = '#fff'; bx.fill(); bx.fillStyle = h.ink; bx.font = '900 54px ' + MONO; bx.textAlign = 'center'; bx.textBaseline = 'middle'; bx.fillText(String(h.n), 64, 116);
+      var side = k < 4 ? 1 : -1, zz = [-6.6, -3.5, 3.5, 6.6][k % 4];
+      var bn = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 1.44), new THREE.MeshBasicMaterial({ map: mkTex(bc), transparent: true, side: THREE.DoubleSide }));
+      bn.position.set(side * (HX - 0.07), 3.2, zz); bn.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(bn);
+      var rod = box(0.04, 0.04, 0.9, side * (HX - 0.08), 3.96, zz, goldM);
+    });
+    // vitrines à trophées au milieu des murs latéraux
+    function trophy(parent, x, y, z, s) {
+      box(0.1 * s, 0.03 * s, 0.1 * s, x, y + 0.015 * s, z, woodDark, parent);
+      var st = new THREE.Mesh(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.1 * s, 8), goldM); st.position.set(x, y + 0.08 * s, z); parent.add(st);
+      var cup = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.03 * s, 0.11 * s, 14), goldM); cup.position.set(x, y + 0.185 * s, z); parent.add(cup);
+    }
+    [1, -1].forEach(function (side) {
+      var vg = new THREE.Group(); vg.position.set(side * (HX - 0.01), 0, 0); vg.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(vg);   // z local = vers l'intérieur de la salle
+      box(1.9, 2.5, 0.04, 0, 1.45, -0.18, new THREE.MeshStandardMaterial({ color: 0x4a0f1e, roughness: 0.9 }), vg);
+      box(0.06, 2.5, 0.5, -0.97, 1.45, 0, woodDark, vg); box(0.06, 2.5, 0.5, 0.97, 1.45, 0, woodDark, vg);
+      box(2.0, 0.08, 0.5, 0, 2.74, 0, woodDark, vg); box(2.0, 0.2, 0.5, 0, 0.1, 0, woodDark, vg);
+      [0.62, 1.2, 1.78].forEach(function (sy, si) { box(1.88, 0.03, 0.4, 0, sy, 0, new THREE.MeshStandardMaterial({ color: 0xcfe6ff, roughness: 0.1, transparent: true, opacity: 0.35 }), vg); for (var t = -2; t <= 2; t++) trophy(vg, t * 0.34, sy + 0.015, 0, 0.9 + (t + si) % 2 * 0.25); });
+      var gl = new THREE.Mesh(new THREE.PlaneGeometry(1.88, 2.4), new THREE.MeshBasicMaterial({ color: 0xaad8ff, transparent: true, opacity: 0.09, side: THREE.DoubleSide, depthWrite: false })); gl.position.set(0, 1.45, 0.24); vg.add(gl);
+      box(1.9, 0.04, 0.5, 0, 2.62, 0, ledDim, vg);
+      var lamp = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.1), new THREE.MeshBasicMaterial({ color: 0xffe9bf })); lamp.position.set(0, 2.6, 0.24); lamp.rotation.x = Math.PI / 2; vg.add(lamp);
+    });
+    // palmiers en pot
+    function palm(x, z, s) {
+      var pg = new THREE.Group(); pg.position.set(x, 0, z); pg.scale.set(s, s, s); g.add(pg);
+      var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x20262e, roughness: 0.4, metalness: 0.4 })); pot.position.y = 0.3; pg.add(pot);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.025, 8, 20), goldM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.6; pg.add(rim);
+      var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.5, 8), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); trunk.position.y = 1.3; pg.add(trunk);
+      var leafM = new THREE.MeshLambertMaterial({ color: 0x2c8a4a, side: THREE.DoubleSide });
+      for (var f = 0; f < 8; f++) {
+        var fa = f / 8 * TAU, fr = new THREE.Mesh(new THREE.ConeGeometry(0.1, 1.25, 4), leafM);
+        fr.scale.set(1, 1, 0.25); fr.position.set(Math.cos(fa) * 0.5, 2.0, Math.sin(fa) * 0.5); fr.rotation.set(Math.sin(fa) * 1.15, 0, -Math.cos(fa) * 1.15); pg.add(fr);
+      }
+      room.colliders.push({ x: x, z: z, r: 0.4 });
+    }
+    palm(-(HX - 0.9), HZ - 0.9, 1.1); palm(HX - 0.9, HZ - 0.9, 1.1); palm(-(HX - 0.9), 5.2, 1); palm(HX - 0.9, 5.2, 1); palm(-(HX - 0.9), -5.2, 1); palm(HX - 0.9, -5.2, 1);
+    // salons : un canapé chesterfield bordeaux de chaque côté de l'écran, avec sa petite table et sa lampe
+    var sofaM = new THREE.MeshStandardMaterial({ color: 0x6a1226, roughness: 0.7, metalness: 0.05 });
+    function sofa(x, z) {
+      var sg = new THREE.Group(); sg.position.set(x, 0, z); g.add(sg);          // face à +z
+      box(2.0, 0.42, 0.9, 0, 0.36, 0, sofaM, sg); box(2.0, 0.78, 0.2, 0, 0.78, -0.36, sofaM, sg);
+      box(0.2, 0.62, 0.9, -1.0, 0.5, 0, sofaM, sg); box(0.2, 0.62, 0.9, 1.0, 0.5, 0, sofaM, sg);
+      box(1.84, 0.1, 0.8, 0, 0.62, 0.02, new THREE.MeshStandardMaterial({ color: 0x7e1a30, roughness: 0.65 }), sg);
+      [-0.9, 0.9].forEach(function (fx) { box(0.08, 0.14, 0.08, fx, 0.07, 0.38, goldM, sg); box(0.08, 0.14, 0.08, fx, 0.07, -0.38, goldM, sg); });
+      room.colliders.push({ x: x - 0.55, z: z, r: 0.8 }, { x: x + 0.55, z: z, r: 0.8 });
+    }
+    function sideTable(x, z) {
+      var tt2 = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 20), woodDark); tt2.position.set(x, 0.62, z); g.add(tt2);
+      var tl = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.6, 8), goldM); tl.position.set(x, 0.3, z); g.add(tl);
+      var lampB = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe3b0 })); lampB.position.set(x, 0.82, z); g.add(lampB);
+      room.colliders.push({ x: x, z: z, r: 0.38 });
+    }
+    sofa(-6.0, -HZ + 1.0); sofa(6.0, -HZ + 1.0); sideTable(-4.3, -HZ + 0.9); sideTable(4.3, -HZ + 0.9);
+    // bar au sud-ouest : comptoir, tabourets, étagères de bouteilles éclairées
+    var barG = new THREE.Group(); barG.position.set(-5.2, 0, HZ - 1.5); g.add(barG);
+    box(3.4, 1.0, 0.7, 0, 0.5, 0, woodDark, barG); box(3.5, 0.06, 0.8, 0, 1.03, 0, goldM, barG); box(3.3, 0.05, 0.05, 0, 0.85, 0.36, ledB, barG);
+    [-1.2, -0.4, 0.4, 1.2].forEach(function (sx) {
+      var sp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), goldM); sp.position.set(sx, 0.3, -0.9); barG.add(sp);
+      var ss = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 16), new THREE.MeshStandardMaterial({ color: 0x6a1226, roughness: 0.6 })); ss.position.set(sx, 0.62, -0.9); barG.add(ss);
+    });
+    var mirror = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x2a1c12 })); mirror.position.set(0, 1.9, 1.17); mirror.rotation.y = Math.PI; barG.add(mirror);
+    [1.35, 1.9].forEach(function (sy) {
+      box(3.4, 0.04, 0.22, 0, sy, 1.06, goldM, barG);
+      for (var bt = 0; bt < 11; bt++) {
+        var bcol = [0x2c8a4a, 0xc8412b, 0xe9c65a, 0x3a8dff, 0xb04bd0][(bt + (sy > 1.5 ? 2 : 0)) % 5];
+        var bot = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.28, 8), new THREE.MeshBasicMaterial({ color: bcol })); bot.position.set(-1.5 + bt * 0.3, sy + 0.16, 1.06); barG.add(bot);
+      }
+    });
+    room.colliders.push({ x: -6.4, z: HZ - 1.5, r: 0.9 }, { x: -5.2, z: HZ - 1.5, r: 0.9 }, { x: -4.0, z: HZ - 1.5, r: 0.9 });
+    // statue de cheval en or sur un socle de marbre, au sud-est
+    var pedM = new THREE.MeshStandardMaterial({ color: 0xe9e1d2, roughness: 0.3, metalness: 0.1 });
+    box(1.1, 0.9, 1.1, 5.3, 0.45, HZ - 1.5, pedM); box(1.2, 0.08, 1.2, 5.3, 0.94, HZ - 1.5, goldM); box(1.2, 0.08, 1.2, 5.3, 0.04, HZ - 1.5, goldM);
+    var stat = createHorse({ n: 1, silk: 0xffd24a, coat: 0xd9a227, ink: '#222222' }, 0);
+    stat.tag.visible = false; stat.group.scale.set(4.2, 4.2, 4.2); stat.group.position.set(5.3, 0.98, HZ - 1.5); stat.group.rotation.y = -2.5; g.add(stat.group);
+    room.colliders.push({ x: 5.3, z: HZ - 1.5, r: 0.95 });
+    // affiches encadrées
+    function poster(x, y, z, ry, l1, l2, hue) {
+      var cp = mkCanvas(420, 280), cx2 = cp.getContext('2d'), gg = cx2.createLinearGradient(0, 0, 0, 280);
+      gg.addColorStop(0, hue[0]); gg.addColorStop(1, hue[1]); cx2.fillStyle = gg; cx2.fillRect(0, 0, 420, 280);
+      cx2.strokeStyle = '#e9c65a'; cx2.lineWidth = 6; cx2.strokeRect(14, 14, 392, 252);
+      cx2.strokeStyle = '#e9c65a'; cx2.lineWidth = 12; cx2.lineCap = 'round'; cx2.beginPath(); cx2.arc(210, 118, 46, -Math.PI * 0.82, Math.PI * 0.82 - Math.PI); cx2.stroke();
+      cx2.beginPath(); cx2.arc(210, 118, 46, Math.PI * 0.18 + Math.PI, Math.PI * 1.82 + Math.PI); cx2.stroke();
+      cx2.fillStyle = '#fff3d6'; cx2.textAlign = 'center'; cx2.font = '900 34px ' + SERIF; cx2.fillText(l1, 210, 205, 360);
+      cx2.fillStyle = '#e9c65a'; cx2.font = '700 18px ' + MONO; cx2.fillText(l2, 210, 238, 360);
+      box(1.55, 1.05, 0.06, x, y, z, goldM);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.93), new THREE.MeshBasicMaterial({ map: mkTex(cp) })); pl.position.set(x + Math.sin(ry) * 0.04, y, z + Math.cos(ry) * 0.04); pl.rotation.y = ry; g.add(pl);
+    }
+    poster(-6.6, 3.5, -HZ + 0.05, 0, 'GRAND PRIX', 'LES FLAMBEURS', ['#5a1020', '#240a12']); poster(6.6, 3.5, -HZ + 0.05, 0, 'TIERCÉ GAGNANT', 'HIPPODROME VIP', ['#0e4a3c', '#06201a']);
+    poster(-3.4, 3.2, HZ - 0.05, Math.PI, 'DERBY', 'PARIEZ SUR LE FAVORI', ['#1b3a7a', '#0b1630']); poster(3.4, 3.2, HZ - 0.05, Math.PI, 'PHOTO FINISH', 'TOUS LES SOIRS', ['#6a4a10', '#2a1a05']);
     /* ----- la table de jeu ----- */
     var tt = trackTexture();
-    var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0 }));
+    var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0, transparent: true, alphaTest: 0.4 }));
     felt.rotation.x = -Math.PI / 2; felt.position.y = TY; g.add(felt);
     g.add(slab(R_OUT + 0.88, 0, 0, TY - 0.02, new THREE.MeshStandardMaterial({ color: 0x0b111c, roughness: 0.85, metalness: 0.05 })));                                   // le coffre de la table
     g.add(slab(R_OUT + 0.9, R_OUT + 0.06, TY - 0.01, TY + 0.08, matDark));                                                 // le rebord qui porte les bornes
@@ -322,12 +453,7 @@
     }
     ledRow(R_OUT + 0.78, TY + 0.09, low ? 0.12 : 0.065, 0.16, 1); ledRow(R_OUT + 0.5, TY + 0.09, low ? 0.12 : 0.065, 0.16, -1);
     // plafond : des anneaux néon qui reprennent la forme de la table, avec des LED qui courent entre eux
-    [3.4, 5.0, 6.6, 8.2].forEach(function (rr, k) {
-      var tube = slab(rr + 0.05, rr - 0.05, 5.955, 5.985, ledA); tube.material = k % 2 ? ledB : ledA; ledA.side = ledB.side = THREE.DoubleSide; ceilFx.add(tube);
-      var halo = slab(rr + 0.32, rr - 0.32, 5.99, 5.995, ledDim); ceilFx.add(halo);
-    });
-    [4.2, 5.8, 7.4].forEach(function (rr, k) { ledRow(rr, 5.95, 0.11, 0.2, k % 2 ? -1 : 1, ceilFx); });
-    var hub = slab(2.2, 0, 5.97, 5.99, ledDim); ceilFx.add(hub);          // plaque sombre juste au-dessus de la piste
+    // (le plafond est maintenant une texture : caissons et oculus, voir ceilTex)
     // grosse enseigne néon sur la face nord et colliders de la table (cercles qui recouvrent le rebord)
     for (var cz = -HS; cz <= HS + 0.01; cz += 0.85) room.colliders.push({ x: 0, z: cz, r: R_OUT + 1.0 });
     room.colliders.push({ x: 0, z: -HS, r: R_OUT + 1.05 }, { x: 0, z: HS, r: R_OUT + 1.05 });
@@ -399,7 +525,7 @@
     if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: HZ - 0.02, nx: 0, nz: -1, w: 1.8, h: 2.9, label: 'HALL', sub: 'Sortie', color: 0xffe9b0, target: 'hall' });
 
     /* ----- éclairage ----- */
-    g.add(new THREE.AmbientLight(0xb8c4e0, 0.85));
+    g.add(new THREE.AmbientLight(0xf0dcc4, 0.95));
     var key = new THREE.DirectionalLight(0xfff4e0, 0.55); key.position.set(4, 9, 6); g.add(key);
     var pl = new THREE.PointLight(0xfff0d8, 1.1, 22); pl.position.set(0, 5, 0); g.add(pl);
     if (!low) {
