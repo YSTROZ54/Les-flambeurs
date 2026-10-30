@@ -543,13 +543,14 @@
   // Affiche des règles du Texas Hold'em : classement des mains (de la plus forte à la plus faible) et départage des égalités
   function rulesTexture() {
     return canvasTex(1800, 1560, (c, w, h) => {
+      c.translate(w, 0); c.scale(-1, 1);        // l'affiche est vue de l'intérieur du cylindre : on dessine en miroir pour qu'elle se lise à l'endroit
       const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#16100c'); g.addColorStop(1, '#0b0806'); c.fillStyle = g; c.fillRect(0, 0, w, h);
       c.strokeStyle = '#d4a62a'; c.lineWidth = 10; c.strokeRect(18, 18, w - 36, h - 36); c.lineWidth = 3; c.strokeRect(38, 38, w - 76, h - 76);
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillStyle = '#f3cf62'; c.font = '900 96px Georgia, serif'; c.fillText("RÈGLES DU TEXAS HOLD'EM", w / 2, 112);
       c.fillStyle = '#efe4c8'; c.font = '600 40px Georgia, serif';
-      c.fillText("Tu reçois 2 cartes, 5 cartes communes sont posées sur la table (flop : 3, turn : 1, river : 1).", w / 2, 192);
-      c.fillText("Ta meilleure main de 5 cartes parmi les 7 gagne. Voici qui bat qui, de la plus forte à la plus faible :", w / 2, 246);
+      c.fillText("Tu reçois 2 cartes, 5 cartes communes sont posées sur la table (flop : 3, turn : 1, river : 1).", w / 2, 192, w - 200);
+      c.fillText("Ta meilleure main de 5 cartes parmi les 7 gagne. Voici qui bat qui, de la plus forte à la plus faible :", w / 2, 246, w - 200);
       const card = (x, y, r, s) => {
         const red = s === '♥' || s === '♦', cw = 82, ch = 112;
         c.fillStyle = '#fbf7ec'; c.beginPath(); if (c.roundRect) c.roundRect(x, y, cw, ch, 9); else c.rect(x, y, cw, ch); c.fill(); c.strokeStyle = '#8c846c'; c.lineWidth = 2; c.stroke();
