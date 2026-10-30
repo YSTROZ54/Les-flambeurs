@@ -138,7 +138,7 @@
     })();
     var garlands = [], wireMat = new THREE.MeshBasicMaterial({ color: 0x2a1a30 });
     function garland(cx, cz) {
-      var turns = 4, y0 = 0.7, y1 = 7.3, R = 0.55, strands = 2, step = low ? 0.13 : 0.07, s;
+      var turns = 4, y0 = 0.3, y1 = 7.7, R = 0.55, strands = 2, step = low ? 0.13 : 0.07, s;
       for (s = 0; s < strands; s++) {
         var ph = s * Math.PI, pts = [], k, n = turns * 40;
         for (k = 0; k <= n; k++) { var f = k / n, a = ph + f * turns * TAU; pts.push(new THREE.Vector3(cx + Math.cos(a) * R, y0 + f * (y1 - y0), cz + Math.sin(a) * R)); }

@@ -757,6 +757,49 @@
       var pl = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.7), new THREE.MeshBasicMaterial({ map: pTex, transparent: true }));
       pl.position.set(x + (-s[0]) * 0.09, 1.45, 4.5); pl.rotation.y = s[1]; pl.userData.action = 'fs'; scene.add(pl); plaques.push(pl);
     });
+    /* --- décor : affiches encadrées, appliques, néon JACKPOT et plantes sur le mur de la porte et sur le mur de gauche --- */
+    var haloC = mkCanvas(128, 128), hxx = haloC.getContext('2d'), hgr = hxx.createRadialGradient(64, 64, 2, 64, 64, 62);
+    hgr.addColorStop(0, 'rgba(255,235,190,1)'); hgr.addColorStop(0.3, 'rgba(255,200,120,0.45)'); hgr.addColorStop(1, 'rgba(255,170,80,0)'); hxx.fillStyle = hgr; hxx.fillRect(0, 0, 128, 128);
+    var haloMat = new THREE.SpriteMaterial({ map: mkTex(haloC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 });
+    function poster(x, y, z, ry, sym, title, w, h) {
+      var pc = mkCanvas(400, Math.round(400 * h / w)), pc2 = pc.getContext('2d'), PWd = pc.width, PHt = pc.height;
+      var pg = pc2.createLinearGradient(0, 0, 0, PHt); pg.addColorStop(0, '#2b1038'); pg.addColorStop(1, '#0d0612'); pc2.fillStyle = pg; pc2.fillRect(0, 0, PWd, PHt);
+      pc2.strokeStyle = '#c9a227'; pc2.lineWidth = 8; pc2.strokeRect(10, 10, PWd - 20, PHt - 20); pc2.strokeStyle = 'rgba(201,162,39,0.45)'; pc2.lineWidth = 2; pc2.strokeRect(24, 24, PWd - 48, PHt - 48);
+      pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.46) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+      pc2.fillStyle = '#f3cf62'; pc2.shadowColor = '#ffb300'; pc2.shadowBlur = 12; pc2.font = '800 ' + Math.round(PWd * 0.115) + 'px ' + SERIF; pc2.fillText(title, PWd / 2, PHt * 0.82, PWd - 70);
+      var gp = new THREE.Group(); gp.position.set(x, y, z); gp.rotation.y = ry; scene.add(gp);
+      var fr = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.07), goldMat); fr.position.z = 0.035; gp.add(fr);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(pc) })); pl.position.z = 0.075; gp.add(pl);
+    }
+    function sconce(x, y, z, ry) {
+      var gp = new THREE.Group(); gp.position.set(x, y, z); gp.rotation.y = ry; scene.add(gp);
+      var plate = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.42, 0.05), goldMat); plate.position.z = 0.025; gp.add(plate);
+      var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.22, 8), goldMat); arm.rotation.x = Math.PI / 2; arm.position.set(0, -0.04, 0.14); gp.add(arm);
+      var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe3b0 })); bulb.position.set(0, -0.02, 0.27); gp.add(bulb);
+      var halo = new THREE.Sprite(haloMat); halo.scale.set(0.8, 0.8, 1); halo.position.set(0, -0.02, 0.28); gp.add(halo);
+    }
+    function neonSign(x, y, z, ry, text, w, h, col) {
+      var nc = mkCanvas(1400, Math.round(1400 * h / w)), n2 = nc.getContext('2d');
+      n2.fillStyle = '#0a0510'; n2.fillRect(0, 0, nc.width, nc.height); n2.strokeStyle = col; n2.lineWidth = 14; n2.shadowColor = col; n2.shadowBlur = 28; n2.strokeRect(24, 24, nc.width - 48, nc.height - 48);
+      n2.textAlign = 'center'; n2.textBaseline = 'middle'; n2.fillStyle = '#fff4e0'; n2.font = '900 ' + Math.round(nc.height * 0.56) + 'px ' + SERIF; n2.fillText(text, nc.width / 2, nc.height * 0.53, nc.width - 150);
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(nc) })); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m);
+    }
+    function plant(x, z) {
+      var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.2 })); pot.position.set(x, 0.275, z); scene.add(pot);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 8, 20), goldMat); rim.rotation.x = Math.PI / 2; rim.position.set(x, 0.55, z); scene.add(rim);
+      var leafM = new THREE.MeshStandardMaterial({ color: 0x1f6b3a, roughness: 0.7 });
+      for (var q = 0; q < 8; q++) { var an = q / 8 * TAU, lf = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), leafM); lf.scale.set(0.55, 1.5, 0.28); lf.position.set(x + Math.cos(an) * 0.28, 1.25 + (q % 2) * 0.25, z + Math.sin(an) * 0.28); lf.rotation.set(Math.sin(an) * 0.5, -an, Math.cos(an) * 0.5); scene.add(lf); }
+    }
+    // mur de la porte (z = front), tourné vers la salle
+    neonSign(0, 5.9, ROOM.front - 0.06, Math.PI, 'JACKPOT 777', 6.6, 1.3, '#ff4fa8');
+    poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
+    poster(-8.0, 3.6, ROOM.front - 0.05, Math.PI, '🍒', 'CERISES', 1.5, 2.0); poster(8.0, 3.6, ROOM.front - 0.05, Math.PI, '🔔', 'CLOCHES', 1.5, 2.0);
+    [-3.6, 3.6, -6.8, 6.8].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
+    plant(-7.4, ROOM.front - 0.9); plant(7.4, ROOM.front - 0.9); plant(-3.0, ROOM.front - 0.9); plant(3.0, ROOM.front - 0.9);
+    // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
+    [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
+    [1.8, 5.0, 8.2, -1.4].forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2); });
+    neonSign(-ROOM.wall + 0.06, 3.7, 9.9, Math.PI / 2, 'SLOTS', 2.6, 0.9, '#ffd24a');
     return { drawBoard: drawBoard, drawPlaque: drawPlaque, plaques: plaques };
   }
 
@@ -822,7 +865,7 @@
     built.plaques.forEach(function (pl) { room.interactables.push({ hit: pl, use: function () { world.setFull(!world.full); } }); });
 
     // porte de sortie vers le hall (seulement dans le monde complet)
-    if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: ROOM.front - 0.02, nx: 0, nz: -1, w: 1.7, label: 'HALL', sub: 'Sortie', color: 0xffe9b0, target: 'hall' });
+    if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: ROOM.front - 0.02, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffe08a, target: 'hall', theme: 'exitSlots' });
 
     room.spawn = function () { return { x: 0, z: 8.2, yaw: 0 }; };
     room.hint = function (w) {

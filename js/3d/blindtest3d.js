@@ -55,24 +55,35 @@
     var sc0 = mkCanvas(1024, 200), sx = sc0.getContext('2d'); sx.shadowColor = '#e040fb'; sx.shadowBlur = 30; sx.fillStyle = '#ffd9ff'; sx.font = '900 120px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('🎬 BLIND TEST', 512, 104, 980);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.25), new THREE.MeshBasicMaterial({ map: mkTex(sc0), transparent: true, depthWrite: false })); sign.position.set(HX - 0.1, 3.6, 0); sign.rotation.y = -Math.PI / 2; g.add(sign);
     // règles : sur le mur de gauche (images seulement pour le moment)
-    var rc = mkCanvas(1024, 1100), rx = rc.getContext('2d');
-    rx.fillStyle = '#12081c'; rx.fillRect(0, 0, 1024, 1100); rx.strokeStyle = '#c9a227'; rx.lineWidth = 10; rx.strokeRect(12, 12, 1000, 1076); rx.strokeStyle = 'rgba(201,162,39,0.45)'; rx.lineWidth = 3; rx.strokeRect(34, 34, 956, 1032);
-    rx.textAlign = 'center'; rx.textBaseline = 'middle'; rx.shadowColor = '#e040fb'; rx.shadowBlur = 22; rx.fillStyle = '#ffd9ff'; rx.font = '900 84px ' + SERIF; rx.fillText('RÈGLES DU JEU', 512, 120, 900); rx.shadowBlur = 0;
-    rx.strokeStyle = 'rgba(224,64,251,0.7)'; rx.lineWidth = 4; rx.beginPath(); rx.moveTo(200, 190); rx.lineTo(824, 190); rx.stroke();
+    var RW = 1100, RH = 860, rc = mkCanvas(RW, RH), rx = rc.getContext('2d');
+    rx.fillStyle = '#12081c'; rx.fillRect(0, 0, RW, RH); rx.strokeStyle = '#c9a227'; rx.lineWidth = 10; rx.strokeRect(12, 12, RW - 24, RH - 24); rx.strokeStyle = 'rgba(201,162,39,0.45)'; rx.lineWidth = 3; rx.strokeRect(34, 34, RW - 68, RH - 68);
+    rx.textAlign = 'center'; rx.textBaseline = 'middle'; rx.shadowColor = '#e040fb'; rx.shadowBlur = 22; rx.fillStyle = '#ffd9ff'; rx.font = '900 76px ' + SERIF; rx.fillText('RÈGLES DU JEU', RW / 2, 100, RW - 140); rx.shadowBlur = 0;
+    rx.strokeStyle = 'rgba(224,64,251,0.7)'; rx.lineWidth = 4; rx.beginPath(); rx.moveTo(220, 160); rx.lineTo(RW - 220, 160); rx.stroke();
     var RULES = ['Assieds-toi devant l’écran d’un salon (6 joueurs au maximum).', 'Une image d’un film, d’un dessin animé ou d’une série s’affiche : devine son titre.', 'Tape ta réponse avant la fin du chrono (20 secondes).', 'Mode « Tous » : tout le monde peut répondre pendant le chrono. Mode « Premier » : le premier qui trouve gagne le point.', 'Chaque image trouvée vaut 1 point : le meilleur score gagne la partie.', 'À 2 joueurs ou plus, chaque image trouvée rapporte 20 🪙. Seul, c’est un entraînement.', 'Le chef du salon règle la partie (nombre d’images, catégories) et la lance.'];
-    rx.textAlign = 'left'; rx.textBaseline = 'top'; rx.font = '600 38px ' + SERIF;
-    var ry = 232;
-    RULES.forEach(function (t, k) {
-      rx.fillStyle = '#e040fb'; rx.beginPath(); rx.arc(86, ry + 24, 24, 0, TAU); rx.fill(); rx.fillStyle = '#12081c'; rx.font = '900 32px ' + SERIF; rx.textAlign = 'center'; rx.fillText(String(k + 1), 86, ry + 8); rx.textAlign = 'left';
-      rx.fillStyle = '#f3e6ff'; rx.font = '600 31px ' + SERIF;
-      var words = t.split(' '), line = '', lines = [];
-      words.forEach(function (wd) { var test = line ? line + ' ' + wd : wd; if (rx.measureText(test).width > 820 && line) { lines.push(line); line = wd; } else line = test; });
-      lines.push(line);
-      lines.forEach(function (ln, li) { rx.fillText(ln, 140, ry + li * 40); });
-      ry += Math.max(1, lines.length) * 40 + 30;
-    });
-    var rules = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 6.0), new THREE.MeshBasicMaterial({ map: mkTex(rc) })); rules.position.set(-HX + 0.1, 3.2, 0); rules.rotation.y = Math.PI / 2; g.add(rules);
-    box(g, 0.1, 6.2, 5.8, goldM, -HX + 0.06, 3.2, 0); rules.position.x = -HX + 0.13;
+    // met les règles en page ; la taille du texte diminue jusqu'à ce que tout tienne dans le cadre (retourne la hauteur occupée)
+    function layoutRules(fs, draw) {
+      var y = 200, lh = Math.round(fs * 1.32), gap = Math.round(fs * 0.72), bx0 = 100, tx0 = 160, maxW = RW - tx0 - 70;
+      RULES.forEach(function (t, k) {
+        rx.font = '600 ' + fs + 'px ' + SERIF; rx.textAlign = 'left'; rx.textBaseline = 'middle';
+        var words = t.split(' '), line = '', lines = [];
+        words.forEach(function (wd) { var test = line ? line + ' ' + wd : wd; if (rx.measureText(test).width > maxW && line) { lines.push(line); line = wd; } else line = test; });
+        lines.push(line);
+        if (draw) {
+          var rad = Math.round(fs * 0.6);
+          rx.fillStyle = '#e040fb'; rx.beginPath(); rx.arc(bx0, y + lh / 2, rad, 0, TAU); rx.fill();
+          rx.fillStyle = '#12081c'; rx.font = '900 ' + Math.round(fs * 0.9) + 'px ' + SERIF; rx.textAlign = 'center'; rx.fillText(String(k + 1), bx0, y + lh / 2 + 1);
+          rx.font = '600 ' + fs + 'px ' + SERIF; rx.textAlign = 'left'; rx.fillStyle = '#f3e6ff';
+          lines.forEach(function (ln, li) { rx.fillText(ln, tx0, y + lh / 2 + li * lh, maxW); });
+        }
+        y += lines.length * lh + gap;
+      });
+      return y;
+    }
+    var rfs = 34; while (rfs > 20 && layoutRules(rfs, false) > RH - 80) rfs -= 1;
+    layoutRules(rfs, true);
+    var RPW = 5.6, RPH = RPW * RH / RW;                      // le panneau reste bien plus bas que le plafond (H = 6)
+    var rules = new THREE.Mesh(new THREE.PlaneGeometry(RPW, RPH), new THREE.MeshBasicMaterial({ map: mkTex(rc) })); rules.position.set(-HX + 0.13, 3.1, 0); rules.rotation.y = Math.PI / 2; g.add(rules);
+    box(g, 0.1, RPH + 0.2, RPW + 0.2, goldM, -HX + 0.06, 3.1, 0);
 
     /* --- les trois écrans (un par salon) --- */
     var imgCache = {};
