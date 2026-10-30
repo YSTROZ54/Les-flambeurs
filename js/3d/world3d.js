@@ -636,7 +636,7 @@
     if (!this.selfPerson) {
       var nm = '', av = '';
       try { nm = state.username || ''; av = state.avatarEmoji || ''; } catch (er) { /* pas connecté */ }
-      this.selfPerson = F.createPerson(nm || 'Moi', av);
+      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av);
       this.selfPerson.tag.visible = false;
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
@@ -715,7 +715,7 @@
   World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw) {
     var r = this.remote[k];
     if (!r) {
-      r = this.remote[k] = { name: name || k, person: F.createPerson(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
+      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
       r.person.group.position.set(x, 0, z);
       this.scene.add(r.person.group);
     }
