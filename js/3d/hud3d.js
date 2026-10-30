@@ -397,7 +397,7 @@
           '<div class="ph-pf-id">' +
             '<button class="ph-pf-name" data-act="pf-editname" title="Changer le pseudo (50 000 €)"><b>' + esc(name) + '</b><i class="fa-solid fa-pen"></i></button>' +
             '<span class="ph-rank role-tag ' + rc + '"><i class="fa-solid ' + ri + ' role-crown"></i> <span class="role-label">' + rn + '</span></span>' +
-            '<div class="ph-bal"><i class="fl-coin"></i><b>' + bal + '</b> jetons</div>' +
+            '<div class="ph-bal"><i class="fl-coin"></i><b>' + bal + '</b></div>' +
           '</div></div>';
       if (pfEdit === 'name') {
         h += '<div class="ph-pf-edit"><label class="ph-lab">Nouveau pseudo</label><input class="ph-in" data-ph="pfname" type="text" maxlength="20" value="' + esc(name) + '" autocomplete="off" spellcheck="false">' +

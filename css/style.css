@@ -3128,3 +3128,10 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-inv-img { width: 36px; height: 36px; object-fit: contain; }
 .ph-hotbar .ph-inv .ph-inv-img { width: 32px; height: 32px; }
 .ts-logo { object-fit: contain; border-radius: 0; }
+
+/* profil : un gros solde ne dépasse plus de la carte */
+.ph-pf-head { gap: 12px; }
+.ph-pf-ava { width: 62px; height: 62px; }
+.ph-pf-id { overflow: hidden; }
+.ph-pf-id .ph-bal { flex-shrink: 1; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 3px 8px; gap: 4px; font-size: 11px; }
+.ph-pf-id .ph-bal b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
