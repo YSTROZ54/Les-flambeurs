@@ -23,7 +23,7 @@
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
-    { x: -HX, z: -5, nx: 1, nz: 0, label: '💎 CHAMBRE FORTE', sub: 'ÉVITE LES BOMBES', color: 0x8ae6c8, target: 'mines', theme: 'mines' },
+    { x: -HX, z: -5, nx: 1, nz: 0, label: '🦖 LA STATUE', sub: "SALLE D'EXPOSITION", color: 0xffd24a, target: 'statue' },   // l'ancienne porte de la chambre forte : ce jeu reste dans le menu 2D
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎟️ GRATTAGE', sub: 'TICKETS GAGNANTS', color: 0xffc0e0, target: 'scratch', theme: 'scratch' },
     // mur de droite (regarde vers -x)

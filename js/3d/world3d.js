@@ -903,7 +903,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema'], start: place || 'hall', hall: true, menu: true,
+          rooms: ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'statue'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key); }
         });
