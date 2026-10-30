@@ -282,8 +282,8 @@
   };
   /* ---------- ta main en vue à la première personne : le bras droit du vrai personnage (seulement les triangles du bras) ---------- */
   var ARM_RE = /(upperarm_r|lowerarm_r|hand_r|index_.._r|middle_.._r|ring_.._r|pinky_.._r|thumb_.._r)$/;
-  var ARM_POSE = [1.419, -0.457, 1.113, 1.987, 0.97], HAND_POSE = [0.137, -0.327, 0.968];   // épaule (z, y, x), avant-bras (y, z), poignet (x, y, z) : paume vers soi, doigts vers le haut
-  var SH_POS = [0.2, -0.15, 0.0], SH_HIDDEN_Y = -0.85;                                                      // position de l'épaule dans le repère de la caméra ; le bras descend hors de l'écran quand on ne tient rien
+  var ARM_POSE = [-0.609, 0.619, 1.64, -0.994, 0.19], HAND_POSE = [-1.131, -1.671, -0.251];   // épaule (z, y, x), avant-bras (y, z), poignet (x, y, z) : paume vers soi, doigts vers le haut
+  var SH_POS = [0.2, -0.33, 0.0], SH_HIDDEN_Y = -1.1;                                                      // position de l'épaule dans le repère de la caméra ; le bras descend hors de l'écran quand on ne tient rien
   T.armGeo = {};
   function armGeometry(sx, body) {
     if (T.armGeo[sx]) return T.armGeo[sx];
@@ -332,7 +332,7 @@
       app(r.hand_r, [['x', HAND_POSE[0]], ['y', HAND_POSE[1]], ['z', HAND_POSE[2]]]);
       parts.fingers.forEach(function (n) {                         // doigts recourbés vers soi (axe x), pouce replié sur le côté (axe z)
         var th = /thumb/.test(n), j = +n.split('_')[1], w = j === 1 ? 1 : j === 2 ? 1.15 : 0.9;
-        app(r[n], [th ? ['z', -0.5 * w] : ['x', 0.7 * w]]);
+        app(r[n], [th ? ['z', -0.5 * w] : ['x', 0.45 * w]]);
       });
       parts.root.position.set(0, 0, 0); parts.root.updateMatrixWorld(true);
       parts.sh.getWorldPosition(tmpV); parts.root.worldToLocal(tmpV);        // épaule dans le repère du corps (indépendant de la caméra)

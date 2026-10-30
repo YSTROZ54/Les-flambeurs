@@ -98,7 +98,7 @@
           if (item) {                                                    // l'objet est tenu devant la paume (qui regarde vers toi), doigts vers le haut
             if (item.parent !== va.group) { if (item.parent) item.parent.remove(item); va.group.add(item); }
             va.handFrame(vtmp, vup, vnr);
-            item.position.copy(vtmp).addScaledVector(vup, 0.035).addScaledVector(vnr, 0.042); item.scale.setScalar(0.9);
+            item.position.copy(vtmp).addScaledVector(vup, 0.035).addScaledVector(vnr, 0.042); item.scale.setScalar(0.95);
             vx.crossVectors(vup, vnr).normalize(); vy.crossVectors(vnr, vx);
             vm4.makeBasis(vx, vy, vnr); item.quaternion.setFromRotationMatrix(vm4); item.visible = k > 0.25;
           }
