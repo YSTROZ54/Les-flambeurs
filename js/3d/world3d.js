@@ -949,7 +949,7 @@
     }
     F.active = main;
     if (F.persona && F.persona.ensureLook) setTimeout(F.persona.ensureLook, 800);   // pas encore de personnage : écran de création (creation3d.js)
-    if (!main.touch && !main.full) main.setFull(true);   // on entre toujours en plein écran (Échap ou « Quitter » pour en sortir)
+    if (!main.touch && !main.full && place !== 'blackjack') main.setFull(true);   // on entre en plein écran (Échap ou « Quitter » pour en sortir), sauf au blackjack : là c'est au joueur de cliquer sur « Plein écran »
     return true;
   };
   F.closeWorld = function () { if (main) main.pause(); if (F.active === main) F.active = null; };

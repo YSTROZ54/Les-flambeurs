@@ -82,8 +82,9 @@
   }
   var cardGeo = null;
   function makeCard(c) {
-    if (!cardGeo) cardGeo = new THREE.PlaneGeometry(0.2, 0.28);
-    var m = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: cardTex(c) })); m.rotation.order = 'YXZ'; m.rotation.x = -Math.PI / 2; m.userData.card = c; return m;
+    if (!cardGeo) cardGeo = new THREE.PlaneGeometry(0.25, 0.35);
+    var m = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: cardTex(c) })); m.rotation.order = 'YXZ'; m.rotation.x = -1.2;   // posée presque à plat mais penchée de 20° vers le joueur : lisible même de côté
+     m.userData.card = c; return m;
   }
 
   function createBlackjackRoom(world) {
@@ -212,18 +213,18 @@
     function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); p.add(o); return o; }
 
     /* --- la manche (affichage + serveur) --- */
-    var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100;
+    var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, view3 = false, meRig = null;
     var R = { phase: 'idle', table: null, me: [], dealer: [], botHands: {}, deck: [], up: null, final: null, busy: false, msg: '' };
     function seatTaken(s) {
       var now = performance.now();
       return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; });
     }
     function spotPos(T, s, ci, n) {      // carte n°ci du joueur assis à la place s
-      var ph = s.phi, bx = T.x + Math.sin(ph) * 1.2, bz = T.z + Math.cos(ph) * 1.2, tx0 = Math.cos(ph), tz0 = -Math.sin(ph);
-      var off = (ci - (n - 1) / 2) * 0.16;
-      return { x: bx + tx0 * off, z: bz + tz0 * off, y: TOP_Y + 0.006 + ci * 0.003, ry: ph + 0.05 * ((ci % 2) ? 1 : -1) };   // le haut de la carte regarde vers le centre de la table
+      var ph = s.phi, bx = T.x + Math.sin(ph) * 1.1, bz = T.z + Math.cos(ph) * 1.1, tx0 = Math.cos(ph), tz0 = -Math.sin(ph);
+      var off = (ci - (n - 1) / 2) * 0.24;
+      return { x: bx + tx0 * off, z: bz + tz0 * off, y: TOP_Y + 0.07 + ci * 0.004, ry: ph + 0.03 * ((ci % 2) ? 1 : -1) };   // le haut de la carte regarde vers le centre de la table
     }
-    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.23, z: T.z + 0.42, y: TOP_Y + 0.006 + ci * 0.003, ry: 0 }; }
+    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.3, z: T.z + 0.5, y: TOP_Y + 0.07 + ci * 0.004, ry: 0 }; }
     function placeCard(owner, key, T, card, pos, sec) {
       var m = makeCard(card); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); m.rotation.y = pos.ry; g.add(m);
       T.cards = T.cards || []; T.cards.push(m);
@@ -260,8 +261,14 @@
     function botSeats(T) { return T.spots.filter(function (s) { return s.bot; }); }
 
     function setMsg(t, col) { R.msg = t; if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
+    function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="n">🂠</span>' : '<span class="' + (red ? 'r' : 'n') + '">' + c.r + c.s + '</span>'; }).join(' '); }
     function refreshUi() {
       if (!ui) return;
+      var hd = ui.el.querySelector('.bj-hands');
+      if (R.phase !== 'idle' && R.me.length) {
+        var hidden = R.dealer.some(function (c) { return c.r === '?'; });
+        hd.innerHTML = '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : ' (' + score(R.dealer) + ')') + '</div><div>Toi : ' + handHtml(R.me) + ' (' + score(R.me) + ')</div>';
+      } else hd.innerHTML = '';
       var q = function (s) { return ui.el.querySelector(s); };
       q('.bj-bal b').textContent = fmtN(balance()) + ' 🪙'; q('.bj-bet b').textContent = fmtN(bet) + ' 🪙';
       var idle = R.phase === 'idle' && !R.busy, mine = R.phase === 'me' && !R.busy;
@@ -361,7 +368,7 @@
       if (document.getElementById('bj3d-css')) return;
       var s = document.createElement('style'); s.id = 'bj3d-css';
       s.textContent = '.bj3d{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);width:min(560px,92%);background:rgba(8,5,12,.9);border:1px solid rgba(201,162,39,.6);border-radius:16px;padding:12px 14px;color:#f4e3b0;pointer-events:auto;display:flex;flex-direction:column;gap:8px;font-family:inherit;z-index:5}' +
-        '.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
+        '.bj3d .bj-hands{display:flex;justify-content:space-around;gap:10px;font-weight:800;font-size:15px;flex-wrap:wrap}.bj3d .bj-hands span.r{color:#ff7a86}.bj3d .bj-hands span.n{color:#fff}.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
         '.bj3d .bj-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.bj3d .bj-chip{padding:6px 10px;border-radius:999px;border:2px solid #f3cf62;background:#241218;color:#f3cf62;font-weight:900;font-size:13px;cursor:pointer}' +
         '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
         '.bj3d button.bj-b{padding:10px 18px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +
@@ -372,7 +379,7 @@
     function buildUi(w) {
       injectCss();
       var el = document.createElement('div'); el.className = 'bj3d';
-      el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-msg"></div>' +
+      el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-hands"></div><div class="bj-msg"></div>' +
         '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button></div>' +
         '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button></div>';
       w.container.appendChild(el);
@@ -392,13 +399,25 @@
     function onSeatKey(e) {
       if (!seat) return;
       if (e.code === 'Escape' || e.code === 'KeyF') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
+      else if (e.code === 'KeyV') { e.stopImmediatePropagation(); e.preventDefault(); toggleView(); }
+    }
+    function toggleView() {
+      view3 = !view3; view.yaw = view.pitch = 0;
+      if (meRig) meRig.group.visible = view3;
+      if (standEl) { var b = standEl.querySelector('[data-b=cam]'); if (b) b.innerHTML = (view3 ? '👁 Vue 1re personne' : '👁 Vue 3e personne') + ' <kbd>V</kbd>'; }
     }
     function sit(w, s) {
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; R.phase = 'idle'; R.busy = false; R.count = 12;
+      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; view3 = false;
+      if (F.createPlayer && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
+        var nm0 = ''; try { nm0 = st().username || ''; } catch (e) { /* ok */ }
+        meRig = F.createPlayer(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
+        g.add(meRig.group);
+      }
+      if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; } R.phase = 'idle'; R.busy = false; R.count = 12;
       ui = buildUi(w);
-      standEl = document.createElement('div'); standEl.className = 'bj3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
+      standEl = document.createElement('div'); standEl.className = 'bj3d-stand'; standEl.innerHTML = '<button data-b="stand">🪑 Se lever <kbd>F</kbd></button> <button data-b="cam">👁 Vue 3e personne <kbd>V</kbd></button>'; standEl.querySelector('[data-b=stand]').addEventListener('click', function () { stand(); }); standEl.querySelector('[data-b=cam]').addEventListener('click', function () { toggleView(); });
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
       R.count = 12; setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.'); refreshUi();
@@ -412,6 +431,7 @@
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
+      if (meRig) meRig.group.visible = false; view3 = false;
       world.standUp(s.sx, s.sz, s.yaw);
     }
     room.forceStand = function () { stand(); };
@@ -427,6 +447,11 @@
     };
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
+      if (view3) {                                                      // 3e personne : au-dessus et derrière mon épaule, on voit toute la table
+        var ox = s.x - s.tx, oz = s.z - s.tz, L = Math.hypot(ox, oz) || 1; ox /= L; oz /= L;
+        var cs = Math.cos(view.yaw * 0.8), sn = Math.sin(view.yaw * 0.8), rx = ox * cs - oz * sn, rz = ox * sn + oz * cs;
+        return { cx: s.x + rx * 1.35, cy: 2.35, cz: s.z + rz * 1.35, tx: s.tx + ox * 0.55, ty: 0.85, tz: s.tz + oz * 0.55, fov: 58 };
+      }
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
       var ex = s.x, ey = 1.28, ez = s.z, a = Math.atan2(s.tx - ex, -(s.tz + 0.25 - ez)) + view.yaw, p = Math.atan2(0.8 - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 60 };
@@ -453,6 +478,7 @@
       } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); if (tm2 && tm2.textContent) tm2.textContent = ''; }
       // animations des personnages
       people.forEach(function (o) { o.p.stopWalk(); o.p.applyHold(dt); });
+      if (meRig && meRig.group.visible) { meRig.stopWalk(); meRig.applyHold(dt); }
       // minuteries
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { if (window.console) console.warn('[blackjack3d]', e); } } }
       // cartes qui glissent jusqu'à leur place
@@ -465,7 +491,7 @@
       }
     };
     room.dispose = function () {
-      stand(); people.forEach(function (o) { o.p.dispose(); });
+      stand(); people.forEach(function (o) { o.p.dispose(); }); if (meRig) meRig.dispose();
       Object.keys(texCache).forEach(function (k) { texCache[k].dispose(); delete texCache[k]; });
     };
     return room;
