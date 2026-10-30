@@ -274,6 +274,23 @@
     // le serveur donne la liste des joueurs avec leur place (seat) ; sinon, dans l'ordre
     function bySeat(t) { var a = []; if (t) t.players.forEach(function (p, i) { a[p && p.seat != null ? p.seat : i] = p; }); return a; }
     var shownKey = '';
+    // les joueurs assis (vrais joueurs et robots) sont les vrais personnages 3D (persona3d.js), posés sur la chaise de la table
+    function seatRig(s, p, mine) {
+      if (!F.createPlayer || !F.persona) { s.person.visible = !!p && !mine; return; }
+      s.person.visible = false;
+      if (!p || mine) { if (s.rig) s.rig.group.visible = false; return; }
+      var look = F.persona.lookFor(p.username);
+      if (s.rig && s.rigName !== p.username) { g.remove(s.rig.group); s.rig.dispose(); s.rig = null; }
+      if (!s.rig) {
+        g.updateMatrixWorld(true);
+        var wp = new THREE.Vector3(), wq = new THREE.Quaternion(), ws = new THREE.Vector3(); s.chair.matrixWorld.decompose(wp, wq, ws);
+        var rig = s.rig = F.createPlayer(p.username, '', look); s.rigName = p.username; rig.tag.visible = false;       // la plaque de la table donne déjà le nom
+        rig.group.position.set(wp.x, 0, wp.z); rig.group.rotation.y = new THREE.Euler().setFromQuaternion(wq, 'YXZ').y;
+        rig.setSeated(true, { y: wp.y + 0.075 * ws.x - 0.5, z: 0.28 });       // dessus de l'assise - hauteur d'assise du personnage
+        g.add(rig.group);
+      } else s.rig.setLook(look);
+      s.rig.group.visible = true;
+    }
     function refreshSeats() {
       var key = JSON.stringify(ROOMS.map(function (d, r) { var t = room.tableOf(r); return t ? [t.count, bySeat(t).map(function (p) { return p ? p.username + p.avatar : ''; })] : 0; }));
       if (key === shownKey) return;
@@ -284,7 +301,7 @@
           var p = seatsNow[s.seatIdx] || null;
           s.name = p ? p.username : '';
           var mine = !!(room.seat && room.seat.slot === s && room.seat.first);   // en 1re personne seulement, je ne vois pas mon personnage (je suis dedans)
-          s.person.visible = !!p && !mine; s.chair.visible = !p && !mine;
+          s.chair.visible = !mine; seatRig(s, p, mine);
           if (p) {
             if (!s.plate) { s.plate = makePlate(); s.plate.position.set(s.x, 1.72, s.z); g.add(s.plate); }
             if (!salle.live) paintPlate(s.plate, (p.avatar || '') + ' ' + p.username, '', false);
@@ -295,6 +312,7 @@
       });
       syncHud();
     }
+    room.refreshSeats = function () { shownKey = ''; refreshSeats(); };   // relit les places (aussi pratique pour tester)
     room.slots.forEach(function (s) {
       room.interactables.push({
         hit: s.hit, x: s.x, z: s.z, radius: 1.7,
@@ -539,6 +557,7 @@
     var last = { x: 0, z: WALL_R - 2.4 };
     room.update = function (dt) {
       updateGame(dt);
+      room.slots.forEach(function (s) { if (s.rig && s.rig.group.visible) { s.rig.stopWalk(); s.rig.applyHold(dt); } });
       var p = world.player;
       if (room.sofa) {          // assis sur un canapé : on se lève dès qu'on veut bouger
         var kk = world.keys, sk = world.stick;
@@ -556,7 +575,8 @@
     };
     room.onEnter = function () { room.sofa = null; room.ghost = false; world.player.jy = 0; last.x = world.player.x; last.z = world.player.z; };
     room.dispose = function () {
-      window.removeEventListener('keydown', onKeyV); room.salles.forEach(function (s) { s.tex.dispose(); }); };
+      window.removeEventListener('keydown', onKeyV); room.salles.forEach(function (s) { s.tex.dispose(); });
+      room.slots.forEach(function (s) { if (s.rig) { s.rig.dispose(); s.rig = null; } }); };
     return room;
   }
 

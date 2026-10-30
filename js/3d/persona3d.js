@@ -54,7 +54,13 @@
   // apparence du joueur connecté (choisie à la création du compte, voir creation3d.js) ; sans choix : tirée du pseudo
   F.myLook = function () { var c = ''; try { c = state.look || ''; } catch (e) { /* pas connecté */ } return parseLook(c) || lookFromName(F.me ? F.me() : ''); };
   F.myLookCode = function () { return lookCode(F.myLook()); };
-  F.persona = { HAIR_COLORS: HAIR_COLORS, HAIR_COLOR_NAMES: HAIR_COLOR_NAMES, HAIR_STYLES: HAIR_STYLES, HAIR_STYLE_NAMES: HAIR_STYLE_NAMES, lookCode: lookCode, parseLook: parseLook, lookFromName: lookFromName };
+  // personnage de n'importe quel joueur d'après son pseudo : le sien, celui annoncé par sa présence en ligne, sinon tiré du pseudo (robots)
+  function lookFor(name) {
+    var n = String(name || '').toLowerCase().trim();
+    if (F.me && n && n === F.me()) return F.myLook();
+    return parseLook(F.presence && F.presence.lookOf ? F.presence.lookOf(n) : '') || lookFromName(name);
+  }
+  F.persona = { lookFor: lookFor, HAIR_COLORS: HAIR_COLORS, HAIR_COLOR_NAMES: HAIR_COLOR_NAMES, HAIR_STYLES: HAIR_STYLES, HAIR_STYLE_NAMES: HAIR_STYLE_NAMES, lookCode: lookCode, parseLook: parseLook, lookFromName: lookFromName };
 
   /* ---------- chargement (par morceaux, au premier joueur qui en a besoin) ---------- */
   var T = { shared: 'idle', bodies: {}, skins: {}, hairs: {}, clips: {}, waiters: [], hairMats: {} };
