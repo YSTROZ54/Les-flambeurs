@@ -599,7 +599,7 @@
 
   function buildRoom(scene, low) {
     var carpet = mkCanvas(256, 256), x = carpet.getContext('2d');
-    x.fillStyle = '#2a0a16'; x.fillRect(0, 0, 256, 256);
+    x.fillStyle = '#0c2e30'; x.fillRect(0, 0, 256, 256);
     x.strokeStyle = 'rgba(201,162,39,0.38)'; x.lineWidth = 2;
     x.beginPath(); x.moveTo(128, 6); x.lineTo(250, 128); x.lineTo(128, 250); x.lineTo(6, 128); x.closePath(); x.stroke();
     x.strokeStyle = 'rgba(201,162,39,0.2)';
@@ -670,8 +670,8 @@
     }
     drawBoard([]);
     // colonnes
-    [[-7.2, 0.2], [7.2, 0.2], [-7.2, 8.2], [7.2, 8.2]].forEach(function (p) {
-      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.6, metalness: 0.2 }));
+    [[-8.5, -2.8], [8.5, -2.8], [-8.5, 10.6], [8.5, 10.6]].forEach(function (p) {
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x14484a, roughness: 0.45, metalness: 0.35 }));
       c.position.set(p[0], 3.75, p[1]); scene.add(c);
       [0.3, 7.2].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
     });
@@ -952,6 +952,7 @@
       var e = room.seatCab;
       return e ? { seat: e.n - 1, x: e.x + Math.sin(e.rotY) * 2.2, z: e.z + Math.cos(e.rotY) * 2.2, yaw: -e.rotY } : null;
     };
+    room.sit = { y: 0.065, z: 0.28 };   // tabouret à 0,565 m (persona3d.js)
     room.remotePose = function (r) {
       var e = room.cabs[r.seat];
       return e ? { x: e.x + Math.sin(e.rotY) * 1.6, z: e.z + Math.cos(e.rotY) * 1.6, yaw: -e.rotY } : null;
