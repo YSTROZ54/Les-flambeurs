@@ -17,7 +17,7 @@
 
   var HX = 12, HZ = 10, H = 6.4;
   var GROWTH = 0.15, MIN_BET = 10, MAX_BET = 100000, CHIPS = [10, 100, 500, 1000, 5000];
-  var SILO = { x: 0, z: -3.2, h: 5.6 };
+  var SILO = { x: -8.6, z: -5.2, h: 5.6 }, SILO2 = { x: 8.6, z: -5.2 };      // les deux tours encadrent l'écran : plus rien ne le cache
   var SEATS_X = [-5.6, -2.8, 0, 2.8, 5.6];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
@@ -48,38 +48,43 @@
     function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 3, H / 3); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.2 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var glow = new THREE.MeshBasicMaterial({ color: 0x4d8bff });
-    [[HX * 2, 0.07, 0.07, 0, 1.0, -HZ + 0.04], [HX * 2, 0.07, 0.07, 0, 1.0, HZ - 0.04], [0.07, 0.07, HZ * 2, -HX + 0.04, 1.0, 0], [0.07, 0.07, HZ * 2, HX - 0.04, 1.0, 0], [HX * 2, 0.07, 0.07, 0, H - 0.3, -HZ + 0.04], [HX * 2, 0.07, 0.07, 0, H - 0.3, HZ - 0.04], [0.07, 0.07, HZ * 2, -HX + 0.04, H - 0.3, 0], [0.07, 0.07, HZ * 2, HX - 0.04, H - 0.3, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], glow, d[3], d[4], d[5]); });
+    [[HX * 2, 0.07, 0.07, 0, 1.0, -HZ + 0.04], [HX - 1.9, 0.07, 0.07, -(HX + 1.9) / 2, 1.0, HZ - 0.04], [HX - 1.9, 0.07, 0.07, (HX + 1.9) / 2, 1.0, HZ - 0.04], [0.07, 0.07, HZ * 2, -HX + 0.04, 1.0, 0], [0.07, 0.07, HZ * 2, HX - 0.04, 1.0, 0], [HX * 2, 0.07, 0.07, 0, H - 0.3, -HZ + 0.04], [HX * 2, 0.07, 0.07, 0, H - 0.3, HZ - 0.04], [0.07, 0.07, HZ * 2, -HX + 0.04, H - 0.3, 0], [0.07, 0.07, HZ * 2, HX - 0.04, H - 0.3, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], glow, d[3], d[4], d[5]); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x050812 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     for (i = -2; i <= 2; i++) box(g, 0.2, 0.08, HZ * 2 - 2, new THREE.MeshBasicMaterial({ color: 0xbfd7ff }), i * 4.2, H - 0.04, 0);
 
     /* --- tour de lancement vitrée et fusée --- */
     var steel = new THREE.MeshStandardMaterial({ color: 0x8c96ac, roughness: 0.35, metalness: 0.85 });
-    var pad = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.45, 0.2, 32), steel); pad.position.set(SILO.x, 0.1, SILO.z); g.add(pad);
+    function buildTower(cx, cz) {
+    var pad = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.45, 0.2, 32), steel); pad.position.set(cx, 0.1, cz); g.add(pad);
     var glass = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, SILO.h, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
-    glass.position.set(SILO.x, SILO.h / 2 + 0.2, SILO.z); g.add(glass);
-    for (i = 0; i <= 5; i++) { var ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 8, 40), steel); ring.rotation.x = Math.PI / 2; ring.position.set(SILO.x, 0.25 + i * (SILO.h / 5), SILO.z); g.add(ring); }
-    for (i = 0; i < 6; i++) { var a = i / 6 * TAU, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, SILO.h, 6), steel); bar.position.set(SILO.x + Math.cos(a) * 1.15, SILO.h / 2 + 0.2, SILO.z + Math.sin(a) * 1.15); g.add(bar); }
-    var rocket = new THREE.Group(); g.add(rocket);
-    (function () {
+    glass.position.set(cx, SILO.h / 2 + 0.2, cz); g.add(glass);
+    for (i = 0; i <= 5; i++) { var ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 8, 40), steel); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.25 + i * (SILO.h / 5), cz); g.add(ring); }
+    for (i = 0; i < 6; i++) { var a = i / 6 * TAU, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, SILO.h, 6), steel); bar.position.set(cx + Math.cos(a) * 1.15, SILO.h / 2 + 0.2, cz + Math.sin(a) * 1.15); g.add(bar); }
+    }
+    buildTower(SILO.x, SILO.z); buildTower(SILO2.x, SILO2.z);
+    function buildRocket(rocket) {
       var white = new THREE.MeshStandardMaterial({ color: 0xf2f4fa, roughness: 0.3, metalness: 0.5 }), red = new THREE.MeshStandardMaterial({ color: 0xd9262c, roughness: 0.4, metalness: 0.3 });
       var body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 1.0, 20), white); body.position.y = 0.7; rocket.add(body);
       var nose = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 20), red); nose.position.y = 1.45; rocket.add(nose);
       var win = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshStandardMaterial({ color: 0x4aa3ff, emissive: 0x16406e, roughness: 0.2 })); win.position.set(0, 0.95, 0.22); rocket.add(win);
       for (var k = 0; k < 3; k++) { var an = k / 3 * TAU, fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.32), red); fin.position.set(Math.cos(an) * 0.3, 0.38, Math.sin(an) * 0.3); fin.rotation.y = -an; rocket.add(fin); }
       var flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.9, 14), new THREE.MeshBasicMaterial({ color: 0xffa640, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); flame.rotation.x = Math.PI; flame.position.y = -0.05; rocket.add(flame); rocket.userData.flame = flame;
-    })();
-    rocket.position.set(SILO.x, 0.2, SILO.z);
+    }
+    var rocket = new THREE.Group(); g.add(rocket); buildRocket(rocket);
+    var rocket2 = new THREE.Group(); g.add(rocket2); buildRocket(rocket2);      // la fusée de la tour de droite suit exactement celle de gauche
+    rocket.position.set(SILO.x, 0.2, SILO.z); rocket2.position.set(SILO2.x, 0.2, SILO2.z);
     var boom = null, debris = [];
     var haloC = mkCanvas(128, 128), hx = haloC.getContext('2d'), hg = hx.createRadialGradient(64, 64, 2, 64, 64, 62); hg.addColorStop(0, 'rgba(255,255,220,1)'); hg.addColorStop(0.3, 'rgba(255,170,60,0.8)'); hg.addColorStop(1, 'rgba(255,90,20,0)'); hx.fillStyle = hg; hx.fillRect(0, 0, 128, 128);
     boom = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(haloC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); boom.visible = false; g.add(boom);
+    var boom2 = new THREE.Sprite(boom.material.clone()); boom2.visible = false; g.add(boom2);
     var debMat = new THREE.MeshBasicMaterial({ color: 0xff8a3a });
     for (i = 0; i < 16; i++) { var d = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), debMat); d.visible = false; g.add(d); debris.push({ m: d, v: new THREE.Vector3() }); }
     var pl = low ? null : new THREE.PointLight(0xffa850, 0, 10); if (pl) { pl.position.set(SILO.x, 1.5, SILO.z); g.add(pl); }
 
     /* --- grand écran sur le mur du fond --- */
     var scr = mkCanvas(1280, 640), sctx = scr.getContext('2d'), scrTex = mkTex(scr);
-    var screen = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 3.5, -HZ + 0.16); g.add(screen);
-    box(g, 9.3, 4.8, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 3.5, -HZ + 0.05);
+    var screen = new THREE.Mesh(new THREE.PlaneGeometry(11.2, 5.6), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 3.4, -HZ + 0.16); g.add(screen);
+    box(g, 11.5, 5.9, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 3.4, -HZ + 0.05);
 
     /* --- postes de contrôle --- */
     var deskM = new THREE.MeshStandardMaterial({ color: 0x1b2440, roughness: 0.4, metalness: 0.6 }), seatM = new THREE.MeshStandardMaterial({ color: 0x1d3a8a, roughness: 0.6 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
@@ -123,7 +128,7 @@
     function myBet() { var me = myName(), k = Object.keys(S.bets).filter(function (n) { return n.toLowerCase().trim() === me; })[0]; return k ? S.bets[k] : null; }
 
     /* --- interface --- */
-    var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, msg = '', msgCol = '', busy = false;
+    var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, msg = '', msgCol = '', busy = false, ejecting = false;
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
     function setMsg(t, c) { msg = t || ''; msgCol = c || ''; if (ui) { var m = ui.el.querySelector('.cr-msg'); m.textContent = msg; m.style.color = msgCol; } }
     function refreshUi() {
@@ -146,7 +151,24 @@
       document.head.appendChild(s);
     }
     var standEl = null;
-    function onSeatKey(e) { if (seat && (e.code === 'Escape' || e.code === 'KeyF')) { e.stopImmediatePropagation(); e.preventDefault(); stand(); } }
+    // s'éjecter : l'écran réagit tout de suite (le gain est affiché au clic), la demande part en même temps au serveur qui confirme
+    function doEject() {
+      var mb = myBet();
+      if (!seat || ejecting || !mb || mb.cashedOut || S.status !== 'flying') return;
+      var m = multNow(); ejecting = true; mb.cashedOut = true; mb.cashMult = Math.floor(m * 100) / 100;
+      setMsg('🏆 Éjecté à x' + m.toFixed(2) + ' : +' + fmtN(Math.floor(mb.bet * m)) + ' 🪙', '#7ee0a0'); refreshUi();
+      api({ action: 'cashout' }).then(function (r) {
+        ejecting = false;
+        if (r && r.ok) setMsg('🏆 Éjecté à x' + r.mult + ' : +' + fmtN(r.win) + ' 🪙', '#7ee0a0');
+        else { var m2 = myBet(); if (m2 && m2.cashedOut && !(r && r.state)) { m2.cashedOut = false; delete m2.cashMult; } setMsg((r && r.error) || 'Trop tard !', '#ff8a80'); }
+        refreshUi();
+      });
+    }
+    function onSeatKey(e) {
+      if (!seat) return;
+      if (e.code === 'Escape' || e.code === 'KeyF') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
+      else if ((e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter') && S.status === 'flying' && myBet() && !myBet().cashedOut) { e.stopImmediatePropagation(); e.preventDefault(); doEject(); }
+    }
     function placeBet() {
       if (busy) return;
       if (!loggedIn()) { setMsg('Connecte-toi pour jouer.', '#ff8a80'); return; }
@@ -177,7 +199,7 @@
         var a = b.dataset.a;
         if (a === 'bet') placeBet();
         else if (a === 'cancel' && !busy) { busy = true; api({ action: 'cancel' }).then(function (r) { busy = false; setMsg(r && r.ok ? 'Mise annulée et remboursée.' : ((r && r.error) || 'Impossible d\'annuler.'), r && r.ok ? '#7ee0a0' : '#ff8a80'); refreshUi(); }); }
-        else if (a === 'eject' && !busy) { busy = true; api({ action: 'cashout' }).then(function (r) { busy = false; if (r && r.ok) setMsg('🏆 Éjecté à x' + r.mult + ' : +' + fmtN(r.win) + ' 🪙', '#7ee0a0'); else setMsg((r && r.error) || 'Trop tard !', '#ff8a80'); refreshUi(); }); }
+        else if (a === 'eject') doEject();
       });
       standEl = document.createElement('div'); standEl.className = 'cr3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl); window.addEventListener('keydown', onSeatKey, true);
@@ -200,8 +222,8 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 2, tz: -5, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(2.4 - ey, 5.5) + view.pitch;           // on regarde la tour et l'écran
-      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8 - (s.x * 0.15), ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 62 };
+      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(3.2 - ey, 10) + view.pitch;           // on regarde le grand écran
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8 - (s.x * 0.1), ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 62 };
     };
     room.syncHud = function () { refreshUi(); };
 
@@ -234,7 +256,7 @@
       scrTex.needsUpdate = true;
     }
 
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0x4d8bff, target: 'hall', theme: 'exitCrash' });
     g.add(new THREE.AmbientLight(0xaec4ff, 0.8));
     var key = new THREE.DirectionalLight(0xe0ecff, 0.45); key.position.set(3, 8, 5); g.add(key);
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
@@ -244,7 +266,7 @@
 
     var crashAnim = 0, lastRocketY = 0.2, shake = 0;
     room.update = function (dt) {
-      pollT += dt; if (pollT > 0.45) { pollT = 0; poll(); }
+      pollT += dt; if (pollT > (seat && (S.status === 'flying' || S.status === 'countdown') ? 0.2 : 0.45)) { pollT = 0; poll(); }
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { /* ok */ } } }
       var mult = multNow();
       // fusée : monte avec le multiplicateur (échelle logarithmique)
@@ -263,6 +285,9 @@
         rocket.visible = true; rocket.position.set(SILO.x, 0.2, SILO.z); rocket.userData.flame.visible = S.status === 'countdown' && (S.launchTime - nowS()) < 1500; boom.visible = false; debris.forEach(function (d) { d.m.visible = false; }); if (pl) pl.intensity = 0;
         if (S.status === 'countdown') rocket.position.x += (Math.random() - 0.5) * 0.012;
       }
+      rocket2.visible = rocket.visible; rocket2.position.set(SILO2.x + (rocket.position.x - SILO.x), rocket.position.y, SILO2.z + (rocket.position.z - SILO.z));
+      rocket2.userData.flame.visible = rocket.userData.flame.visible; rocket2.userData.flame.scale.copy(rocket.userData.flame.scale);
+      boom2.visible = boom.visible; boom2.position.set(boom.position.x - SILO.x + SILO2.x, boom.position.y, boom.position.z - SILO.z + SILO2.z); boom2.scale.copy(boom.scale); boom2.material.opacity = boom.material.opacity;
       if (S.status !== lastStatus) {
         if (S.status === 'crashed' && seat) { var mb = myBet(); if (mb && !mb.cashedOut) setMsg('💥 Crash à x' + (S.crashPoint || 0).toFixed(2) + ' : mise perdue.', '#ff8a80'); else if (!mb) setMsg('Crash à x' + (S.crashPoint || 0).toFixed(2), ''); }
         if (S.status === 'waiting' && seat && lastStatus === 'crashed') setMsg('Place ta mise : le vol décolle tout seul.');
