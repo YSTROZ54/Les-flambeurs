@@ -576,7 +576,7 @@
     // ce que le personnage a dans la main : le téléphone (aussi pour le chat), une carte pour les objets rangés par d'autres fichiers, rien pour Danses et Emotes
     function syncHeld() {
       var it = INV[sel], id = '';
-      if (it) id = it.id === 'phone' || it.id === 'chat' ? 'phone' : (it.id === 'dance' || it.id === 'emote') ? '' : (it.hold || 'card');
+      if (it) id = it.id === 'phone' || it.id === 'chat' ? '' : (it.id === 'dance' || it.id === 'emote') ? '' : (it.hold || 'card');
       if (w.setHeld) w.setHeld(id);
     }
     function markHotbar() {
