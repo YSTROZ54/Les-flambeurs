@@ -130,12 +130,48 @@
     neon(WALL.entree, 4.5, 4.2, '', 4.4, 2.475, 0xff7a1a, soon);
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
 
+    // guirlandes de néons qui s'enroulent autour des colonnes (même LED lumineuses que la table des chevaux)
+    var ledTex = (function () {
+      var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
+    })();
+    var garlands = [], wireMat = new THREE.MeshBasicMaterial({ color: 0x2a1a30 });
+    function garland(cx, cz) {
+      var turns = 4, y0 = 0.7, y1 = 7.3, R = 0.55, strands = 2, step = low ? 0.13 : 0.07, s;
+      for (s = 0; s < strands; s++) {
+        var ph = s * Math.PI, pts = [], k, n = turns * 40;
+        for (k = 0; k <= n; k++) { var f = k / n, a = ph + f * turns * TAU; pts.push(new THREE.Vector3(cx + Math.cos(a) * R, y0 + f * (y1 - y0), cz + Math.sin(a) * R)); }
+        var curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), cnt = Math.round(len / step), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), v;
+        for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+        var pts3 = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.27, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        pts3.frustumCulled = false; g.add(pts3);
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, n, 0.012, 4, false), wireMat));
+        garlands.push({ geo: geo, col: col, cnt: cnt, dir: s ? -1 : 1 });
+      }
+    }
+    var ledC = new THREE.Color(), ledT = 0;
+    function garlandsUpdate(dt) {
+      ledT += dt;
+      garlands.forEach(function (row) {
+        var k, h, wv, v;
+        for (k = 0; k < row.cnt; k++) {
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 14 - ledT * 6 * row.dir);
+          h = (k / row.cnt * 2 + ledT * 0.07) % 1; v = 0.12 + 0.88 * wv * wv;
+          ledC.setHSL(h, 1, 0.5); row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
+        }
+        row.geo.attributes.color.needsUpdate = true;
+      });
+    }
+
     // colonnes aux coins
     var colMat = new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.55, metalness: 0.2 });
     [[-9.7, -7.6], [9.7, -7.6], [-9.7, 7.6], [9.7, 7.6]].forEach(function (p) {
       var c = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 8, 18), colMat); c.position.set(p[0], 4, p[1]); g.add(c);
       [0.3, 7.7].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.05, 6, 20), gold); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); g.add(r); });
       room.colliders.push({ x: p[0], z: p[1], r: 0.9 });
+      garland(p[0], p[1]);
     });
 
     // fontaine centrale
@@ -301,6 +337,7 @@
     };
     var hallT = 0;
     room.update = function (dt) {
+      garlandsUpdate(dt);
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
       hallT += dt; waterT.value = hallT;
       ripples.forEach(function (rp, k) { var f = (hallT * 0.3 + k / 3) % 1, rr = 0.25 + f * 1.4; rp.scale.set(rr, rr, 1); rp.material.opacity = 0.55 * (1 - f); });
