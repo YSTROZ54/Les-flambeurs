@@ -35,7 +35,7 @@
 
   /* ---------- le catalogue vient de la page (SHOP_CATALOG) ---------- */
   function catalog() { try { return (typeof SHOP_CATALOG !== 'undefined' && SHOP_CATALOG) || []; } catch (e) { return []; } }
-  function itemsOf(key) { return catalog().filter(function (i) { return i.group === key; }); }
+  function itemsOf(key) { return catalog().filter(function (i) { return i.group === key && !(key === 'poker' && i.category === 'cardSkin'); }); }   // le rayon poker ne vend que des tapis
   function findItem(id) { return catalog().filter(function (i) { return i.id === id; })[0] || null; }
   var EMO_RE = null;
   try { EMO_RE = new RegExp('^\\s*((?:\\p{Extended_Pictographic}|\\uFE0F|\\u200D)+)\\s*', 'u'); } catch (e) { EMO_RE = null; }
@@ -52,7 +52,7 @@
   // x, z : place sur le mur ; nx, nz : direction vers l'intérieur de la salle
   var SELLERS = [
     {
-      key: 'crashVehicle', name: 'Neil', avatar: '🚀', role: 'l\'astronaute', icon: '🚀', title: 'FUSÉES & VÉHICULES', sub: 'RAYON FUSÉE CRASH', color: 0x9ab8ff,
+      key: 'crashVehicle', name: 'Crash', avatar: '🚀', role: 'l\'astronaute', icon: '🚀', title: 'FUSÉES & VÉHICULES', sub: 'RAYON FUSÉE CRASH', color: 0x9ab8ff,
       x: -4.5, z: -HZ, nx: 0, nz: 1, skin: 0xf1c9a5, shirt: 0xdfe5ee, pants: 0xdfe5ee, hair: 0x3b2314,
       hello: ['Houston, on a un client ! Regarde mes véhicules pour le Crash.', 'Prêt au décollage ? Choisis ta monture !'], thanks: ['Décollage réussi ! Bon vol.', 'Excellent choix, ça va monter haut !'],
       dress: function (g) {
@@ -69,9 +69,9 @@
       }
     },
     {
-      key: 'poker', name: 'Victor', avatar: '♠️', role: 'le croupier de poker', icon: '♠️', title: 'POKER', sub: 'TAPIS & CARTES', color: 0x7ee0a0,
+      key: 'poker', name: 'Poker', avatar: '♠️', role: 'le croupier de poker', icon: '♠️', title: 'POKER', sub: 'TAPIS DE TABLE', color: 0x7ee0a0,
       x: 4.5, z: -HZ, nx: 0, nz: 1, skin: 0xc68642, shirt: 0xf4f4f4, pants: 0x14161e, hair: 0x1a1210,
-      hello: ['Bienvenue à ma table. Des tapis et des cartes pour tous les styles.', 'Fais tes jeux ! Je te montre mes plus beaux tapis.'], thanks: ['Rien ne va plus… et c\'est à toi !', 'Élégant. Les autres joueurs vont être jaloux.'],
+      hello: ['Bienvenue à ma table. Des tapis pour tous les styles.', 'Fais tes jeux ! Je te montre mes plus beaux tapis.'], thanks: ['Rien ne va plus… et c\'est à toi !', 'Élégant. Les autres joueurs vont être jaloux.'],
       dress: function (g) {
         cyl(g, 0.215, 0.185, 0.46, lam(0x12301f), 0, 1.28, 0);
         box(g, 0.05, 0.04, 0.02, lam(0xd02a2a), -0.045, 1.54, 0.205).rotation.z = 0.35; box(g, 0.05, 0.04, 0.02, lam(0xd02a2a), 0.045, 1.54, 0.205).rotation.z = -0.35;
@@ -82,11 +82,10 @@
         [[-0.12, 0xd02a2a, 5], [0, 0x1f4e9e, 4], [0.12, 0x111111, 6]].forEach(function (c) {
           for (var i = 0; i < c[2]; i++) cyl(p, 0.045, 0.045, 0.02, lam(c[1]), c[0], 0.01 + i * 0.022, 0, 16);
         });
-        for (var k = 0; k < 4; k++) { var cd = box(p, 0.07, 0.003, 0.1, lam(0xf4f4f4), 0.28 + k * 0.05, 0.003 + k * 0.001, 0.02); cd.rotation.y = -0.5 + k * 0.28; }
       }
     },
     {
-      key: 'cupBall', name: 'Merlin', avatar: '🎩', role: 'le magicien', icon: '🥤', title: 'GOBELETS', sub: 'BILLES MAGIQUES', color: 0xffe08a,
+      key: 'cupBall', name: 'Gobelets', avatar: '🎩', role: 'le magicien', icon: '🥤', title: 'GOBELETS', sub: 'BILLES MAGIQUES', color: 0xffe08a,
       x: -HX, z: -3, nx: 1, nz: 0, skin: 0xe0ac82, shirt: 0x5b2a9a, pants: 0x14101c, hair: 0xcfcfcf,
       hello: ['Abracadabra ! Quelle bille se cache sous quel gobelet ?', 'Approche… mes billes brillent d\'un éclat magique.'], thanks: ['Tada ! Elle est à toi.', 'Tu as l\'œil. La magie fera le reste.'],
       dress: function (g, p) {
@@ -102,7 +101,7 @@
       }
     },
     {
-      key: 'bjCardSkin', name: 'Rosa', avatar: '🃏', role: 'la croupière de blackjack', icon: '🃏', title: 'BLACKJACK', sub: 'STYLES DE CARTES', color: 0xff8a8a,
+      key: 'bjCardSkin', name: 'Blackjack', avatar: '🃏', role: 'la croupière de blackjack', icon: '🃏', title: 'BLACKJACK', sub: 'STYLES DE CARTES', color: 0xff8a8a,
       x: HX, z: -3, nx: -1, nz: 0, skin: 0x8d5524, shirt: 0xf4f4f4, pants: 0x4a0f1a, hair: 0x3b1a14,
       hello: ['21 ? Pas de souci… avec le bon paquet, tout est plus classe.', 'Mes cartes sont les plus stylées de la ville.'], thanks: ['Une belle main t\'attend !', 'Superbe. Que la chance soit avec toi.'],
       dress: function (g) {
@@ -116,7 +115,7 @@
       }
     },
     {
-      key: 'slotCabinet', name: 'Max', avatar: '🎰', role: 'le technicien', icon: '🎰', title: 'MACHINES À SOUS', sub: 'HABILLAGES DE BORNES', color: 0xffb347,
+      key: 'slotCabinet', name: 'Machines à sous', avatar: '🎰', role: 'le technicien', icon: '🎰', title: 'MACHINES À SOUS', sub: 'HABILLAGES DE BORNES', color: 0xffb347,
       x: -HX, z: 4, nx: 1, nz: 0, skin: 0xffdbac, shirt: 0x1d4ed8, pants: 0x1d4ed8, hair: 0x6b4423,
       hello: ['Je relooke les bornes ! Une machine neuve, ça porte chance.', 'Regarde ces habillages : du classique au lingot d\'or.'], thanks: ['Je te l\'installe tout de suite !', 'Ta borne va faire des envieux.'],
       dress: function (g) {
@@ -130,7 +129,7 @@
       }
     },
     {
-      key: 'avatar', name: 'Cléo', avatar: '📸', role: 'la photographe', icon: '👤', title: 'AVATARS & PROFIL', sub: 'TON PORTRAIT', color: 0xffc0e0,
+      key: 'avatar', name: 'Avatars', avatar: '📸', role: 'la photographe', icon: '👤', title: 'AVATARS & PROFIL', sub: 'TON PORTRAIT', color: 0xffc0e0,
       x: HX, z: 4, nx: -1, nz: 0, skin: 0xd9a066, shirt: 0xc2185b, pants: 0x1a1020, hair: 0x1a1210,
       hello: ['Souris ! Je t\'offre un nouveau visage pour ton profil.', 'Un avatar, c\'est ta signature dans tout le casino.'], thanks: ['Clic ! Superbe photo.', 'Tu vas faire sensation à la table.'],
       dress: function (g) {
@@ -392,10 +391,10 @@
       (room.stands = room.stands || {})[def.key] = { x: spot.x, z: spot.z, yaw: F.yawFor(-def.nx, -def.nz) };   // devant le comptoir, face au vendeur : le téléphone (hud3d.js) y emmène
       room.interactables.push({
         x: spot.x, z: spot.z, radius: 2.3, hit: hit,
-        prompt: function () { return '🛍️ Parler à ' + def.name + ' — ' + def.title + '  [F]'; },
+        prompt: function () { return '🛍️ ' + def.title + ' — voir le rayon  [F]'; },
         use: function (w) {
           if (w.mode !== 'room' || w.blend > 0 || w.trans) return;
-          if (Math.hypot(w.player.x - S.x, w.player.z - S.z) > 6.5) { w.flash('Approche-toi de ' + def.name + ' pour voir ses articles.'); return; }
+          if (Math.hypot(w.player.x - S.x, w.player.z - S.z) > 6.5) { w.flash('Approche-toi du vendeur pour voir ses articles.'); return; }
           openTalk(w, S);
         }
       });
@@ -428,7 +427,7 @@
       var o = document.createElement('div'); o.className = 'shp'; o.style.setProperty('--shp-c', cssHex(S.def.color));
       o.innerHTML =
         '<div class="shp-panel"><div class="shp-head"><div class="shp-ava">' + S.def.avatar + '</div>' +
-        '<div class="shp-who"><b>' + esc(S.def.name) + ', ' + esc(S.def.role) + '</b><small>Rayon · ' + esc(S.def.title) + '</small></div>' +
+        '<div class="shp-who"><b>' + esc(S.def.name) + '</b><small>Rayon · ' + esc(S.def.title) + '</small></div>' +
         '<button class="shp-x" data-act="close">✕ Fermer</button></div>' +
         '<div class="shp-say"></div><div class="shp-bal"><span>Ton solde</span><b></b></div>' +
         '<div class="shp-list"></div><div class="shp-msg"></div></div>';

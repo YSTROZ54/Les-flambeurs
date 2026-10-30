@@ -2,7 +2,7 @@
    blackjack3d.js — La salle de blackjack (monde 3D, PC)
    ---------------------------------------------------------------------
    On y entre par la porte « BLACKJACK » du hall (hall3d.js) et on en ressort vers le hall.
-   Quatre tables en demi-cercle, chacune avec son croupier assis en face et deux places de jeu (F ou clic pour s'asseoir) : on peut jouer seul.
+   Cinq tables en demi-cercle (quatre le long des murs, une au milieu), chacune avec son croupier assis en face et deux places de jeu (F ou clic pour s'asseoir) : on peut jouer seul.
    Assis, on règle sa mise : la manche démarre toute seule à la fin du compte à rebours et est jouée contre le croupier EXACTEMENT comme le blackjack solo du menu
    (api/_games.js : bj_start / bj_hit / bj_stand / bj_double — le serveur tire les cartes, prélève la mise et paie les gains).
    Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/_games.js (serveur).
@@ -15,7 +15,7 @@
 
   var HX = 14, HZ = 11, H = 5.4;
   var TABLE_R = 1.9, SEAT_R = 2.5, TOP_Y = 0.86;
-  var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }];
+  var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }, { x: 0, z: -1.0, bots: [] }];
   var PHI = [-0.55, 0.55];                                  // angle des deux places de jeu, autour de la table (le croupier est assis en face)
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
@@ -65,7 +65,7 @@
   function cardTex(c) {
     var key = c.r === '?' ? 'back' : c.r + c.s;
     if (texCache[key]) return texCache[key];
-    var cv = mkCanvas(160, 224), x = cv.getContext('2d');
+    var cv = mkCanvas(640, 896), x = cv.getContext('2d'); x.scale(4, 4);   // texture 4x plus fine : les cartes se lisent sans les agrandir
     roundRect(x, 3, 3, 154, 218, 14);
     if (key === 'back') {
       var g = x.createLinearGradient(0, 0, 160, 224); g.addColorStop(0, '#7a0f1c'); g.addColorStop(1, '#3d0610'); x.fillStyle = g; x.fill(); x.lineWidth = 6; x.strokeStyle = '#f3cf62'; x.stroke();
@@ -74,11 +74,11 @@
     } else {
       x.fillStyle = '#fbf7ec'; x.fill(); x.lineWidth = 3; x.strokeStyle = '#b9b19a'; x.stroke();
       x.fillStyle = SUIT_COL[c.s] || '#15151a'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = '900 40px ' + SERIF; x.fillText(c.r, 30, 34); x.font = '700 34px ' + SERIF; x.fillText(c.s, 30, 70);
-      x.save(); x.translate(130, 190); x.rotate(Math.PI); x.font = '900 40px ' + SERIF; x.fillText(c.r, 0, 0); x.font = '700 34px ' + SERIF; x.fillText(c.s, 0, 36); x.restore();
-      x.font = '900 86px ' + SERIF; x.fillText(c.s, 80, 116);
+      x.font = '900 52px ' + SERIF; x.fillText(c.r, 31, 36); x.font = '700 42px ' + SERIF; x.fillText(c.s, 31, 78);
+      x.save(); x.translate(129, 188); x.rotate(Math.PI); x.font = '900 52px ' + SERIF; x.fillText(c.r, 0, 0); x.font = '700 42px ' + SERIF; x.fillText(c.s, 0, 42); x.restore();
+      x.font = '900 100px ' + SERIF; x.fillText(c.s, 80, 116);
     }
-    var t = mkTex(cv); t.anisotropy = 4; return (texCache[key] = t);
+    var t = mkTex(cv); t.anisotropy = 16; return (texCache[key] = t);
   }
   var cardGeo = null;
   function makeCard(c) {
@@ -94,12 +94,29 @@
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
 
     /* --- salle : moquette verte à motif, murs bordeaux et dorures, plafond sombre --- */
-    var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), fgr = fx.createLinearGradient(0, 0, 256, 256);
-    fgr.addColorStop(0, '#0f3a2c'); fgr.addColorStop(1, '#0a281e'); fx.fillStyle = fgr; fx.fillRect(0, 0, 256, 256);
-    fx.strokeStyle = 'rgba(201,162,39,0.4)'; fx.lineWidth = 3; fx.beginPath(); fx.moveTo(128, 8); fx.lineTo(248, 128); fx.lineTo(128, 248); fx.lineTo(8, 128); fx.closePath(); fx.stroke();
-    fx.fillStyle = 'rgba(201,162,39,0.3)'; [[0, 0], [256, 0], [0, 256], [256, 256], [128, 128]].forEach(function (p) { fx.beginPath(); fx.arc(p[0], p[1], 8, 0, TAU); fx.fill(); });
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.9, metalness: 0.02 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    // sol : dalles de marbre vert sombre veinées d'or, polies, avec joints dorés (une image = 2 x 2 dalles de 1,5 m)
+    var fc = mkCanvas(512, 512), fx = fc.getContext('2d');
+    [['#0f3a2a', '#0a281e'], ['#0a2a1f', '#07180f'], ['#0a2a1f', '#07180f'], ['#0f3a2a', '#0a281e']].forEach(function (cc, q) {
+      var qx = (q % 2) * 256, qy = Math.floor(q / 2) * 256, gr = fx.createLinearGradient(qx, qy, qx + 256, qy + 256);
+      gr.addColorStop(0, cc[0]); gr.addColorStop(1, cc[1]); fx.fillStyle = gr; fx.fillRect(qx, qy, 256, 256);
+      fx.save(); fx.beginPath(); fx.rect(qx, qy, 256, 256); fx.clip();
+      for (var v = 0; v < 7; v++) {
+        fx.strokeStyle = 'rgba(' + (v % 2 ? '233,208,130' : '210,235,220') + ',' + (0.05 + Math.random() * 0.1) + ')'; fx.lineWidth = 0.8 + Math.random() * 1.6; fx.beginPath();
+        var vx = qx + Math.random() * 256, vy = qy + Math.random() * 256; fx.moveTo(vx, vy);
+        for (var k = 0; k < 4; k++) { vx += (Math.random() - 0.3) * 90; vy += (Math.random() - 0.3) * 90; fx.quadraticCurveTo(vx + (Math.random() - 0.5) * 60, vy + (Math.random() - 0.5) * 60, vx, vy); }
+        fx.stroke();
+      }
+      fx.restore();
+    });
+    fx.strokeStyle = 'rgba(214,176,70,0.85)'; fx.lineWidth = 5; fx.strokeRect(0, 0, 512, 512); fx.beginPath(); fx.moveTo(256, 0); fx.lineTo(256, 512); fx.moveTo(0, 256); fx.lineTo(512, 256); fx.lineWidth = 3; fx.stroke();
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 3, HZ * 2 / 3); ft.anisotropy = 8;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.3, metalness: 0.18 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    // grands tapis ronds bordeaux et or sous chaque table
+    var rc = mkCanvas(512, 512), rx = rc.getContext('2d'), rg = rx.createRadialGradient(256, 256, 20, 256, 256, 250);
+    rg.addColorStop(0, '#5a1424'); rg.addColorStop(0.7, '#430c1a'); rg.addColorStop(1, '#2d0711'); rx.fillStyle = rg; rx.beginPath(); rx.arc(256, 256, 250, 0, TAU); rx.fill();
+    [[240, 5, 0.95], [226, 2, 0.7], [160, 2, 0.5], [120, 3, 0.55]].forEach(function (rr) { rx.strokeStyle = 'rgba(232,196,96,' + rr[2] + ')'; rx.lineWidth = rr[1]; rx.beginPath(); rx.arc(256, 256, rr[0], 0, TAU); rx.stroke(); });
+    for (i = 0; i < 24; i++) { var an = i / 24 * TAU; rx.fillStyle = 'rgba(232,196,96,0.55)'; rx.beginPath(); rx.moveTo(256 + Math.cos(an) * 200, 256 + Math.sin(an) * 200); rx.lineTo(256 + Math.cos(an + 0.07) * 168, 256 + Math.sin(an + 0.07) * 168); rx.lineTo(256 + Math.cos(an - 0.07) * 168, 256 + Math.sin(an - 0.07) * 168); rx.closePath(); rx.fill(); }
+    var rugMat = new THREE.MeshStandardMaterial({ map: mkTex(rc), roughness: 0.95, metalness: 0, transparent: true });
     // murs : papier peint damassé bordeaux, lambris de bois sombre, pilastres, corniche dorée et appliques
     var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wgr = wx.createLinearGradient(0, 0, 256, 0);
     wgr.addColorStop(0, '#3a0a16'); wgr.addColorStop(0.5, '#4d1020'); wgr.addColorStop(1, '#3a0a16'); wx.fillStyle = wgr; wx.fillRect(0, 0, 256, 256);
@@ -170,20 +187,59 @@
     /* --- tables, croupiers, tabourets, robots --- */
     var felt = std(0x0e6b3f, 0.95, 0), woodM = std(0x2a140c, 0.5, 0.2), feltD = new THREE.MeshStandardMaterial({ color: 0x0e6b3f, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }), woodD = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }), seatM = std(0x8f0f20, 0.6, 0.1), chromeM = std(0xc9ced6, 0.35, 0.8);
     var tables = [], seats = [], people = [], anims = [], timers = [], clockT = 0;
+    var leatherM = new THREE.MeshStandardMaterial({ color: 0x4a1019, roughness: 0.42, metalness: 0.15 }), velvetM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.75, metalness: 0.02, side: THREE.DoubleSide }), velvetD = new THREE.MeshStandardMaterial({ color: 0x4a0812, roughness: 0.8, metalness: 0.02, side: THREE.DoubleSide });
+    // feutre : image posée à plat sur le plateau en D (coin haut = bord du croupier), cercles de mise, zone du croupier, inscriptions dorées
+    function feltTexture() {
+      var W = 2048, Hh = 1024, cv = mkCanvas(W, Hh), c = cv.getContext('2d'), sc = W / (TABLE_R * 2), k;
+      var gr = c.createRadialGradient(W / 2, Hh * 0.45, 60, W / 2, Hh * 0.45, W * 0.6); gr.addColorStop(0, '#12814a'); gr.addColorStop(1, '#09432a'); c.fillStyle = gr; c.fillRect(0, 0, W, Hh);
+      for (k = 0; k < 14000; k++) { c.fillStyle = 'rgba(' + (k % 2 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.04) + ')'; c.fillRect(Math.random() * W, Math.random() * Hh, 2, 2); }
+      c.strokeStyle = 'rgba(232,196,96,0.85)'; c.lineWidth = 7; c.beginPath(); c.arc(W / 2, 0, (TABLE_R - 0.13) * sc, 0, Math.PI); c.stroke();
+      c.lineWidth = 3; c.beginPath(); c.arc(W / 2, 0, (TABLE_R - 0.2) * sc, 0, Math.PI); c.stroke();
+      PHI.forEach(function (ph) {
+        var px = W / 2 + Math.sin(ph) * 1.1 * sc, py = Math.cos(ph) * 1.1 * sc;
+        c.lineWidth = 5; c.beginPath(); c.arc(px, py, 0.24 * sc, 0, TAU); c.stroke(); c.lineWidth = 2; c.beginPath(); c.arc(px, py, 0.29 * sc, 0, TAU); c.stroke();
+      });
+      c.lineWidth = 4; roundRect(c, W / 2 - 0.85 * sc, 0.24 * sc, 1.7 * sc, 0.52 * sc, 28); c.stroke();
+      c.fillStyle = 'rgba(232,196,96,0.9)'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '900 56px ' + SERIF; if ('letterSpacing' in c) c.letterSpacing = '6px'; c.fillText('BLACKJACK PAIE 3 POUR 2', W / 2, 1.4 * sc, 1.9 * sc);
+      c.font = '700 38px ' + SERIF; c.fillText('ASSURANCE 2 POUR 1', W / 2, 1.58 * sc, 1.4 * sc);
+      c.font = '700 34px ' + SERIF; c.fillStyle = 'rgba(232,196,96,0.65)'; c.fillText('CROUPIER', W / 2, 0.16 * sc, 1.0 * sc);
+      c.font = '900 120px ' + SERIF; c.fillStyle = 'rgba(232,196,96,0.18)'; c.fillText('♠', W / 2, 0.98 * sc);
+      var t = new THREE.CanvasTexture(cv); t.flipY = false; t.anisotropy = 8; t.repeat.set(1 / (TABLE_R * 2), 1 / TABLE_R); t.offset.set(0.5, 0); return t;
+    }
+    var feltTop = new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+    // fauteuil capitonné : pied doré, assise de velours, dossier enveloppant (le dos est derrière, à -z ; le fauteuil regarde vers +z)
+    function makeChair(parent, x, z, ry, seatY, tall) {
+      var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; parent.add(q);
+      cyl(q, 0.27, 0.3, 0.035, gold, 0, 0.0175, 0, 24); cyl(q, 0.045, 0.06, seatY - 0.12, gold, 0, (seatY - 0.12) / 2 + 0.035, 0, 12);
+      cyl(q, 0.25, 0.25, 0.11, velvetM, 0, seatY, 0, 28);
+      var r1 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.013, 8, 36), gold); r1.rotation.x = Math.PI / 2; r1.position.y = seatY + 0.055; q.add(r1);
+      var r2 = r1.clone(); r2.position.y = seatY - 0.055; q.add(r2);
+      var bh = tall ? 0.78 : 0.52, by = seatY + 0.06 + bh / 2;
+      var back = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, bh, 28, 1, true, Math.PI - 1.15, 2.3), velvetM); back.position.set(0, by, 0); q.add(back);
+      var back2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bh + 0.04, 28, 1, true, Math.PI - 1.17, 2.34), velvetD); back2.position.set(0, by, 0); q.add(back2);
+      [-1, 1].forEach(function (sd) { cyl(q, 0.016, 0.016, bh + 0.06, gold, sd * Math.sin(1.15) * 0.3, by, Math.cos(Math.PI - 1.15) * 0.3, 8); });
+      var top = new THREE.Mesh(new THREE.TorusGeometry(0.285, 0.014, 8, 28, 2.3), gold); top.rotation.x = Math.PI / 2; top.rotation.z = Math.PI / 2 + 1.15 - Math.PI; top.position.y = by + bh / 2 + 0.02; q.add(top);
+      return q;
+    }
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     TABLES.forEach(function (td, ti) {
       var grp = new THREE.Group(); grp.position.set(td.x, 0, td.z); g.add(grp);
       // plateau en « D » : une seule pièce épaisse (feutre dessus, bois sur la tranche) et un rail rembourré qui suit exactement son contour
       var dS = new THREE.Shape(); dS.moveTo(-TABLE_R, 0); dS.lineTo(TABLE_R, 0); dS.absarc(0, 0, TABLE_R, 0, Math.PI, false);
-      var top = new THREE.Mesh(new THREE.ExtrudeGeometry(dS, { depth: 0.14, bevelEnabled: false, curveSegments: 48 }), [feltD, woodD]); top.rotation.x = Math.PI / 2; top.position.y = TOP_Y; grp.add(top);
+      var top = new THREE.Mesh(new THREE.ExtrudeGeometry(dS, { depth: 0.14, bevelEnabled: false, curveSegments: 48 }), [feltTop, woodD]); top.rotation.x = Math.PI / 2; top.position.y = TOP_Y; grp.add(top);
       var outline = [], u;
       for (u = 0; u < 64; u++) { var ang = u / 64 * Math.PI; outline.push(new THREE.Vector3(Math.cos(ang) * TABLE_R, 0, Math.sin(ang) * TABLE_R)); }
       for (u = 0; u <= 16; u++) outline.push(new THREE.Vector3(TABLE_R - u / 16 * TABLE_R * 2, 0, 0));
       var railPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y + 0.01); }), true, 'centripetal');
-      var rail = new THREE.Mesh(new THREE.TubeGeometry(railPath, 240, 0.055, 10, true), woodD); grp.add(rail);
-      var inlayPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y + 0.066); }), true, 'centripetal');
-      var inlay = new THREE.Mesh(new THREE.TubeGeometry(inlayPath, 240, 0.011, 6, true), gold); grp.add(inlay);   // filet doré posé sur le dessus du rail
+      var rail = new THREE.Mesh(new THREE.TubeGeometry(railPath, 240, 0.085, 12, true), leatherM); grp.add(rail);
+      var inlayPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y + 0.098); }), true, 'centripetal');
+      var inlay = new THREE.Mesh(new THREE.TubeGeometry(inlayPath, 240, 0.012, 6, true), gold); grp.add(inlay);
+      var trimPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y - 0.1); }), true, 'centripetal');
+      grp.add(new THREE.Mesh(new THREE.TubeGeometry(trimPath, 240, 0.014, 6, true), gold));      // filet doré au bas de la tranche
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(3.6, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.012, 0.35); grp.add(rug);   // filet doré posé sur le dessus du rail
       var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, TOP_Y - 0.1, 16), woodM); ped.position.set(0, (TOP_Y - 0.1) / 2, 0.45); grp.add(ped);
+      cyl(grp, 0.62, 0.66, 0.05, gold, 0, 0.025, 0.45, 32); cyl(grp, 0.5, 0.58, 0.07, woodM, 0, 0.085, 0.45, 32); cyl(grp, 0.34, 0.34, 0.03, gold, 0, TOP_Y - 0.12, 0.45, 24);
       // lampe suspendue
       var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.5, metalness: 0.5, side: THREE.DoubleSide })); lamp.position.set(0, H - 1.4, 0.9); grp.add(lamp);
       var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), bas(0xffe9b0)); bulb.position.set(0, H - 1.5, 0.9); grp.add(bulb);
@@ -194,11 +250,11 @@
       var T = { i: ti, x: td.x, z: td.z, group: grp, hands: {}, dealerCards: [], spots: [] };
       tables.push(T);
       // croupier
-      var dl = F.createPlayer ? F.createPlayer('Croupier ' + (ti + 1), '', ti % 2 ? 'h1010' : 'f1230') : null;
+      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;
       if (dl) {
         dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
         // la chaise du croupier : assise capitonnée et dossier, derrière la table
-        box(grp, 0.5, 0.08, 0.5, seatM, 0, 0.5, -0.75); box(grp, 0.5, 0.55, 0.07, seatM, 0, 0.82, -1.0); box(grp, 0.06, 0.46, 0.06, chromeM, 0, 0.23, -0.75); box(grp, 0.46, 0.04, 0.46, chromeM, 0, 0.02, -0.75);
+        makeChair(grp, 0, -0.75, 0, 0.5, true);
         room.colliders.push({ x: td.x, z: td.z - 0.8, r: 0.5 });
       }
       // places
@@ -207,8 +263,7 @@
         var s = { n: ti * 2 + k, x: sx0, z: sz0, yaw: Math.atan2(dx, -dz), tx: td.x, tz: td.z, table: T, i: k, phi: phi, bot: td.bots.indexOf(k) >= 0, sx: td.x + Math.sin(phi) * (SEAT_R + 0.9), sz: td.z + Math.cos(phi) * (SEAT_R + 0.9) };
         seats.push(s); T.spots.push(s);
         // tabouret
-        cyl(grp, 0.03, 0.03, 0.55, chromeM, sx0 - td.x, 0.3, sz0 - td.z, 8); cyl(grp, 0.2, 0.22, 0.03, chromeM, sx0 - td.x, 0.02, sz0 - td.z, 14);
-        cyl(grp, 0.2, 0.2, 0.1, seatM, sx0 - td.x, 0.6, sz0 - td.z, 16);
+        makeChair(grp, sx0 - td.x, sz0 - td.z, Math.atan2(dx, dz), 0.6, false);
         room.colliders.push({ x: sx0, z: sz0, r: 0.3 });
         if (s.bot) {
           var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = F.createPlayer ? F.createPlayer(nm, '', F.persona ? F.persona.lookCode(F.persona.lookFromName(nm)) : '') : null;
@@ -230,12 +285,14 @@
     }
     function spotPos(T, s, ci, n) {      // carte n°ci du joueur assis à la place s
       var ph = s.phi, bx = T.x + Math.sin(ph) * 1.1, bz = T.z + Math.cos(ph) * 1.1, tx0 = Math.cos(ph), tz0 = -Math.sin(ph);
-      var off = (ci - (n - 1) / 2) * 0.24;
+      var off = (ci - (n - 1) / 2) * 0.2;
       return { x: bx + tx0 * off, z: bz + tz0 * off, y: TOP_Y + 0.012 + ci * 0.004, ry: ph + 0.03 * ((ci % 2) ? 1 : -1) };   // le haut de la carte regarde vers le centre de la table
     }
-    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.3, z: T.z + 0.5, y: TOP_Y + 0.012 + ci * 0.004, ry: 0 }; }
+    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.34, z: T.z + 0.5, y: TOP_Y + 0.012 + ci * 0.004, ry: 0 }; }
+    // taille des cartes : plus grandes en vue 3e personne (la caméra est plus loin et plus haute)
+    function cardScale(owner) { return owner === 'd' ? 1.0 : 0.62; }
     function placeCard(owner, key, T, card, pos, sec) {
-      var m = makeCard(card); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); m.rotation.y = pos.ry; g.add(m);
+      var m = makeCard(card); m.userData.own = owner; m.scale.setScalar(cardScale(owner)); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); m.rotation.y = pos.ry; g.add(m);
       T.cards = T.cards || []; T.cards.push(m);
       anims.push({ m: m, t: 0, dur: 0.38, from: m.position.clone(), to: new THREE.Vector3(pos.x, pos.y, pos.z), delay: sec || 0 });
       return m;
@@ -274,17 +331,39 @@
 
     function setMsg(t, col) { R.msg = t; if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
     function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="n">🂠</span>' : '<span class="' + (red ? 'r' : 'n') + '">' + c.r + c.s + '</span>'; }).join(' '); }
+    function setText(el, t) { if (el && el.textContent !== t) el.textContent = t; }
+    function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
+    var cardImgCache = {}, cardsEl = null;
+    function cardImg(c) {      // vignette nette d'une carte (copie réduite de la texture 3D)
+      var key = c.r === '?' ? 'back' : c.r + c.s;
+      if (cardImgCache[key]) return cardImgCache[key];
+      var cv = mkCanvas(256, 358), x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cardTex(c).image, 0, 0, 256, 358);
+      return (cardImgCache[key] = cv.toDataURL());
+    }
+    // 3e personne : mes cartes en bas à gauche, celles du croupier juste au-dessus, en grand et bien lisibles
+    function refreshCards() {
+      if (!ui) return;
+      var show = view3 && R.phase !== 'idle' && R.me.length;
+      if (!cardsEl) { cardsEl = document.createElement('div'); cardsEl.className = 'bj3d-cards'; ui.el.parentNode.appendChild(cardsEl); }
+      cardsEl.style.display = show ? 'flex' : 'none';
+      if (!show) return;
+      var hidden = R.dealer.some(function (c) { return c.r === '?'; });
+      function row(cards) { return '<div class="bj-cr">' + cards.map(function (c) { return '<img src="' + cardImg(c) + '" alt="">'; }).join('') + '</div>'; }
+      setHtml(cardsEl, '<div class="bj-cl">Croupier' + (hidden ? '' : ' · ' + score(R.dealer)) + '</div>' + row(R.dealer) + '<div class="bj-cl">Toi · ' + score(R.me) + '</div>' + row(R.me));
+    }
     function refreshUi() {
       if (!ui) return;
       var hd = ui.el.querySelector('.bj-hands');
       if (R.phase !== 'idle' && R.me.length) {
         var hidden = R.dealer.some(function (c) { return c.r === '?'; });
-        hd.innerHTML = '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : ' (' + score(R.dealer) + ')') + '</div><div>Toi : ' + handHtml(R.me) + ' (' + score(R.me) + ')</div>';
-      } else hd.innerHTML = '';
+        setHtml(hd, '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : ' (' + score(R.dealer) + ')') + '</div><div>Toi : ' + handHtml(R.me) + ' (' + score(R.me) + ')</div>');
+      } else setHtml(hd, '');
+      refreshCards();
       var q = function (s) { return ui.el.querySelector(s); };
-      q('.bj-bal b').textContent = fmtN(balance()) + ' 🪙'; q('.bj-bet b').textContent = fmtN(bet) + ' 🪙';
+      setText(q('.bj-bal b'), fmtN(balance()) + ' 🪙'); setText(q('.bj-bet b'), fmtN(bet) + ' 🪙');   // on ne réécrit le texte que s'il change : sinon l'émoji clignote
       var idle = R.phase === 'idle' && !R.busy, mine = R.phase === 'me' && !R.busy;
       q('.bj-chips').style.display = idle ? '' : 'none';
+      var rdy = q('[data-a=ready]'); if (rdy) rdy.style.display = idle && seat ? '' : 'none';
       ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = R.phase === 'me' ? '' : 'none'; b.disabled = !mine; });
       var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = !mine || R.me.length !== 2;
     }
@@ -385,6 +464,7 @@
         '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
         '.bj3d button.bj-b{padding:10px 18px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +
         '.bj3d button.bj-b.alt{background:#2a3b57;color:#e8f0ff}.bj3d button.bj-b.red{background:#8a1f2b;color:#ffe9ea}' +
+        '.bj3d-cards{position:absolute;left:14px;bottom:182px;z-index:5;pointer-events:none;display:none;flex-direction:column;gap:5px;padding:8px 10px;border-radius:12px;background:rgba(8,5,12,.8);border:1px solid rgba(201,162,39,.5);color:#f4e3b0;font-weight:800;font-size:12px}.bj3d-cards .bj-cr{display:flex;gap:5px}.bj3d-cards img{width:68px;height:auto;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.55)}' +
         '.bj3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.bj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       document.head.appendChild(s);
     }
@@ -393,7 +473,7 @@
       var el = document.createElement('div'); el.className = 'bj3d';
       el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-hands"></div><div class="bj-msg"></div>' +
         '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button></div>' +
-        '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button></div>';
+        '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button><button class="bj-b" data-a="ready">✅ Prêt</button></div>';
       w.container.appendChild(el);
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -403,6 +483,7 @@
           bet = Math.max(MIN_BET, Math.min(MAX_BET, bet)); refreshUi(); return;
         }
         var a = b.dataset.a;
+        if (a === 'ready') { if (R.phase === 'idle' && !R.busy) R.count = 0; return; }
         if (a === 'hit') act('bj_hit'); else if (a === 'stand') act('bj_stand'); else if (a === 'double') act('bj_double');
       });
       return { el: el };
@@ -416,6 +497,7 @@
     function toggleView() {
       view3 = !view3; view.yaw = view.pitch = 0;
       if (meRig) meRig.group.visible = view3;
+      refreshUi();
       if (standEl) { var b = standEl.querySelector('[data-b=cam]'); if (b) b.innerHTML = (view3 ? '👁 Vue 1re personne' : '👁 Vue 3e personne') + ' <kbd>V</kbd>'; }
     }
     function sit(w, s) {
@@ -443,6 +525,7 @@
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
+      if (cardsEl && cardsEl.parentNode) cardsEl.parentNode.removeChild(cardsEl); cardsEl = null;
       if (meRig) meRig.group.visible = false; view3 = false;
       world.standUp(s.sx, s.sz, s.yaw);
     }
@@ -462,7 +545,8 @@
       if (view3) {                                                      // 3e personne : au-dessus et derrière mon épaule, on voit toute la table
         var ox = s.x - s.tx, oz = s.z - s.tz, L = Math.hypot(ox, oz) || 1; ox /= L; oz /= L;
         var cs = Math.cos(view.yaw * 0.8), sn = Math.sin(view.yaw * 0.8), rx = ox * cs - oz * sn, rz = ox * sn + oz * cs;
-        return { cx: s.x + rx * 1.35, cy: 2.35, cz: s.z + rz * 1.35, tx: s.tx + ox * 0.55, ty: 0.85, tz: s.tz + oz * 0.55, fov: 58 };
+        var sx = -rz * 0.55, sz = rx * 0.55;                           // un peu de côté (par-dessus l'épaule) : ma tête ne cache plus mes cartes
+        return { cx: s.x + rx * 1.2 + sx, cy: 2.5, cz: s.z + rz * 1.2 + sz, tx: s.tx + ox * 0.62, ty: 0.8, tz: s.tz + oz * 0.62, fov: 55 };
       }
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
       // vue assis : la tête est un peu avancée au-dessus de la table et regarde vers le bas, entre mes cartes et celles du croupier
@@ -488,9 +572,9 @@
       clockT += dt;
       if (seat && R.phase === 'idle' && !R.busy) {
         R.count = (R.count === undefined ? 10 : R.count) - dt;
-        if (ui) { var tm = ui.el.querySelector('.bj-count'); if (tm) tm.textContent = 'Manche dans ' + Math.max(0, Math.ceil(R.count)) + ' s'; }
+        if (ui) { var tm = ui.el.querySelector('.bj-count'); setText(tm, 'Manche dans ' + Math.max(0, Math.ceil(R.count)) + ' s'); }
         if (R.count <= 0) startRound();
-      } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); if (tm2 && tm2.textContent) tm2.textContent = ''; }
+      } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); setText(tm2, ''); }
       // animations des personnages
       people.forEach(function (o) {
         if (!o.p._rig) return;
