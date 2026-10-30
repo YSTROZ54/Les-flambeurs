@@ -352,7 +352,7 @@
       hudHidden = !!hide;
       if (world.hud) world.hud.classList.toggle('cin-nohud', hudHidden);
       if (standEl) standEl.classList.toggle('hid', hudHidden);
-      if (eyeEl) eyeEl.textContent = hudHidden ? "👁 Afficher l'interface" : "🙈 Masquer l'interface";
+      if (eyeEl) eyeEl.innerHTML = hudHidden ? "<i class='fa-solid fa-eye'></i> Afficher l'interface" : "<i class='fa-solid fa-eye-slash'></i> Masquer l'interface";
     }
     function mountEye() {
       if (eyeEl) return;
@@ -415,7 +415,7 @@
     room.hudBottom =
       '<div class="cin"><div class="cin-t"><img class="cin-logo" src="assets/cinema/tropistream-serveur.png" alt="">Cinéma Tropi Stream</div><div class="cin-st" data-s3d="cinst"></div>' +
       '<div class="cin-bar"><i data-s3d="cinbar"></i></div>' +
-      '<div class="cin-row"><button class="cin-play" data-s3d="cinplay">▶ Lancer la séance</button><button class="cin-mus" data-s3d="cinmus"></button></div>' +
+      '<div class="cin-row"><button class="cin-play" data-s3d="cinplay"><i class="fa-solid fa-play"></i> Lancer la séance</button><button class="cin-mus" data-s3d="cinmus"></button></div>' +
       '<div class="cin-tip">Avance vers un fauteuil et appuie sur <b>F</b> (ou clique dessus) pour t\'asseoir · clic sur l\'écran ou <b>P</b> : lecture / pause</div></div>';
     room.bindHud = function (hud) {
       room.elSt = hud.querySelector('[data-s3d="cinst"]'); room.elBar = hud.querySelector('[data-s3d="cinbar"]');
@@ -424,13 +424,15 @@
       room.elMus.addEventListener('click', function () { music.toggle(); refreshHud(); });
       refreshHud();
     };
+    function setBtn(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
     function refreshHud() {
       if (!room.elPlay) return;
       var s = film.state, dur = video.duration || 0;
-      room.elPlay.textContent = s === 'playing' ? '⏸ Pause' : s === 'paused' ? '▶ Reprendre' : s === 'ended' ? '↻ Revoir la séance' : '▶ Lancer la séance';
+      // le HUD est rafraîchi 4 fois par seconde : on ne touche au bouton que si son contenu change (sinon le logo clignote)
+      setBtn(room.elPlay, s === 'playing' ? '<i class="fa-solid fa-pause"></i> Pause' : s === 'paused' ? '<i class="fa-solid fa-play"></i> Reprendre' : s === 'ended' ? '<i class="fa-solid fa-rotate-right"></i> Revoir la séance' : '<i class="fa-solid fa-play"></i> Lancer la séance');
       room.elSt.textContent = s === 'playing' ? 'En salle · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'paused' ? 'En pause · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'ended' ? 'Séance terminée' : 'Présentation Premium · ' + (dur ? fmtT(dur) : '0:58');
       room.elBar.style.width = (dur ? clamp(video.currentTime / dur, 0, 1) * 100 : 0) + '%';
-      room.elMus.textContent = music.on ? '🔊 Musique' : '🔇 Musique';
+      setBtn(room.elMus, music.on ? '<i class="fa-solid fa-volume-high"></i> Musique' : '<i class="fa-solid fa-volume-xmark"></i> Musique');
       room.elMus.classList.toggle('off', !music.on);
     }
 
