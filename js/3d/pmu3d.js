@@ -257,12 +257,12 @@
     var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), i, j;
     for (i = 0; i < 8; i++) {
       for (j = -1; j < 2; j++) {
-        var sh = 196 + Math.floor(Math.random() * 26);
-        fx.fillStyle = 'rgb(' + sh + ',' + (sh - 28) + ',' + (sh - 70) + ')'; fx.fillRect(j * 128 + (i % 2) * 64, i * 32, 127, 31);
+        var sh = 126 + Math.floor(Math.random() * 8);
+        fx.fillStyle = 'rgb(' + sh + ',' + (sh - 9) + ',' + (sh - 24) + ')'; fx.fillRect(j * 128 + (i % 2) * 64, i * 32, 127, 31);
       }
     }
-    fx.fillStyle = 'rgba(120,80,40,0.25)'; for (i = 0; i < 8; i++) fx.fillRect(0, i * 32 + 31, 256, 1);
-    fx.globalAlpha = 0.1; for (i = 0; i < 90; i++) { fx.fillStyle = i % 2 ? '#fff' : '#6b4a28'; fx.fillRect(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 30, 1); }
+    fx.fillStyle = 'rgba(70,50,30,0.14)'; for (i = 0; i < 8; i++) fx.fillRect(0, i * 32 + 31, 256, 1);
+    fx.globalAlpha = 0.05; for (i = 0; i < 90; i++) { fx.fillStyle = i % 2 ? '#fff' : '#6b4a28'; fx.fillRect(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 30, 1); }
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 8;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ map: ft })); floor.rotation.x = -Math.PI / 2; g.add(floor);
 
@@ -305,17 +305,6 @@
       box(shelf, 0.28, 0.17, 0.1, lam(palette[(row * 7 + col * 3 + (col % 5)) % palette.length]), -6.9 + col * 0.35, 0.55 + row * 0.62, 0.26);
     }
     [0.3, 0.92, 1.54, 2.16].forEach(function (y) { box(shelf, 14, 0.04, 0.5, lam(0x2c2c34), 0, y, 0.02); });
-    function screenTex(title, lines) {
-      var c = mkCanvas(512, 288), x = c.getContext('2d');
-      x.fillStyle = '#0a1020'; x.fillRect(0, 0, 512, 288); x.fillStyle = '#d01a1a'; x.fillRect(0, 0, 512, 56);
-      x.fillStyle = '#fff'; x.font = '900 36px ' + SERIF; x.textAlign = 'left'; x.textBaseline = 'middle'; x.fillText(title, 18, 30);
-      x.font = '700 28px ' + MONO; lines.forEach(function (l, k) { x.fillStyle = k % 2 ? '#9fd0ff' : '#ffe08a'; x.fillText(l, 18, 92 + k * 42); });
-      return mkTex(c);
-    }
-    [[-6, 'PMU · COURSES', ['R1  8 PARTANTS', 'R2  12 PARTANTS', 'R3  9 PARTANTS', 'R4  14 PARTANTS']], [-2, 'RÉSULTATS', ['3 - 7 - 1 - 4', '2 - 5 - 8 - 6', '9 - 1 - 3 - 7', '4 - 4 - 2 - 8']], [2, 'LOTO · JEUX', ['TIRAGE  18:30', 'GRATTAGE  100 🪙', 'CAGNOTTE  20 000', 'BONNE CHANCE !']]].forEach(function (s) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.18), new THREE.MeshBasicMaterial({ map: screenTex(s[1], s[2]) })); m.position.set(s[0], 3.0, -HZ + 0.52); g.add(m);
-      box(g, 2.22, 1.3, 0.05, lam(0x111114), s[0], 3.0, -HZ + 0.49);
-    });
     var tc = mkCanvas(512, 192), tx = tc.getContext('2d');
     tx.fillStyle = '#111116'; tx.fillRect(0, 0, 512, 192); tx.fillStyle = '#d01a1a'; tx.fillRect(0, 0, 512, 18); tx.fillRect(0, 174, 512, 18);
     tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.fillStyle = '#fff'; tx.font = '900 130px ' + SERIF; tx.fillText('PMU', 256, 98, 460);
@@ -347,17 +336,17 @@
 
     /* --- petites tables carrées et chaises noires à assise rouge (on peut s'y asseoir) --- */
     var seats = room.seats = [];
-    function chair(x, z, r, tx, tz) {                       // r : rotation de la chaise (0 = elle regarde vers +z) ; (tx, tz) : la table
+    function chair(x, z, r, tx, tz, arm) {                       // r : rotation de la chaise (0 = elle regarde vers +z) ; (tx, tz) : la table
       var c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = r; g.add(c);
       [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(c, 0.035, 0.45, 0.035, lam(BLACK), p[0], 0.225, p[1]); });
       box(c, 0.46, 0.05, 0.46, lam(BLACK), 0, 0.46, 0); box(c, 0.4, 0.04, 0.4, lam(RED), 0, 0.5, 0);
       box(c, 0.46, 0.4, 0.04, lam(BLACK), 0, 0.72, -0.21);                                                   // dossier : derrière la chaise
       room.colliders.push({ x: x, z: z, r: 0.3 });
-      var s = { n: seats.length, x: x, z: z, r: r, yaw: Math.PI - r, tx: tx, tz: tz, sx: x - Math.sin(r) * 0.95, sz: z - Math.cos(r) * 0.95 };   // sx, sz : où on se retrouve debout
+      var s = { n: seats.length, x: x, z: z, r: r, yaw: Math.PI - r, tx: tx, tz: tz, arm: arm, sx: x - Math.sin(r) * 0.95, sz: z - Math.cos(r) * 0.95 };   // sx, sz : où on se retrouve debout
       seats.push(s);
       room.interactables.push({
         x: x, z: z, radius: 1.35,
-        prompt: function () { return '🪑 S\'asseoir  [F]'; },
+        prompt: function () { return arm === undefined ? '🪑 S\'asseoir  [F]' : '💪 Bras de fer : prendre place  [F]'; },
         use: function (w) { sit(w, s); }
       });
     }
@@ -368,6 +357,136 @@
       chair(x, z - 0.8, 0, x, z); chair(x, z + 0.8, Math.PI, x, z); chair(x - 0.85, z, Math.PI / 2, x, z); chair(x + 0.85, z, -Math.PI / 2, x, z);
     }
     [[1.6, -0.5], [5.2, -0.5], [1.6, 3.4], [5.2, 3.4]].forEach(function (p) { table(p[0], p[1]); });
+
+    /* --- table de bras de fer : 2 joueurs, en ligne. Le joueur assis à l'ouest (côté 0) est l'arbitre : lui seul décide du score et du gagnant. --- */
+    var AX = -4.6, AZ = 3.4, STEP = 0.025, MIN_GAP = 80, ARM_BEAT = 100, ARM_MAX_MS = 25000;
+    var aw = { id: 0, st: 'idle', n: 0, pos: 0, win: -1, n0: '', n1: '', last: 0, t0: 0, endT: 0, dirty: true, sent: 0, clicks: [0, 0] };
+    var armSeats = [], armEl = null, armCssDone = false, lastOwnClick = 0;
+    box(g, 1.5, 0.06, 0.85, lam(0x2a1d14), AX, 0.76, AZ);
+    [[-0.6, -0.32], [0.6, -0.32], [-0.6, 0.32], [0.6, 0.32]].forEach(function (p) { box(g, 0.07, 0.73, 0.07, chrome(), AX + p[0], 0.365, AZ + p[1]); });
+    [-0.45, 0.45].forEach(function (dx) { box(g, 0.22, 0.03, 0.3, lam(RED), AX + dx, 0.8, AZ); });          // coussins pour les coudes
+    room.colliders.push({ x: AX, z: AZ, r: 0.75 });
+    chair(AX - 1.15, AZ, Math.PI / 2, AX, AZ, 0); chair(AX + 1.15, AZ, -Math.PI / 2, AX, AZ, 1);
+    armSeats = [seats[seats.length - 2], seats[seats.length - 1]];
+    var armMat = [lam(0xd01a1a), lam(0x2f6fe0)], skinM = lam(0xe0ac82);
+    var forearm = [box(g, 1, 0.07, 0.09, armMat[0], AX, 1, AZ), box(g, 1, 0.07, 0.09, armMat[1], AX, 1, AZ)];
+    var fist = sph(g, 0.1, skinM, AX, 1, AZ);
+    var abCv = mkCanvas(512, 192), abTex = mkTex(abCv);
+    var board = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: abTex, transparent: true, depthWrite: false })); board.position.set(AX, 2.05, AZ); g.add(board);
+    function myName() { var s = st(); return (s && s.username) || 'Joueur'; }
+    function armRemote(n) {
+      var now = performance.now(), s = armSeats[n], found = null;
+      Object.keys(world.remote).forEach(function (k) { var r = world.remote[k]; if (r && r.seat === s.n && now - (r.recv || 0) < 3200) found = r; });
+      return found;
+    }
+    function mySide() { return seat && seat.arm !== undefined ? seat.arm : -1; }
+    function drawBoard() {
+      var x = abCv.getContext('2d'), W = 512, Hh = 192;
+      x.clearRect(0, 0, W, Hh); x.fillStyle = 'rgba(12,12,18,0.82)'; x.fillRect(0, 0, W, Hh);
+      x.fillStyle = '#d01a1a'; x.fillRect(0, 0, W, 10);
+      x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '900 34px ' + SERIF;
+      var tl = aw.st === 'idle' ? '💪 BRAS DE FER' : aw.st === 'count' ? String(Math.max(1, aw.n)) : aw.st === 'end' ? '🏆 ' + (aw.win === 0 ? aw.n0 : aw.n1) + ' gagne !' : (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?');
+      x.fillText(tl, W / 2, 46, 480);
+      x.fillStyle = '#333'; x.fillRect(30, 90, 452, 30);
+      var f = (aw.pos + 1) / 2; x.fillStyle = '#d01a1a'; x.fillRect(30, 90, 452 * f, 30); x.fillStyle = '#2f6fe0'; x.fillRect(30 + 452 * f, 90, 452 * (1 - f), 30);
+      x.fillStyle = '#fff'; x.fillRect(30 + 452 * f - 3, 84, 6, 42);
+      x.font = '700 22px ' + SERIF; x.fillStyle = '#ddd';
+      x.fillText(aw.st === 'idle' ? 'Assieds-toi de chaque côté (F)' : aw.st === 'run' ? 'Clic gauche, le plus vite possible !' : aw.st === 'count' ? 'Prépare-toi…' : 'Revanche dans un instant', W / 2, 154, 480);
+      abTex.needsUpdate = true;
+    }
+    function applyArms() {
+      var cx = AX + aw.pos * 0.22, cy = 0.9 + 0.22 * (1 - Math.abs(aw.pos) * 0.7);
+      [-0.45, 0.45].forEach(function (dx, i) {
+        var ex = AX + dx, ey = 0.84, vx = cx - ex, vy = cy - ey, len = Math.hypot(vx, vy), f = forearm[i];
+        f.scale.x = len; f.position.set(ex + vx / 2, ey + vy / 2, AZ); f.rotation.z = Math.atan2(vy, vx);
+      });
+      fist.position.set(cx, cy, AZ);
+    }
+    function resetAw() { aw.st = 'idle'; aw.pos = 0; aw.win = -1; aw.n = 0; aw.dirty = true; }
+    function endAw(win) { aw.st = 'end'; aw.win = win; aw.endT = performance.now(); aw.dirty = true; aw.sent = 0; }
+    function applyClick(side, now) {                        // arbitre seulement
+      if (aw.st !== 'run') return;
+      if (now - aw.clicks[side] < MIN_GAP) return;           // cadence maximale : environ 12 clics par seconde
+      aw.clicks[side] = now; aw.pos += side === 0 ? STEP : -STEP;
+      if (aw.pos >= 1) { aw.pos = 1; endAw(0); } else if (aw.pos <= -1) { aw.pos = -1; endAw(1); }
+      aw.dirty = true;
+    }
+    function armSend() {
+      var w = world; if (!w.rt || !w.rt.ready) return;
+      try { w.rt.send('abs', { k: F.me(), id: aw.id, st: aw.st, n: aw.n, pos: Math.round(aw.pos * 1000) / 1000, win: aw.win, n0: aw.n0, n1: aw.n1 }); } catch (e) { /* ok */ }
+    }
+    function onArmClick(e) {
+      if (e.button !== 0 || !seat || seat.arm === undefined) return;
+      if (e.target && e.target.closest && e.target.closest('button')) return;
+      var now = performance.now(), me = seat.arm;
+      if (me === 0) applyClick(0, now);
+      else if (aw.st === 'run' && now - lastOwnClick >= MIN_GAP) { lastOwnClick = now; try { if (world.rt && world.rt.ready) world.rt.send('abc', { k: F.me(), id: aw.id }); } catch (er) { /* ok */ } }
+      if (armEl) { armEl.classList.add('hit'); setTimeout(function () { if (armEl) armEl.classList.remove('hit'); }, 60); }
+    }
+    function armOnSit(w) {
+      if (!armCssDone) {
+        armCssDone = true; var s = document.createElement('style');
+        s.textContent = '.pmu-ab{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:30;width:min(440px,90%);padding:10px 14px;border-radius:14px;background:rgba(12,12,18,.88);border:1px solid rgba(255,255,255,.18);color:#fff;font-family:Inter,system-ui,sans-serif;text-align:center;pointer-events:none}' +
+          '.pmu-ab.hit{transform:translateX(-50%) scale(1.03)}.pmu-ab .t{font-weight:900;font-size:20px;min-height:26px}.pmu-ab .bar{display:flex;height:16px;margin:8px 0;border-radius:8px;overflow:hidden;background:#2f6fe0}.pmu-ab .bar i{display:block;background:#d01a1a;width:50%}.pmu-ab .s{font-size:12.5px;color:#cfcfd8}';
+        document.head.appendChild(s);
+      }
+      armEl = document.createElement('div'); armEl.className = 'pmu-ab';
+      armEl.innerHTML = '<div class="t"></div><div class="bar"><i></i></div><div class="s"></div>';
+      w.container.appendChild(armEl);
+      window.addEventListener('mousedown', onArmClick, true);
+      aw.dirty = true;
+    }
+    function armOnStand() {
+      window.removeEventListener('mousedown', onArmClick, true);
+      if (armEl && armEl.parentNode) armEl.parentNode.removeChild(armEl);
+      armEl = null;
+    }
+    function armUpdate(dt) {
+      var now = performance.now(), me = mySide();
+      if (me === 0) {
+        var opp = armRemote(1);
+        aw.n0 = myName();
+        if (!opp) { if (aw.st !== 'idle') { resetAw(); armSend(); } }
+        else {
+          aw.n1 = String(opp.name || '').slice(0, 16);
+          if (aw.st === 'idle') { aw.id = (aw.id + 1) % 100000; aw.st = 'count'; aw.t0 = now; aw.pos = 0; aw.win = -1; aw.clicks = [0, 0]; aw.dirty = true; }
+          else if (aw.st === 'count') {
+            var n = 3 - Math.floor((now - aw.t0) / 1000); if (n !== aw.n) { aw.n = n; aw.dirty = true; }
+            if (now - aw.t0 >= 3000) { aw.st = 'run'; aw.t0 = now; aw.dirty = true; }
+          } else if (aw.st === 'run' && now - aw.t0 > ARM_MAX_MS) { if (aw.pos === 0) resetAw(); else endAw(aw.pos > 0 ? 0 : 1); }
+          else if (aw.st === 'end' && now - aw.endT > 4500) resetAw();
+        }
+        if (now - aw.sent > ARM_BEAT || aw.dirty) { aw.sent = now; armSend(); }
+      } else if (aw.st !== 'idle' && now - aw.last > 2500) resetAw();   // l'arbitre a disparu
+      if (aw.dirty || armEl) {
+        if (armEl) {
+          var mine = me, t = armEl.querySelector('.t'), s = armEl.querySelector('.s'), b = armEl.querySelector('.bar i'), tx, sx;
+          if (aw.st === 'idle') { tx = '💪 Bras de fer'; sx = me === 0 ? 'Attends un adversaire…' : 'Attends que le joueur de gauche soit prêt…'; }
+          else if (aw.st === 'count') { tx = String(Math.max(1, aw.n)); sx = 'Prépare ton doigt sur le CLIC GAUCHE'; }
+          else if (aw.st === 'run') { tx = (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?'); sx = 'CLIC GAUCHE, le plus vite possible !'; }
+          else { tx = aw.win === mine ? '🏆 Tu as gagné !' : '😖 Tu as perdu…'; sx = 'Revanche dans un instant'; }
+          if (t.textContent !== tx) t.textContent = tx; if (s.textContent !== sx) s.textContent = sx;
+          b.style.width = ((aw.pos + 1) * 50).toFixed(1) + '%';
+        }
+        if (aw.dirty) { drawBoard(); applyArms(); aw.dirty = false; }
+      }
+    }
+    function armMsg(ev, m, remote) {
+      var now = performance.now(), me = mySide();
+      if (!remote) return;
+      if (ev === 'abs') {
+        if (remote.seat !== armSeats[0].n || me === 0) return;
+        var okSt = { idle: 1, count: 1, run: 1, end: 1 };
+        if (!okSt[m.st]) return;
+        var p = Number(m.pos); if (!isFinite(p)) return;
+        aw.id = m.id | 0; aw.st = m.st; aw.n = m.n | 0; aw.pos = Math.max(-1, Math.min(1, p)); aw.win = m.win === 0 || m.win === 1 ? m.win : -1;
+        aw.n0 = String(m.n0 || '').slice(0, 16); aw.n1 = String(m.n1 || '').slice(0, 16); aw.last = now; aw.dirty = true;
+      } else if (ev === 'abc') {
+        if (me !== 0 || remote.seat !== armSeats[1].n || (m.id | 0) !== aw.id) return;
+        applyClick(1, now);
+      }
+    }
+    applyArms(); drawBoard();
 
     /* --- étagères de magazines le long du mur de gauche --- */
     function magTex() {
@@ -390,14 +509,6 @@
       room.colliders.push({ x: -HX + 0.8, z: z - 0.8, r: 0.7 }, { x: -HX + 0.8, z: z, r: 0.7 }, { x: -HX + 0.8, z: z + 0.8, r: 0.7 });
     });
 
-    /* --- essai : projecteur 3D téléchargé (assets/3d/spotlight.glb), posé dans la salle --- */
-    if (THREE.GLTFLoader) {
-      new THREE.GLTFLoader().load('assets/3d/spotlight.glb', function (gl) {
-        var sp = gl.scene; sp.position.set(3, 0, 1.5); sp.rotation.y = -0.6; g.add(sp);
-        if (!low) { var sl = new THREE.SpotLight(0xffe2b0, 1.2, 14, 0.5, 0.5); sl.position.set(3, 1.6, 1.5); sl.target.position.set(0, 0, -2); g.add(sl); g.add(sl.target); }
-      }, undefined, function () {});
-    }
-
     /* --- poutres sombres au plafond --- */
     var beamM = lam(0x1b1512);
     for (i = -HX + 1.5; i < HX; i += 3) box(g, 0.28, 0.3, HZ * 2, beamM, i, H - 0.15, 0);
@@ -416,9 +527,9 @@
       var wash = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.3), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })); wash.position.set(0, 0.0, 0.02); s.add(wash);
     }
     [-6.5, -2.5, 2.5, 6.5].forEach(function (z) { sconce(HX - 0.01, z, -Math.PI / 2); });          // mur de droite
-    [-1.0, 4.5].forEach(function (z) { sconce(-HX + 0.01, z + 1.6, Math.PI / 2); });                // mur de gauche, entre les étagères
+    [-3.3, 6.9].forEach(function (z) { sconce(-HX + 0.01, z, Math.PI / 2); });                        // mur de gauche : entre le comptoir et les étagères, et après les étagères
     [-6.5, -3.2, 3.2, 6.5].forEach(function (x) { sconce(x, HZ - 0.01, Math.PI); });                // mur de l'entrée
-    sconce(-8.2, -HZ + 0.02, 0); sconce(6.8, -HZ + 0.02, 0);                                        // mur du fond, aux extrémités
+    sconce(7.2, -HZ + 0.02, 0);                                                                     // mur du fond, à droite des étagères
 
     /* --- lumières --- */
     g.add(new THREE.AmbientLight(0xf0e6dc, 1.15));
@@ -533,13 +644,14 @@
       standEl.querySelector('button').addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
+      if (s.arm !== undefined) armOnSit(w);
     }
     function stand() {
       if (!seat) return;
       var s = seat; seat = null;
       window.removeEventListener('keydown', onSeatKey, true);
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl);
-      standEl = null;
+      standEl = null; armOnStand();
       world.standUp(s.sx, s.sz, s.yaw);
     }
     room.forceStand = function () { stand(); };
@@ -581,10 +693,10 @@
       s.dirty = true;
     }
     function killShow(s) { if (s.sp.parent) s.sp.parent.remove(s.sp); s.tex.dispose(); s.sp.material.dispose(); }
-    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); };
+    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); else if (ev === 'abs' || ev === 'abc') armMsg(ev, m, remote); };
 
     /* --- cycle de vie, interface --- */
-    room.hint = function (w) { return 'ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
+    room.hint = function (w) { return 'Bras de fer : prends place à la table de gauche · ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.onEnter = function () { hereT = 99; if (loggedIn()) loadCards(); };
     room.onLeave = function () { closeTalk(true); stand(); if (PMU.self) PMU.self.finish(); shows.forEach(killShow); shows = []; };
@@ -602,6 +714,7 @@
       else if (talk) r0 = -0.9 + Math.sin(t * 2.2) * 0.12;
       else if (d < 6 && w.mode === 'room') r0 = -2.6 + Math.sin(t * 7) * 0.22;
       arms[0].rotation.x = lerp(arms[0].rotation.x, l0, k); arms[1].rotation.x = lerp(arms[1].rotation.x, r0, k);
+      armUpdate(dt);
       // cartes affichées au-dessus des autres joueurs
       var now = performance.now();
       shows = shows.filter(function (s) {
