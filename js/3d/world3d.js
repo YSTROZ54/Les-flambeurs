@@ -407,11 +407,11 @@
 
   /* ---------- clavier / souris / doigt ---------- */
   World.prototype._bindKeys = function () {
-    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'l', ArrowRight: 'r', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
+    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'l', ArrowRight: 'r', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run', ControlLeft: 'crouch' };
     function ok(e) {
       var t = e.target, tag = t && t.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
-      return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !self.trans && !e.ctrlKey && !e.metaKey && !e.altKey;
+      return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !self.trans && (!e.ctrlKey || e.code === 'ControlLeft') && !e.metaKey && !e.altKey;
     }
     this._kd = function (e) {
       var sr = self.seatRoom, tg = e.target && e.target.tagName;
@@ -523,9 +523,10 @@
     var len = Math.hypot(fwd, str);
     if (this.emoId && (len > 0.05 || k.jump)) this.stopEmote();           // marcher ou sauter arrête la danse
     if (len > 1) { fwd /= len; str /= len; }
-    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z, wasAir = !!p.air;
+    var crouch = !!k.crouch && !p.air, run = !!k.run && !crouch && (fwd !== 0 || str !== 0), sp = (crouch ? 1.6 : run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z, wasAir = !!p.air;
     this.running2 = run;
-    if (k.jump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
+    p.cr = (p.cr || 0) + ((crouch ? 1 : 0) - (p.cr || 0)) * Math.min(1, dt * 14);   // 0 = debout, 1 = accroupi (caméra seulement)
+    if (k.jump && !p.air && !crouch) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
     if (p.air) { p.vy -= 13 * dt; p.jy = (p.jy || 0) + p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; p.air = false; } }
     p.x += (Math.sin(p.yaw) * fwd + Math.cos(p.yaw) * str) * sp;
     p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
@@ -604,7 +605,7 @@
 
     // pose « marche »
     var p = this.player, cpp = Math.cos(p.pitch), aspect = this.w / Math.max(1, this.h);
-    var rx = p.x, ry = 1.65 + (p.jy || 0), rz = p.z;
+    var rx = p.x, ry = 1.65 + (p.jy || 0) - 0.65 * (p.cr || 0) * (1 - w), rz = p.z;
     var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
     var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = aspect < 0.9 ? 70 : 62;
 
