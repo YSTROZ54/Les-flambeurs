@@ -670,7 +670,7 @@
     injectBetCss();
     var horseBtns = HORSES.map(function (h) { return '<button data-h="' + h.n + '" title="' + h.name + '"><i style="background:' + hex(h.silk) + ';color:' + h.ink + '">' + h.n + '</i><b data-o="' + h.n + '"></b></button>'; }).join('');
     var placeBtns = [1, 2, 3, 4, 5, 6, 7, 8].map(function (p) { return '<button data-p="' + p + '">' + (p === 1 ? '1ᵉʳ' : p + 'ᵉ') + '</button>'; }).join('');
-    room.hudTop = '<button class="s3d-cam" data-s3d="snd">🔊 Son</button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Vue d\'en haut</button>' +
+    room.hudTop = '<button class="s3d-cam" data-s3d="snd">🔊 Son</button><button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever [F]</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Vue d\'en haut</button>' +
       '<div class="s3d-hint" data-s3d="hbanner" style="top:52px;font-size:13px;letter-spacing:.08em"></div>';
     room.hudBottom =
       '<div class="hbet s3d-seat-only"><div class="hb-msg" data-s3d="hmsg"></div>' +
@@ -856,7 +856,8 @@
 
     /* ----- les autres joueurs (vus grâce au temps réel du monde) ----- */
     room.seatPos = function () { var e = room.seatEntry; return e ? { seat: e.n - 1, x: e.x, z: e.z, yaw: e.yaw } : null; };
-    room.sit = { y: 0.16, z: 0.3 };   // hauteur et recul du personnage assis (persona3d.js) : tabouret à 0,66 m
+    room.standKey = true;   // la touche F fait se lever (world3d.js)
+    room.sitSpec = { y: 0.16, z: 0.3 };   // hauteur et recul du personnage assis (persona3d.js) : tabouret à 0,66 m
     room.remotePose = function (r) { var e = room.seats[r.seat]; return e ? { x: e.x - e.side * 0.1, z: e.z, yaw: e.yaw } : null; };
 
     var ledT = 0, ledCol = new THREE.Color();

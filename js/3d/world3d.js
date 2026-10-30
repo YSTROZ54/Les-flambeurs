@@ -414,6 +414,10 @@
       return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !self.trans && !e.ctrlKey && !e.metaKey && !e.altKey;
     }
     this._kd = function (e) {
+      var sr = self.seatRoom, tg = e.target && e.target.tagName;
+      if (self.mode === 'seat' && sr && sr.standKey && sr.stand && e.code === 'KeyF' && self.running && !self.dead && !self.trans && !e.ctrlKey && !e.metaKey && !e.altKey && tg !== 'INPUT' && tg !== 'TEXTAREA') {
+        sr.stand(); e.preventDefault(); return;                  // F : on se lève (machines à sous, courses de chevaux)
+      }
       if (!ok(e)) return;
       if (e.key === 'a' || e.key === 'A') return; // Touche A réservée aux Emotes (hud3d.js)
       if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
@@ -830,7 +834,7 @@
       var tx = r.tx, tz = r.tz, yaw = r.tyaw;
       var sp0 = r.seat >= 0 && room.remotePose ? room.remotePose(r) : null;
       var age = Math.min(0.4, silence / 1000);   // extrapolation courte et bornée
-      if (sp0) { tx = sp0.x; tz = sp0.z; yaw = sp0.yaw; r.person.setSeated(true, room.sit); }
+      if (sp0) { tx = sp0.x; tz = sp0.z; yaw = sp0.yaw; r.person.setSeated(true, room.sitSpec); }
       else { tx += r.vx * age; tz += r.vz * age; r.person.setSeated(false); }
 
       // Empêcher strictement le personnage de traverser les murs et d'aller dans le vide

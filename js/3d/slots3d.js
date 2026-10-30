@@ -2,7 +2,7 @@
    slots3d.js — Machines à sous 3D « Les Flambeurs » (Three.js r128)
    ---------------------------------------------------------------------
    - createSlotCabinet(opts) : UNE borne réutilisable (position, rotation, qualité).
-   - salle « slots » : 6 bornes en arc, tableau des meilleurs gains, règles sur les murs,
+   - salle « slots » : 8 bornes (4 contre le mur du fond, sous le tableau des meilleurs gains, et 4 contre le mur de gauche), règles sur le mur de droite,
      branchée sur le monde commun (f3d-core.js + world3d.js).
    - window.Slots3D : pont avec la page (pullSlotLever). Les symboles, gains et le solde restent
      gérés par le jeu existant : ce fichier ne fait que MONTRER le tirage que le serveur a décidé.
@@ -748,7 +748,7 @@
     }
     drawPlaque(false);
     var plaques = [];
-    [[-1, Math.PI / 2], [1, -Math.PI / 2]].forEach(function (s) {
+    [[1, -Math.PI / 2]].forEach(function (s) {                  // règles et gains : seulement sur le mur de droite (les bornes occupent le mur de gauche)
       var x = s[0] * (ROOM.wall - 0.06);
       var fr = new THREE.Mesh(new THREE.BoxGeometry(0.08, 4.5, 8.7), goldMat); fr.position.set(x - s[0] * 0.01, 4.0, 4.5); scene.add(fr);
       var rb = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 4.32), rulesMat); rb.position.set(x + (-s[0]) * 0.06, 4.0, 4.5); rb.rotation.y = s[1]; scene.add(rb);
@@ -796,19 +796,20 @@
     built.drawBoard(topSlotWins());
     room.bounds = { xMin: -ROOM.xMax, xMax: ROOM.xMax, zMin: ROOM.zMin, zMax: ROOM.zMax };
 
-    // bornes en arc de cercle, tournées vers le centre (même salle sur PC et téléphone)
-    var n = 6;
+    // 8 bornes contre les murs : 4 au fond (sous le tableau des meilleurs gains), 4 le long du mur de gauche, toutes tournées vers la salle
+    var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0],
+      [-ROOM.wall + 0.9, 0.2, Math.PI / 2], [-ROOM.wall + 0.9, 3.4, Math.PI / 2], [-ROOM.wall + 0.9, 6.6, Math.PI / 2], [-ROOM.wall + 0.9, 9.4, Math.PI / 2]];
+    var n = SPOTS.length;
     for (var i = 0; i < n; i++) {
       (function (i) {
-        var th = (i - (n - 1) / 2) * ARC.stepDeg * Math.PI / 180;
-        var px = ARC.cx + ARC.r * Math.sin(th), pz = ARC.cz - ARC.r * Math.cos(th);
-        var cab = createSlotCabinet({ low: low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: -th, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
+        var px = SPOTS[i][0], pz = SPOTS[i][1], rot = SPOTS[i][2];
+        var cab = createSlotCabinet({ low: low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: rot, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
         room.group.add(cab.group);
-        var e = { cab: cab, x: px, z: pz, rotY: -th, n: i + 1, occBy: null };
+        var e = { cab: cab, x: px, z: pz, rotY: rot, n: i + 1, occBy: null };
         room.cabs.push(e);
         room.colliders.push({ x: px, z: pz, r: 1.15 });
         room.interactables.push({
-          hit: cab.hit, x: px + Math.sin(-th) * 2.1, z: pz + Math.cos(-th) * 2.1, radius: 1.8,
+          hit: cab.hit, x: px + Math.sin(rot) * 2.1, z: pz + Math.cos(rot) * 2.1, radius: 1.8,
           enabled: function () { return !e.occBy; },
           prompt: function () { return '🪑 S\'asseoir — Borne ' + e.n; },
           use: function () { room.sit(e); }
@@ -823,13 +824,13 @@
 
     room.spawn = function () { return { x: 0, z: 8.2, yaw: 0 }; };
     room.hint = function (w) {
-      return w.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir · règles sur les murs de côté'
+      return w.touch ? 'Joystick : marcher · glisse : regarder · touche une borne pour t\'asseoir · règles sur le mur de droite'
         : w.full ? 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l\'écran) · clic sur une borne : s\'asseoir · Échap : quitter'
-        : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · clic sur une borne : s\'asseoir · règles sur les murs de côté';
+        : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · clic sur une borne : s\'asseoir · règles sur le mur de droite';
     };
 
     /* ---------- interface propre aux machines ---------- */
-    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button>';
+    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever [F]</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button>';
     room.hudBottom =
       '<div class="s3d-bottom s3d-seat-only"><div class="s3d-chips">' +
       '<button data-bet="50">50</button><button data-bet="500">500</button><button data-bet="5000">5k</button><button data-bet="25000">25k</button><button data-bet="100000">MAX</button></div>' +
@@ -952,7 +953,8 @@
       var e = room.seatCab;
       return e ? { seat: e.n - 1, x: e.x + Math.sin(e.rotY) * 2.2, z: e.z + Math.cos(e.rotY) * 2.2, yaw: -e.rotY } : null;
     };
-    room.sit = { y: 0.065, z: 0.28 };   // tabouret à 0,565 m (persona3d.js)
+    room.standKey = true;   // la touche F fait se lever (world3d.js)
+    room.sitSpec = { y: 0.065, z: 0.28 };   // tabouret à 0,565 m (persona3d.js)
     room.remotePose = function (r) {
       var e = room.cabs[r.seat];
       return e ? { x: e.x + Math.sin(e.rotY) * 1.6, z: e.z + Math.cos(e.rotY) * 1.6, yaw: -e.rotY } : null;
