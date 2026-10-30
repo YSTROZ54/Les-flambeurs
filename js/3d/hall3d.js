@@ -18,20 +18,20 @@
   // une porte par jeu : emplacement sur le mur, nom, lueur, destination
   var DOORS = [
     // mur du fond (regarde vers +z)
-    { x: -7.5, z: -HZ, nx: 0, nz: 1, label: '🎰 MACHINES', sub: 'À SOUS', color: 0xffb347, target: 'slots' },
-    { x: -2.5, z: -HZ, nx: 0, nz: 1, label: '♠️ POKER', sub: 'TEXAS HOLD\'EM', color: 0x7ee0a0, target: 'pokerroom' },
-    { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack' },
-    { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash' },
+    { x: -7.5, z: -HZ, nx: 0, nz: 1, label: '🎰 MACHINES', sub: 'À SOUS', color: 0xffb347, target: 'slots', theme: 'slots' },
+    { x: -2.5, z: -HZ, nx: 0, nz: 1, label: '♠️ POKER', sub: 'TEXAS HOLD\'EM', color: 0x7ee0a0, target: 'pokerroom', theme: 'poker' },
+    { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
+    { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
-    { x: -HX, z: -5, nx: 1, nz: 0, label: '💎 CHAMBRE FORTE', sub: 'ÉVITE LES BOMBES', color: 0x8ae6c8, target: 'mines' },
-    { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups' },
-    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎟️ GRATTAGE', sub: 'TICKETS GAGNANTS', color: 0xffc0e0, target: 'scratch' },
+    { x: -HX, z: -5, nx: 1, nz: 0, label: '💎 CHAMBRE FORTE', sub: 'ÉVITE LES BOMBES', color: 0x8ae6c8, target: 'mines', theme: 'mines' },
+    { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
+    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎟️ GRATTAGE', sub: 'TICKETS GAGNANTS', color: 0xffc0e0, target: 'scratch', theme: 'scratch' },
     // mur de droite (regarde vers -x)
-    { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LA MUSIQUE', color: 0xd9a0ff, target: 'blindtest' },
-    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ BOUTIQUE', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d' },
-    { x: HX, z: 5, nx: -1, nz: 0, label: '🏦 BANQUE', sub: 'VIREMENTS & COFFRE', color: 0xa0d8ff, target: 'bank' },
+    { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LA MUSIQUE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
+    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ BOUTIQUE', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
+    { x: HX, z: 5, nx: -1, nz: 0, label: '🏦 BANQUE', sub: 'VIREMENTS & COFFRE', color: 0xa0d8ff, target: 'bank', theme: 'bank' },
     // mur d'entrée (regarde vers -z), à côté de l'enseigne
-    { x: 8.4, z: HZ, nx: 0, nz: -1, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses' }
+    { x: 8.4, z: HZ, nx: 0, nz: -1, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses', theme: 'horses' }
   ];
 
   function createHallRoom(world, cfg) {
@@ -111,7 +111,7 @@
       });
       var mat = new THREE.MeshBasicMaterial(placeholder ? { map: mkTex(placeholder) } : { color: 0x24090f });   // sombre (ou le dessin provisoire) le temps que l'image arrive
       plan(bw, bh, mat, 0.062);
-      new THREE.TextureLoader().load(fichier, function (t) {
+      if (fichier) new THREE.TextureLoader().load(fichier, function (t) {   // sans nom de fichier, le dessin reste l'affiche définitive
         t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
         mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
       }, undefined, function () { /* pas d'image : on garde le dessin provisoire */ });
@@ -120,24 +120,17 @@
     // bannière du casino, en haut des trois murs qui ont des portes de jeu (au-dessus des enseignes de portes) : chacune annonce les jeux de son mur
     [['fond', 'banniere.jpg'], ['gauche', 'banniere-gauche.jpg'], ['droite', 'banniere-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'icon/' + k[1] + '?v=2', 8.1, 2.7, 0xffb300); });
 
-    // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream, à gauche (en regardant le mur)
-    // la bannière Tropi Stream, à droite l'affiche « à venir » (icon/cinema-a-venir.jpg, à fournir)
+    // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
+    // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
     neon(WALL.entree, -4.5, 4.2, 'icon/banniere-tropistream.jpg', 4.4, 2.475, 0xff7a1a);
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
     sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
     sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 30; sn.fillStyle = '#ffb066';
-    sn.font = '900 150px ' + SERIF; sn.fillText('À VENIR', 640, 270);
+    sn.font = '900 130px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 270, 1200);
     sn.shadowBlur = 0; sn.fillStyle = '#f8e7d0'; sn.font = '700 52px ' + MONO; sn.fillText('CINÉMA TROPI STREAM', 640, 440);
-    sn.fillStyle = '#c98a55'; sn.font = '600 30px ' + MONO; sn.fillText('BIENTÔT DANS LE CASINO', 640, 520);
-    neon(WALL.entree, 4.5, 4.2, 'icon/cinema-a-venir.jpg', 4.4, 2.475, 0xff7a1a, soon);
-    var soonT = 0;
-    world.addDoor(room, {
-      x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · BIENTÔT', color: 0xff7a1a,
-      go: function (w) {                                                    // la salle n'existe pas encore : on repousse le joueur et on l'annonce
-        w.player.z = HZ - 1.9; w.pv.x = w.pv.z = 0;
-        var t = Date.now(); if (t - soonT > 3000) { soonT = t; w.flash('🎬 Le cinéma de Tropi Stream arrive bientôt !', 'La salle ouvre très prochainement : reviens vite.'); }
-      }
-    });
+    sn.fillStyle = '#c98a55'; sn.font = '600 30px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 520);
+    neon(WALL.entree, 4.5, 4.2, '', 4.4, 2.475, 0xff7a1a, soon);
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
 
     // colonnes aux coins
     var colMat = new THREE.MeshStandardMaterial({ color: 0x1a0f18, roughness: 0.55, metalness: 0.2 });
@@ -295,7 +288,7 @@
     if (!low) { var p2 = new THREE.PointLight(0xffb070, 0.6, 20); p2.position.set(0, 3, -7); g.add(p2); }
 
     // les portes
-    DOORS.forEach(function (d) { world.addDoor(room, { x: d.x, z: d.z, nx: d.nx, nz: d.nz, w: 1.8, h: 2.9, label: d.label, sub: d.sub, color: d.color, target: d.target }); });
+    DOORS.forEach(function (d) { world.addDoor(room, { x: d.x, z: d.z, nx: d.nx, nz: d.nz, w: 1.8, h: 2.9, label: d.label, sub: d.sub, color: d.color, target: d.target, theme: d.theme }); });
 
     room.spawn = function (from) {
       for (var i = 0; i < room.doors.length; i++) {

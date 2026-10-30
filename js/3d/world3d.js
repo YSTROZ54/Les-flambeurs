@@ -165,6 +165,9 @@
     var w = spec.w || 1.7, h = spec.h || 2.7, col = spec.color || 0xffd24a;
     var g = new THREE.Group(); g.position.set(spec.x, 0, spec.z); g.rotation.y = Math.atan2(spec.nx, spec.nz);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.6, emissive: 0x2a1d00 });
+    // thème de la porte (portes3d.js) : enseigne à logo, battants peints, cadre et décor aux couleurs du jeu ; sans thème, la porte dorée d'origine
+    var th = spec.theme && F.DOOR_THEMES ? F.DOOR_THEMES[spec.theme] : null;
+    var frameM = th ? new THREE.MeshStandardMaterial({ color: th.frame, roughness: 0.4, metalness: 0.5 }) : gold;
     // derrière les battants : « l'autre salle », un tunnel de néons de la couleur de la porte qui file vers le fond.
     // Le plan est posé devant les moulures du mur (sinon leur barre dorée traverse l'ouverture) et n'est repeint que porte ouverte.
     var c3 = new THREE.Color(col), cr = Math.round(c3.r * 255), cg = Math.round(c3.g * 255), cb = Math.round(c3.b * 255);
@@ -188,27 +191,44 @@
     paintPortal(0);
     var portal = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: ptex }));
     portal.position.set(0, h / 2, 0.097); g.add(portal);   // devant la moulure du mur (face avant à 0.09), derrière les battants (0.105)
-    function box(bw, bh, bd, x, y, z) { var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), gold); m.position.set(x, y, z); g.add(m); }
+    function box(bw, bh, bd, x, y, z) { var m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), frameM); m.position.set(x, y, z); g.add(m); }
     box(0.14, h + 0.22, 0.22, -(w / 2 + 0.07), (h + 0.22) / 2, 0.1); box(0.14, h + 0.22, 0.22, w / 2 + 0.07, (h + 0.22) / 2, 0.1);
     box(w + 0.28, 0.18, 0.22, 0, h + 0.1, 0.1);
-    var wood = new THREE.MeshStandardMaterial({ color: 0x4a1220, roughness: 0.55, metalness: 0.15 });
+    var wood = new THREE.MeshStandardMaterial({ color: th ? th.leaf : 0x4a1220, roughness: 0.55, metalness: 0.15 });
+    var leafTex = null;
+    if (th) {                                                              // un seul dessin pour les deux battants
+      var lc = mkCanvas(256, Math.round(256 * (h - 0.3) / (w / 2 - 0.2)));
+      th.paint(lc.getContext('2d'), lc.width, lc.height); leafTex = mkTex(lc);
+    }
     var leafGeo = new THREE.BoxGeometry(w / 2 + 0.01, h - 0.04, 0.07);     // les deux battants se recouvrent de 1 cm : porte fermée, aucune fente au milieu
     function leaf(sx) {
       var piv = new THREE.Group(); piv.position.set(sx * (w / 2), 0, 0.14); g.add(piv);
       var m = new THREE.Mesh(leafGeo, wood); m.position.set(-sx * (w / 4), h / 2, 0); piv.add(m);
-      var trim = new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.3, h - 0.5, 0.02), gold); trim.position.set(-sx * (w / 4), h / 2, 0.045); piv.add(trim);
-      var knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), gold); knob.position.set(-sx * (w / 2 - 0.12), h * 0.45, 0.07); piv.add(knob);
+      var trim = leafTex
+        ? new THREE.Mesh(new THREE.PlaneGeometry(w / 2 - 0.2, h - 0.3), new THREE.MeshLambertMaterial({ map: leafTex, emissive: 0x666666, emissiveMap: leafTex }))
+        : new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.3, h - 0.5, 0.02), gold);
+      trim.position.set(-sx * (w / 4), h / 2, leafTex ? 0.037 : 0.045); piv.add(trim);
+      var knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), frameM); knob.position.set(-sx * (w / 2 - 0.12), h * 0.45, 0.07); piv.add(knob);
       return piv;
     }
     var L = leaf(-1), R = leaf(1);   // L : charnière à gauche (x=-w/2), R : à droite
-    // enseigne au-dessus
+    // enseigne au-dessus : avec un thème, un logo à gauche et le nom à droite
+    if (th) {
+      var tc = mkCanvas(640, 160), ttex = mkTex(tc);
+      F.paintDoorSign(tc, spec, th, function () { ttex.needsUpdate = true; });
+      var tsign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.75), new THREE.MeshBasicMaterial({ map: ttex }));
+      tsign.position.set(0, h + 0.7, 0.2); g.add(tsign);
+      if (th.deco) th.deco(g, w, h);
+    }
     var sc = mkCanvas(512, 128), sx = sc.getContext('2d');
     sx.fillStyle = '#12080f'; sx.fillRect(0, 0, 512, 128); sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(4, 4, 504, 120);
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#f3cf62'; sx.shadowColor = '#ffb300'; sx.shadowBlur = 10;
     sx.font = '800 46px ' + SERIF; sx.fillText(spec.label || '', 256, spec.sub ? 48 : 66, 480);
     if (spec.sub) { sx.shadowBlur = 0; sx.fillStyle = '#d9c88f'; sx.font = '600 24px ' + MONO; sx.fillText(spec.sub, 256, 96, 480); }
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sc) }));
-    sign.position.set(0, h + 0.62, 0.2); g.add(sign);
+    if (!th) {
+      var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sc) }));
+      sign.position.set(0, h + 0.62, 0.2); g.add(sign);
+    }
     room.group.add(g);
     var d = { spec: spec, g: g, L: L, R: R, open: 0, paint: paintPortal };
     room.doors.push(d);
@@ -844,7 +864,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu'], start: place || 'hall', hall: true, menu: true,
+          rooms: ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key); }
         });
