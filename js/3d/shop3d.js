@@ -336,8 +336,8 @@
 
       // fond de velours teinté + cadre doré + enseigne
       var velvet = new THREE.Color(def.color).multiplyScalar(0.2);
-      box(st0, 4.4, 3, 0.1, lam(velvet.getHex()), 0, 1.5, 0.06);
-      box(st0, 4.6, 0.12, 0.16, gold, 0, 3.04, 0.1); box(st0, 4.6, 0.12, 0.16, gold, 0, 0.0, 0.1);
+      box(st0, 4.6, 3.1, 0.14, lam(velvet.getHex()), 0, 1.55, 0.09);   // le fond va jusque sous le cadre doré : plus de trou sur les côtés ni en bas
+      box(st0, 4.6, 0.12, 0.16, gold, 0, 3.04, 0.1); box(st0, 4.6, 0.12, 0.16, gold, 0, 0.06, 0.1);
       box(st0, 0.12, 3.1, 0.16, gold, -2.3, 1.55, 0.1); box(st0, 0.12, 3.1, 0.16, gold, 2.3, 1.55, 0.1);
       [-1.7, 1.7].forEach(function (x) { sph(st0, 0.09, bas(0xfff0c0), x, 2.6, 0.2); });
       var sign = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.1), new THREE.MeshBasicMaterial({ map: signTexture(def, n, 1024, 256) }));
