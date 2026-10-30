@@ -66,6 +66,7 @@
       c.strokeStyle = col; c.lineWidth = 1.9; c.beginPath(); c.arc(12, 8, 4.2, Math.PI, 0); c.stroke();
       c.fillStyle = bg; c.beginPath(); c.arc(8.6, 12.5, 1.1, 0, TAU); c.fill(); c.beginPath(); c.arc(15.4, 12.5, 1.1, 0, TAU); c.fill();
     },
+    hall: function (c, col) { ICONS.bank(c, col); },
     bank: function (c, col) {
       c.fillStyle = col; c.beginPath(); c.moveTo(1.5, 9); c.lineTo(12, 2.5); c.lineTo(22.5, 9); c.closePath(); c.fill();
       [3.6, 8.2, 12.8, 17.4].forEach(function (x) { c.fillRect(x, 10.5, 3, 7.5); }); c.fillRect(2, 19, 20, 2.2); c.fillRect(0.8, 21.4, 22.4, 1.6);
@@ -269,6 +270,35 @@
       }
     }
   };
+  // portes de sortie (retour au hall) : une porte élégante par salle, aux couleurs de la salle, avec un tapis et deux lanternes
+  function exitTheme(leaf, rgb, accent, carpet) {
+    return {
+      frame: 0xc9a227, leaf: leaf, rgb: rgb, logo: 'hall',
+      paint: function (c, W, H) {
+        var col = '#' + ('000000' + leaf.toString(16)).slice(-6);
+        var gr = c.createLinearGradient(0, 0, W, H); gr.addColorStop(0, col); gr.addColorStop(1, '#0c0508'); c.fillStyle = gr; c.fillRect(0, 0, W, H);
+        noise(c, W, H, 600, 'rgba(255,255,255,0.04)'); border(c, W, H, '#e6c458', 8); border(c, W, H, 'rgba(230,196,88,0.45)', 22);
+        c.strokeStyle = 'rgba(230,196,88,0.7)'; c.lineWidth = 4;                       // panneau en arche
+        c.beginPath(); c.moveTo(W * 0.2, H * 0.86); c.lineTo(W * 0.2, H * 0.3); c.arc(W / 2, H * 0.3, W * 0.3, Math.PI, 0); c.lineTo(W * 0.8, H * 0.86); c.closePath(); c.stroke();
+        c.save(); c.translate(W / 2, H * 0.52); c.scale(W / 24 * 0.42, W / 24 * 0.42); c.translate(-12, -12); ICONS.bank(c, accent); c.restore();
+        c.fillStyle = accent; c.font = '800 ' + Math.round(W * 0.15) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('HALL', W / 2, H * 0.8);
+      },
+      deco: function (g, w, h) {
+        var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, 2.6), new THREE.MeshLambertMaterial({ color: carpet })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.4); g.add(tapis);
+        var liseré = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.46, 2.72), new THREE.MeshLambertMaterial({ color: 0xc9a227 })); liseré.rotation.x = -Math.PI / 2; liseré.position.set(0, 0.012, 1.4); g.add(liseré);
+        [-1, 1].forEach(function (sd) {                                               // lanternes dorées de part et d'autre
+          var x = sd * (w / 2 + 0.75), gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.7 });
+          var base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.08, 16), gold); base.position.set(x, 0.04, 0.45); g.add(base);
+          var post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1.3, 10), gold); post.position.set(x, 0.72, 0.45); g.add(post);
+          var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffe3a0 })); lamp.position.set(x, 1.5, 0.45); g.add(lamp);
+          var cap = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.14, 14), gold); cap.position.set(x, 1.7, 0.45); g.add(cap);
+        });
+      }
+    };
+  }
+  T.exitBlackjack = exitTheme(0x6a0f1c, '255, 138, 138', '#f4e3b0', 0x7a1020);
+  T.exitBlindtest = exitTheme(0x1d0f38, '217, 160, 255', '#e6d2ff', 0x3a1a6a);
+  T.exitCups = exitTheme(0x0f2a3a, '255, 224, 138', '#ffe9a8', 0x1b4f6e);
   // les fichiers images des thèmes sont chargés à l'avance
   Object.keys(T).forEach(function (k) { if (T[k].image) loadImg(T[k].image, function () { /* le dessin se refait dans paintDoorSign */ }); });
 })();

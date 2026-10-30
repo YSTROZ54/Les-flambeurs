@@ -18,7 +18,7 @@
   var MIN_BET = 10, MAX_BET = 250, MULT = 1.25, CHIPS = [10, 25, 50, 100, 250];
   var TABLES = [{ x: -5.5, z: -3 }, { x: 0, z: -3 }, { x: 5.5, z: -3 }];
   var SLOT = [-0.55, 0, 0.55];           // les trois emplacements des gobelets sur la table
-  var TOP_Y = 0.86;
+  var TOP_Y = 0.86, CUP_Z = -0.75;         // les gobelets sont posés côté croupier : ses mains les atteignent
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -36,31 +36,43 @@
     var g = room.group, i;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
 
-    /* --- salle : moquette violette étoilée, murs prune, dorures --- */
-    var fc = mkCanvas(256, 256), fx = fc.getContext('2d'), fg = fx.createLinearGradient(0, 0, 256, 256); fg.addColorStop(0, '#2c0f4a'); fg.addColorStop(1, '#1b0a2e'); fx.fillStyle = fg; fx.fillRect(0, 0, 256, 256);
-    fx.strokeStyle = 'rgba(255,224,138,0.35)'; fx.lineWidth = 3; fx.strokeRect(2, 2, 252, 252); fx.fillStyle = 'rgba(255,224,138,0.5)';
-    for (i = 0; i < 6; i++) { var sx0 = 30 + Math.random() * 196, sy0 = 30 + Math.random() * 196; fx.beginPath(); for (var k = 0; k < 10; k++) { var rad = k % 2 ? 4 : 10, an = -Math.PI / 2 + k * Math.PI / 5; fx.lineTo(sx0 + Math.cos(an) * rad, sy0 + Math.sin(an) * rad); } fx.closePath(); fx.fill(); }
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.85 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wg = wx.createLinearGradient(0, 0, 0, 256); wg.addColorStop(0, '#3d1566'); wg.addColorStop(1, '#2a0d47'); wx.fillStyle = wg; wx.fillRect(0, 0, 256, 256);
-    wx.strokeStyle = 'rgba(255,224,138,0.22)'; wx.lineWidth = 2; for (i = -256; i <= 256; i += 64) { wx.beginPath(); wx.moveTo(i, 0); wx.lineTo(i + 256, 256); wx.stroke(); wx.beginPath(); wx.moveTo(i + 256, 0); wx.lineTo(i, 256); wx.stroke(); }
-    wx.fillStyle = 'rgba(255,224,138,0.45)'; [[64, 64], [192, 64], [64, 192], [192, 192], [128, 128]].forEach(function (q) { wx.beginPath(); wx.arc(q[0], q[1], 6, 0, TAU); wx.fill(); });
+    /* --- salle : parquet en bois, boiseries bleu nuit à lattes et filets de laiton, tapis de jeu vert sous les tables --- */
+    var fc = mkCanvas(512, 512), fx = fc.getContext('2d'), PL = 64, PH2 = 16;
+    for (var py = 0; py < 512; py += PH2) {
+      for (var pxx = -((py / PH2) % 4) * 16; pxx < 512; pxx += PL) {
+        var tone = 78 + Math.floor(Math.random() * 30);
+        fx.fillStyle = 'rgb(' + (tone + 36) + ',' + (tone + 6) + ',' + (tone - 28) + ')'; fx.fillRect(pxx + 1, py + 1, PL - 2, PH2 - 2);
+        fx.fillStyle = 'rgba(255,230,190,0.07)'; fx.fillRect(pxx + 1, py + 1, PL - 2, 3);
+        fx.fillStyle = 'rgba(0,0,0,0.12)'; fx.fillRect(pxx + 1, py + PH2 - 4, PL - 2, 3);
+      }
+    }
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 4, HZ * 2 / 4); ft.anisotropy = 8;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.4, metalness: 0.08 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#10222e'; wx.fillRect(0, 0, 256, 256);
+    for (i = 0; i < 4; i++) {
+      var lx = i * 64, lg = wx.createLinearGradient(lx, 0, lx + 64, 0); lg.addColorStop(0, '#0b1821'); lg.addColorStop(0.5, '#183746'); lg.addColorStop(1, '#0b1821'); wx.fillStyle = lg; wx.fillRect(lx + 3, 0, 58, 256);
+      wx.strokeStyle = 'rgba(224,186,92,0.55)'; wx.lineWidth = 2; wx.beginPath(); wx.moveTo(lx + 1.5, 0); wx.lineTo(lx + 1.5, 256); wx.stroke();
+    }
     var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
-    function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.2, H / 2.2); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
+    function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.0, H / 2.4); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.1 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
+    // lambris de noyer le long des murs
+    [[HX * 2, 0, -HZ + 0.04, 0], [HX * 2, 0, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.2), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 })); m.position.set(d[1], 0.6, d[2]); m.rotation.y = d[3]; g.add(m);
+    });
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), woodM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.55, metalness: 0.2 });
     [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0], [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0c0614 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080d12 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     // enseigne
-    var sc0 = mkCanvas(1024, 256), sx = sc0.getContext('2d'); sx.fillStyle = '#12061c'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#ffe08a'; sx.lineWidth = 10; sx.strokeRect(10, 10, 1004, 236);
+    var sc0 = mkCanvas(1024, 256), sx = sc0.getContext('2d'); sx.fillStyle = '#0a1820'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#ffe08a'; sx.lineWidth = 10; sx.strokeRect(10, 10, 1004, 236);
     sx.shadowColor = '#ffb347'; sx.shadowBlur = 26; sx.fillStyle = '#ffe9b0'; sx.font = '900 140px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('GOBELETS', 512, 134, 960);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.75), new THREE.MeshBasicMaterial({ map: mkTex(sc0) })); sign.position.set(0, 3.5, -HZ + 0.07); g.add(sign);
-    var tip = mkCanvas(1024, 150), tx2 = tip.getContext('2d'); tx2.fillStyle = '#12061c'; tx2.fillRect(0, 0, 1024, 150); tx2.strokeStyle = '#ffe08a'; tx2.lineWidth = 6; tx2.strokeRect(6, 6, 1012, 138);
+    var tip = mkCanvas(1024, 150), tx2 = tip.getContext('2d'); tx2.fillStyle = '#0a1820'; tx2.fillRect(0, 0, 1024, 150); tx2.strokeStyle = '#ffe08a'; tx2.lineWidth = 6; tx2.strokeRect(6, 6, 1012, 138);
     tx2.fillStyle = '#ffe9b0'; tx2.font = '800 52px ' + SERIF; tx2.textAlign = 'center'; tx2.textBaseline = 'middle'; tx2.fillText('Trouve la bille : gain x1,25 · mise de 10 à 250 €', 512, 80, 960);
     var tipM = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.94), new THREE.MeshBasicMaterial({ map: mkTex(tip) })); tipM.position.set(0, 2.0, -HZ + 0.07); g.add(tipM);
 
     /* --- tables, tabourets, gobelets --- */
-    var clothM = new THREE.MeshStandardMaterial({ color: 0x5b1f8a, roughness: 0.9 }), cupM = new THREE.MeshStandardMaterial({ color: 0xd02a2a, roughness: 0.45, metalness: 0.1 }), rimM = new THREE.MeshStandardMaterial({ color: 0xf6f0e0, roughness: 0.4 });
+    var clothM = new THREE.MeshStandardMaterial({ color: 0x0d5a3a, roughness: 0.9 }), cupM = new THREE.MeshStandardMaterial({ color: 0xd02a2a, roughness: 0.45, metalness: 0.1 }), rimM = new THREE.MeshStandardMaterial({ color: 0xf6f0e0, roughness: 0.4 });
     var ballM = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.2, metalness: 0.9, emissive: 0x553300 }), seatM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.6 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
     var cupGeo = new THREE.CylinderGeometry(0.1, 0.14, 0.24, 20), cupRim = new THREE.CylinderGeometry(0.105, 0.105, 0.03, 20), ballGeo = new THREE.SphereGeometry(0.05, 16, 12);
     var tables = [], seats = [], timers = [], clockT = 0;
@@ -72,7 +84,7 @@
       var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.45, TOP_Y - 0.1, 14), woodM); ped.position.y = (TOP_Y - 0.1) / 2; grp.add(ped);
       var T = { i: ti, x: td.x, z: td.z, group: grp, cups: [], pos: [0, 1, 2], phase: 'idle', ballCup: 0, cupMeshes: [] };
       for (var c = 0; c < 3; c++) {
-        var cg = new THREE.Group(); cg.position.set(SLOT[c], TOP_Y, 0); grp.add(cg);
+        var cg = new THREE.Group(); cg.position.set(SLOT[c], TOP_Y, CUP_Z); grp.add(cg);
         var mesh = new THREE.Mesh(cupGeo, cupM); mesh.position.y = 0.12; cg.add(mesh); var rm = new THREE.Mesh(cupRim, rimM); rm.position.y = -0.105; mesh.add(rm); mesh.userData.cup = { t: ti, id: c };      // le bord blanc suit le gobelet quand il se lève
         var ball = new THREE.Mesh(ballGeo, ballM); ball.position.set(0, 0.05, 0); ball.visible = false; cg.add(ball);
         T.cups.push({ g: cg, mesh: mesh, ball: ball, lift: 0, liftTo: 0, id: c });
@@ -80,6 +92,8 @@
       }
       tables.push(T);
       room.colliders.push({ x: td.x, z: td.z, r: 1.3 });
+      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;      // le croupier, debout derrière la table, face aux joueurs
+      if (dl) { dl.group.position.set(td.x, 0, td.z - 1.1); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); g.add(dl.group); T.dealer = dl; T.demoWait = 2 + ti * 1.7; room.colliders.push({ x: td.x, z: td.z - 1.1, r: 0.4 }); }
       // tabouret face à la table
       var sx0 = td.x, sz0 = td.z + 1.55, s = { n: ti, x: sx0, z: sz0, yaw: 0, tx: td.x, tz: td.z, table: T, sx: td.x, sz: td.z + 2.5 };
       seats.push(s);
@@ -130,17 +144,41 @@
       for (k = 0; k < swaps; k++) { var a = Math.floor(Math.random() * 3), b; do { b = Math.floor(Math.random() * 3); } while (b === a); T.sw.push([a, b]); }
       T.swI = -1; T.swT = 0; T.swDur = 0.27; T.cur = null;
     }
+    // le croupier suit les gobelets des mains : bras tendus vers la table pendant un mélange (de démonstration ou de partie)
+    function dealerAnim(T, dt) {
+      var d = T.dealer, rig = d._rig; d.stopWalk(); d.applyHold(dt);
+      T.armK = (T.armK || 0) + (((T.phase === 'shuffle' || T.phase === 'demo') ? 1 : 0) - (T.armK || 0)) * Math.min(1, dt * 6);
+      if (!rig) return;
+      if (!T.base) {                                                    // pose de repos des bras, relevée une fois (le croupier est au repos à ce moment-là)
+        T.base = {}; ['r', 'l'].forEach(function (side) { ['upperarm_', 'lowerarm_'].forEach(function (n) { var b = rig.root.getObjectByName(n + side); if (b) T.base[n + side] = b.quaternion.clone(); }); });
+      }
+      if (T.armK < 0.01) {
+        if (T.armDirty) { T.armDirty = false; ['r', 'l'].forEach(function (side) { ['upperarm_', 'lowerarm_'].forEach(function (n) { var b = rig.root.getObjectByName(n + side); if (b && T.base[n + side]) b.quaternion.copy(T.base[n + side]); }); }); }
+        return;
+      }
+      T.armDirty = true;
+      var k = T.armK, sw = T.cur ? Math.sin(Math.min(1, T.cur.t / T.swDur) * Math.PI) : 0, sd = T.cur ? (T.cur.pb > T.cur.pa ? 1 : -1) : 0;
+      ['r', 'l'].forEach(function (side) {
+        var up = rig.root.getObjectByName('upperarm_' + side), lo = rig.root.getObjectByName('lowerarm_' + side); if (!up || !lo) return;
+        var P = ARMS[side], sgn = side === 'r' ? 1 : -1;
+        _e.set(P.u[0] * k, P.u[1] * k + sgn * sd * 0.22 * sw * k, P.u[2] * k, 'XYZ'); up.quaternion.copy(T.base['upperarm_' + side]).multiply(_q1.setFromEuler(_e));
+        _e.set(P.l[0] * k, P.l[1] * k, P.l[2] * k, 'XYZ'); lo.quaternion.copy(T.base['lowerarm_' + side]).multiply(_q2.setFromEuler(_e));
+      });
+    }
+    // pose des bras tendus vers les gobelets (angles trouvés en cherchant où les mains arrivent au-dessus de la table)
+    var ARMS = { r: { u: [0.74, -0.12, 0.08], l: [0.05, 0, -0.05] }, l: { u: [0.74, 0.12, -0.08], l: [0.05, 0, 0.05] } };
+    var _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
     function stepSwap(T, dt) {
-      if (T.phase !== 'shuffle') return;
+      if (T.phase !== 'shuffle' && T.phase !== 'demo') return;
       if (!T.cur) {
-        T.swI++; if (T.swI >= T.sw.length) { T.phase = 'pick'; setMsg('Clique sur le gobelet qui cache la bille.'); refreshUi(); return; }
+        T.swI++; if (T.swI >= T.sw.length) { if (T.phase === 'demo') { T.phase = 'idle'; T.demoWait = 3 + Math.random() * 4; return; } T.phase = 'pick'; setMsg('Clique sur le gobelet qui cache la bille.'); refreshUi(); return; }
         var pa = T.sw[T.swI][0], pb = T.sw[T.swI][1], ca = T.pos.indexOf(pa), cb = T.pos.indexOf(pb);           // gobelets qui occupent les emplacements pa et pb
         T.cur = { ca: ca, cb: cb, pa: pa, pb: pb, t: 0 };
       }
       var s = T.cur; s.t += dt; var u = Math.min(1, s.t / T.swDur), e = u * u * (3 - 2 * u), arc = Math.sin(u * Math.PI) * 0.22;
-      T.cups[s.ca].g.position.x = SLOT[s.pa] + (SLOT[s.pb] - SLOT[s.pa]) * e; T.cups[s.ca].g.position.z = arc;
-      T.cups[s.cb].g.position.x = SLOT[s.pb] + (SLOT[s.pa] - SLOT[s.pb]) * e; T.cups[s.cb].g.position.z = -arc;
-      if (u >= 1) { T.pos[s.ca] = s.pb; T.pos[s.cb] = s.pa; T.cups[s.ca].g.position.z = 0; T.cups[s.cb].g.position.z = 0; T.cur = null; }
+      T.cups[s.ca].g.position.x = SLOT[s.pa] + (SLOT[s.pb] - SLOT[s.pa]) * e; T.cups[s.ca].g.position.z = CUP_Z + arc;
+      T.cups[s.cb].g.position.x = SLOT[s.pb] + (SLOT[s.pa] - SLOT[s.pb]) * e; T.cups[s.cb].g.position.z = CUP_Z - arc;
+      if (u >= 1) { T.pos[s.ca] = s.pb; T.pos[s.cb] = s.pa; T.cups[s.ca].g.position.z = CUP_Z; T.cups[s.cb].g.position.z = CUP_Z; T.cur = null; }
     }
     function pick(T, id) {
       if (T.phase !== 'pick' || R.busy) return;
@@ -171,7 +209,7 @@
     function sit(w, s) {
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; R.busy = false; s.table.phase = 'idle';
+      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; R.busy = false; s.table.phase = 'idle'; s.table.cur = null; s.table.demoWait = 3; s.table.pos = [0, 1, 2]; s.table.cups.forEach(function (c, k) { c.g.position.set(SLOT[k], TOP_Y, CUP_Z); });
       injectCss();
       var el = document.createElement('div'); el.className = 'cp3d';
       el.innerHTML = '<div class="cp-top"><span class="cp-bal">Solde : <b></b></span><span class="cp-bet">Mise : <b></b></span></div><div class="cp-msg"></div>' +
@@ -189,13 +227,14 @@
     function stand() {
       if (!seat) return;
       var s = seat; seat = null; timers = [];
-      var T = s.table; T.phase = 'idle'; T.cur = null; T.pos = [0, 1, 2]; T.cups.forEach(function (c, k) { c.g.position.set(SLOT[k], TOP_Y, 0); c.liftTo = 0; c.lift = 0; c.mesh.position.y = 0.12; c.ball.visible = false; });
+      var T = s.table; T.phase = 'idle'; T.demoWait = 3; T.cur = null; T.pos = [0, 1, 2]; T.cups.forEach(function (c, k) { c.g.position.set(SLOT[k], TOP_Y, CUP_Z); c.liftTo = 0; c.lift = 0; c.mesh.position.y = 0.12; c.ball.visible = false; });
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
       world.standUp(s.sx, s.sz, s.yaw);
     }
     room.forceStand = function () { stand(); };
+    room.tables = tables;
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
     room.sitSpec = { y: 0.12, z: 0.28 };
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
@@ -215,8 +254,8 @@
     };
     room.syncHud = function () { refreshUi(); };
 
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
-    g.add(new THREE.AmbientLight(0xf0dcff, 0.9));
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffe08a, target: 'hall', theme: 'exitCups' });
+    g.add(new THREE.AmbientLight(0xfff0dc, 0.9));
     var key = new THREE.DirectionalLight(0xfff0e0, 0.4); key.position.set(3, 8, 5); g.add(key);
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un tabouret pour t\'asseoir' : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret (F ou clic) · assis : mise, Lancer, puis clique sur un gobelet · F : se lever'; };
@@ -225,11 +264,19 @@
       clockT += dt;
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { if (window.console) console.warn('[cups3d]', e); } } }
       tables.forEach(function (T) {
+        if (T.phase === 'idle' && !(seat && seat.table === T) && T.dealer) {
+          T.demoWait -= dt;
+          if (T.demoWait <= 0) {
+            T.sw = []; for (var q = 0; q < 6; q++) { var a1 = Math.floor(Math.random() * 3), b1; do { b1 = Math.floor(Math.random() * 3); } while (b1 === a1); T.sw.push([a1, b1]); }
+            T.phase = 'demo'; T.swI = -1; T.swT = 0; T.swDur = 0.4; T.cur = null; T.demoWait = 99;
+          }
+        }
         stepSwap(T, dt);
+        if (T.dealer) dealerAnim(T, dt);
         T.cups.forEach(function (c) { c.lift += (c.liftTo - c.lift) * Math.min(1, dt * 9); c.mesh.position.y = 0.12 + c.lift; });
       });
     };
-    room.dispose = function () { stand(); };
+    room.dispose = function () { stand(); tables.forEach(function (T) { if (T.dealer) T.dealer.dispose(); }); };
     return room;
   }
 

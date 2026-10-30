@@ -558,7 +558,7 @@
     room.syncHud = function () { refreshUi(); };
 
     /* --- porte de retour, lumières --- */
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xff8a8a, target: 'hall', theme: 'exitBlackjack' });
     g.add(new THREE.AmbientLight(0xe8d8d0, 0.75));
     var key = new THREE.DirectionalLight(0xfff0e0, 0.35); key.position.set(3, 8, 5); g.add(key);
 
