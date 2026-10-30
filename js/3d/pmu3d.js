@@ -390,6 +390,14 @@
       room.colliders.push({ x: -HX + 0.8, z: z - 0.8, r: 0.7 }, { x: -HX + 0.8, z: z, r: 0.7 }, { x: -HX + 0.8, z: z + 0.8, r: 0.7 });
     });
 
+    /* --- essai : projecteur 3D téléchargé (assets/3d/spotlight.glb), posé dans la salle --- */
+    if (THREE.GLTFLoader) {
+      new THREE.GLTFLoader().load('assets/3d/spotlight.glb', function (gl) {
+        var sp = gl.scene; sp.position.set(3, 0, 1.5); sp.rotation.y = -0.6; g.add(sp);
+        if (!low) { var sl = new THREE.SpotLight(0xffe2b0, 1.2, 14, 0.5, 0.5); sl.position.set(3, 1.6, 1.5); sl.target.position.set(0, 0, -2); g.add(sl); g.add(sl.target); }
+      }, undefined, function () {});
+    }
+
     /* --- poutres sombres au plafond --- */
     var beamM = lam(0x1b1512);
     for (i = -HX + 1.5; i < HX; i += 3) box(g, 0.28, 0.3, HZ * 2, beamM, i, H - 0.15, 0);
