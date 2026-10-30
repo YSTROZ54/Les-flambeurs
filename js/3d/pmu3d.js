@@ -245,45 +245,6 @@
     document.head.appendChild(s);
   }
 
-/* ===================== VENDEUR EN 3D (scan assets/3d/humano.obj, découpé en tête + corps, couleurs peintes par zone) ===================== */
-  function buildScan(obj) {
-  var src = null; obj.traverse(function (o) { if (o.isMesh) src = o.geometry; });
-  if (!src) return null;
-  var P = src.attributes.position.array, N = src.attributes.normal ? src.attributes.normal.array : null, nv = P.length / 3, i, k;
-  var NECK = 161, fx = 0, fz = 0, fn = 0, hx = 0, hz = 0, hn = 0;
-  for (i = 0; i < nv; i++) {
-    if (P[i * 3 + 1] < 8) { fx += P[i * 3]; fz += P[i * 3 + 2]; fn++; }
-    if (P[i * 3 + 1] > 165 && P[i * 3 + 1] < 178) { hx += P[i * 3]; hz += P[i * 3 + 2]; hn++; }
-  }
-  var ox = fx / fn, oz = fz / fn, hcx = hx / hn, hcz = hz / hn, S = 0.01;
-  var parts = [{ pos: [], col: [], nor: [] }, { pos: [], col: [], nor: [] }], c = new THREE.Color();
-  var SUIT = 0x222733, SHIRT = 0xeeeeee, SKIN = 0xe3b08c, HAIR = 0x3a2616, SHOE = 0x0e0e10;
-  for (i = 0; i < nv; i += 3) {
-    var cy = (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, part = parts[cy > NECK ? 1 : 0];
-    for (k = 0; k < 3; k++) {
-      var v = i + k, x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2], nz = N ? N[v * 3 + 2] : 0, hex;
-      if (y < 9) hex = SHOE;
-      else if (y > NECK - 3) hex = (y > 176 || (nz < -0.15 && y > 168)) ? HAIR : SKIN;
-      else if (y > 118 && y < 150 && nz > 0.5 && Math.abs(x - hcx) < 3.2) hex = SHIRT;
-      else if (y > 149 && Math.abs(x - hcx) < 5.5 && Math.abs(z - hcz) < 6.5) hex = SKIN;
-      else hex = SUIT;
-      c.setHex(hex);
-      part.pos.push((x - ox) * S, y * S, (z - oz) * S); part.col.push(c.r, c.g, c.b); part.nor.push(N ? N[v * 3] : 0, N ? N[v * 3 + 1] : 1, nz);
-    }
-  }
-  var grp = new THREE.Group(), head = new THREE.Group();
-  head.position.set((hcx - ox) * S, 1.58, (hcz - oz) * S);
-  var mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-  parts.forEach(function (pt, idx) {
-    var g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pt.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(pt.col, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(pt.nor, 3));
-    var m = new THREE.Mesh(g, mat);
-    if (idx) { m.position.set(-head.position.x, -head.position.y, -head.position.z); head.add(m); } else grp.add(m);
-  });
-  grp.add(head);
-  return { group: grp, head: head };
-}
-
   /* ===================== LA SALLE ===================== */
   function createPmuRoom(world) {
     var low = world.low;
@@ -358,12 +319,7 @@
     var cap = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 10, 0, TAU, 0, Math.PI / 2), lam(RED)); cap.position.set(0, 1.8, 0); pg.add(cap);
     box(pg, 0.22, 0.02, 0.16, lam(RED), 0, 1.81, 0.16);
     pg.position.set(0.4, 0, CZ - 1.3); pg.rotation.y = 0; g.add(pg);
-    seller = { person: person, group: pg, x: 0.4, z: CZ - 1.3, yaw: 0, cheer: 0, say: '', scan: null };
-    if (THREE.OBJLoader) new THREE.OBJLoader().load('assets/3d/humano.obj', function (obj) {   // en attendant le chargement, Bruno reste en boîtes
-      var sc = buildScan(obj); if (!sc || !seller) return;
-      pg.children.forEach(function (c) { if (c !== tag) c.visible = false; });
-      tag.position.y = 2.05; pg.add(sc.group); seller.scan = sc;
-    });
+    seller = { person: person, group: pg, x: 0.4, z: CZ - 1.3, yaw: 0, cheer: 0, say: '' };
     // terminal de jeu et pile de cartes sur le comptoir
     box(g, 0.5, 0.05, 0.4, lam(0x222228), 0.4, 1.08, CZ - 0.1);
     box(g, 0.34, 0.26, 0.05, bas(0x182a4a), 0.4, 1.24, CZ - 0.25).rotation.x = -0.25;
@@ -753,11 +709,6 @@
       var dx = p.x - seller.x, dz = p.z - seller.z, d = Math.hypot(dx, dz);
       var look = d < 9 ? Math.atan2(dx, dz) : 0, rel = Math.max(-1.0, Math.min(1.0, look)), dy = rel - seller.yaw;
       seller.yaw += dy * Math.min(1, dt * 5); seller.group.rotation.y = seller.yaw;
-      if (seller.scan) {   // le scan n'a pas de bras libres : il respire, tourne un peu la tête, hoche la tête et saute de joie
-        var sn = seller.scan, ch = seller.cheer > 0;
-        sn.group.scale.y = 1 + Math.sin(t * 1.6) * 0.004; sn.group.position.y = ch ? Math.abs(Math.sin(t * 10)) * 0.07 : 0;
-        sn.head.rotation.y = Math.sin(t * 0.7) * 0.12; sn.head.rotation.x = ch ? Math.sin(t * 12) * 0.2 : (talk ? Math.sin(t * 2.2) * 0.08 : Math.sin(t * 0.9) * 0.03);
-      }
       var arms = seller.person.arms, k = Math.min(1, dt * 8), l0 = Math.sin(t * 1.2) * 0.05, r0 = Math.sin(t * 1.0 + 1) * 0.05;
       if (seller.cheer > 0) { seller.cheer -= dt; l0 = -2.7 + Math.sin(t * 12) * 0.25; r0 = -2.7 + Math.sin(t * 12 + 1) * 0.25; }
       else if (talk) r0 = -0.9 + Math.sin(t * 2.2) * 0.12;
@@ -773,7 +724,7 @@
         return true;
       });
     };
-    room.dispose = function () { closeTalk(true); shows.forEach(killShow); shows = []; if (seller) { seller.person.dispose(); if (seller.scan) seller.scan.group.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); } };
+    room.dispose = function () { closeTalk(true); shows.forEach(killShow); shows = []; if (seller) seller.person.dispose(); };
     return room;
   }
 
