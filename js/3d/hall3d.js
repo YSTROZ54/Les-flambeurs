@@ -27,7 +27,7 @@
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🃏 UNO', sub: 'BIENTÔT EN 3D', color: 0xffd400, target: 'uno', theme: 'uno' },   // l'ancienne porte du grattage : ce jeu reste dans le menu 2D
     // mur de droite (regarde vers -x)
-    { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LA MUSIQUE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
+    { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
     { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
     { x: HX, z: 5, nx: -1, nz: 0, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses', theme: 'horses' }   // la banque est maintenant l'appli Tropi Bank du téléphone
   ];
