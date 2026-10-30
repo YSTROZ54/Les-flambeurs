@@ -6,33 +6,36 @@
   <meta name="google" content="notranslate" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>LES FLAMBEURS — Le Casino Anonyme</title>
-  <link rel="icon" type="image/x-icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
-  <link rel="shortcut icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
-  <link rel="apple-touch-icon" href="icon/Gemini_Generated_Image_o4u5kwo4u5kwo4u5.ico">
+  <link rel="icon" type="image/x-icon" href="assets/identite/favicon.ico">
+  <link rel="shortcut icon" href="assets/identite/favicon.ico">
+  <link rel="apple-touch-icon" href="assets/identite/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=3.0">
+  <link rel="stylesheet" href="css/style.css?v=4.5">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/utils/avatars.js?v=1.0"></script>
+  <script src="js/utils/logos.js?v=1.1"></script>
   <script src="js/poker/poker3d.js?v=8.6"></script>
   <script src="js/poker/poker3d-scene.js?v=1.9"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=1.4"></script>
+  <script src="js/3d/f3d-core.js?v=1.5"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
-  <script src="js/3d/hud3d.js?v=2.5"></script>
-  <script src="js/3d/portes3d.js?v=1.0"></script>
-  <script src="js/3d/world3d.js?v=2.5"></script>
-  <script src="js/3d/hall3d.js?v=2.3"></script>
+  <script src="js/3d/hand3d.js?v=1.1"></script>
+  <script src="js/3d/hud3d.js?v=3.9"></script>
+  <script src="js/3d/portes3d.js?v=1.5"></script>
+  <script src="js/3d/world3d.js?v=3.1"></script>
+  <script src="js/3d/hall3d.js?v=2.7"></script>
   <script src="js/3d/slots3d.js?v=6.1"></script>
   <script src="js/3d/horses3d.js?v=2.7"></script>
   <script src="js/3d/pokerroom3d.js?v=2.5"></script>
-  <script src="js/3d/shop3d.js?v=1.6"></script>
-  <script src="js/3d/pmu3d.js?v=1.3"></script>
-  <script src="js/3d/cinema3d.js?v=1.0"></script>
+  <script src="js/3d/shop3d.js?v=1.9"></script>
+  <script src="js/3d/pmu3d.js?v=1.4"></script>
+  <script src="js/3d/cinema3d.js?v=1.5"></script>
   <script src="js/utils/mises-a-jour.js?v=1.4"></script>
 </head>
 
@@ -191,7 +194,7 @@
       <!-- Logo et nom du Casino (visible uniquement en mode grand) -->
       <div id="sidebarBrand" class="hidden items-center gap-2 cursor-pointer select-none overflow-hidden"
         onclick="handleLogoSecretClick()">
-        <img src="icon/logo.png" alt="Les Flambeurs" class="w-9 h-9 min-w-[36px] rounded-xl">
+        <img src="assets/identite/logo.png" alt="Les Flambeurs" class="w-9 h-9 min-w-[36px] rounded-xl">
         <div class="truncate">
           <span class="font-serif-title font-extrabold text-xs text-amber-300 tracking-wider block leading-tight">LES
             FLAMBEURS</span>
@@ -236,7 +239,7 @@
       <button onclick="openPoker()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Poker">
-        <span class="sidebar-icon fl-logo" style="--c: 239, 68, 68"><i class="fl-spade"></i></span>
+        <img src="assets/icones/jeux/poker.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Poker</span>
       </button>
@@ -245,7 +248,7 @@
       <button onclick="switchRoom('crash')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Fusée Crash">
-        <span class="sidebar-icon fl-logo" style="--c: 56, 189, 248"><i class="fa-solid fa-rocket"></i></span>
+        <img src="assets/icones/jeux/fusee-crash.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Fusée
           Crash</span>
@@ -255,7 +258,7 @@
       <button onclick="switchRoom('slots')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Machine à Sous">
-        <span class="sidebar-icon fl-logo" style="--c: 236, 72, 153"><i class="fl-slot"></i></span>
+        <img src="assets/icones/jeux/machines-a-sous.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Machine
           à Sous</span>
@@ -265,7 +268,7 @@
       <button onclick="switchRoom('mines')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="La Chambre Forte">
-        <span class="sidebar-icon fl-logo" style="--c: 45, 212, 191"><i class="fa-solid fa-vault"></i></span>
+        <img src="assets/icones/jeux/chambre-forte.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">La
           Chambre Forte</span>
@@ -275,7 +278,7 @@
       <button onclick="switchRoom('blackjack')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Blackjack">
-        <span class="sidebar-icon fl-logo" style="--c: 245, 158, 11"><i class="fl-cards"></i></span>
+        <img src="assets/icones/jeux/blackjack.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Blackjack</span>
       </button>
@@ -284,7 +287,7 @@
       <button onclick="switchRoom('cups')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Les Gobelets">
-        <span class="sidebar-icon fl-logo" style="--c: 251, 146, 60"><i class="fl-cups"></i></span>
+        <img src="assets/icones/jeux/gobelets.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Les
           Gobelets</span>
@@ -294,7 +297,7 @@
       <button onclick="handleBlindTestClick()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Blind Test">
-        <span class="sidebar-icon fl-logo" style="--c: 232, 121, 249"><i class="fa-solid fa-clapperboard"></i></span>
+        <img src="assets/icones/jeux/blind-test.png" alt="" class="sidebar-icon ts-logo">
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Blind Test</span>
           <span
@@ -306,7 +309,7 @@
       <button onclick="switchRoom('scratch')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Grattage">
-        <span class="sidebar-icon fl-logo" style="--c: 250, 204, 21"><i class="fa-solid fa-ticket"></i></span>
+        <img src="assets/icones/jeux/grattage.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Grattage</span>
       </button>
@@ -315,7 +318,7 @@
       <button onclick="handleComingSoonGame('chevaux')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Course de Chevaux (3D)">
-        <span class="sidebar-icon fl-logo" style="--c: 163, 230, 53"><i class="fa-solid fa-horse"></i></span>
+        <img src="assets/icones/jeux/courses.png" alt="" class="sidebar-icon ts-logo">
         <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
           <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Course de Chevaux</span>
           <span
@@ -328,21 +331,11 @@
         class="sidebar-section-title hidden px-2.5 pt-2 pb-0.5 text-[10px] uppercase tracking-wider font-extrabold text-stone-400">
         Services & Économie</div>
 
-      <!-- Boutique -->
-      <button onclick="switchRoom('shop')"
-        class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-amber-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
-        title="Boutique Custom">
-        <span class="sidebar-icon fl-logo" style="--c: 192, 132, 252"><i class="fa-solid fa-cart-shopping"></i></span>
-        <span
-          class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-amber-300 group-hover:text-white">Boutique
-          Custom</span>
-      </button>
-
       <!-- Banque -->
       <button onclick="switchRoom('bank')"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-emerald-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="La Banque (Transferts)">
-        <span class="sidebar-icon fl-logo" style="--c: 52, 211, 153"><i class="fa-solid fa-building-columns"></i></span>
+        <img src="assets/icones/services/tropi-bank.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-emerald-300 group-hover:text-white">La
           Banque</span>
@@ -362,7 +355,7 @@
       <button onclick="openProfileModal()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Profil">
-        <span class="sidebar-icon fl-logo" style="--c: 148, 163, 184"><i class="fa-solid fa-user"></i></span>
+        <img src="assets/icones/applis/mon-profil.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Mon
           Profil</span>
@@ -372,8 +365,8 @@
       <button onclick="openFriendsModal()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer relative"
         title="Amis">
-        <span class="sidebar-icon fl-logo relative" style="--c: 167, 139, 250">
-          <i class="fa-solid fa-user-group"></i>
+        <span class="sidebar-icon ts-logo relative" style="overflow:visible">
+          <img src="assets/icones/services/amis.png" alt="" class="ts-logo" style="width:100%;height:100%">
           <span id="sidebarFriendsBadge"
             class="hidden absolute top-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black"></span>
         </span>
@@ -385,7 +378,7 @@
       <button onclick="openSettingsModal()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
         title="Paramètres & Sons">
-        <span class="sidebar-icon fl-logo" style="--c: 148, 163, 184"><i class="fa-solid fa-gear"></i></span>
+        <img src="assets/icones/applis/reglages.png" alt="" class="sidebar-icon ts-logo">
         <span
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Paramètres
           Son</span>
@@ -433,7 +426,7 @@
         <!-- Logo du casino : 5 clics rapides demande le mot de passe BATMAN. Caché à l'accueil sur PC, où le menu de côté le montre déjà -->
         <div id="headerBrand" class="flex items-center gap-2.5 cursor-pointer select-none"
           onclick="handleLogoSecretClick()">
-          <img src="icon/logo.png" alt="Les Flambeurs" class="w-10 h-10 rounded-xl">
+          <img src="assets/identite/logo.png" alt="Les Flambeurs" class="w-10 h-10 rounded-xl">
           <div>
             <div class="flex items-center gap-1.5">
               <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES
@@ -458,7 +451,7 @@
           <button onclick="openNotificationsModal()"
             class="relative w-9 h-9 flex items-center justify-center rounded-xl border border-transparent text-stone-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition text-base"
             title="Notifications">
-            <i class="fa-solid fa-bell"></i>
+            <img src="assets/icones/services/notifications.png" alt="" class="w-5 h-5 rounded-md">
             <span id="notifBadgeDesktop"
               class="hidden absolute top-0 right-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full border-2 border-black bg-rose-500 text-white text-[10px] font-black leading-none">0</span>
           </button>
@@ -528,14 +521,10 @@
             <p class="text-stone-300 text-sm leading-relaxed max-w-xl">
               Chaque jeu possède son propre univers, ses règles simples (<span class="text-amber-300 font-bold"><i
                   class="fa-solid fa-circle-question"></i> Comment jouer</span>) et ses skins personnalisables par
-              catégories dans la <strong>Boutique</strong>. Fais un don ou gère tes transferts dans <strong>La
+              catégories dans le <strong>Tropi Shop</strong>. Fais un don ou gère tes transferts dans <strong>La
                 Banque</strong> !
             </p>
             <div class="flex flex-wrap gap-2.5 pt-2">
-              <button onclick="switchRoom('shop')"
-                class="px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 hover:bg-amber-500/30 text-xs font-bold transition">
-                <i class="fa-solid fa-cart-shopping"></i> Boutique par Catégories
-              </button>
               <button onclick="switchRoom('bank')"
                 class="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-bold transition">
                 <i class="fa-solid fa-building-columns"></i> Faire un don à un pauvre
@@ -852,9 +841,7 @@
               <span
                 class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">6
                 Catégories • Max 50 000 <i class="fl-coin"></i></span>
-              <h3 class="font-serif-title text-2xl font-extrabold text-purple-100 mt-3 flex items-center gap-3"><span
-                  class="fl-logo fl-logo-lg" style="--c: 192, 132, 252"><i
-                    class="fa-solid fa-cart-shopping"></i></span>Boutique Custom</h3>
+              <h3 class="font-serif-title text-2xl font-extrabold text-purple-100 mt-3 flex items-center gap-3"><img src="assets/icones/services/tropi-shop-petit.png" alt="" class="w-11 h-11 rounded-xl shrink-0">Tropi Shop</h3>
               <p class="text-xs text-purple-100/80 mt-2 leading-relaxed">
                 Skins Fusée Crash (Tapis Volant, Génie...), Poker, Billes de Gobelets, Cartes Blackjack, Bornes Slots
                 &amp; Avatars !
@@ -862,7 +849,7 @@
             </div>
             <button onclick="switchRoom('shop')"
               class="mt-5 w-full py-2.5 rounded-xl bg-purple-400 hover:bg-purple-300 text-black font-extrabold text-xs transition">
-              Ouvrir la Boutique →
+              Ouvrir le Tropi Shop →
             </button>
           </div>
 
@@ -1119,7 +1106,7 @@
                 <h3 class="text-base sm:text-lg font-black text-white tracking-wide uppercase">Options de la Table</h3>
               </div>
               <button onclick="closeTableConfigModal()"
-                class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition">✕</button>
+                class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- Format de table -->
@@ -1193,7 +1180,7 @@
                 </h3>
               </div>
               <button onclick="closePokerRulesModal()"
-                class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition">✕</button>
+                class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-stone-300 font-bold transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <div class="text-xs text-stone-300 space-y-1.5 max-h-[55vh] overflow-y-auto pr-1">
@@ -1284,7 +1271,7 @@
               </span>
             </div>
             <p class="text-xs text-sky-300">Véhicule équipé : <strong id="crashEquippedLabel">🚀 Fusée Spatiale</strong>
-              • <button onclick="switchRoom('shop')" class="underline text-amber-300">Boutique</button></p>
+              • <button onclick="switchRoom('shop')" class="underline text-amber-300">Tropi Shop</button></p>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -1376,7 +1363,7 @@
             <button id="crashCancelBtn" onclick="handleCrashCancelBet()"
               style="touch-action: manipulation; user-select: none;"
               class="w-full py-2 rounded-xl text-xs font-bold text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 active:scale-[0.98] transition hidden flex items-center justify-center gap-1.5">
-              <span class="pointer-events-none">✖</span>
+              <span class="pointer-events-none"><i class="fa-solid fa-xmark"></i></span>
               <span id="crashCancelBtnText" class="pointer-events-none">Annuler ma mise</span>
             </button>
           </div>
@@ -2078,7 +2065,7 @@
               <div class="text-center relative z-10 space-y-1">
                 <div
                   class="text-[11px] uppercase tracking-widest text-fuchsia-300 font-extrabold flex items-center justify-center gap-2">
-                  <span>★</span> <span>-- LES FLAMBEURS --</span> <span>★</span>
+                  <span><i class="fa-solid fa-star"></i></span> <span>-- LES FLAMBEURS --</span> <span><i class="fa-solid fa-star"></i></span>
                 </div>
                 <h2 class="scratch-casino-title text-3xl sm:text-4xl text-center my-0.5">LES FLAMBEURS</h2>
                 <div
@@ -2123,11 +2110,11 @@
 
                   <!-- Emblème central : Couronne et jetons d'or VIP -->
                   <div class="relative z-10 flex flex-col items-center drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]">
-                    <div class="text-3xl filter drop-shadow-[0_0_12px_rgba(250,204,21,0.9)]">👑</div>
+                    <div class="text-3xl text-amber-300 filter drop-shadow-[0_0_12px_rgba(250,204,21,0.9)]"><i class="fa-solid fa-crown"></i></div>
                     <div class="flex items-center -space-x-2 mt-0.5">
-                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">🪙</span>
-                      <span class="text-2xl filter drop-shadow-[0_0_10px_rgba(250,204,21,0.9)] z-10">💎</span>
-                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]">🪙</span>
+                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]"><i class="fl-coin"></i></span>
+                      <span class="text-2xl filter drop-shadow-[0_0_10px_rgba(250,204,21,0.9)] z-10 text-cyan-300"><i class="fa-solid fa-gem"></i></span>
+                      <span class="text-xl filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]"><i class="fl-coin"></i></span>
                     </div>
                   </div>
                 </div>
@@ -2135,8 +2122,8 @@
                 <!-- Ruban doré avec mention du Jackpot -->
                 <div
                   class="mt-1 px-4 py-0.5 rounded-full bg-gradient-to-r from-amber-500/30 via-yellow-400/40 to-amber-500/30 border border-amber-400/60 shadow text-center">
-                  <span class="text-[10px] font-black uppercase tracking-widest text-amber-200">★ ÉDITION MULTIJOUEUR
-                    CASH ★</span>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-amber-200"><i class="fa-solid fa-star"></i> ÉDITION MULTIJOUEUR
+                    CASH <i class="fa-solid fa-star"></i></span>
                 </div>
               </div>
 
@@ -2144,7 +2131,7 @@
               <div class="relative z-10 space-y-2">
                 <div class="flex items-center justify-between px-1">
                   <span class="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                    <span>🪙</span> <span>Zone à gratter :</span>
+                    <span><i class="fl-coin"></i></span> <span>Zone à gratter :</span>
                   </span>
                   <span id="scratchSerialLabel" class="text-[10px] font-mono-num font-bold text-stone-400">№
                     2654177</span>
@@ -2368,8 +2355,7 @@
         <div class="flex items-center gap-3">
           <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
           <div>
-            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white"><i
-                class="fa-solid fa-cart-shopping"></i> Boutique par Catégories</h2>
+            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white"><img src="assets/icones/services/tropi-shop-petit.png" alt="" class="inline-block w-9 h-9 rounded-lg align-middle mr-1">Tropi Shop</h2>
             <p class="text-xs text-purple-300">Fusée Crash, Poker, Gobelets, Blackjack, Machines à Sous &amp; Avatars
               (Plafond max : 50 000 <i class="fl-coin"></i>)</p>
           </div>
@@ -2455,7 +2441,7 @@
               <div class="flex items-center gap-2">
                 <h3 class="font-serif-title text-base sm:text-lg font-bold text-amber-200">État Civil du Club</h3>
               </div>
-              <p class="text-xs text-stone-300">Tu veux repartir de zéro ? Tu peux changer ton pseudo dans la boutique
+              <p class="text-xs text-stone-300">Tu veux repartir de zéro ? Tu peux changer ton pseudo dans le Tropi Shop
                 ou sur ton compte pour 50 000 €.</p>
             </div>
           </div>
@@ -2478,7 +2464,7 @@
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <h3 class="font-serif-title text-lg font-extrabold text-amber-300"><i class="fa-solid fa-lock"></i> Accès
           Réservé au Patron</h3>
-        <button onclick="closeAdminPasswordModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+        <button onclick="closeAdminPasswordModal()" class="text-stone-400 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-stone-300">Entre le mot de passe secret pour déverrouiller le Menu du Patron :</p>
       <input id="adminPasswordInput" type="password" onkeydown="if(event.key==='Enter') verifyAdminPassword()"
@@ -2514,7 +2500,7 @@
             </p>
           </div>
         </div>
-        <button onclick="closeAdminModal()" class="text-stone-400 hover:text-white text-xl font-bold p-1">✕</button>
+        <button onclick="closeAdminModal()" class="text-stone-400 hover:text-white text-xl font-bold p-1"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Barre d'onglets du Panel Admin -->
@@ -2646,8 +2632,8 @@
     class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-stone-900 border-2 border-amber-400/50 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
-        <h3 id="rulesModalTitle" class="font-serif-title text-xl font-extrabold text-amber-300">❓ Comment jouer</h3>
-        <button onclick="closeRulesModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+        <h3 id="rulesModalTitle" class="font-serif-title text-xl font-extrabold text-amber-300"><i class="fa-solid fa-circle-question"></i> Comment jouer</h3>
+        <button onclick="closeRulesModal()" class="text-stone-400 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div id="rulesModalBody" class="space-y-3 text-xs md:text-sm text-stone-200 leading-relaxed"></div>
       <div class="pt-2 text-right">
@@ -2666,7 +2652,7 @@
         <h3 class="font-serif-title text-xl font-extrabold text-white flex items-center gap-2">
           <span><i class="fa-solid fa-user-group"></i></span> <span>Mes Amis &amp; Invitations de Jeu</span>
         </h3>
-        <button onclick="closeFriendsModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+        <button onclick="closeFriendsModal()" class="text-stone-400 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <p class="text-xs text-stone-300">Ajoute des joueurs en ami pour les inviter directement sur les tables de jeu
@@ -2731,9 +2717,9 @@
       class="bg-stone-900 border-2 border-amber-500/40 rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <h3 class="font-serif-title text-xl font-extrabold text-white flex items-center gap-2">
-          <span><i class="fa-solid fa-bell"></i></span> <span>Notifications &amp; Demandes</span>
+          <span><img src="assets/icones/services/notifications.png" alt="" class="inline-block w-6 h-6 rounded-md align-middle"></span> <span>Notifications &amp; Demandes</span>
         </h3>
-        <button onclick="closeNotificationsModal()" class="text-stone-400 hover:text-white text-lg font-bold">✕</button>
+        <button onclick="closeNotificationsModal()" class="text-stone-400 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <p class="text-xs text-stone-300">Consulte et réponds à tes invitations de jeux, demandes d'amis et virements
@@ -2787,7 +2773,7 @@
   <!-- ================================================================= -->
   <div id="majToast" class="maj-toast hidden" role="status">
     <button type="button" class="maj-toast-principal" onclick="openMajModal()">
-      <img src="icon/logo.png" alt="" class="w-11 h-11 rounded-xl shrink-0">
+      <img src="assets/identite/logo.png" alt="" class="w-11 h-11 rounded-xl shrink-0">
       <span class="min-w-0">
         <span class="maj-toast-etiquette"><i class="fa-solid fa-rocket"></i> Nouvelle mise à jour · <span
             id="majToastVersion"></span></span>
@@ -2809,7 +2795,7 @@
     <div
       class="bg-stone-900 border-2 border-amber-500/40 rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
       <div class="flex items-center gap-3">
-        <img src="icon/logo.png" alt="Les Flambeurs" class="w-12 h-12 rounded-xl shrink-0">
+        <img src="assets/identite/logo.png" alt="Les Flambeurs" class="w-12 h-12 rounded-xl shrink-0">
         <div class="min-w-0">
           <h3 class="font-serif-title text-xl font-extrabold text-white">Quoi de neuf ?</h3>
           <div class="flex items-center gap-2 mt-1 text-[11px]">
@@ -2820,7 +2806,7 @@
           </div>
         </div>
         <button onclick="closeMajModal()"
-          class="ml-auto self-start text-stone-400 hover:text-white text-lg font-bold">✕</button>
+          class="ml-auto self-start text-stone-400 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p id="majModalTitre" class="text-sm font-extrabold text-amber-200"></p>
       <div id="majModalNotes" class="space-y-2 overflow-y-auto pr-1"></div>
@@ -2841,7 +2827,7 @@
       <button type="button"
         onclick="closeAuthModal(); showToast('👀 Mode Spectateur actif : connecte-toi pour miser et recevoir des jetons.');"
         class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white flex items-center justify-center text-sm transition"
-        title="Fermer et regarder en spectateur">✕</button>
+        title="Fermer et regarder en spectateur"><i class="fa-solid fa-xmark"></i></button>
 
       <!-- Glow d'ambiance -->
       <div class="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -2979,7 +2965,7 @@
             class="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider role-tag role-flambeur"></span>
         </div>
         <button onclick="closeProfileModal()"
-          class="ml-auto self-start text-stone-400 hover:text-white text-lg">✕</button>
+          class="ml-auto self-start text-stone-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="space-y-3">
@@ -3000,8 +2986,7 @@
         <div class="flex items-center justify-between text-xs">
           <span class="font-extrabold text-amber-300">État Civil du Club</span>
         </div>
-        <p class="text-[11px] text-stone-300 leading-snug">Tu veux repartir de zéro ? Tu peux changer ton pseudo dans la
-          boutique ou sur ton compte pour 50 000 €.</p>
+        <p class="text-[11px] text-stone-300 leading-snug">Tu veux repartir de zéro ? Tu peux changer ton pseudo dans le Tropi Shop ou sur ton compte pour 50 000 €.</p>
         <button type="button" onclick="resetOrDeletePseudo()"
           class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-black font-extrabold text-xs hover:brightness-110 transition shadow transform active:scale-95">
           <i class="fa-solid fa-bolt"></i> Changer (50 000 €)
@@ -3010,7 +2995,7 @@
 
       <button onclick="document.getElementById('profileModal').classList.add('hidden'); switchRoom('shop');"
         class="w-full py-2.5 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-200 font-extrabold text-xs hover:bg-purple-500/30 transition">
-        <i class="fa-solid fa-user"></i> Changer d'avatar dans la Boutique
+        <i class="fa-solid fa-user"></i> Changer d'avatar dans le Tropi Shop
       </button>
 
       <div class="flex justify-end items-center pt-2 border-t border-white/10">
@@ -3164,7 +3149,7 @@
           <span class="font-serif-title font-bold text-sm text-amber-200">Menu Flambeur</span>
         </div>
         <button onclick="closePlusMenu()"
-          class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-xs flex items-center justify-center transition">✕</button>
+          class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-xs flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- 1. Profil -->
@@ -3249,7 +3234,7 @@
           <h3 class="font-serif-title font-extrabold text-base text-amber-300">Succès & Trophées</h3>
         </div>
         <button onclick="closeAchievementsModal()"
-          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div
@@ -3315,7 +3300,7 @@
           </div>
         </div>
         <button onclick="closeLeaderboardModal()"
-          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-2 pr-1">
@@ -3355,7 +3340,7 @@
           </div>
         </div>
         <button onclick="closeSettingsModal()"
-          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition">✕</button>
+          class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 text-sm flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Curseur de Volume Principal -->
@@ -5883,7 +5868,7 @@
       cups: '/ Les Gobelets',
       scratch: '/ Grattage',
       blindtest: '/ Blind Test',
-      shop: '/ Boutique', bank: '/ La Banque'
+      shop: '/ Tropi Shop', bank: '/ La Banque'
     };
     let currentRoomKey = 'hall';
 
@@ -6158,7 +6143,7 @@
 
     async function buySkin(id) {
       if (!isUserLoggedIn()) {
-        showToast('🔒 Tu dois être connecté pour acheter dans la boutique !');
+        showToast('🔒 Tu dois être connecté pour acheter dans le Tropi Shop !');
         openAuthModal('login');
         return;
       }
@@ -9003,7 +8988,7 @@
     function carteFicheMaj(f, nouvelle) {
       return `
         <button type="button" onclick="openMajModal('${f.version}', true)" class="w-full text-left p-3.5 bg-black/40 border border-amber-500/30 rounded-2xl flex items-center gap-3 transition hover:border-amber-400/60">
-          <img src="icon/logo.png" alt="" class="w-10 h-10 rounded-xl shrink-0">
+          <img src="assets/identite/logo.png" alt="" class="w-10 h-10 rounded-xl shrink-0">
           <span class="flex-1 min-w-0">
             <span class="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300">
               <i class="fa-solid fa-rocket"></i> Version ${f.version} · ${f.date || ''}

@@ -418,7 +418,7 @@
     if (!low) { var pl = new THREE.PointLight(0xfff0d8, 0.7, 16); pl.position.set(1, 3.6, -1); g.add(pl); var p2 = new THREE.PointLight(0xffe0c0, 0.5, 12); p2.position.set(-5, 3, 3); g.add(p2); }
 
     /* --- porte de retour vers la boutique --- */
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🛍️ BOUTIQUE', sub: 'RETOUR', color: 0xffd24a, target: 'shop3d' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🛍️ TROPI SHOP', sub: 'RETOUR', color: 0xffd24a, target: 'shop3d' });
 
     /* --- parler au vendeur (touche F ou clic) : acheter des cartes --- */
     var spot = { x: 0.4, z: CZ + 2.1 };

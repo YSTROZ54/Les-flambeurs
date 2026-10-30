@@ -28,10 +28,8 @@
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎟️ GRATTAGE', sub: 'TICKETS GAGNANTS', color: 0xffc0e0, target: 'scratch', theme: 'scratch' },
     // mur de droite (regarde vers -x)
     { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LA MUSIQUE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
-    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ BOUTIQUE', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
-    { x: HX, z: 5, nx: -1, nz: 0, label: '🏦 BANQUE', sub: 'VIREMENTS & COFFRE', color: 0xa0d8ff, target: 'bank', theme: 'bank' },
-    // mur d'entrée (regarde vers -z), à côté de l'enseigne
-    { x: 8.4, z: HZ, nx: 0, nz: -1, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses', theme: 'horses' }
+    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
+    { x: HX, z: 5, nx: -1, nz: 0, label: '🏇 COURSES', sub: 'PARIE SUR TON CHEVAL', color: 0x7fd1ff, target: 'horses', theme: 'horses' }   // la banque est maintenant l'appli Tropi Bank du téléphone
   ];
 
   function createHallRoom(world, cfg) {
@@ -118,11 +116,11 @@
     }
 
     // bannière du casino, en haut des trois murs qui ont des portes de jeu (au-dessus des enseignes de portes) : chacune annonce les jeux de son mur
-    [['fond', 'banniere.jpg'], ['gauche', 'banniere-gauche.jpg'], ['droite', 'banniere-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'icon/' + k[1] + '?v=2', 8.1, 2.7, 0xffb300); });
+    [['fond', 'hall-fond.jpg'], ['gauche', 'hall-gauche.jpg'], ['droite', 'hall-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'assets/bannieres/' + k[1] + '?v=4', 8.1, 2.7, 0xffb300); });
 
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
-    neon(WALL.entree, -4.5, 4.2, 'icon/banniere-tropistream.jpg', 4.4, 2.475, 0xff7a1a);
+    neon(WALL.entree, -4.5, 4.2, 'assets/bannieres/tropistream.jpg', 4.4, 2.475, 0xff7a1a);
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
     sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
     sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 30; sn.fillStyle = '#ffb066';

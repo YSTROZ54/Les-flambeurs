@@ -52,6 +52,7 @@
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x07050c);
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 80);
+    this.vm = F.createViewModel ? F.createViewModel('') : null; this.heldId = '';   // ta main à la première personne (hand3d.js) et l'objet que tu tiens
 
     this.rooms = {}; this.room = null; this.roomIds = opts.rooms || [];
     this.player = { x: 0, z: 9, yaw: 0, pitch: -0.04 };
@@ -280,7 +281,7 @@
       (this.touch ? '' : '<label class="s3d-cam s3d-sensi" title="Sensibilité de la souris en grand écran"><i class="fa-solid fa-computer-mouse"></i> Sensi <input type="range" min="0.2" max="3" step="0.1" data-s3d="sensi"><b data-s3d="sensival"></b></label>') +
       '<button class="s3d-cam" data-s3d="qual"><i class="fa-solid fa-gear"></i> Qualité</button>' +
       '<button class="s3d-cam s3d-full-btn" data-s3d="full"></button><span data-s3d="roomtop" style="display:contents"></span></div></div>' +
-      '<div class="s3d-hint s3d-room-only" data-s3d="hint"></div>' +
+      '<div class="s3d-hint s3d-hint-chips s3d-room-only" data-s3d="hint"></div>' +
       (this.sansGpu ? '<div class="s3d-gpu"><i class="fa-solid fa-triangle-exclamation"></i> Ta carte graphique n’est pas utilisée, la 3D est ralentie. Active « Utiliser l’accélération graphique si disponible » dans les paramètres de ton navigateur (rubrique Système), puis relance-le.</div>' : '') +
       '<div class="s3d-title" data-s3d="title"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none"></button>' +
@@ -332,8 +333,23 @@
       if (t.indexOf('la souris pilote la vue') < 0) t += ' · clic : la souris pilote la vue';
       t = t.replace('Échap : quitter', 'Échap : libérer la souris, puis quitter');
     }
-    this.elHint.textContent = t; this.elHint.style.display = ''; this.hintShown = this.clock || 0;
+    this.elHint.innerHTML = hintHtml(t); this.elHint.style.display = ''; this.hintShown = this.clock || 0;
   };
+  // Aide en bas de l'écran : « touches : action · touches : action » devient une rangée de pastilles (logo coloré, touches en keycaps, action)
+  var HINT_ICONS = [
+    [/marcher|joystick/, 'fa-person-walking', '52,211,153'], [/courir/, 'fa-person-running', '251,191,36'], [/sauter/, 'fa-angles-up', '56,189,248'],
+    [/porte|pousser/, 'fa-door-open', '245,158,11'], [/quitter|lib[ée]rer/, 'fa-right-from-bracket', '248,113,113'], [/souris|vue|regarder|glisse/, 'fa-computer-mouse', '167,139,250'],
+    [/parler|prendre place|asseoir|s'asseoir/, 'fa-hand', '251,146,60'], [/cartes|barre/, 'fa-layer-group', '244,114,182'], [/parier|pari|miser|jouer/, 'fa-coins', '250,204,21']
+  ];
+  function hintHtml(t) {
+    var esc = function (v) { return String(v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    return String(t).split(' · ').map(function (clause) {
+      var i = clause.indexOf(' : '), keys = i > 0 ? clause.slice(0, i) : '', label = i > 0 ? clause.slice(i + 3) : clause, low = clause.toLowerCase(), ic = ['fa-circle-info', '148,163,184'], k;
+      for (k = 0; k < HINT_ICONS.length; k++) if (HINT_ICONS[k][0].test(low)) { ic = HINT_ICONS[k].slice(1); break; }
+      var kb = keys ? keys.split(' / ').map(function (x) { return '<kbd>' + esc(x) + '</kbd>'; }).join('') : '';
+      return '<span class="s3d-chip" style="--c:' + ic[1] + '"><i class="fa-solid ' + ic[0] + '"></i>' + kb + '<em>' + esc(label) + '</em></span>';
+    }).join('');
+  }
   // Annonce en grand au centre haut : pastille dorée qui rebondit, reflet qui la traverse, barre qui se vide. L'emoji du début du message devient l'icône.
   // sub : ligne en dessous (facultative).
   World.prototype.flash = function (msg, sub) {
@@ -374,7 +390,7 @@
 
   /* ---------- clavier / souris / doigt ---------- */
   World.prototype._bindKeys = function () {
-    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
+    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'l', ArrowRight: 'r', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
     function ok(e) {
       var t = e.target, tag = t && t.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
@@ -422,7 +438,7 @@
     this.container.addEventListener('pointerleave', function () { self.mouse.inside = false; });
     var SENSIBILITE = 0.0022;   // radians par pixel de souris à « Sensi 1.0 », comme une souris de jeu
     dom.addEventListener('mousemove', function (e) {
-      if (document.pointerLockElement !== dom || self.mode !== 'room' || self.blend > 0 || self.trans) return;
+      if (document.pointerLockElement !== dom || self.mode !== 'room' || self.blend > 0 || self.trans || self.lookLocked) return;   // lookLocked : roue des danses ouverte, la vue reste figée
       self.player.yaw += e.movementX * SENSIBILITE * self.sensi;
       self.player.pitch = Math.max(-0.7, Math.min(0.6, self.player.pitch - e.movementY * SENSIBILITE * self.sensi));
     });
@@ -529,6 +545,7 @@
     var dt = Math.min(raw, 0.1);
     this.step(dt);
     this.renderer.render(this.scene, this.camera);
+    if (this.vm) this._drawHand(dt);
     if (raw < 1 && Q.frame(raw)) this._applyQuality();
     this.hudT += dt;
     if (this.hudT > 0.25) { this.hudT = 0; this.syncHud(); }
@@ -588,6 +605,25 @@
     this.camera.lookAt(tx, ty, tz);
   };
 
+  /* ---------- ta main et l'objet tenu ---------- */
+  // La main s'affiche en vue à la première personne (pas assis, pas pendant une danse ni un changement de salle), dessinée après la salle, par-dessus.
+  World.prototype._drawHand = function (dt) {
+    var vm = this.vm, nm = '', ok = this.mode === 'room' && this.blend === 0 && !this.trans && this.emoK < 0.02 && !!this.room && !this.dead && this.hasHand !== false;
+    if (!ok) return;
+    try { nm = state.username || ''; } catch (e) { /* pas connecté */ }
+    vm.update(dt, { speed: Math.hypot(this.pv.x, this.pv.z), air: !!this.player.air, held: this.heldId, name: nm });
+    var r = this.renderer, ac = r.autoClear;
+    r.autoClear = false; r.clearDepth(); vm.render(r, this.camera); r.autoClear = ac;
+  };
+  // objet en main ('' = rien) : les autres joueurs voient ton personnage le tenir (ou non) ; id : voir F.HELD dans hand3d.js
+  World.prototype.setHeld = function (id) {
+    id = id && F.HELD && F.HELD[id] ? id : '';
+    if (id === this.heldId) return;
+    this.heldId = id;
+    if (this.selfPerson) this.selfPerson.setHeld(id);
+    this._rtSend(true);
+  };
+
   /* ---------- danses et emotes (catalogue : emotes3d.js, roue et téléphone : hud3d.js) ---------- */
   // Le joueur ne se voit pas en vue à la première personne : pendant une danse son personnage apparaît et la caméra passe devant lui.
   // Les autres voient la même danse : l'identifiant (emo) et un compteur (emn, pour relancer la même) partent avec la position.
@@ -604,6 +640,7 @@
       this.selfPerson.tag.visible = false;
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
+      this.selfPerson.setHeld(this.heldId);
     }
     var p = this.player, sp = this.selfPerson;
     this.emoYaw0 = p.yaw;                                    // le personnage garde son cap, la caméra peut tourner autour de lui
@@ -716,6 +753,7 @@
       if (typeof m.seat === 'number') r.seat = m.seat;
       var eid = typeof m.emo === 'string' && F.emoteById(m.emo) ? m.emo : '', en = Number(m.emn) || 0;
       if (eid !== r.emo || en !== r.emn) { r.emo = eid; r.emn = en; r.person.startEmote(eid); }   // nouvelle danse (ou la même relancée) ; '' = il s'arrête
+      r.person.setHeld(typeof m.held === 'string' ? m.held : '');                                    // objet qu'il tient en main
       if ((m.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = m.jmp || 0; }
       r.fresh = false;
     } else if (room.onRtMsg) room.onRtMsg(ev, m, this.remote[m.k], this);
@@ -740,7 +778,7 @@
     this.rt.send('pos', {
       k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
       x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : emo ? this.emoYaw0 : p.yaw),   // en danse la caméra tourne, pas le personnage
-      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN
+      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN, held: this.heldId
     });
   };
   World.prototype._updateRemotes = function (dt) {
@@ -806,6 +844,7 @@
 
       if (sp > 0.12 && !r.person.seated) { r.person.clearEmote(); r.person.walk(dt, sp); }
       else if (!r.person.playEmote(dt)) r.person.stopWalk();
+      r.person.applyHold(dt);
     });
   };
 
@@ -879,6 +918,7 @@
       if (place && main.room && main.room.id !== place) main.enterRoom(place, { from: null });
     }
     F.active = main;
+    if (!main.touch && !main.full) main.setFull(true);   // on entre toujours en plein écran (Échap ou « Quitter » pour en sortir)
     return true;
   };
   F.closeWorld = function () { if (main) main.pause(); if (F.active === main) F.active = null; };

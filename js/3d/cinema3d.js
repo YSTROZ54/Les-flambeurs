@@ -21,7 +21,7 @@
 
   var HX = 8, HZ = 11, H = 9;                       // demi-largeur, demi-profondeur, hauteur (mètres)
   var VIDEO_SRC = 'video/tropistream-presentation.mp4?v=1';
-  var POSTER_SRC = 'icon/banniere-tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
+  var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
   var SCR_W = 10, SCR_H = SCR_W * 9 / 16, SCR_Y = 2.0;   // l'écran : largeur, hauteur, bas de l'écran
   var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
   var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
@@ -153,7 +153,7 @@
 
   /* ===================== LA SALLE ===================== */
   function createCinemaRoom(world) {
-    var room = { title: '🎬 CINÉMA', subtitle: 'TROPI STREAM · PRÉSENTATION', topic: 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+    var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">CINÉMA', subtitle: 'TROPI STREAM · PRÉSENTATION', topic: 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, low = !!world.low;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 3.0, zMax: HZ - 0.7 };   // la scène (les 2,3 premiers mètres) reste hors d'atteinte
     injectCss();
@@ -413,7 +413,7 @@
 
     /* ===================== INTERFACE ===================== */
     room.hudBottom =
-      '<div class="cin"><div class="cin-t">🎬 Cinéma Tropi Stream</div><div class="cin-st" data-s3d="cinst"></div>' +
+      '<div class="cin"><div class="cin-t"><img class="cin-logo" src="assets/cinema/tropistream-serveur.png" alt="">Cinéma Tropi Stream</div><div class="cin-st" data-s3d="cinst"></div>' +
       '<div class="cin-bar"><i data-s3d="cinbar"></i></div>' +
       '<div class="cin-row"><button class="cin-play" data-s3d="cinplay">▶ Lancer la séance</button><button class="cin-mus" data-s3d="cinmus"></button></div>' +
       '<div class="cin-tip">Avance vers un fauteuil et appuie sur <b>F</b> (ou clique dessus) pour t\'asseoir · clic sur l\'écran ou <b>P</b> : lecture / pause</div></div>';
@@ -481,8 +481,9 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      '.cin{position:absolute;right:14px;bottom:14px;width:280px;background:rgba(8,5,12,.86);border:1px solid rgba(255,122,26,.6);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
-      '.cin-t{font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#ffb066}' +
+      '.cin{position:absolute;right:14px;bottom:62px;width:280px;background:rgba(8,5,12,.86);border:1px solid rgba(255,122,26,.6);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
+      '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
+      '.cin-t{display:flex;align-items:center;gap:8px;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#ffb066}.cin-logo{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid rgba(255,122,26,.7)}' +
       '.cin-st{font-size:12px;font-weight:800;color:#e9ddb4}' +
       '.cin-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}.cin-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-row{display:flex;gap:6px}.cin-row button{cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:8px 10px}' +

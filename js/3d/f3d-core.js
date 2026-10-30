@@ -82,6 +82,8 @@
   var SHIRTS = [0x7c1d2e, 0x1f4e79, 0x2d6a4f, 0x6b3fa0, 0xb8860b, 0x374151, 0xa13d63, 0x0f766e];
   var HAIRS = [0x1a1210, 0x3b2314, 0x6b4423, 0xb8863b, 0x222222, 0x8a2b1c];
   function nameHash(n) { var h = 7; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return h; }
+  // couleurs du personnage d'après le pseudo (la main à la première personne reprend les mêmes)
+  F.personColorsOf = function (name) { var h = nameHash(String(name || '')); return { skin: SKIN_TONES[h % SKIN_TONES.length], shirt: SHIRTS[(h >> 3) % SHIRTS.length] }; };
   var personGeo = null;
   function geo() {
     if (!personGeo) personGeo = {
@@ -173,6 +175,8 @@
     function bubStopDots() { clearInterval(dotsTimer); dotsTimer = 0; clearTimeout(safeTimer); safeTimer = 0; }
     g.rotation.order = 'YXZ';                                          // cap, puis penché en avant, puis de côté (danses)
     arms.forEach(function (a) { a.rotation.order = 'YXZ'; });          // bras : écart sur le côté, puis élan, puis rentré
+    // objet en main : le bras droit se lève devant le personnage avec l'objet ; sans objet il reste le long du corps (les autres joueurs voient la différence)
+    var heldId = '', heldItem = null, heldK = 0, heldQ = new THREE.Quaternion(), heldUp = new THREE.Vector3();
     function ease01(v) { v = v < 0 ? 0 : v > 1 ? 1 : v; return v * v * (3 - 2 * v); }
     return {
       // say : affiche un message au-dessus de la tête quelques secondes ; typing : trois points tant que la personne écrit
@@ -188,6 +192,28 @@
         if (dotsTimer) return;
         clearTimeout(bubTimer); sayOn = false; dotsPhase = 0; bubDraw('', true);
         dotsTimer = setInterval(function () { dotsPhase = (dotsPhase + 1) % 3; bubDraw('', true); }, 320);
+      },
+      held: '',
+      setHeld: function (id) {
+        id = id && F.HELD && F.HELD[id] ? id : '';
+        if (id === heldId) return;
+        heldId = id; this.held = id;
+        if (heldItem) { arms[1].remove(heldItem); heldItem = null; }
+        if (id && F.buildHeld) { var it = F.buildHeld(id); if (it) { var wr = new THREE.Group(); wr.add(it); it.rotation.y = Math.PI; heldItem = wr; arms[1].add(wr); wr.visible = false; } }   // écran tourné vers celui qui tient
+      },
+      // à appeler après walk / stopWalk, à chaque image : mélange la pose « objet en main » avec la pose de marche
+      applyHold: function (dt) {
+        var want = heldId && !this.seated && !this.emoId ? 1 : 0;
+        heldK += (want - heldK) * Math.min(1, dt * 9);
+        if (heldK < 0.005) { heldK = 0; if (heldItem) heldItem.visible = false; return; }
+        var ar = arms[1], bob = Math.sin(performance.now() / 650) * 0.035;
+        ar.rotation.x += (-1.4 + bob - ar.rotation.x) * heldK;
+        ar.rotation.y += (-0.18 - ar.rotation.y) * heldK;
+        if (heldItem) {
+          heldItem.visible = heldK > 0.4;
+          heldQ.copy(ar.quaternion).invert(); heldItem.quaternion.copy(heldQ);                 // l'objet reste debout, quelle que soit l'inclinaison du bras
+          heldUp.set(0, 0.06, 0).applyQuaternion(heldQ); heldItem.position.set(heldUp.x, -0.6 + heldUp.y, heldUp.z);
+        }
       },
       group: g, hips: hips, knees: knees, arms: arms, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
       // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.

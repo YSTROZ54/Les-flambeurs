@@ -95,9 +95,9 @@
       c.fillStyle = '#12080f'; c.fillRect(0, 0, W, H); c.strokeStyle = 'rgb(' + rgb + ')'; c.lineWidth = 7; c.strokeRect(5, 5, W - 10, H - 10);
       var S = H - 44, x = 26, y = 22, bg = '#1b0e16';
       if (th.image) {                                      // logo rond : photo du serveur
-        c.save(); c.beginPath(); c.arc(x + S / 2, y + S / 2, S / 2, 0, TAU); c.clip(); c.fillStyle = bg; c.fillRect(x, y, S, S);
+        c.save(); c.beginPath(); if (th.square) rr(c, x, y, S, S, 26); else c.arc(x + S / 2, y + S / 2, S / 2, 0, TAU); c.clip(); c.fillStyle = bg; c.fillRect(x, y, S, S);
         var im = imgs[th.image]; if (im && im.complete && im.naturalWidth) c.drawImage(im, x, y, S, S); c.restore();
-        c.strokeStyle = 'rgb(' + rgb + ')'; c.lineWidth = 5; c.beginPath(); c.arc(x + S / 2, y + S / 2, S / 2 - 1, 0, TAU); c.stroke();
+        c.strokeStyle = 'rgb(' + rgb + ')'; c.lineWidth = 5; if (th.square) { rr(c, x, y, S, S, 26); } else { c.beginPath(); c.arc(x + S / 2, y + S / 2, S / 2 - 1, 0, TAU); } c.stroke();
       } else {                                             // pastille façon .fl-logo : fond teinté, bord teinté, icône pleine
         c.fillStyle = 'rgba(' + rgb + ',0.2)'; rr(c, x, y, S, S, 22); c.fill(); c.strokeStyle = 'rgba(' + rgb + ',0.6)'; c.lineWidth = 4; rr(c, x, y, S, S, 22); c.stroke();
         c.save(); c.translate(x + S * 0.17, y + S * 0.17); c.scale(S * 0.66 / 24, S * 0.66 / 24); c.lineCap = 'round';
@@ -128,7 +128,7 @@
 
   var T = F.DOOR_THEMES = {
     slots: {
-      frame: 0xd8dbe4, leaf: 0xa8102a, rgb: '255, 179, 71', logo: 'slots',
+      frame: 0xd8dbe4, leaf: 0xa8102a, rgb: '255, 179, 71', logo: 'slots', image: 'assets/icones/jeux/machines-a-sous.png', square: true,
       paint: function (c, W, H) {
         var g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#8a0c20'); g.addColorStop(0.5, '#d41a3a'); g.addColorStop(1, '#8a0c20'); c.fillStyle = g; c.fillRect(0, 0, W, H);
         border(c, W, H, '#ffd24a', 8);
@@ -138,7 +138,7 @@
       deco: function (g, w, h) { bulbRing(g, w, h, [new THREE.MeshBasicMaterial({ color: 0xfff1a8 }), new THREE.MeshBasicMaterial({ color: 0xff5a5a })]); }
     },
     poker: {
-      frame: 0xc9a227, leaf: 0x0f5a33, rgb: '126, 224, 160', logo: 'poker',
+      frame: 0xc9a227, leaf: 0x0f5a33, rgb: '126, 224, 160', logo: 'poker', image: 'assets/icones/jeux/poker.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#0f5a33'; c.fillRect(0, 0, W, H); noise(c, W, H, 700, 'rgba(255,255,255,0.05)'); border(c, W, H, '#e6c458', 8); border(c, W, H, 'rgba(230,196,88,0.5)', 22);
         c.save(); c.translate(W / 2 - 150 * 0.0, H * 0.4); c.scale(8.5, 8.5); c.translate(-12, -12); c.fillStyle = 'rgba(230,196,88,0.33)'; c.fill(new Path2D(P.spade)); c.restore();
@@ -147,7 +147,7 @@
       deco: function (g, w, h) { chips(g, -w / 2 - 0.6, 0.6, [0xd02a2a, 0x1f4e9e]); chips(g, w / 2 + 0.3, 0.6, [0x111111, 0x1d8a4e]); }
     },
     blackjack: {
-      frame: 0xc9a227, leaf: 0x6a0f1c, rgb: '255, 138, 138', logo: 'blackjack',
+      frame: 0xc9a227, leaf: 0x6a0f1c, rgb: '255, 138, 138', logo: 'blackjack', image: 'assets/icones/jeux/blackjack.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#6a0f1c'; c.fillRect(0, 0, W, H); noise(c, W, H, 700, 'rgba(255,255,255,0.05)'); border(c, W, H, '#e6c458', 8); border(c, W, H, 'rgba(230,196,88,0.5)', 22);
         c.fillStyle = '#f4e3b0'; c.font = '900 190px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('21', W / 2, H * 0.5);
@@ -155,7 +155,7 @@
       }
     },
     crash: {
-      frame: 0x8a96b8, leaf: 0x0e1840, rgb: '154, 184, 255', logo: 'crash',
+      frame: 0x8a96b8, leaf: 0x0e1840, rgb: '154, 184, 255', logo: 'crash', image: 'assets/icones/jeux/fusee-crash.png', square: true,
       paint: function (c, W, H) {
         var g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#060a22'); g.addColorStop(1, '#1f3a8a'); c.fillStyle = g; c.fillRect(0, 0, W, H);
         for (var i = 0; i < 70; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random() * 0.7) + ')'; c.fillRect(Math.random() * W, Math.random() * H * 0.85, 2, 2); }
@@ -165,7 +165,7 @@
       }
     },
     mines: {
-      frame: 0x7d8888, leaf: 0x5b6b6b, rgb: '138, 230, 200', logo: 'mines',
+      frame: 0x7d8888, leaf: 0x5b6b6b, rgb: '138, 230, 200', logo: 'mines', image: 'assets/icones/jeux/chambre-forte.png', square: true,
       paint: function (c, W, H) {
         var g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#8a9a9a'); g.addColorStop(0.5, '#5b6b6b'); g.addColorStop(1, '#7d8d8d'); c.fillStyle = g; c.fillRect(0, 0, W, H);
         border(c, W, H, '#3a4646', 10); c.fillStyle = '#c9d4d4'; for (var x = 30; x < W - 20; x += 40) { c.beginPath(); c.arc(x, 30, 6, 0, TAU); c.fill(); c.beginPath(); c.arc(x, H - 30, 6, 0, TAU); c.fill(); }
@@ -175,7 +175,7 @@
       }
     },
     cups: {
-      frame: 0xc9a227, leaf: 0x4b1d7a, rgb: '255, 224, 138', logo: 'cups',
+      frame: 0xc9a227, leaf: 0x4b1d7a, rgb: '255, 224, 138', logo: 'cups', image: 'assets/icones/jeux/gobelets.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#4b1d7a'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 8);
         for (var i = 0; i < 26; i++) { var x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60), r = 6 + Math.random() * 12; c.fillStyle = 'rgba(255,224,138,' + (0.35 + Math.random() * 0.5) + ')'; c.beginPath(); for (var k = 0; k < 10; k++) { var rr2 = k % 2 ? r * 0.45 : r, a = -Math.PI / 2 + k * Math.PI / 5; c.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); } c.closePath(); c.fill(); }
@@ -184,7 +184,7 @@
       deco: function (g, w) { [-0.5, 0.5].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.26, 14), new THREE.MeshLambertMaterial({ color: 0xd02a2a })); m.position.set(s * (w / 2 + 0.55), 0.13, 0.5); g.add(m); }); }
     },
     scratch: {
-      frame: 0xffd0e8, leaf: 0xff9fcf, rgb: '255, 192, 224', logo: 'scratch',
+      frame: 0xffd0e8, leaf: 0xff9fcf, rgb: '255, 192, 224', logo: 'scratch', image: 'assets/icones/jeux/grattage.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#ff9fcf'; c.fillRect(0, 0, W, H); c.strokeStyle = '#fff'; c.lineWidth = 6; c.setLineDash([14, 10]); c.strokeRect(14, 14, W - 28, H - 28); c.setLineDash([]);
         for (var i = 0; i < 10; i++) { c.fillStyle = 'rgba(192,192,204,' + (0.65 + Math.random() * 0.3) + ')'; rr(c, 24 + Math.random() * (W - 110), 40 + Math.random() * (H - 120), 50 + Math.random() * 50, 34 + Math.random() * 30, 8); c.fill(); }
@@ -192,7 +192,7 @@
       }
     },
     blindtest: {
-      frame: 0x7a3fd0, leaf: 0x0e0716, rgb: '217, 160, 255', logo: 'blindtest',
+      frame: 0x7a3fd0, leaf: 0x0e0716, rgb: '217, 160, 255', logo: 'blindtest', image: 'assets/icones/jeux/blind-test.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#0e0716'; c.fillRect(0, 0, W, H); border(c, W, H, '#b06cff', 6);
         var n = 7, bw = (W - 60) / n; for (var i = 0; i < n; i++) { var bh = H * (0.25 + Math.random() * 0.55), g = c.createLinearGradient(0, H, 0, H - bh); g.addColorStop(0, '#6d28d9'); g.addColorStop(1, '#f472b6'); c.fillStyle = g; c.fillRect(30 + i * bw + 4, H - 40 - bh, bw - 8, bh); }
@@ -200,7 +200,7 @@
       }
     },
     shop: {
-      frame: 0x8a5a2a, leaf: 0x6b3d1a, rgb: '255, 210, 74', logo: 'shop',
+      frame: 0x8a5a2a, leaf: 0x6b3d1a, rgb: '255, 210, 74', logo: 'shop', image: 'assets/icones/services/tropi-shop-petit.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#7a4a22'; c.fillRect(0, 0, W, H); c.strokeStyle = 'rgba(0,0,0,0.3)'; c.lineWidth = 3; for (var x = 0; x < W; x += 48) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
         noise(c, W, H, 500, 'rgba(0,0,0,0.12)'); border(c, W, H, '#ffd24a', 7);
@@ -220,7 +220,7 @@
       deco: function (g, w, h) { [-1, 1].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, h + 0.1, 16), new THREE.MeshStandardMaterial({ color: 0xf0e8d6, roughness: 0.4 })); m.position.set(s * (w / 2 + 0.55), (h + 0.1) / 2, 0.35); g.add(m); }); }
     },
     horses: {
-      frame: 0xf2f2f2, leaf: 0x1f6b2a, rgb: '127, 209, 255', logo: 'horses',
+      frame: 0xf2f2f2, leaf: 0x1f6b2a, rgb: '127, 209, 255', logo: 'horses', image: 'assets/icones/jeux/courses.png', square: true,
       paint: function (c, W, H) {
         c.fillStyle = '#1f6b2a'; c.fillRect(0, 0, W, H); noise(c, W, H, 900, 'rgba(255,255,255,0.07)');
         c.fillStyle = '#f2f2f2'; [0.5, 0.64, 0.78].forEach(function (y) { c.fillRect(0, H * y, W, 14); }); [0.12, 0.88].forEach(function (x) { c.fillRect(W * x - 8, H * 0.46, 16, H * 0.46); });
@@ -229,7 +229,7 @@
       }
     },
     cinema: {
-      frame: 0xc9a227, leaf: 0x8c1a26, rgb: '255, 122, 26', logo: 'cinema', image: 'icon/tropistream-serveur.png',
+      frame: 0xc9a227, leaf: 0x8c1a26, rgb: '255, 122, 26', logo: 'cinema', image: 'assets/cinema/tropistream-serveur.png',
       paint: function (c, W, H) {
         for (var x = 0; x < W; x++) { var sh = 0.6 + 0.4 * Math.abs(Math.sin(x / W * TAU * 4)); c.fillStyle = 'rgb(' + Math.round(150 * sh) + ',' + Math.round(24 * sh) + ',' + Math.round(38 * sh) + ')'; c.fillRect(x, 0, 1, H); }
         c.fillStyle = '#0d0508'; [10, W - 34].forEach(function (x) { c.fillRect(x - 6, 0, 30, H); c.fillStyle = '#f4e3b0'; for (var y = 18; y < H; y += 36) { rr(c, x, y, 18, 18, 4); c.fill(); } c.fillStyle = '#0d0508'; });   // pellicule le long des bords

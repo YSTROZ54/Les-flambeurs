@@ -1,5 +1,5 @@
 /* =====================================================================
-   shop3d.js — La Boutique 3D des Flambeurs (PC seulement, dans le monde 3D)
+   shop3d.js — Le Tropi Shop 3D des Flambeurs (PC seulement, dans le monde 3D)
    ---------------------------------------------------------------------
    Une grande galerie de luxe avec SIX vendeurs. Chaque vendeur a son stand et sa propre catégorie :
      Neil (fusées du Crash) · Victor (poker) · Merlin (gobelets) · Rosa (blackjack) · Max (machines à sous) · Cléo (avatars).
@@ -205,7 +205,7 @@
   /* ===================== LA SALLE ===================== */
   function createShopRoom(world) {
     var low = world.low;
-    var room = { title: '🛍️ BOUTIQUE', subtitle: 'SIX VENDEURS · SIX UNIVERS', topic: 'flambeurs-shop-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+    var room = { title: '🛍️ TROPI SHOP', subtitle: 'SIX VENDEURS · SIX UNIVERS', topic: 'flambeurs-shop-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group;
     room.bounds = { xMin: -HX + 0.8, xMax: HX - 0.8, zMin: -HZ + 0.8, zMax: HZ - 0.8 };
     var gold = GOLD();
@@ -247,9 +247,12 @@
     var sg = mkCanvas(1024, 256), sx = sg.getContext('2d');
     sx.fillStyle = '#12080f'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#c9a227'; sx.lineWidth = 8; sx.strokeRect(8, 8, 1008, 240);
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#f3cf62'; sx.shadowColor = '#ffb300'; sx.shadowBlur = 20;
-    sx.font = '900 84px ' + SERIF; sx.fillText('LA BOUTIQUE', 512, 96, 960);
-    sx.shadowBlur = 0; sx.fillStyle = '#d9c88f'; sx.font = '600 32px ' + MONO; sx.fillText('✦  SIX VENDEURS · SIX UNIVERS  ✦', 512, 188, 960);
-    var bigSign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.6), new THREE.MeshBasicMaterial({ map: mkTex(sg) }));
+    sx.font = '900 84px ' + SERIF; sx.fillText('TROPI SHOP', 600, 96, 720);
+    sx.shadowBlur = 0; sx.fillStyle = '#d9c88f'; sx.font = '600 32px ' + MONO; sx.fillText('✦  SIX VENDEURS · SIX UNIVERS  ✦', 600, 188, 720);
+    var signTex = mkTex(sg), signLogo = new Image();   // le logo du Tropi Shop, dessiné dès qu'il est chargé
+    signLogo.onload = function () { sx.drawImage(signLogo, 34, 24, 208, 208); signTex.needsUpdate = true; };
+    signLogo.src = 'assets/icones/services/tropi-shop.png';
+    var bigSign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.6), new THREE.MeshBasicMaterial({ map: signTex }));
     bigSign.position.set(0, 5.6, -HZ + 0.06); g.add(bigSign);
 
     /* --- colonnes aux quatre coins --- */
@@ -496,7 +499,7 @@
     };
 
     /* --- cycle de vie, interface, réseau --- */
-    room.hudTop = '<button class="s3d-cam" data-shp="classic">🛒 Boutique classique</button>';
+    room.hudTop = '<button class="s3d-cam" data-shp="classic">🛒 Tropi Shop classique</button>';
     room.bindHud = function (hud) {
       var b = hud.querySelector('[data-shp="classic"]');
       if (b) b.addEventListener('click', function () {

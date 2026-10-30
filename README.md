@@ -14,7 +14,7 @@ Application web complète de casino virtuel entre potes, conçue avec une interf
 
 ## 🏢 Économie & Fonctionnalités
 - **La Banque du Club :** Système de virements entre vrais joueurs enregistrés et historique des transactions.
-- **Boutique & Bâtiments :** Achetez des propriétés générant des revenus passifs réguliers (Night Club, Hôtel de Luxe, Casino Flambeur).
+- **Tropi Shop & Bâtiments :** Achetez des propriétés générant des revenus passifs réguliers (Night Club, Hôtel de Luxe, Casino Flambeur).
 - **Leaderboard Dynamique :** Classement en temps réel entre vous et vos amis.
 - **Panneau Admin (Le Patron) :** Ajustez les probabilités de la maison et gérez les comptes.
 
@@ -37,7 +37,6 @@ Pour développer (Node.js 20.19+) : `npm install` une fois, puis `npm run dev`. 
 - `pokerroom3d.js` (PC seulement) : les **salles de poker 3D**. Porte « Poker » du hall (ou bouton Poker du menu) → on entre debout dans la salle Rouge ; ses murs s'ouvrent à droite sur la salle Émeraude puis la salle Saphir (couleurs et déco différentes, `ROOM_THEMES` dans `poker3d-scene.js`). Chaque salle a sa table de 6 (= Salon 1, 2, 3 du serveur, tous identiques : blindes 50/100, mise de départ 1 000 – 20 000 €) et se joue dès que deux joueurs sont prêts. On choisit sa chaise (touche E ou clic) et la partie se joue **dans la salle, sur la table devant tout le monde** : la caméra se pose sur la chaise, les cartes, le pot, les mises et le bouton dealer sont dessinés sur la table 3D, et l'interface du poker (actions, relance) s'affiche par-dessus (`PokerMulti.openInWorld`) ; la place choisie part avec la mise de départ (`seat` dans `join`, refusée si prise). En quittant la table on revient debout dans la salle. Le solo contre les bots reste accessible par le bouton du panneau. Sur téléphone : lobby classique inchangé.
 - Si un joueur ferme son onglet, le serveur lui rend ses jetons tout seul (au plus tard quand le croupier le détecte absent).
 - Le **poker solo** (contre les bots, `poker3d.js`) se joue avec des **jetons d'entraînement** : il ne touche jamais au vrai solde.
-- Tests : `node --test tests/pokerEngine.test.mjs tests/pokerApi.test.mjs`.
 - `server.ps1` contient l'**ancien** poker : il n'est plus utilisé, préférez `serveur-local.mjs`.
 
 ## 🔐 Comptes et sécurité
@@ -68,7 +67,6 @@ Le navigateur **ne peut plus écrire un solde**. Toute mise, tout gain et tout v
 - Toutes les lignes `__poker_*`, `__crash_game__`, `__blackjack_game__` sont illisibles depuis le navigateur.
 - Variable `WALLET_STRICT=0` (Vercel) : désactive le mode strict en cas d'urgence (déconseillé).
 
-Tests : `ACCOUNTS_STORAGE=memory POKER_STORAGE=memory node --test tests/` (serveur, 61 tests) ; navigateur (serveur local lancé avec `E2E_TEST_HOOKS=1`, `BASE=http://localhost:8080`) : `node tests/auth-e2e.cjs`, `games-e2e.cjs`, `wallet-e2e.cjs` ; `node tests/e2e.cjs` avec `PORT=8099`.
 
 ## ⚠️ Limites connues
 - **Plusieurs comptes pour un même joueur** : le serveur limite surtout les virements (blocage 24 h des comptes neufs), mais ne peut pas empêcher quelqu'un d'ouvrir plusieurs comptes.
@@ -83,4 +81,3 @@ Tests : `ACCOUNTS_STORAGE=memory POKER_STORAGE=memory node --test tests/` (serve
 - Gains : `REWARD` (20 €) par image trouvée, versés par `walletPay` avec une clé unique ; seulement si le salon compte au moins `MIN_REWARD_PLAYERS` (2) joueurs au départ, sinon c'est un entraînement. Jouer ne coûte rien. Constantes en haut de `api/blindtest.js`.
 - Réponses (`api/_blindtestEngine.js`) : casse, accents, ponctuation, espaces et numéros de suite ignorés (« Spider-Man 3 » = « spider man »), mais le titre doit être complet. Un titre « presque juste » donne un message privé (« Tu n'es pas loin… »), jamais la réponse ; délai de 0,5 s entre deux essais et 15 essais maximum par image.
 - Banque d'images : `api/_blindtestData.js` (réponses par titre, catégorie, difficulté) et `blindtest/img/<id>.jpg`. Pour ajouter une image : déposer le JPG dans `blindtest/img/`, puis ajouter une ligne `{ id, key, cat, diff }` dans `BANK` (et les réponses du titre dans `ANSWERS[key]` si le titre est nouveau).
-- Tests : `node --test tests/blindtestEngine.test.mjs tests/blindtestApi.test.mjs`.
