@@ -12,7 +12,7 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var HX = 9, HZ = 9, H = 7;                  // demi-largeur, demi-profondeur, hauteur de la salle (mètres)
+  var HX = 26, HZ = 20, H = 9;                  // demi-largeur, demi-profondeur, hauteur de la salle (mètres)
   var PLINTH_TOP = 0.5, REX_LEN = 6.4;         // hauteur du dessus du socle ; longueur voulue du dinosaure
 
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
@@ -32,7 +32,7 @@
     fx.fillStyle = 'rgba(255,255,255,0.025)'; fx.fillRect(0, 0, 128, 128); fx.fillRect(128, 128, 128, 128);
     fx.strokeStyle = 'rgba(201,162,39,0.5)'; fx.lineWidth = 3; fx.strokeRect(1.5, 1.5, 253, 253);
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX, HZ); ft.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.3, metalness: 0.4 }));
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.6, metalness: 0.12 }));
     floor.rotation.x = -Math.PI / 2; g.add(floor);
 
     /* --- murs : panneaux vert profond, plinthe sombre, moulures dorées --- */
@@ -111,22 +111,22 @@
     /* --- appliques murales (chaudes, jamais derrière un objet) --- */
     var sconceM = new THREE.MeshBasicMaterial({ color: 0xffe6b0 });
     function sconce(x, z, ry) {
-      var s = new THREE.Group(); s.position.set(x, 3.4, z); s.rotation.y = ry; g.add(s);
+      var s = new THREE.Group(); s.position.set(x, 4.2, z); s.rotation.y = ry; g.add(s);
       box(s, 0.3, 0.5, 0.08, gold, 0, 0, 0); var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), sconceM); lamp.position.set(0, 0, 0.14); s.add(lamp);
     }
-    [-6, -2, 2, 6].forEach(function (z) { sconce(-HX + 0.05, z, Math.PI / 2); sconce(HX - 0.05, z, -Math.PI / 2); });
-    [-6, 6].forEach(function (x) { sconce(x, -HZ + 0.05, 0); });
+    for (i = -HZ + 4; i < HZ - 2; i += 6) { sconce(-HX + 0.05, i, Math.PI / 2); sconce(HX - 0.05, i, -Math.PI / 2); }
+    for (i = -HX + 5; i < HX - 2; i += 7) { sconce(i, -HZ + 0.05, 0); sconce(i, HZ - 0.05, Math.PI); }
 
     /* --- lumières --- */
-    g.add(new THREE.AmbientLight(0xcfd8d4, 0.75));
+    g.add(new THREE.AmbientLight(0xcfd8d4, 0.9));
     var key = new THREE.DirectionalLight(0xffffff, 0.35); key.position.set(3, 8, 5); g.add(key);
     var spot = new THREE.SpotLight(0xfff0d0, low ? 1.1 : 1.6, 18, 0.62, 0.45); spot.position.set(0, H - 0.4, 0.5); spot.target.position.set(0, 1.2, 0); g.add(spot); g.add(spot.target);
-    if (!low) { var side = new THREE.PointLight(0xffd9a0, 0.55, 14); side.position.set(-4, 3.5, 4); g.add(side); }
+    if (!low) [[-14, -8], [14, -8], [-14, 8], [14, 8]].forEach(function (q) { var side = new THREE.PointLight(0xffd9a0, 0.5, 22); side.position.set(q[0], 5, q[1]); g.add(side); });
 
     /* --- porte de retour vers le hall --- */
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
 
-    room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
+    room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };   // la salle est très grande : il y aura la place d'y ajouter d'autres statues
     room.hint = function (w) {
       return w.touch ? 'Joystick : marcher · la porte du fond ramène au hall'
         : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter' + (w.full ? ' · la souris tourne la vue · Échap : quitter' : ' · clique-glisse : regarder');
