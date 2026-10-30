@@ -546,7 +546,7 @@
       { id: 'dance', name: 'Danses', img: 'assets/icones/applis/dancefloor.png', icon: 'fa-music', color: '232,121,249', use: function () { if (wheelOpen && tab === 'dance') closeWheel(); else openWheel('dance'); } },
       { id: 'emote', name: 'Emotes', img: 'assets/icones/applis/reactions.png', icon: 'fa-face-smile', color: '251,191,36', use: function () { if (wheelOpen && tab === 'emote') closeWheel(); else openWheel('emote'); } },
       null,
-      { id: 'phone', name: 'Téléphone', icon: 'fa-mobile-screen-button', color: '56,189,248' },
+      { id: 'phone', name: 'Téléphone', icon: 'fa-mobile-screen-button', color: '56,189,248', img: 'assets/icones/applis/telephone.png' },
       { id: 'chat', name: 'Chat', img: 'assets/icones/applis/chat.png', icon: 'fa-comments', color: '52,211,153', use: function () { if (phoneOpen && page === 'chat') closePhone(true); else openChat(); } }
     ];
     var sel = 2;   // on démarre sur la case du milieu (vide) : le premier clic verrouille la souris au lieu d'utiliser un objet ; molette ou chiffre pour changer
