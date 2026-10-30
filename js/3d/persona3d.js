@@ -72,6 +72,8 @@
     var jobs = [];
     if (!T.animP) T.animP = loadGltf('animations.glb').then(function (r) { r.animations.forEach(function (c) { T.clips[c.name] = c; }); });
     jobs.push(T.animP);
+    if (!T.hairTexP) T.hairTexP = Promise.all([loadTex('cheveux1.png'), loadTex('cheveux2.png')]).then(function (t) { t.forEach(function (x) { x.wrapS = x.wrapT = THREE.RepeatWrapping; }); T.hairTex = t; });
+    jobs.push(T.hairTexP);
     var sx = look.sex === 'f' ? 'femme' : 'homme';
     if (!T.bodies[sx]) T.bodies[sx] = loadGltf('personnage_' + sx + '.glb').then(function (r) { r.scene.updateMatrixWorld(true); return r.scene; });
     jobs.push(T.bodies[sx]);
@@ -84,10 +86,20 @@
   function hairFiles(look) {
     var out = [], st = HAIR_STYLES[look.hair], f = HAIR_FILE[st];
     if (f) out.push(f[look.sex]);
+    if (st === 'long' || st === 'chignon') out.push(HAIR_FILE.court[look.sex]);          // calotte courte dessous : sinon le haut du crâne reste nu
     if (look.beard && look.sex === 'h') out.push('hair_beard');
     return out;
   }
-  function hairMat(hex) { return T.hairMats[hex] || (T.hairMats[hex] = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.8, side: THREE.DoubleSide })); }
+  // cheveux : la texture d'origine est un modèle de mèches en gris clair ; on la teinte de la couleur choisie (texture 2 pour les cheveux longs et le chignon)
+  function hairMat(hex, which) {
+    var key = hex + '_' + which;
+    if (!T.hairMats[key]) {
+      var c = new THREE.Color(hex); c.r = Math.min(1, c.r * 1.7); c.g = Math.min(1, c.g * 1.7); c.b = Math.min(1, c.b * 1.7);
+      T.hairMats[key] = new THREE.MeshStandardMaterial({ map: T.hairTex[which], color: c, roughness: 0.75, side: THREE.DoubleSide });
+    }
+    return T.hairMats[key];
+  }
+  var HAIR_TEX2 = { hair_long: 1, hair_buns: 1 };
 
   // idle calme : bras le long du corps, respiration à peine visible (l'animation d'attente de la bibliothèque est une garde de boxeur)
   function idleClip(root) {
@@ -122,7 +134,7 @@
         o.frustumCulled = false;
         if (/^SuperHero_|^Superhero_/.test(o.name)) {
           if (look.tone === 1 && T.skins[sx]) T.skins[sx].then(function (tx) { var m = o.material.clone(); m.map = tx; m.needsUpdate = true; o.material = m; mats.push(m); });
-        } else if (o.name === 'Eyebrows') { o.material = o.material.clone(); o.material.color.setHex(hairHex); mats.push(o.material); }
+        } else if (o.name === 'Eyebrows') { o.material = hairMat(hairHex, 0); }
       });
       // la coiffure et la barbe sont collées à l'os de la tête (mises à plat au repos : même place que dans le fichier d'origine)
       root.updateMatrixWorld(true);
@@ -132,7 +144,7 @@
         src.then(function (sc) {
           if (p._dead || my !== p._upg) return;
           var w = new THREE.Group(); w.matrixAutoUpdate = false; w.matrix.copy(inv);
-          var hs = sc.clone(); hs.traverse(function (o) { if (o.isMesh) o.material = hairMat(hairHex); });
+          var hs = sc.clone(); hs.traverse(function (o) { if (o.isMesh) o.material = hairMat(hairHex, HAIR_TEX2[n] ? 1 : 0); });
           w.add(hs); head.add(w);
         });
       });
@@ -270,8 +282,8 @@
   };
   /* ---------- ta main en vue à la première personne : le bras droit du vrai personnage (seulement les triangles du bras) ---------- */
   var ARM_RE = /(upperarm_r|lowerarm_r|hand_r|index_.._r|middle_.._r|ring_.._r|pinky_.._r|thumb_.._r)$/;
-  var ARM_REST = [1.254, -0.178, 1.022, 2.022, 0.712], ARM_HOLD = [1.8, -0.188, 1.081, 1.304, 0.988];   // angles du bras au repos et quand on tient un objet
-  var SH_REST = [0.2, -0.16, -0.05], SH_HOLD = [0.17, -0.19, -0.07];                                          // position de l'épaule dans le repère de la caméra
+  var ARM_POSE = [1.419, -0.457, 1.113, 1.987, 0.97], HAND_POSE = [0.137, -0.327, 0.968];   // épaule (z, y, x), avant-bras (y, z), poignet (x, y, z) : paume vers soi, doigts vers le haut
+  var SH_POS = [0.2, -0.15, 0.0], SH_HIDDEN_Y = -0.85;                                                      // position de l'épaule dans le repère de la caméra ; le bras descend hors de l'écran quand on ne tient rien
   T.armGeo = {};
   function armGeometry(sx, body) {
     if (T.armGeo[sx]) return T.armGeo[sx];
@@ -297,9 +309,11 @@
             root.traverse(function (o) { if (!o.isSkinnedMesh) return; if (/^SuperHero_|^Superhero_/.test(o.name)) mesh = o; else o.visible = false; });
             mesh.geometry = armGeometry(sx, mesh); mesh.frustumCulled = false; mesh.material = mesh.material.clone();
             if (skinTex) { mesh.material.map = skinTex; mesh.material.needsUpdate = true; }
-            var rest = {}; ['upperarm_r', 'lowerarm_r', 'hand_r'].forEach(function (n) { var b = root.getObjectByName(n); rest[n] = { b: b, q: b.quaternion.clone() }; });
+            var rest = {}; var fingerNames = [];
+            ['upperarm_r', 'lowerarm_r', 'hand_r'].forEach(function (n) { var b = root.getObjectByName(n); rest[n] = { b: b, q: b.quaternion.clone() }; });
+            ['index', 'middle', 'ring', 'pinky', 'thumb'].forEach(function (f) { ['01', '02', '03'].forEach(function (j) { var n = f + '_' + j + '_r', b = root.getObjectByName(n); if (b) { rest[n] = { b: b, q: b.quaternion.clone() }; fingerNames.push(n); } }); });
             root.rotation.y = Math.PI; va.group.add(root);
-            parts = { root: root, rest: rest, mat: mesh.material, hand: root.getObjectByName('hand_r'), sh: root.getObjectByName('upperarm_r') };
+            parts = { root: root, rest: rest, fingers: fingerNames, mat: mesh.material, hand: root.getObjectByName('hand_r'), sh: root.getObjectByName('upperarm_r') };
             va.ready = true;
           };
           if (l.tone === 1) T.skins[sx].then(go); else go(null);
@@ -308,18 +322,31 @@
     }
     va.setLook = function (l) { l = parseLook(l); if (!l || lookCode(l) === va.look) return; va.look = lookCode(l); va.ready = false; build(l); };
     // k : 0 = main au repos, 1 = objet en main ; dx, dy : balancement de la marche
+    // k : 0 = rien en main (le bras est hors de l'écran), 1 = objet en main ; dx, dy : balancement de la marche
     va.update = function (k, dx, dy) {
-      if (!parts) return;
-      var i, P = [], r = parts.rest;
-      for (i = 0; i < 5; i++) P[i] = ARM_REST[i] + (ARM_HOLD[i] - ARM_REST[i]) * k;
-      // mêmes rotations que celles trouvées à l'essai : épaule (z, y, x) puis avant-bras (y, z), appliquées à droite de la pose de repos
+      va.group.visible = k > 0.01;
+      if (!parts || !va.group.visible) return;
+      var r = parts.rest, e = k * k * (3 - 2 * k);
       function app(rr, list) { rr.b.quaternion.copy(rr.q); list.forEach(function (it) { eq.setFromAxisAngle(ax[it[0]], it[1]); rr.b.quaternion.multiply(eq); }); }
-      app(r.upperarm_r, [['z', P[0]], ['y', P[1]], ['x', P[2]]]); app(r.lowerarm_r, [['y', P[3]], ['z', P[4]]]);
+      app(r.upperarm_r, [['z', ARM_POSE[0]], ['y', ARM_POSE[1]], ['x', ARM_POSE[2]]]); app(r.lowerarm_r, [['y', ARM_POSE[3]], ['z', ARM_POSE[4]]]);
+      app(r.hand_r, [['x', HAND_POSE[0]], ['y', HAND_POSE[1]], ['z', HAND_POSE[2]]]);
+      parts.fingers.forEach(function (n) {                         // doigts recourbés vers soi (axe x), pouce replié sur le côté (axe z)
+        var th = /thumb/.test(n), j = +n.split('_')[1], w = j === 1 ? 1 : j === 2 ? 1.15 : 0.9;
+        app(r[n], [th ? ['z', -0.5 * w] : ['x', 0.7 * w]]);
+      });
       parts.root.position.set(0, 0, 0); parts.root.updateMatrixWorld(true);
       parts.sh.getWorldPosition(tmpV); parts.root.worldToLocal(tmpV);        // épaule dans le repère du corps (indépendant de la caméra)
-      var sx0 = SH_REST[0] + (SH_HOLD[0] - SH_REST[0]) * k, sy0 = SH_REST[1] + (SH_HOLD[1] - SH_REST[1]) * k, sz0 = SH_REST[2] + (SH_HOLD[2] - SH_REST[2]) * k;
-      parts.root.position.set(sx0 + dx + tmpV.x, sy0 + dy - tmpV.y, sz0 + tmpV.z);   // le corps est tourné d'un demi-tour : x et z changent de signe
+      var sy0 = SH_HIDDEN_Y + (SH_POS[1] - SH_HIDDEN_Y) * e;
+      parts.root.position.set(SH_POS[0] + dx + tmpV.x, sy0 + dy - tmpV.y, SH_POS[2] + tmpV.z);   // le corps est tourné d'un demi-tour : x et z changent de signe
       parts.root.updateMatrixWorld(true);
+    };
+    // repère de la main dans le repère du groupe (la caméra) : position du poignet, direction des doigts, sens de la paume
+    var gi = new THREE.Matrix4(), tq = new THREE.Quaternion();
+    va.handFrame = function (pos, up, nrm) {
+      if (!parts) return;
+      parts.hand.getWorldPosition(pos); parts.hand.getWorldQuaternion(tq);
+      up.set(0, 1, 0).applyQuaternion(tq); nrm.set(-1, 0, 0).applyQuaternion(tq);
+      gi.copy(va.group.matrixWorld).invert(); pos.applyMatrix4(gi); up.transformDirection(gi); nrm.transformDirection(gi);
     };
     va.handPos = function (out) { if (parts) { parts.hand.getWorldPosition(out); va.group.worldToLocal(out); } return out; };   // dans le repère du groupe (la caméra)
     build(look);

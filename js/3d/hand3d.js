@@ -74,7 +74,7 @@
 
     var held = '', itemId = '', item = null, k = 0, tt = 0, bob = 0, tiltQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.22), curName = String(name || '');
     // le vrai bras du personnage (persona3d.js) remplace la main en boîtes dès qu'il est chargé ; les boîtes servent de secours
-    var va = F.persona && F.persona.createViewArm ? F.persona.createViewArm(F.myLookCode ? F.myLookCode() : '') : null, vtmp = new THREE.Vector3();
+    var va = F.persona && F.persona.createViewArm ? F.persona.createViewArm(F.myLookCode ? F.myLookCode() : '') : null, vtmp = new THREE.Vector3(), vup = new THREE.Vector3(), vnr = new THREE.Vector3(), vx = new THREE.Vector3(), vy = new THREE.Vector3(), vm4 = new THREE.Matrix4();
     if (va) root.add(va.group);
     function setItem(id) {
       if (id === itemId) return;
@@ -95,9 +95,12 @@
           arm.visible = false;
           if (F.myLookCode) va.setLook(F.myLookCode());
           va.update(k, side, sway + step * (1 - 0.5 * k) - jump);
-          if (item) {                                                    // l'objet est posé dans la paume, incliné vers la caméra
+          if (item) {                                                    // l'objet est tenu devant la paume (qui regarde vers toi), doigts vers le haut
             if (item.parent !== va.group) { if (item.parent) item.parent.remove(item); va.group.add(item); }
-            va.handPos(vtmp); item.position.set(vtmp.x, vtmp.y + 0.06, vtmp.z - 0.03); item.scale.setScalar(0.85); item.quaternion.copy(tiltQ); item.visible = k > 0.25;
+            va.handFrame(vtmp, vup, vnr);
+            item.position.copy(vtmp).addScaledVector(vup, 0.035).addScaledVector(vnr, 0.042); item.scale.setScalar(0.9);
+            vx.crossVectors(vup, vnr).normalize(); vy.crossVectors(vnr, vx);
+            vm4.makeBasis(vx, vy, vnr); item.quaternion.setFromRotationMatrix(vm4); item.visible = k > 0.25;
           }
           return;
         }
