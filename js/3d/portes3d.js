@@ -74,6 +74,15 @@
       c.strokeStyle = col; c.lineWidth = 3.4; c.lineCap = 'round'; c.beginPath(); c.arc(12, 12.5, 6.6, -Math.PI / 3, Math.PI + Math.PI / 3); c.stroke();
       c.fillStyle = col; [[5.6, 17.6], [18.4, 17.6], [4.8, 11.5], [19.2, 11.5]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 0.01, 0, TAU); c.fill(); });
     },
+    uno: function (c, col, bg) {                           // une carte penchée avec un ovale
+      c.save(); c.translate(12, 12); c.rotate(-0.25); c.fillStyle = col; rr(c, -7, -10, 14, 20, 2.4); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(0, 0, 3.6, 7.6, 0.55, 0, TAU); c.fill(); c.restore();
+    },
+    wolf: function (c, col, bg) {                          // tête de loup de face
+      c.fillStyle = col; c.beginPath(); c.moveTo(3.2, 2.6); c.lineTo(8.6, 8); c.lineTo(15.4, 8); c.lineTo(20.8, 2.6); c.lineTo(21.2, 12.5);
+      c.quadraticCurveTo(21, 18.2, 12, 22.6); c.quadraticCurveTo(3, 18.2, 2.8, 12.5); c.closePath(); c.fill();
+      c.fillStyle = bg; c.beginPath(); c.ellipse(8.6, 12.4, 1.7, 1.2, 0.4, 0, TAU); c.fill(); c.beginPath(); c.ellipse(15.4, 12.4, 1.7, 1.2, -0.4, 0, TAU); c.fill();
+      c.beginPath(); c.moveTo(10.4, 17); c.lineTo(13.6, 17); c.lineTo(12, 19.4); c.closePath(); c.fill();
+    },
     cinema: function (c, col, bg) {                       // secours si la photo du serveur n'est pas chargée : un clap
       c.fillStyle = col; rr(c, 2.5, 9, 19, 12, 1.5); c.fill(); c.save(); c.translate(3, 8); c.rotate(-0.2); rr(c, 0, -4, 19, 4.2, 1); c.fill(); c.restore();
       c.fillStyle = bg; for (var i = 0; i < 4; i++) c.fillRect(5 + i * 4.4, 4.8 - i * 0.2, 2, 2);
@@ -226,6 +235,24 @@
         c.fillStyle = '#f2f2f2'; [0.5, 0.64, 0.78].forEach(function (y) { c.fillRect(0, H * y, W, 14); }); [0.12, 0.88].forEach(function (x) { c.fillRect(W * x - 8, H * 0.46, 16, H * 0.46); });
         var s = 30; for (var i = 0; i < Math.ceil(W / s); i++) for (var j = 0; j < 3; j++) { c.fillStyle = (i + j) % 2 ? '#fff' : '#111'; c.fillRect(i * s, 20 + j * s, s, s); }
         border(c, W, H, '#f2f2f2', 6);
+      }
+    },
+    uno: {
+      frame: 0xffd400, leaf: 0xd6221e, rgb: '255, 214, 0', logo: 'uno',
+      paint: function (c, W, H) {
+        c.fillStyle = '#d6221e'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd400', 8);
+        c.save(); c.translate(W / 2, H * 0.5); c.rotate(-0.3); c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, W * 0.34, H * 0.28, 0, 0, TAU); c.fill();
+        c.fillStyle = '#ffd400'; c.strokeStyle = '#111'; c.lineWidth = 8; c.font = '900 92px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
+        [['#1f9d4a', 0.14, 0.1], ['#1b63c9', 0.86, 0.1], ['#f2c200', 0.14, 0.9], ['#1f9d4a', 0.86, 0.9]].forEach(function (q) { c.fillStyle = q[0]; rr(c, W * q[1] - 22, H * q[2] - 28, 44, 56, 8); c.fill(); });
+      }
+    },
+    loupgarou: {
+      frame: 0x7b6dff, leaf: 0x0b0a18, rgb: '200, 190, 255', logo: 'wolf',
+      paint: function (c, W, H) {
+        var g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05060f'); g.addColorStop(1, '#1c1840'); c.fillStyle = g; c.fillRect(0, 0, W, H); border(c, W, H, '#8b7dff', 7);
+        for (var i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random() * 0.6) + ')'; c.fillRect(20 + Math.random() * (W - 40), 20 + Math.random() * (H * 0.5), 2, 2); }
+        var mg = c.createRadialGradient(W / 2, H * 0.34, 10, W / 2, H * 0.34, W * 0.34); mg.addColorStop(0, '#fffbe6'); mg.addColorStop(0.7, '#f4e9b8'); mg.addColorStop(1, 'rgba(244,233,184,0)'); c.fillStyle = mg; c.beginPath(); c.arc(W / 2, H * 0.34, W * 0.34, 0, TAU); c.fill();
+        c.fillStyle = '#04040a'; c.save(); c.translate(W / 2, H * 0.78); c.scale(6.2, 6.2); c.translate(-12, -14); ICONS.wolf(c, '#04040a', '#f4e9b8'); c.restore();
       }
     },
     cinema: {
