@@ -116,17 +116,22 @@
     var panelTex = new THREE.CanvasTexture(wdc); panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping; panelTex.anisotropy = 4;
     var wood = std(0x2b150d, 0.55, 0.25), gold = std(0xc9a227, 0.35, 0.7);
     // une paroi : le papier peint au-dessus, le lambris en bas (len : longueur, c : centre x/z, ry : orientation)
-    function wall(len, px, pz, ry) {
+    function wall(len, px, pz, ry, doorGap) {
       var wt = wallTex.clone(); wt.needsUpdate = true; wt.repeat.set(len / 2.2, (H - 1.3) / 2.2);
       var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: wt, roughness: 0.85 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m);
-      var pt = panelTex.clone(); pt.needsUpdate = true; pt.repeat.set(len / 1.4, 1);
-      var lam0 = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.2), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.6, metalness: 0.15 }));
-      lam0.position.set(px + Math.sin(ry) * 0.04, 0.6, pz + Math.cos(ry) * 0.04); lam0.rotation.y = ry; g.add(lam0);
+      // lambris : en une ou deux pièces (on laisse la porte dégagée)
+      var spans = doorGap ? [[-len / 2, -doorGap / 2], [doorGap / 2, len / 2]] : [[-len / 2, len / 2]];
+      spans.forEach(function (sp) {
+        var l = sp[1] - sp[0], c0 = (sp[0] + sp[1]) / 2, pt = panelTex.clone(); pt.needsUpdate = true; pt.repeat.set(l / 1.4, 1);
+        var lam0 = new THREE.Mesh(new THREE.PlaneGeometry(l, 1.2), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.6, metalness: 0.15 }));
+        lam0.position.set(px + Math.cos(ry) * c0 + Math.sin(ry) * 0.04, 0.6, pz - Math.sin(ry) * c0 + Math.cos(ry) * 0.04); lam0.rotation.y = ry; g.add(lam0);
+      });
     }
-    wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
+    wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI, 3.0); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     // moulures : plinthe, main courante dorée, corniche
-    [[HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
-    [[HX * 2, 0.07, 0.12, 0, 1.22, -HZ + 0.06], [HX * 2, 0.07, 0.12, 0, 1.22, HZ - 0.06], [0.12, 0.07, HZ * 2, -HX + 0.06, 1.22, 0], [0.12, 0.07, HZ * 2, HX - 0.06, 1.22, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    var DG = 3.0, HB = (HX * 2 - DG) / 2;     // largeur laissée libre devant la porte, et longueur de chaque morceau de mur de part et d'autre
+    [[HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HB, 0.12, 0.1, -(DG / 2 + HB / 2), 0.06, HZ - 0.05], [HB, 0.12, 0.1, DG / 2 + HB / 2, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
+    [[HX * 2, 0.07, 0.12, 0, 1.22, -HZ + 0.06], [HB, 0.07, 0.12, -(DG / 2 + HB / 2), 1.22, HZ - 0.06], [HB, 0.07, 0.12, DG / 2 + HB / 2, 1.22, HZ - 0.06], [0.12, 0.07, HZ * 2, -HX + 0.06, 1.22, 0], [0.12, 0.07, HZ * 2, HX - 0.06, 1.22, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     [[HX * 2, 0.3, 0.3, 0, H - 0.15, -HZ + 0.15], [HX * 2, 0.3, 0.3, 0, H - 0.15, HZ - 0.15], [0.3, 0.3, HZ * 2, -HX + 0.15, H - 0.15, 0], [0.3, 0.3, HZ * 2, HX - 0.15, H - 0.15, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
     [[HX * 2, 0.06, 0.06, 0, H - 0.33, -HZ + 0.34], [HX * 2, 0.06, 0.06, 0, H - 0.33, HZ - 0.34], [0.06, 0.06, HZ * 2, -HX + 0.34, H - 0.33, 0], [0.06, 0.06, HZ * 2, HX - 0.34, H - 0.33, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     // pilastres de bois avec base et chapiteau dorés, et une applique entre chaque
@@ -168,12 +173,16 @@
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     TABLES.forEach(function (td, ti) {
       var grp = new THREE.Group(); grp.position.set(td.x, 0, td.z); g.add(grp);
-      // plateau en demi-disque : feutre vert dessus, bord en bois, pied central
-      var top = new THREE.Mesh(new THREE.CylinderGeometry(TABLE_R, TABLE_R, 0.1, 48, 1, false, -Math.PI / 2, Math.PI), [woodD, feltD, woodD]); top.position.y = TOP_Y - 0.05; grp.add(top);   // demi-disque côté joueurs (+z), visible des deux faces
-      box(grp, TABLE_R * 2, 0.12, 0.05, woodM, 0, TOP_Y - 0.05, 0);                             // le côté plat (côté croupier)
-      var skirt = new THREE.Mesh(new THREE.CylinderGeometry(TABLE_R - 0.03, TABLE_R - 0.03, 0.16, 48, 1, true, -Math.PI / 2, Math.PI), woodD); skirt.position.y = TOP_Y - 0.16; grp.add(skirt);   // jupe sous le plateau
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R, 0.05, 8, 48, Math.PI), woodM); rim.rotation.x = Math.PI / 2; rim.rotation.z = 0; rim.position.y = TOP_Y; grp.add(rim);
-      var rimG = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R - 0.06, 0.012, 6, 48, Math.PI), gold); rimG.rotation.x = Math.PI / 2; rimG.position.y = TOP_Y + 0.045; grp.add(rimG);
+      // plateau en « D » : une seule pièce épaisse (feutre dessus, bois sur la tranche) et un rail rembourré qui suit exactement son contour
+      var dS = new THREE.Shape(); dS.moveTo(-TABLE_R, 0); dS.lineTo(TABLE_R, 0); dS.absarc(0, 0, TABLE_R, 0, Math.PI, false);
+      var top = new THREE.Mesh(new THREE.ExtrudeGeometry(dS, { depth: 0.14, bevelEnabled: false, curveSegments: 48 }), [feltD, woodD]); top.rotation.x = Math.PI / 2; top.position.y = TOP_Y; grp.add(top);
+      var outline = [], u;
+      for (u = 0; u < 64; u++) { var ang = u / 64 * Math.PI; outline.push(new THREE.Vector3(Math.cos(ang) * TABLE_R, 0, Math.sin(ang) * TABLE_R)); }
+      for (u = 0; u <= 16; u++) outline.push(new THREE.Vector3(TABLE_R - u / 16 * TABLE_R * 2, 0, 0));
+      var railPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y + 0.01); }), true, 'centripetal');
+      var rail = new THREE.Mesh(new THREE.TubeGeometry(railPath, 240, 0.055, 10, true), woodD); grp.add(rail);
+      var inlayPath = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(TOP_Y + 0.066); }), true, 'centripetal');
+      var inlay = new THREE.Mesh(new THREE.TubeGeometry(inlayPath, 240, 0.011, 6, true), gold); grp.add(inlay);   // filet doré posé sur le dessus du rail
       var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, TOP_Y - 0.1, 16), woodM); ped.position.set(0, (TOP_Y - 0.1) / 2, 0.45); grp.add(ped);
       // lampe suspendue
       var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.5, metalness: 0.5, side: THREE.DoubleSide })); lamp.position.set(0, H - 1.4, 0.9); grp.add(lamp);
@@ -187,7 +196,7 @@
       // croupier
       var dl = F.createPlayer ? F.createPlayer('Croupier ' + (ti + 1), '', ti % 2 ? 'h1010' : 'f1230') : null;
       if (dl) {
-        dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); people.push({ p: dl, kind: 'dealer', t: T }); T.dealer = dl;
+        dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
         // la chaise du croupier : assise capitonnée et dossier, derrière la table
         box(grp, 0.5, 0.08, 0.5, seatM, 0, 0.5, -0.75); box(grp, 0.5, 0.55, 0.07, seatM, 0, 0.82, -1.0); box(grp, 0.06, 0.46, 0.06, chromeM, 0, 0.23, -0.75); box(grp, 0.46, 0.04, 0.46, chromeM, 0, 0.02, -0.75);
         room.colliders.push({ x: td.x, z: td.z - 0.8, r: 0.5 });
@@ -241,7 +250,9 @@
       c.fillStyle = col; c.font = '900 38px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 128, 42, 230);
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(x, TOP_Y + 0.32, z); g.add(sp); T.labels = T.labels || []; T.labels.push(sp);
     }
+    function wake(T) { if (T && T.dealerO) T.dealerO.awake = 1.1; }
     function showHand(T, s, cards, keep) {
+      wake(T);
       T.handMeshes = T.handMeshes || {};
       var have = (T.handMeshes[s.n] = T.handMeshes[s.n] || []);
       for (var k = have.length; k < cards.length; k++) have.push(placeCard('p', s.n, T, cards[k], spotPos(T, s, k, cards.length), 0));
@@ -249,6 +260,7 @@
       have.forEach(function (m, k2) { var p = spotPos(T, s, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else { m.position.set(p.x, p.y, p.z); } });
     }
     function showDealer(T, cards) {
+      wake(T);
       T.dealerMeshes = T.dealerMeshes || [];
       for (var k = T.dealerMeshes.length; k < cards.length; k++) T.dealerMeshes.push(placeCard('d', 0, T, cards[k], dealerPos(T, k, cards.length), 0));
       T.dealerMeshes.forEach(function (m, k2) { var p = dealerPos(T, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else m.position.set(p.x, p.y, p.z); });
@@ -477,7 +489,11 @@
         if (R.count <= 0) startRound();
       } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); if (tm2 && tm2.textContent) tm2.textContent = ''; }
       // animations des personnages
-      people.forEach(function (o) { o.p.stopWalk(); o.p.applyHold(dt); });
+      people.forEach(function (o) {
+        if (!o.p._rig) return;
+        if (!o.settled) { o.p.stopWalk(); o.p.applyHold(0.05); o.settled = true; return; }   // une première image pour prendre la pose assise, puis plus rien
+        if (o.awake > 0) { o.awake -= dt; o.p.stopWalk(); o.p.applyHold(dt); }                  // le croupier ne bouge que pendant qu'il donne les cartes
+      });
       if (meRig && meRig.group.visible) { meRig.stopWalk(); meRig.applyHold(dt); }
       // minuteries
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { if (window.console) console.warn('[blackjack3d]', e); } } }

@@ -75,7 +75,7 @@
       ctx.options = { feltColor: def.felt, railColor: 0x121013, woodColor: 0x1e1108, tableWidth: 6.6, tableDepth: 3.3 };
       ctx.thetas = THETAS.slice(1); ctx.tableFormat = '6max'; ctx.activeBotIndices = [0, 1, 2, 3, 4];
       ctx.buildPokerTable();
-      ctx.buildRoom(def.theme, def.gaps, false, r === 0 ? [0, Math.PI / 2, -Math.PI / 2] : [Math.PI / 2, -Math.PI / 2]);   // ni banquette ni tableau devant les portes
+      ctx.buildRoom(def.theme, def.gaps, false, r === 0 ? [0, Math.PI / 2, -Math.PI / 2] : [Math.PI / 2, -Math.PI / 2], r === 0 ? [Math.PI] : []);   // salle rouge : l'affiche des règles du poker remplace la baie et la banquette derrière le croupier   // ni banquette ni tableau devant les portes
       ctx.roomColliders.forEach(function (o) { room.colliders.push({ x: cx + o.x * SC, z: o.z * SC, r: o.r * SC }); });
       ctx.buildDealer();      // le croupier reste assis à côté de la table
       ctx.buildCommunityCards();   // 5 cartes communes + emplacements + bouton dealer (affichés quand une partie se joue à cette table)
@@ -128,7 +128,8 @@
       // plaque flottante au-dessus de la table
       var cv = mkCanvas(512, 160), sx = cv.getContext('2d'), tex = mkTex(cv);
       var sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.53), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
-      sign.position.set(cx, 2.45, 0); g.add(sign);
+      salle.signY = r === 0 ? 4.12 : 2.45;   // salle rouge : la plaque monte au-dessus de l'affiche des règles pour ne pas la cacher
+      sign.position.set(cx, salle.signY, 0); g.add(sign);
       salle.sign = sign; salle.tex = tex;
       salle.draw = function (t) {
         sx.clearRect(0, 0, 512, 160);
@@ -570,7 +571,7 @@
       else { p.x = last.x; p.z = last.z; }
       room.salles.forEach(function (salle) {
         salle.sign.rotation.y = Math.atan2(world.camera.position.x - salle.sign.position.x, world.camera.position.z - salle.sign.position.z);
-        salle.sign.position.y = 2.45 + Math.sin(world.clock * 1.4 + salle.r) * 0.03;
+        salle.sign.position.y = salle.signY + Math.sin(world.clock * 1.4 + salle.r) * 0.03;
       });
     };
     room.onEnter = function () { room.sofa = null; room.ghost = false; world.player.jy = 0; last.x = world.player.x; last.z = world.player.z; };

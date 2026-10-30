@@ -540,6 +540,49 @@
   }
 
   // Tableau : fond sombre + grand symbole de carte doré
+  // Affiche des règles du Texas Hold'em : classement des mains (de la plus forte à la plus faible) et départage des égalités
+  function rulesTexture() {
+    return canvasTex(1800, 1560, (c, w, h) => {
+      const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#16100c'); g.addColorStop(1, '#0b0806'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+      c.strokeStyle = '#d4a62a'; c.lineWidth = 10; c.strokeRect(18, 18, w - 36, h - 36); c.lineWidth = 3; c.strokeRect(38, 38, w - 76, h - 76);
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = '#f3cf62'; c.font = '900 96px Georgia, serif'; c.fillText("RÈGLES DU TEXAS HOLD'EM", w / 2, 112);
+      c.fillStyle = '#efe4c8'; c.font = '600 40px Georgia, serif';
+      c.fillText("Tu reçois 2 cartes, 5 cartes communes sont posées sur la table (flop : 3, turn : 1, river : 1).", w / 2, 192);
+      c.fillText("Ta meilleure main de 5 cartes parmi les 7 gagne. Voici qui bat qui, de la plus forte à la plus faible :", w / 2, 246);
+      const card = (x, y, r, s) => {
+        const red = s === '♥' || s === '♦', cw = 82, ch = 112;
+        c.fillStyle = '#fbf7ec'; c.beginPath(); if (c.roundRect) c.roundRect(x, y, cw, ch, 9); else c.rect(x, y, cw, ch); c.fill(); c.strokeStyle = '#8c846c'; c.lineWidth = 2; c.stroke();
+        c.fillStyle = red ? '#c8202f' : '#15151a'; c.textAlign = 'center'; c.font = '900 40px Georgia, serif'; c.fillText(r, x + cw / 2, y + 36); c.font = '700 46px Georgia, serif'; c.fillText(s, x + cw / 2, y + 82);
+      };
+      const rows = [
+        ['1', 'Quinte flush royale', "Du 10 à l'As, tout dans la même couleur : la main parfaite", [['A', '♠'], ['K', '♠'], ['Q', '♠'], ['J', '♠'], ['10', '♠']]],
+        ['2', 'Quinte flush', '5 cartes qui se suivent, de la même couleur', [['9', '♥'], ['8', '♥'], ['7', '♥'], ['6', '♥'], ['5', '♥']]],
+        ['3', 'Carré', '4 cartes de même valeur', [['8', '♠'], ['8', '♥'], ['8', '♦'], ['8', '♣'], ['K', '♠']]],
+        ['4', 'Full', 'Un brelan + une paire', [['10', '♠'], ['10', '♥'], ['10', '♦'], ['4', '♣'], ['4', '♠']]],
+        ['5', 'Couleur', '5 cartes de la même couleur (pas en suite)', [['A', '♦'], ['J', '♦'], ['8', '♦'], ['6', '♦'], ['3', '♦']]],
+        ['6', 'Suite', '5 cartes qui se suivent, couleurs mélangées', [['9', '♣'], ['8', '♦'], ['7', '♠'], ['6', '♥'], ['5', '♣']]],
+        ['7', 'Brelan', '3 cartes de même valeur', [['Q', '♠'], ['Q', '♥'], ['Q', '♦'], ['7', '♣'], ['2', '♠']]],
+        ['8', 'Double paire', 'Deux paires différentes', [['J', '♠'], ['J', '♦'], ['5', '♣'], ['5', '♥'], ['A', '♠']]],
+        ['9', 'Paire', '2 cartes de même valeur', [['K', '♠'], ['K', '♦'], ['9', '♣'], ['6', '♥'], ['3', '♠']]],
+        ['10', 'Carte haute', 'Aucune combinaison : la plus haute carte compte', [['A', '♠'], ['J', '♦'], ['8', '♣'], ['5', '♥'], ['2', '♠']]]
+      ];
+      rows.forEach((r, i) => {
+        const col = i < 5 ? 0 : 1, row = i % 5, x0 = 60 + col * 880, y0 = 296 + row * 196;
+        c.fillStyle = 'rgba(212,166,42,0.10)'; c.fillRect(x0, y0, 840, 180);
+        c.textAlign = 'left'; c.fillStyle = '#d4a62a'; c.font = '900 64px Georgia, serif'; c.fillText(r[0], x0 + 20, y0 + 56);
+        c.fillStyle = '#fff4d6'; c.font = '800 44px Georgia, serif'; c.fillText(r[1], x0 + 100, y0 + 40);
+        c.fillStyle = '#cfc4a6'; c.font = '500 28px Georgia, serif'; c.fillText(r[2], x0 + 100, y0 + 80, 730);
+        r[3].forEach((q, k) => card(x0 + 100 + k * 98, y0 + 94, q[0], q[1]));
+      });
+      c.textAlign = 'center';
+      c.fillStyle = '#f3cf62'; c.font = '900 52px Georgia, serif'; c.fillText("QUI GAGNE EN CAS D'ÉGALITÉ ?", w / 2, 1318);
+      c.fillStyle = '#efe4c8'; c.font = '600 35px Georgia, serif';
+      c.fillText("Même combinaison : la plus haute carte de la combinaison gagne (paire de Rois bat paire de 9, couleur à l'As bat couleur au Roi).", w / 2, 1376, w - 140);
+      c.fillText("Deux paires : on compare la plus forte paire, puis la seconde, puis la carte restante (le « kicker »). L'As vaut 14, ou 1 dans A-2-3-4-5.", w / 2, 1426, w - 140);
+      c.fillText("Les couleurs ♠ ♥ ♦ ♣ n'ont aucune valeur : si tout est identique, le pot est partagé.", w / 2, 1476, w - 140);
+    });
+  }
   function paintingTexture(k, T) {
     return canvasTex(256, 340, (c, w, h) => {
       c.fillStyle = T.paintBg[k % 4]; c.fillRect(0, 0, w, h);
@@ -558,12 +601,13 @@
   /* ------------------------------------------------------------------------ */
   // themeKey : clé de Poker3DExperience.ROOM_THEMES (rouge par défaut) ; gaps : angles (a, voir polar) où le mur s'ouvre sur une autre salle ;
   // lights:false = pas de lampes d'angle (la salle de poker 3D éclaire elle-même)
-  P.buildRoom = function (themeKey, gaps, lights, noSofa) {
+  P.buildRoom = function (themeKey, gaps, lights, noSofa, rulesAt) {
     themeKey = THEMES[themeKey] ? themeKey : 'rouge';
     const T = THEMES[themeKey];
     const themeIdx = ['rouge', 'emeraude', 'saphir'].indexOf(themeKey);
     gaps = gaps || [];
     noSofa = noSofa || [];
+    rulesAt = rulesAt || [];     // angles où une affiche des règles remplace la baie vitrée et la banquette
     const room = new THREE.Group();
     const sofas = [];           // angle du centre de chaque banquette (la salle de poker 3D y place des places assises)
     const colliders = [];       // obstacles (x, z, r) dans le repère de la salle : banquettes, plantes, tables basses
@@ -572,6 +616,7 @@
     const H = 7.6;                // hauteur du mur
     const TWO_PI = Math.PI * 2;
     const normA = (a) => ((a % TWO_PI) + TWO_PI) % TWO_PI;
+    const isRulesBay = (a) => rulesAt.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02);
     const goldM = mat(0xb8902f, 0.3, 0.85);
     const dbl = (m) => { m.side = THREE.DoubleSide; return m; };
     // position polaire : a = 0 vers la caméra (+Z), a = π derrière le croupier (-Z)
@@ -716,6 +761,23 @@
       const a = (k * TWO_PI) / 8;                 // centre de la baie
       const backBay = k >= 3 && k <= 5;           // 135°, 180°, 225° : derrière le croupier
       if (isGap(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // ouverture ou porte
+      if (isRulesBay(a)) {
+        const span = TWO_PI / 8 - 0.34, board = new THREE.Mesh(
+          new THREE.CylinderGeometry(R - 0.06, R - 0.06, 4.6, 24, 1, true, a - span / 2, span),
+          new THREE.MeshBasicMaterial({ map: rulesTexture(), toneMapped: false, fog: false, side: THREE.DoubleSide })
+        );
+        board.position.y = FLOOR + 3.7;
+        room.add(board);
+        for (let m = 0; m <= 1; m++) {                                    // cadre doré sur les bords
+          const am = a - span / 2 + m * span, side = new THREE.Mesh(new THREE.BoxGeometry(0.14, 4.74, 0.12), goldM);
+          place(side, am, R - 0.1, FLOOR + 3.7); room.add(side);
+        }
+        [FLOOR + 1.4, FLOOR + 6.0].forEach((yy) => {
+          const bar = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.1, R - 0.1, 0.14, 24, 1, true, a - span / 2, span), dbl(goldM));
+          bar.position.y = yy; room.add(bar);
+        });
+        continue;
+      }
       if (backBay) {
         const span = TWO_PI / 8 - 0.34;
         const glass = new THREE.Mesh(
@@ -766,7 +828,7 @@
     const sofaR0 = 9.5, sofaR1 = 10.55;
     for (let k = 0; k < 8; k++) {
       const a = (k * TWO_PI) / 8;
-      if (isGap(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // pas de banquette devant une ouverture ni une porte
+      if (isGap(a) || isRulesBay(a) || noSofa.some((q) => Math.min(Math.abs(normA(q) - normA(a)), TWO_PI - Math.abs(normA(q) - normA(a))) < 0.02)) continue;   // pas de banquette devant une ouverture, une porte ni l'affiche des règles
       const half = 0.27;
       const t0 = a - half, len = half * 2;
       const front = new THREE.Mesh(new THREE.CylinderGeometry(sofaR0, sofaR0, 0.55, 24, 1, true, t0, len), quilted(len, sofaR0, 0.55));
