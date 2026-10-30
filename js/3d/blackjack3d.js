@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    On y entre par la porte « BLACKJACK » du hall (hall3d.js) et on en ressort vers le hall.
    Quatre tables en demi-cercle, chacune avec son croupier assis en face et deux places de jeu (F ou clic pour s'asseoir) : on peut jouer seul.
-   Assis, on mise puis on clique « Distribuer » : la manche est jouée contre le croupier EXACTEMENT comme le blackjack solo du menu
+   Assis, on règle sa mise : la manche démarre toute seule à la fin du compte à rebours et est jouée contre le croupier EXACTEMENT comme le blackjack solo du menu
    (api/_games.js : bj_start / bj_hit / bj_stand / bj_double — le serveur tire les cartes, prélève la mise et paie les gains).
    Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/_games.js (serveur).
    ===================================================================== */
@@ -129,14 +129,26 @@
     [[HX * 2, 0.3, 0.3, 0, H - 0.15, -HZ + 0.15], [HX * 2, 0.3, 0.3, 0, H - 0.15, HZ - 0.15], [0.3, 0.3, HZ * 2, -HX + 0.15, H - 0.15, 0], [0.3, 0.3, HZ * 2, HX - 0.15, H - 0.15, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], wood, d[3], d[4], d[5]); });
     [[HX * 2, 0.06, 0.06, 0, H - 0.33, -HZ + 0.34], [HX * 2, 0.06, 0.06, 0, H - 0.33, HZ - 0.34], [0.06, 0.06, HZ * 2, -HX + 0.34, H - 0.33, 0], [0.06, 0.06, HZ * 2, HX - 0.34, H - 0.33, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     // pilastres de bois avec base et chapiteau dorés, et une applique entre chaque
-    var sconceM = bas(0xffe6b0);
+    // appliques : tulipe de verre dépoli sur un bras doré, halo chaud et grande tache de lumière douce sur le mur
+    var haloC = mkCanvas(128, 128), hx = haloC.getContext('2d'), hg = hx.createRadialGradient(64, 64, 2, 64, 64, 62);
+    hg.addColorStop(0, 'rgba(255,235,190,1)'); hg.addColorStop(0.3, 'rgba(255,200,120,0.45)'); hg.addColorStop(1, 'rgba(255,170,80,0)'); hx.fillStyle = hg; hx.fillRect(0, 0, 128, 128);
+    var haloTex = mkTex(haloC), haloMat = new THREE.SpriteMaterial({ map: haloTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 });
+    var washC = mkCanvas(128, 256), wsx = washC.getContext('2d'); wsx.save(); wsx.translate(64, 128); wsx.scale(1, 2); var wg = wsx.createRadialGradient(0, 0, 4, 0, 0, 62); wg.addColorStop(0, 'rgba(255,205,130,0.85)'); wg.addColorStop(0.5, 'rgba(255,170,90,0.28)'); wg.addColorStop(1, 'rgba(255,150,70,0)'); wsx.fillStyle = wg; wsx.fillRect(-64, -64, 128, 128); wsx.restore();
+    var washMat = new THREE.MeshBasicMaterial({ map: mkTex(washC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 });
+    var shadeGeo = new THREE.LatheGeometry([[0.015, 0], [0.05, 0.03], [0.085, 0.11], [0.1, 0.2], [0.09, 0.25]].map(function (a) { return new THREE.Vector2(a[0], a[1]); }), 18);
+    var shadeMat = new THREE.MeshBasicMaterial({ color: 0xffe3b5, transparent: true, opacity: 0.88, side: THREE.DoubleSide });
     function pilaster(x, z, ry) {
       var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; g.add(q);
       box(q, 0.5, H - 0.3, 0.22, wood, 0, (H - 0.3) / 2, 0.11); box(q, 0.64, 0.16, 0.3, gold, 0, 0.08, 0.15); box(q, 0.64, 0.16, 0.3, gold, 0, H - 0.4, 0.15);
     }
     function sconce(x, z, ry) {
-      var q = new THREE.Group(); q.position.set(x, 2.6, z); q.rotation.y = ry; g.add(q);
-      box(q, 0.26, 0.4, 0.07, gold, 0, 0, 0.04); var l = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), sconceM); l.position.set(0, 0.05, 0.17); q.add(l);
+      var q = new THREE.Group(); q.position.set(x, 2.45, z); q.rotation.y = ry; g.add(q);
+      box(q, 0.12, 0.36, 0.05, gold, 0, 0.02, 0.025);
+      var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.2, 8), gold); arm.rotation.x = Math.PI / 2; arm.position.set(0, -0.05, 0.13); q.add(arm);
+      var cup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.05, 12), gold); cup.position.set(0, -0.05, 0.23); q.add(cup);
+      var sh = new THREE.Mesh(shadeGeo, shadeMat); sh.position.set(0, -0.03, 0.23); q.add(sh);
+      var halo = new THREE.Sprite(haloMat); halo.scale.set(0.75, 0.75, 1); halo.position.set(0, 0.12, 0.24); q.add(halo);
+      var wash = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 3.0), washMat); wash.position.set(0, 0.1, 0.012); q.add(wash);
     }
     [-10, -4.8, 4.8, 10].forEach(function (x) { pilaster(x, -HZ, 0); pilaster(x, HZ, Math.PI); });
     [-7, 0, 7].forEach(function (z) { pilaster(-HX, z, Math.PI / 2); pilaster(HX, z, -Math.PI / 2); });
@@ -162,10 +174,6 @@
       var rim = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R, 0.05, 8, 48, Math.PI), woodM); rim.rotation.x = Math.PI / 2; rim.rotation.z = 0; rim.position.y = TOP_Y; grp.add(rim);
       var rimG = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R - 0.06, 0.012, 6, 48, Math.PI), gold); rimG.rotation.x = Math.PI / 2; rimG.position.y = TOP_Y + 0.045; grp.add(rimG);
       var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, TOP_Y - 0.1, 16), woodM); ped.position.set(0, (TOP_Y - 0.1) / 2, 0.45); grp.add(ped);
-      // marquages : arc de cercle des mises et texte
-      var tcv = mkCanvas(512, 256), tx = tcv.getContext('2d'); tx.strokeStyle = 'rgba(243,207,98,0.8)'; tx.lineWidth = 4; tx.fillStyle = 'rgba(243,207,98,0.9)'; tx.textAlign = 'center'; tx.textBaseline = 'middle';
-      tx.beginPath(); tx.arc(256, 8, 200, 0.18, Math.PI - 0.18); tx.stroke(); tx.font = '800 26px ' + SERIF; tx.fillText('BLACKJACK PAYE 3 POUR 2', 256, 120, 380); tx.font = '700 20px ' + MONO; tx.fillText('LE CROUPIER TIRE JUSQU\'À 17', 256, 160, 380);
-      var mark = new THREE.Mesh(new THREE.PlaneGeometry(TABLE_R * 1.5, TABLE_R * 0.75), new THREE.MeshBasicMaterial({ map: mkTex(tcv), transparent: true, depthWrite: false })); mark.rotation.x = -Math.PI / 2; mark.position.set(0, TOP_Y + 0.003, 0.95); grp.add(mark);
       // lampe suspendue
       var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.5, metalness: 0.5, side: THREE.DoubleSide })); lamp.position.set(0, H - 1.4, 0.9); grp.add(lamp);
       var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), bas(0xffe9b0)); bulb.position.set(0, H - 1.5, 0.9); grp.add(bulb);
@@ -257,20 +265,21 @@
       var q = function (s) { return ui.el.querySelector(s); };
       q('.bj-bal b').textContent = fmtN(balance()) + ' 🪙'; q('.bj-bet b').textContent = fmtN(bet) + ' 🪙';
       var idle = R.phase === 'idle' && !R.busy, mine = R.phase === 'me' && !R.busy;
-      q('[data-a=deal]').style.display = idle ? '' : 'none'; q('.bj-chips').style.display = idle ? '' : 'none';
+      q('.bj-chips').style.display = idle ? '' : 'none';
       ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = R.phase === 'me' ? '' : 'none'; b.disabled = !mine; });
       var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = !mine || R.me.length !== 2;
     }
 
+    // la manche démarre toute seule quand le compte à rebours de mise arrive à zéro
     function startRound() {
       if (!seat || R.busy || R.phase !== 'idle') return;
-      if (!loggedIn()) { world.flash('Connecte-toi pour jouer au blackjack.'); return; }
-      if (bet < MIN_BET || bet > MAX_BET) { setMsg('Mise entre ' + MIN_BET + ' et ' + fmtN(MAX_BET) + ' 🪙.', '#ff8a80'); return; }
-      if (bet > balance()) { setMsg('Solde insuffisant pour cette mise.', '#ff8a80'); return; }
+      if (!loggedIn()) { setMsg('Connecte-toi pour jouer au blackjack.', '#ff8a80'); R.count = 6; return; }
+      if (bet < MIN_BET || bet > MAX_BET) { setMsg('Mise entre ' + MIN_BET + ' et ' + fmtN(MAX_BET) + ' 🪙.', '#ff8a80'); R.count = 6; return; }
+      if (bet > balance()) { setMsg('Solde insuffisant : baisse ta mise.', '#ff8a80'); R.count = 6; return; }
       R.busy = true; setMsg('Distribution…'); refreshUi();
       sg({ action: 'bj_start', bet: bet }).then(function (r) {
         R.busy = false;
-        if (!r || !r.ok) { setMsg((r && r.error) || 'Impossible de distribuer.', '#ff8a80'); refreshUi(); return; }
+        if (!r || !r.ok) { setMsg((r && r.error) || 'Impossible de distribuer.', '#ff8a80'); R.count = 6; refreshUi(); return; }
         var T = seat.table; clearCards(T);
         R.table = T; R.me = r.player || []; R.dealer = r.dealer || []; R.up = R.dealer[0] || null; R.final = null; R.botHands = {}; R.deck = newDeck(); R.done = false; R.res = null; R.bet = r.bet;
         R.phase = 'dealing'; setMsg('');
@@ -341,7 +350,7 @@
             else { txt = 'PERDU'; col = '#ff8a80'; setMsg('Perdu : ' + r.pScore + ' contre ' + r.dScore + '.', '#ff8a80'); }
             label(T, mine.x, mine.z, txt, col);
             R.phase = 'result'; refreshUi();
-            later(4.5, function () { if (R.phase === 'result') { clearCards(T); R.phase = 'idle'; setMsg('Choisis ta mise puis distribue.'); refreshUi(); } });
+            later(4.5, function () { if (R.phase === 'result') { clearCards(T); R.phase = 'idle'; R.count = 9; setMsg('Place ta mise : la manche suivante démarre toute seule.'); refreshUi(); } });
           });
         });
       });
@@ -363,9 +372,9 @@
     function buildUi(w) {
       injectCss();
       var el = document.createElement('div'); el.className = 'bj3d';
-      el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-msg"></div>' +
+      el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-msg"></div>' +
         '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button></div>' +
-        '<div class="bj-row"><button class="bj-b" data-a="deal">Distribuer</button><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button></div>';
+        '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button></div>';
       w.container.appendChild(el);
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -375,7 +384,7 @@
           bet = Math.max(MIN_BET, Math.min(MAX_BET, bet)); refreshUi(); return;
         }
         var a = b.dataset.a;
-        if (a === 'deal') startRound(); else if (a === 'hit') act('bj_hit'); else if (a === 'stand') act('bj_stand'); else if (a === 'double') act('bj_double');
+        if (a === 'hit') act('bj_hit'); else if (a === 'stand') act('bj_stand'); else if (a === 'double') act('bj_double');
       });
       return { el: el };
     }
@@ -387,12 +396,12 @@
     function sit(w, s) {
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; R.phase = 'idle'; R.busy = false;
+      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; R.phase = 'idle'; R.busy = false; R.count = 12;
       ui = buildUi(w);
       standEl = document.createElement('div'); standEl.className = 'bj3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
-      setMsg(loggedIn() ? 'Choisis ta mise puis distribue.' : 'Connecte-toi pour jouer.'); refreshUi();
+      R.count = 12; setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.'); refreshUi();
     }
     function stand() {
       if (!seat) return;
@@ -432,11 +441,16 @@
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) {
       return w.touch ? 'Joystick : marcher · touche une place libre d\'une table pour t\'asseoir'
-        : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret (F ou clic) pour jouer au blackjack · assis : mise, Distribuer, Tirer, Rester, Doubler · F : se lever';
+        : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret (F ou clic) pour jouer au blackjack · assis : ta mise, puis la manche démarre toute seule · Tirer, Rester, Doubler · F : se lever';
     };
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
       clockT += dt;
+      if (seat && R.phase === 'idle' && !R.busy) {
+        R.count = (R.count === undefined ? 10 : R.count) - dt;
+        if (ui) { var tm = ui.el.querySelector('.bj-count'); if (tm) tm.textContent = 'Manche dans ' + Math.max(0, Math.ceil(R.count)) + ' s'; }
+        if (R.count <= 0) startRound();
+      } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); if (tm2 && tm2.textContent) tm2.textContent = ''; }
       // animations des personnages
       people.forEach(function (o) { o.p.stopWalk(); o.p.applyHold(dt); });
       // minuteries
