@@ -636,7 +636,7 @@
     if (!this.selfPerson) {
       var nm = '', av = '';
       try { nm = state.username || ''; av = state.avatarEmoji || ''; } catch (er) { /* pas connecté */ }
-      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av);
+      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av, F.myLookCode ? F.myLookCode() : '');
       this.selfPerson.tag.visible = false;
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
@@ -712,10 +712,10 @@
     if (this.rt) { this._rtBye(); var old = this.rt; this.rt = null; setTimeout(function () { old.close(); }, 150); }
   };
   World.prototype._clearRemotes = function () { var self = this; Object.keys(this.remote).forEach(function (k) { self.removeRemote(k); }); };
-  World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw) {
+  World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw, ap) {
     var r = this.remote[k];
     if (!r) {
-      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
+      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar, ap), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
       r.person.group.position.set(x, 0, z);
       this.scene.add(r.person.group);
     }
@@ -747,7 +747,8 @@
       }
       var x = Number(m.x), z = Number(m.z);
       if (!isFinite(x) || !isFinite(z)) return;
-      var r = this.ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0);
+      var r = this.ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0, typeof m.ap === 'string' ? m.ap : '');
+      if (typeof m.ap === 'string' && r.person.setLook) r.person.setLook(m.ap);                     // apparence du personnage (code de 5 caractères)
       r.tx = x; r.tz = z; r.tyaw = Number(m.yaw) || 0; r.vx = Number(m.vx) || 0; r.vz = Number(m.vz) || 0;
       r.recv = performance.now(); r.rtT = r.recv;
       if (typeof m.seat === 'number') r.seat = m.seat;
@@ -776,7 +777,7 @@
     try { nm = state.username || ''; av = (typeof getAvatarDisplay === 'function' && getAvatarDisplay()) || state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
     var r3 = function (v) { return Math.round(v * 1000) / 1000; };
     this.rt.send('pos', {
-      k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
+      k: me, name: nm, avatar: av, ap: F.myLookCode ? F.myLookCode() : '', seat: seatNow, room: room.id,
       x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : emo ? this.emoYaw0 : p.yaw),   // en danse la caméra tourne, pas le personnage
       vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN, held: this.heldId
     });
@@ -806,7 +807,7 @@
       var tx = r.tx, tz = r.tz, yaw = r.tyaw;
       var sp0 = r.seat >= 0 && room.remotePose ? room.remotePose(r) : null;
       var age = Math.min(0.4, silence / 1000);   // extrapolation courte et bornée
-      if (sp0) { tx = sp0.x; tz = sp0.z; yaw = sp0.yaw; r.person.setSeated(true); }
+      if (sp0) { tx = sp0.x; tz = sp0.z; yaw = sp0.yaw; r.person.setSeated(true, room.sit); }
       else { tx += r.vx * age; tz += r.vz * age; r.person.setSeated(false); }
 
       // Empêcher strictement le personnage de traverser les murs et d'aller dans le vide
@@ -918,6 +919,7 @@
       if (place && main.room && main.room.id !== place) main.enterRoom(place, { from: null });
     }
     F.active = main;
+    if (F.persona && F.persona.ensureLook) setTimeout(F.persona.ensureLook, 800);   // pas encore de personnage : écran de création (creation3d.js)
     if (!main.touch && !main.full) main.setFull(true);   // on entre toujours en plein écran (Échap ou « Quitter » pour en sortir)
     return true;
   };

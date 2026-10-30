@@ -38,6 +38,8 @@ const FAKE_NAMES = ['maxime', 'lucas', 'théo', 'theo', 'don corleone', 'don_cor
 const MAILBOX_FIELDS = ['friends', 'friendBalances', 'pendingFriendRequests', 'outgoingFriendRequests', 'pendingGameInvites'];
 // données de virements : gérées uniquement par le serveur (data._srv), jamais lues ni écrites par le navigateur
 const SERVER_ONLY_FIELDS = ['_srv', '_ver', 'pendingTransfers', 'bankTransfers'];
+// apparence du personnage 3D (code de 5 caractères) : visible par tous, choisie une seule fois (action set_look), jamais écrasée par une sauvegarde du navigateur
+const LOOK_RE = /^[hf][01][0-4][0-5][01]$/;
 const DEFAULT_LUCK = { crash: 50, mines: 50, blackjack: 50, slots: 35, scratch: 35 };
 const LUCK_LIMITS = { crash: [5, 95], mines: [1, 99], blackjack: [1, 99], slots: [0, 100], scratch: [1, 95] };
 
@@ -215,6 +217,7 @@ async function applyUpsert(incoming, actor, isAdmin) {
       }
       // champs gérés par le serveur : jamais écrasés par le navigateur
       SERVER_ONLY_FIELDS.forEach((k) => { if (k === '_srv' || k === '_ver') { if (old[k] !== undefined) data[k] = old[k]; else delete data[k]; } else delete data[k]; });
+      if (old.look !== undefined) data.look = old.look; else delete data.look;
       d.data = data;
       d.avatar = cleanAvatar(incoming.avatar, d.avatar);
       if (!WALLET_STRICT) d.balance = cleanBalance(incoming.balance, d.balance);
@@ -361,6 +364,31 @@ export default async function handler(req, res) {
       const hashed = hashPassword(body.password);
       await updateAccount(row.username, (d) => { d.password = hashed; });
       return res.status(200).json({ ok: true });
+    }
+
+    // --- personnage 3D du compte (null tant qu'il n'est pas créé) ---
+    if (action === 'get_look') {
+      if (!actor) return res.status(401).json({ ok: false, error: 'Connecte-toi.' });
+      const row = await getRow(actor);
+      return res.status(200).json({ ok: true, look: row && row.data && LOOK_RE.test(row.data.look || '') ? row.data.look : null });
+    }
+
+    // --- création du personnage 3D : une seule fois par compte, ensuite il ne peut plus être modifié ---
+    if (action === 'set_look') {
+      if (!actor) return res.status(401).json({ ok: false, error: 'Connecte-toi pour créer ton personnage.' });
+      const code = typeof body.look === 'string' ? body.look.trim() : '';
+      if (!LOOK_RE.test(code)) return res.status(400).json({ ok: false, error: 'Personnage invalide.' });
+      const fixed = code[0] === 'f' ? code.slice(0, 4) + '0' : code;   // pas de barbe pour les femmes
+      try {
+        const { row } = await updateAccount(actor, (d) => {
+          if (d.data && d.data.look) throw new GameError(409, 'Ton personnage est déjà créé : il ne peut plus être modifié.', { look: d.data.look });
+          d.data = { ...(d.data || {}), look: fixed };
+        });
+        return res.status(200).json({ ok: true, look: row.data.look });
+      } catch (e) {
+        if (e instanceof GameError) return res.status(e.code).json({ ok: false, error: e.message, ...e.extra });
+        throw e;
+      }
     }
 
     // --- changement de pseudo (le compte est déplacé sous le nouveau nom) ---

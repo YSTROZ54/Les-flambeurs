@@ -27,19 +27,20 @@
   <script src="js/poker/poker-multi.js?v=2.4"></script>
   <script src="js/3d/f3d-core.js?v=1.5"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
-  <script src="js/3d/persona3d.js?v=1.1"></script>
-  <script src="js/3d/hand3d.js?v=1.1"></script>
+  <script src="js/3d/persona3d.js?v=1.8"></script>
+  <script src="js/3d/creation3d.js?v=1.0"></script>
+  <script src="js/3d/hand3d.js?v=1.4"></script>
   <script src="js/3d/hud3d.js?v=4.1"></script>
   <script src="js/3d/portes3d.js?v=1.5"></script>
-  <script src="js/3d/world3d.js?v=3.3"></script>
+  <script src="js/3d/world3d.js?v=3.4"></script>
   <script src="js/3d/hall3d.js?v=2.9"></script>
-  <script src="js/3d/slots3d.js?v=6.2"></script>
-  <script src="js/3d/horses3d.js?v=2.7"></script>
+  <script src="js/3d/slots3d.js?v=6.3"></script>
+  <script src="js/3d/horses3d.js?v=2.8"></script>
   <script src="js/3d/pokerroom3d.js?v=2.5"></script>
   <script src="js/3d/shop3d.js?v=2.0"></script>
-  <script src="js/3d/pmu3d.js?v=1.8"></script>
+  <script src="js/3d/pmu3d.js?v=1.9"></script>
   <script src="js/3d/statue3d.js?v=1.4"></script>
-  <script src="js/3d/cinema3d.js?v=1.6"></script>
+  <script src="js/3d/cinema3d.js?v=1.7"></script>
   <script src="js/utils/mises-a-jour.js?v=1.5"></script>
 </head>
 
@@ -4905,6 +4906,7 @@
       setupPokerSeats();
       renderLeaderboard();
       renderBank();
+      if (window.F3D && F3D.persona && F3D.persona.ensureLook) setTimeout(F3D.persona.ensureLook, 600);   // personnage 3D à créer ?
       showToast(`👋 Bon retour au club, ${state.username} !`);
     }
 
@@ -4983,6 +4985,7 @@
       setupPokerSeats();
       renderLeaderboard();
       renderBank();
+      if (window.F3D && F3D.persona && F3D.persona.ensureLook) setTimeout(F3D.persona.ensureLook, 600);   // personnage 3D à créer ?
       showToast(`🎉 Bienvenue ${state.username} ! ${fmt(state.balance)} € crédités sur ton compte.`);
     }
 

@@ -73,13 +73,16 @@
     var itemSlot = new THREE.Group(); itemSlot.position.set(0, 0.075, -0.07); hand.add(itemSlot);   // l'objet tenu, posé au-dessus de la paume
 
     var held = '', itemId = '', item = null, k = 0, tt = 0, bob = 0, tiltQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.22), curName = String(name || '');
+    // le vrai bras du personnage (persona3d.js) remplace la main en boîtes dès qu'il est chargé ; les boîtes servent de secours
+    var va = F.persona && F.persona.createViewArm ? F.persona.createViewArm(F.myLookCode ? F.myLookCode() : '') : null, vtmp = new THREE.Vector3();
+    if (va) root.add(va.group);
     function setItem(id) {
       if (id === itemId) return;
-      itemId = id; if (item) { itemSlot.remove(item); item = null; }
+      itemId = id; if (item) { if (item.parent) item.parent.remove(item); item = null; }
       if (id && F.buildHeld) { item = F.buildHeld(id); if (item) itemSlot.add(item); }
     }
     return {
-      group: { visible: true },
+      group: { visible: true }, arm: va,
       update: function (dt, o) {
         if (o.name !== curName) { curName = o.name; var c = F.personColors(curName); skin.color.setHex(c.skin); shirt.color.setHex(c.shirt); }
         held = o.held || ''; if (held) setItem(held);
@@ -88,6 +91,17 @@
         tt += dt; bob += dt * (2 + o.speed * 2.4);
         var walk = Math.min(1, o.speed / 3), sway = Math.sin(tt * 1.5) * 0.004, step = Math.sin(bob * 2.2) * 0.011 * walk, side = Math.cos(bob * 1.1) * 0.008 * walk;
         var jump = o.air ? 0.03 : 0;
+        if (va && va.ready) {
+          arm.visible = false;
+          if (F.myLookCode) va.setLook(F.myLookCode());
+          va.update(k, side, sway + step * (1 - 0.5 * k) - jump);
+          if (item) {                                                    // l'objet est posé dans la paume, incliné vers la caméra
+            if (item.parent !== va.group) { if (item.parent) item.parent.remove(item); va.group.add(item); }
+            va.handPos(vtmp); item.position.set(vtmp.x, vtmp.y + 0.06, vtmp.z - 0.03); item.scale.setScalar(0.85); item.quaternion.copy(tiltQ); item.visible = k > 0.25;
+          }
+          return;
+        }
+        arm.visible = true;
         // repos : la main dépasse en bas à droite ; objet en main : elle se lève au centre, doigts refermés
         arm.position.set(0.28 - 0.1 * k + side, -0.47 + 0.05 * k + sway + step * (1 - 0.5 * k) - jump, -0.12 - 0.08 * k);
         arm.rotation.x = 0.5 + 0.28 * k; arm.rotation.y = 0.04 + 0.25 * k; arm.rotation.z = -0.1 * (1 - k);

@@ -730,6 +730,7 @@
 
     /* ----- les autres joueurs (vus grâce au temps réel du monde) ----- */
     room.seatPos = function () { var e = room.seatEntry; return e ? { seat: e.n - 1, x: e.x, z: e.z, yaw: e.yaw } : null; };
+    room.sit = { y: 0.16, z: 0.3 };   // hauteur et recul du personnage assis (persona3d.js) : tabouret à 0,66 m
     room.remotePose = function (r) { var e = room.seats[r.seat]; return e ? { x: e.x - e.side * 0.1, z: e.z, yaw: e.yaw } : null; };
 
     var ledT = 0, ledCol = new THREE.Color();
