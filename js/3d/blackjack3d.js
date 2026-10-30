@@ -83,7 +83,7 @@
   var cardGeo = null;
   function makeCard(c) {
     if (!cardGeo) cardGeo = new THREE.PlaneGeometry(0.25, 0.35);
-    var m = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: cardTex(c) })); m.rotation.order = 'YXZ'; m.rotation.x = -1.2;   // posée presque à plat mais penchée de 20° vers le joueur : lisible même de côté
+    var m = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: cardTex(c) })); m.rotation.order = 'YXZ'; m.rotation.x = -Math.PI / 2;   // les cartes sont posées à plat sur le feutre
      m.userData.card = c; return m;
   }
 
@@ -231,9 +231,9 @@
     function spotPos(T, s, ci, n) {      // carte n°ci du joueur assis à la place s
       var ph = s.phi, bx = T.x + Math.sin(ph) * 1.1, bz = T.z + Math.cos(ph) * 1.1, tx0 = Math.cos(ph), tz0 = -Math.sin(ph);
       var off = (ci - (n - 1) / 2) * 0.24;
-      return { x: bx + tx0 * off, z: bz + tz0 * off, y: TOP_Y + 0.07 + ci * 0.004, ry: ph + 0.03 * ((ci % 2) ? 1 : -1) };   // le haut de la carte regarde vers le centre de la table
+      return { x: bx + tx0 * off, z: bz + tz0 * off, y: TOP_Y + 0.012 + ci * 0.004, ry: ph + 0.03 * ((ci % 2) ? 1 : -1) };   // le haut de la carte regarde vers le centre de la table
     }
-    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.3, z: T.z + 0.5, y: TOP_Y + 0.07 + ci * 0.004, ry: 0 }; }
+    function dealerPos(T, ci, n) { return { x: T.x + (ci - (n - 1) / 2) * 0.3, z: T.z + 0.5, y: TOP_Y + 0.012 + ci * 0.004, ry: 0 }; }
     function placeCard(owner, key, T, card, pos, sec) {
       var m = makeCard(card); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); m.rotation.y = pos.ry; g.add(m);
       T.cards = T.cards || []; T.cards.push(m);
@@ -465,7 +465,10 @@
         return { cx: s.x + rx * 1.35, cy: 2.35, cz: s.z + rz * 1.35, tx: s.tx + ox * 0.55, ty: 0.85, tz: s.tz + oz * 0.55, fov: 58 };
       }
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.28, ez = s.z, a = Math.atan2(s.tx - ex, -(s.tz + 0.25 - ez)) + view.yaw, p = Math.atan2(0.8 - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
+      // vue assis : la tête est un peu avancée au-dessus de la table et regarde vers le bas, entre mes cartes et celles du croupier
+      var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.62, ez = s.z + (cz0 - s.z) * 0.12;
+      var px = cx0 + (s.x - cx0) * 0.5, pz = cz0 + (s.z - cz0) * 0.5;
+      var a = Math.atan2(px - ex, -(pz - ez)) + view.yaw, p = Math.atan2(0.86 - ey, Math.hypot(px - ex, pz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 60 };
     };
     room.syncHud = function () { refreshUi(); };
