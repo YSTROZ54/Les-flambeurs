@@ -2,7 +2,7 @@
    slots3d.js — Machines à sous 3D « Les Flambeurs » (Three.js r128)
    ---------------------------------------------------------------------
    - createSlotCabinet(opts) : UNE borne réutilisable (position, rotation, qualité).
-   - salle « slots » : 8 bornes (4 contre le mur du fond, sous le tableau des meilleurs gains, et 4 contre le mur de gauche), règles sur le mur de droite,
+   - salle « slots » : 7 bornes (4 contre le mur du fond, sous le tableau des meilleurs gains, et 3 contre le mur de gauche), règles sur le mur de droite,
      branchée sur le monde commun (f3d-core.js + world3d.js).
    - window.Slots3D : pont avec la page (pullSlotLever). Les symboles, gains et le solde restent
      gérés par le jeu existant : ce fichier ne fait que MONTRER le tirage que le serveur a décidé.
@@ -173,21 +173,20 @@
     group.add(new THREE.Mesh(ribbonGeo(1), sideMat));
     group.add(new THREE.Mesh(ribbonGeo(-1), sideMat));
 
-    /* ---------- rayons lumineux ---------- */
-    var rayCv = mkCanvas(32, 256), rctx = rayCv.getContext('2d');
-    var rg = rctx.createLinearGradient(0, 256, 0, 0);
-    rg.addColorStop(0, 'rgba(255,255,255,0.9)'); rg.addColorStop(0.5, 'rgba(255,255,255,0.25)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-    rctx.fillStyle = rg; rctx.fillRect(0, 0, 32, 256);
-    var rayTex = track(mkTex(rayCv));
-    var rayGeo = track(new THREE.PlaneGeometry(0.5, 3.2)); rayGeo.translate(0, 1.6, 0);
+    /* ---------- projecteurs : un petit spot de chaque côté du bandeau, qui envoie un vrai faisceau (cône doux, plus clair près de la lampe) ---------- */
+    var beamGeo = track(new THREE.CylinderGeometry(0.62, 0.03, 3.4, 28, 1, true)); beamGeo.rotateX(Math.PI); beamGeo.translate(0, 1.7, 0);   // pointe en bas (à la lampe), large en haut
+    var beamVS = 'varying float vT; varying vec3 vN; varying vec3 vV; void main() { vT = clamp(position.y / 3.4, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
+    var beamFS = 'uniform vec3 uColor; uniform float uOp; varying float vT; varying vec3 vN; varying vec3 vV; void main() { float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.7); float g = 1.0 - vT; g = g * g * smoothstep(0.0, 0.06, vT + 0.03); gl_FragColor = vec4(uColor, e * g * uOp); }';
+    var lampM = track(new THREE.MeshStandardMaterial({ color: 0x14141c, roughness: 0.4, metalness: 0.7 })), lampG = track(new THREE.CylinderGeometry(0.075, 0.095, 0.16, 14)), lensG = track(new THREE.CircleGeometry(0.068, 16));
     var rays = [];
     [1, -1].forEach(function (s) {
-      for (var k = 0; k < (low ? 1 : 2); k++) {
-        var m = track(new THREE.MeshBasicMaterial({ map: rayTex, color: 0x3a8dff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-        var r = new THREE.Mesh(rayGeo, m);
-        r.position.set(s * 0.95, 2.4, 0.1); r.rotation.z = -s * 0.55; r.rotation.y = k * Math.PI / 2;
-        group.add(r); rays.push({ m: m, mesh: r, s: s, ph: Math.random() * 6 });
-      }
+      var pivot = new THREE.Group(); pivot.position.set(s * 0.95, 2.4, 0.1); group.add(pivot);
+      var body = new THREE.Mesh(lampG, lampM); body.position.y = -0.04; pivot.add(body);
+      var lens = new THREE.Mesh(lensG, track(new THREE.MeshBasicMaterial({ color: 0x9ec6ff }))); lens.rotation.x = -Math.PI / 2; lens.position.y = 0.042; pivot.add(lens);
+      var m = track(new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(0x3a8dff) }, uOp: { value: 0.35 } }, vertexShader: beamVS, fragmentShader: beamFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      var beam = new THREE.Mesh(beamGeo, m); beam.position.y = 0.04; pivot.add(beam);
+      pivot.rotation.z = -s * 0.55;
+      rays.push({ m: m, mesh: pivot, lens: lens, s: s, ph: Math.random() * 6 });
     });
 
     /* ---------- lueur au sol ---------- */
@@ -458,9 +457,12 @@
       }
       for (i = 0; i < rays.length; i++) {
         var ry = rays[i];
-        ry.mesh.rotation.z = -ry.s * (0.55 + 0.12 * Math.sin(t * 0.8 + ry.ph) + (P ? 0.15 * Math.sin(t * 7 + ry.ph) : 0));
-        if (P) { tmpC.setHSL(strobe ? 0.15 : 0.11, 1, 0.6); ry.m.color.copy(tmpC); ry.m.opacity = 0.5 + 0.3 * Math.sin(t * 9 + ry.ph); }
-        else { ry.m.color.setHSL(0.6 + 0.04 * Math.sin(t * 0.5 + ry.ph), 0.9, 0.55); ry.m.opacity = 0.28 + 0.1 * Math.sin(t * 1.3 + ry.ph); }
+        var uc = ry.m.uniforms.uColor.value;
+        ry.mesh.rotation.z = -ry.s * (0.5 + 0.2 * Math.sin(t * 0.7 + ry.ph) + (P ? 0.15 * Math.sin(t * 7 + ry.ph) : 0));      // le faisceau balaie de haut en bas...
+        ry.mesh.rotation.x = 0.22 * Math.sin(t * 0.45 + ry.ph * 1.7) + (P ? 0.1 * Math.sin(t * 6 + ry.ph) : 0);                    // ...et d'avant en arrière
+        if (P) { uc.setHSL(strobe ? 0.15 : 0.11, 1, 0.6); ry.m.uniforms.uOp.value = 0.6 + 0.35 * Math.sin(t * 9 + ry.ph); }
+        else { uc.setHSL(0.6 + 0.08 * Math.sin(t * 0.5 + ry.ph), 0.9, 0.6); ry.m.uniforms.uOp.value = 0.34 + 0.1 * Math.sin(t * 1.3 + ry.ph); }
+        ry.lens.material.color.copy(uc);
       }
       var fh = P ? (strobe ? 0.15 : 0.1) : (t * 0.07) % 1;
       glowMat.color.setHSL(fh, 1, 0.5); glowMat.opacity = P ? 0.55 + 0.3 * Math.sin(t * 8) : 0.4;
@@ -796,9 +798,9 @@
     built.drawBoard(topSlotWins());
     room.bounds = { xMin: -ROOM.xMax, xMax: ROOM.xMax, zMin: ROOM.zMin, zMax: ROOM.zMax };
 
-    // 8 bornes contre les murs : 4 au fond (sous le tableau des meilleurs gains), 4 le long du mur de gauche, toutes tournées vers la salle
+    // 7 bornes contre les murs : 4 au fond (sous le tableau des meilleurs gains), 3 le long du mur de gauche, toutes tournées vers la salle
     var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0],
-      [-ROOM.wall + 0.9, 0.2, Math.PI / 2], [-ROOM.wall + 0.9, 3.4, Math.PI / 2], [-ROOM.wall + 0.9, 6.6, Math.PI / 2], [-ROOM.wall + 0.9, 9.4, Math.PI / 2]];
+      [-ROOM.wall + 0.9, 0.2, Math.PI / 2], [-ROOM.wall + 0.9, 3.4, Math.PI / 2], [-ROOM.wall + 0.9, 6.6, Math.PI / 2]];
     var n = SPOTS.length;
     for (var i = 0; i < n; i++) {
       (function (i) {

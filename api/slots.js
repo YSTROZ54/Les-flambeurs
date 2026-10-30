@@ -5,7 +5,7 @@ import { actorOf } from './_auth.js';
 import { getRowExact, putRow, updateAccount, GameError } from './_store.js';
 
 const ROW = '__slots_room__';
-export const SEATS = 8;
+export const SEATS = 7;
 export const TTL_MS = 7000;            // sans signe de vie depuis 7 s : le joueur a quitté la salle
 const SYMS = ['🔥', '👑', '7️⃣', '💎', '🔔', '🍋', '🍒'];
 
