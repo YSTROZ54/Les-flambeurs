@@ -213,8 +213,6 @@
       var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; parent.add(q);
       cyl(q, 0.27, 0.3, 0.035, gold, 0, 0.0175, 0, 24); cyl(q, 0.045, 0.06, seatY - 0.12, gold, 0, (seatY - 0.12) / 2 + 0.035, 0, 12);
       cyl(q, 0.25, 0.25, 0.11, velvetM, 0, seatY, 0, 28);
-      var r1 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.013, 8, 36), gold); r1.rotation.x = Math.PI / 2; r1.position.y = seatY + 0.055; q.add(r1);
-      var r2 = r1.clone(); r2.position.y = seatY - 0.055; q.add(r2);
       var bh = tall ? 0.78 : 0.52, by = seatY + 0.06 + bh / 2;
       var back = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, bh, 28, 1, true, Math.PI - 1.15, 2.3), velvetM); back.position.set(0, by, 0); q.add(back);
       var back2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bh + 0.04, 28, 1, true, Math.PI - 1.17, 2.34), velvetD); back2.position.set(0, by, 0); q.add(back2);
@@ -246,6 +244,9 @@
       var cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.3, 6), bas(0x222222)); cord.position.set(0, H - 0.65, 0.9); grp.add(cord);
       if (!low) { var pl = new THREE.PointLight(0xffe0b0, 0.8, 9); pl.position.set(td.x, H - 1.6, td.z + 0.9); g.add(pl); }
       room.colliders.push({ x: td.x, z: td.z + 0.2, r: 0.95 }, { x: td.x - 1.3, z: td.z + 0.6, r: 0.6 }, { x: td.x + 1.3, z: td.z + 0.6, r: 0.6 }, { x: td.x, z: td.z + 1.35, r: 0.7 }, { x: td.x, z: td.z - 0.55, r: 0.5 });
+      // mur invisible tout le long du plateau en D (arrondi et bord droit) : impossible de se glisser sur les côtés de la table
+      for (var ck = 0; ck <= 12; ck++) { var ca = ck / 12 * Math.PI; room.colliders.push({ x: td.x + Math.cos(ca) * (TABLE_R + 0.15), z: td.z + Math.sin(ca) * (TABLE_R + 0.15), r: 0.38 }); }
+      for (var ce = -3; ce <= 3; ce++) room.colliders.push({ x: td.x + ce * 0.55, z: td.z - 0.2, r: 0.38 });
 
       var T = { i: ti, x: td.x, z: td.z, group: grp, hands: {}, dealerCards: [], spots: [] };
       tables.push(T);
@@ -307,9 +308,9 @@
       c.fillStyle = col; c.font = '900 38px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 128, 42, 230);
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(x, TOP_Y + 0.32, z); g.add(sp); T.labels = T.labels || []; T.labels.push(sp);
     }
-    function wake(T) { if (T && T.dealerO) T.dealerO.awake = 1.1; }
+    function wake(T, tx, tz) { if (T && T.dealerO) { T.dealerO.awake = 1.1; T.dealerO.aimX = (tx === undefined ? T.x : tx) - T.x; T.dealerO.aimZ = (tz === undefined ? T.z + 0.7 : tz) - T.z; } }
     function showHand(T, s, cards, keep) {
-      wake(T);
+      wake(T, s.x, s.z);
       T.handMeshes = T.handMeshes || {};
       var have = (T.handMeshes[s.n] = T.handMeshes[s.n] || []);
       for (var k = have.length; k < cards.length; k++) have.push(placeCard('p', s.n, T, cards[k], spotPos(T, s, k, cards.length), 0));
@@ -567,7 +568,19 @@
       return w.touch ? 'Joystick : marcher · touche une place libre d\'une table pour t\'asseoir'
         : 'ZQSD / flèches : marcher · Maj : courir · avance vers un tabouret (F ou clic) pour jouer au blackjack · assis : ta mise, puis la manche démarre toute seule · Tirer, Rester, Doubler · F : se lever';
     };
+    // le croupier tend le bras vers la place qui reçoit la carte (bras gauche pour les places à sa gauche, droit sinon), le glisse sur le feutre puis le ramène
+    function dealGesture(o) {
+      var root = o.p._rig && o.p._rig.root; if (!root) return;
+      var left = o.aimX > 0, sd = left ? -1 : 1, u = Math.max(0, Math.min(1, 1 - o.awake / 1.1)), k = Math.sin(Math.PI * u), k2 = Math.sin(Math.PI * Math.min(1, u * 1.6));
+      var ua = root.getObjectByName(left ? 'upperarm_l' : 'upperarm_r'), la = root.getObjectByName(left ? 'lowerarm_l' : 'lowerarm_r');
+      var side = Math.max(-1, Math.min(1, Math.abs(o.aimX) / 1.6));
+      if (ua) { ua.rotateZ(sd * -0.95 * k); ua.rotateY(sd * (0.25 + 0.55 * side) * k); }
+      if (la) la.rotateY(sd * (0.35 + 0.7 * (1 - side)) * k2);
+      var hd = root.getObjectByName('spine_03') || root.getObjectByName('spine_02');
+      if (hd) hd.rotateX(0.18 * k);                                                    // il se penche légèrement vers la table
+    }
     room.onLeave = function () { stand(); };
+    room._wake = wake; room._tables = tables;
     room.update = function (dt) {
       clockT += dt;
       if (seat && R.phase === 'idle' && !R.busy) {
@@ -579,7 +592,7 @@
       people.forEach(function (o) {
         if (!o.p._rig) return;
         if (!o.settled) { o.p.stopWalk(); o.p.applyHold(0.05); o.settled = true; return; }   // une première image pour prendre la pose assise, puis plus rien
-        if (o.awake > 0) { o.awake -= dt; o.p.stopWalk(); o.p.applyHold(dt); }                  // le croupier ne bouge que pendant qu'il donne les cartes
+        if (o.awake > 0) { o.awake -= dt; o.p.stopWalk(); o.p.applyHold(dt); if (o.kind === 'dealer') dealGesture(o); }                  // le croupier ne bouge que pendant qu'il donne les cartes
       });
       if (meRig && meRig.group.visible) { meRig.stopWalk(); meRig.applyHold(dt); }
       // minuteries

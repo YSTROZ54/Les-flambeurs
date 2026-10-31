@@ -793,7 +793,7 @@
     // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
     [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
     [1.8, 5.0, 8.2, -1.4].forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2); });
-    neonSign(-ROOM.wall + 0.06, 3.7, 9.9, Math.PI / 2, 'SLOTS', 2.6, 0.9, '#ffd24a');
+    neonSign(-ROOM.wall + 0.06, 3.7, 8.9, Math.PI / 2, 'SLOTS', 2.6, 0.9, '#ffd24a');
     return { drawBoard: drawBoard, drawPlaque: drawPlaque, plaques: plaques };
   }
 
