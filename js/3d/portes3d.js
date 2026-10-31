@@ -300,6 +300,8 @@
   T.exitBlindtest = exitTheme(0x1d0f38, '217, 160, 255', '#e6d2ff', 0x3a1a6a);
   T.exitCrash = exitTheme(0x0d1836, '110, 160, 255', '#cfe0ff', 0x1a3a86);
   T.exitSlots = exitTheme(0x0f3a3c, '255, 224, 138', '#ffe9a8', 0x0c3a3a);
+  T.exitShop = exitTheme(0x4a2a12, '255, 210, 74', '#ffe9a8', 0x6b3d1a);
+  T.exitHorses = exitTheme(0x14502a, '127, 209, 255', '#f2f2f2', 0x1f6b2a);
   T.exitCups = exitTheme(0x0f2a3a, '255, 224, 138', '#ffe9a8', 0x1b4f6e);
   // les fichiers images des thèmes sont chargés à l'avance
   Object.keys(T).forEach(function (k) { if (T[k].image) loadImg(T[k].image, function () { /* le dessin se refait dans paintDoorSign */ }); });

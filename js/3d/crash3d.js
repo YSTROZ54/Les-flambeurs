@@ -2,7 +2,7 @@
    crash3d.js — La salle de la Fusée Crash (monde 3D, PC)
    ---------------------------------------------------------------------
    On y entre par la porte « FUSÉE CRASH » du hall (hall3d.js) et on en ressort vers le hall.
-   Un centre de contrôle : cinq postes face à une tour de lancement vitrée où monte la fusée, et un grand écran avec le décompte, le
+   Un centre de contrôle : sept postes face à une tour de lancement vitrée où monte la fusée, et un grand écran avec le décompte, le
    multiplicateur, la courbe, l'historique et les mises des joueurs. Les postes sont à nous (F ou clic pour s'asseoir).
    Le jeu est le même que le Crash du menu et il est partagé avec tous les joueurs (api/crash.js) : le serveur tire le point de crash,
    calcule le multiplicateur avec son horloge, prélève les mises et paie les gains. Ici on ne fait que miser, annuler avant le décollage
@@ -18,7 +18,7 @@
   var HX = 14, HZ = 10, H = 6.4;
   var GROWTH = 0.15, MIN_BET = 10, MAX_BET = 100000, CHIPS = [10, 100, 500, 1000, 5000];
   var SILO = { x: -11.2, z: -5.2, h: 5.6 }, SILO2 = { x: 11.2, z: -5.2 };      // les deux tours encadrent l'écran : plus rien ne le cache
-  var SEATS_X = [-5.6, -2.8, 0, 2.8, 5.6];
+  var SEATS_X = [-8.4, -5.6, -2.8, 0, 2.8, 5.6, 8.4];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -91,22 +91,40 @@
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 3.3, -HZ + 0.16); g.add(screen);
     box(g, 18.3, 6.3, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 3.3, -HZ + 0.05);
 
-    /* --- postes de contrôle --- */
-    var deskM = new THREE.MeshStandardMaterial({ color: 0x1b2440, roughness: 0.4, metalness: 0.6 }), seatM = new THREE.MeshStandardMaterial({ color: 0x1d3a8a, roughness: 0.6 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
+    /* --- postes de contrôle : un vrai pupitre avec écran, et un fauteuil de bureau --- */
+    var deskM = new THREE.MeshStandardMaterial({ color: 0x141b30, roughness: 0.35, metalness: 0.7 }), seatM = new THREE.MeshStandardMaterial({ color: 0x1d3a8a, roughness: 0.55 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
+    var glowM = new THREE.MeshBasicMaterial({ color: 0x3aa0ff }), topM = new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.15, metalness: 0.9 }), blackM = new THREE.MeshStandardMaterial({ color: 0x0d0f16, roughness: 0.7 });
+    function consoleTex(n) {
+      var cv = mkCanvas(256, 128), c = cv.getContext('2d'); c.fillStyle = '#06122c'; c.fillRect(0, 0, 256, 128); c.strokeStyle = '#1f4fb8'; c.lineWidth = 1;
+      for (var y = 16; y < 128; y += 24) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); }
+      c.strokeStyle = '#4de0a0'; c.lineWidth = 3; c.beginPath(); c.moveTo(8, 108); c.bezierCurveTo(80, 100, 120, 70, 160, 62); c.bezierCurveTo(200, 54, 230, 30, 248, 14); c.stroke();
+      c.fillStyle = '#9fd0ff'; c.font = '800 20px ' + SERIF; c.textAlign = 'left'; c.fillText('POSTE ' + n, 10, 24); c.textAlign = 'right'; c.fillStyle = '#4de0a0'; c.fillText('x1.00', 246, 24);
+      return mkTex(cv);
+    }
     var seats = [], timers = [];
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     SEATS_X.forEach(function (sx0, k) {
       var dz = 0.9, dsk = new THREE.Group(); dsk.position.set(sx0, 0, dz); g.add(dsk);
-      box(dsk, 1.9, 0.9, 0.7, deskM, 0, 0.45, 0); var tp = box(dsk, 2.0, 0.06, 0.8, chromeM, 0, 0.92, 0);
-      var mon = box(dsk, 0.9, 0.04, 0.4, new THREE.MeshBasicMaterial({ color: 0x1a4cff }), 0, 0.96, 0.08); mon.rotation.x = 0.18;      // tablette de commande à plat, pour ne pas cacher la tour
+      box(dsk, 1.9, 0.8, 0.7, deskM, 0, 0.4, 0);                                    // caisson
+      box(dsk, 2.05, 0.07, 0.86, topM, 0, 0.835, 0);                                // plateau noir brillant
+      box(dsk, 2.05, 0.025, 0.03, glowM, 0, 0.87, 0.43);                            // liseré lumineux devant
+      box(dsk, 1.9, 0.03, 0.03, glowM, 0, 0.06, 0.36);                              // néon au pied du caisson
+      box(dsk, 1.6, 0.012, 0.3, new THREE.MeshBasicMaterial({ color: 0x14306e }), 0, 0.875, 0.1);   // zone clavier éclairée
+      for (var kx = -3; kx <= 3; kx++) box(dsk, 0.16, 0.012, 0.18, new THREE.MeshBasicMaterial({ color: 0x4aa0ff }), kx * 0.2, 0.882, 0.1);
+      var mon = new THREE.Group(); mon.position.set(0, 0.87, -0.22); mon.rotation.x = -0.25; dsk.add(mon);           // écran bas, penché vers le joueur
+      box(mon, 1.15, 0.5, 0.04, blackM, 0, 0.3, 0);
+      var ms = new THREE.Mesh(new THREE.PlaneGeometry(1.07, 0.42), new THREE.MeshBasicMaterial({ map: consoleTex(k + 1) })); ms.position.set(0, 0.3, 0.022); mon.add(ms);
+      box(mon, 0.12, 0.1, 0.1, chromeM, 0, 0.03, -0.02);
       room.colliders.push({ x: sx0, z: dz, r: 0.95 });
       var seatZ = dz + 1.25, s = { n: k, x: sx0, z: seatZ, yaw: 0, tx: sx0, tz: dz, sx: sx0, sz: seatZ + 1.1 };
       seats.push(s);
       var sc = new THREE.Group(); sc.position.set(sx0, 0, seatZ); g.add(sc);
-      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 8), chromeM); stem.position.y = 0.28; sc.add(stem);
-      var base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.03, 14), chromeM); base.position.y = 0.02; sc.add(base);
-      var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.1, 16), seatM); cush.position.y = 0.58; sc.add(cush);
-      var back = box(sc, 0.5, 0.45, 0.07, seatM, 0, 0.9, 0.2);
+      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.42, 8), chromeM); stem.position.y = 0.26; sc.add(stem);
+      for (var lg = 0; lg < 5; lg++) { var la = lg / 5 * TAU; var leg = box(sc, 0.34, 0.03, 0.05, chromeM, Math.cos(la) * 0.17, 0.06, Math.sin(la) * 0.17); leg.rotation.y = -la; var wh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), blackM); wh.position.set(Math.cos(la) * 0.34, 0.035, Math.sin(la) * 0.34); sc.add(wh); }
+      box(sc, 0.52, 0.1, 0.5, seatM, 0, 0.51, 0);                                    // assise
+      var back = box(sc, 0.5, 0.58, 0.09, seatM, 0, 0.88, 0.25); back.rotation.x = -0.12;   // dossier légèrement incliné
+      box(sc, 0.3, 0.16, 0.08, blackM, 0, 1.28, 0.3);                                // appui-tête
+      [-1, 1].forEach(function (sd) { box(sc, 0.05, 0.03, 0.34, blackM, sd * 0.3, 0.72, 0.05); box(sc, 0.04, 0.2, 0.04, chromeM, sd * 0.3, 0.62, 0.2); });   // accoudoirs
       room.colliders.push({ x: sx0, z: seatZ, r: 0.3 });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, seatZ); g.add(hit);
       room.interactables.push({ hit: hit, x: sx0, z: seatZ, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Poste ' + (k + 1); }, use: function (w) { sit(w, s); } });

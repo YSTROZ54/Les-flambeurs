@@ -222,7 +222,6 @@
       trim.position.set(-sx * (w / 4), h / 2, leafTex ? 0.037 : 0.045); piv.add(trim);
       var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.6, 10), gold); bar.position.set(-sx * (w / 2 - 0.15), h * 0.47, 0.095); piv.add(bar);      // barre de tirage dorée
       [-0.24, 0.24].forEach(function (oy) { var st2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.05), gold); st2.position.set(-sx * (w / 2 - 0.15), h * 0.47 + oy, 0.07); piv.add(st2); });
-      var kick = new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.22, 0.3, 0.012), frameM); kick.position.set(-sx * (w / 4), 0.2, 0.042); piv.add(kick);                      // plaque de protection
       return piv;
     }
     var L = leaf(-1), R = leaf(1);   // L : charnière à gauche (x=-w/2), R : à droite

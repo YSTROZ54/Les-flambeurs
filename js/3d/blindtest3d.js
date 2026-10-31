@@ -93,8 +93,8 @@
     }
     ZONES.forEach(function (zx, zi) {
       var cv = mkCanvas(1024, 576), tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
-      var scr = new THREE.Mesh(new THREE.PlaneGeometry(6.8, 3.825), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(zx, 3.0, -HZ + 0.12); g.add(scr);
-      box(g, 7.0, 4.025, 0.08, goldM, zx, 3.0, -HZ + 0.07);
+      var scr = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.6), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(zx, 3.5, -HZ + 0.12); g.add(scr);
+      box(g, 6.6, 3.8, 0.08, goldM, zx, 3.5, -HZ + 0.07);
       screens.push({ cv: cv, ctx: cv.getContext('2d'), tex: tex, sig: '' });
       // estrade et fauteuils
       box(g, 6, 0.1, 4.6, new THREE.MeshStandardMaterial({ color: 0x2a1330, roughness: 0.9 }), zx, 0.05, 1.8);

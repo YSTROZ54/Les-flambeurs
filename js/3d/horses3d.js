@@ -350,15 +350,7 @@
     });
     // palmiers en pot
     function palm(x, z, s) {
-      var pg = new THREE.Group(); pg.position.set(x, 0, z); pg.scale.set(s, s, s); g.add(pg);
-      var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x20262e, roughness: 0.4, metalness: 0.4 })); pot.position.y = 0.3; pg.add(pot);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.025, 8, 20), goldM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.6; pg.add(rim);
-      var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.5, 8), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); trunk.position.y = 1.3; pg.add(trunk);
-      var leafM = new THREE.MeshLambertMaterial({ color: 0x2c8a4a, side: THREE.DoubleSide });
-      for (var f = 0; f < 8; f++) {
-        var fa = f / 8 * TAU, fr = new THREE.Mesh(new THREE.ConeGeometry(0.1, 1.25, 4), leafM);
-        fr.scale.set(1, 1, 0.25); fr.position.set(Math.cos(fa) * 0.5, 2.0, Math.sin(fa) * 0.5); fr.rotation.set(Math.sin(fa) * 1.15, 0, -Math.cos(fa) * 1.15); pg.add(fr);
-      }
+      var pg = F.makePlant(s * 1.15); pg.position.set(x, 0, z); g.add(pg);
       room.colliders.push({ x: x, z: z, r: 0.4 });
     }
     palm(-(HX - 0.9), HZ - 0.9, 1.1); palm(HX - 0.9, HZ - 0.9, 1.1); palm(-(HX - 0.9), 5.2, 1); palm(HX - 0.9, 5.2, 1); palm(-(HX - 0.9), -5.2, 1); palm(HX - 0.9, -5.2, 1);
@@ -383,8 +375,7 @@
     var barG = new THREE.Group(); barG.position.set(-5.2, 0, HZ - 1.5); g.add(barG);
     box(3.4, 1.0, 0.7, 0, 0.5, 0, woodDark, barG); box(3.5, 0.06, 0.8, 0, 1.03, 0, goldM, barG); box(3.3, 0.05, 0.05, 0, 0.85, 0.36, ledB, barG);
     [-1.2, -0.4, 0.4, 1.2].forEach(function (sx) {
-      var sp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), goldM); sp.position.set(sx, 0.3, -0.9); barG.add(sp);
-      var ss = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 16), new THREE.MeshStandardMaterial({ color: 0x6a1226, roughness: 0.6 })); ss.position.set(sx, 0.62, -0.9); barG.add(ss);
+      var stool = F.makeStool(0x6a1226); stool.position.set(sx, 0, -0.95); barG.add(stool);
     });
     var mirror = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x2a1c12 })); mirror.position.set(0, 1.9, 1.17); mirror.rotation.y = Math.PI; barG.add(mirror);
     [1.35, 1.9].forEach(function (sy) {
@@ -414,7 +405,7 @@
       var pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.93), new THREE.MeshBasicMaterial({ map: mkTex(cp) })); pl.position.set(x + Math.sin(ry) * 0.04, y, z + Math.cos(ry) * 0.04); pl.rotation.y = ry; g.add(pl);
     }
     poster(-6.6, 3.5, -HZ + 0.05, 0, 'GRAND PRIX', 'LES FLAMBEURS', ['#5a1020', '#240a12']); poster(6.6, 3.5, -HZ + 0.05, 0, 'TIERCÉ GAGNANT', 'HIPPODROME VIP', ['#0e4a3c', '#06201a']);
-    poster(-3.4, 3.2, HZ - 0.05, Math.PI, 'DERBY', 'PARIEZ SUR LE FAVORI', ['#1b3a7a', '#0b1630']); poster(3.4, 3.2, HZ - 0.05, Math.PI, 'PHOTO FINISH', 'TOUS LES SOIRS', ['#6a4a10', '#2a1a05']);
+    poster(-3.4, 3.95, HZ - 0.05, Math.PI, 'DERBY', 'PARIEZ SUR LE FAVORI', ['#1b3a7a', '#0b1630']); poster(3.4, 3.95, HZ - 0.05, Math.PI, 'PHOTO FINISH', 'TOUS LES SOIRS', ['#6a4a10', '#2a1a05']);
     /* ----- la table de jeu ----- */
     var tt = trackTexture();
     var felt = new THREE.Mesh(new THREE.PlaneGeometry(tt.w, tt.h), new THREE.MeshStandardMaterial({ map: tt.tex, roughness: 0.95, metalness: 0, transparent: true, alphaTest: 0.4 }));
@@ -522,7 +513,7 @@
       });
     });
     // porte de sortie vers le hall
-    if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: HZ - 0.02, nx: 0, nz: -1, w: 1.8, h: 2.9, label: 'HALL', sub: 'Sortie', color: 0xffe9b0, target: 'hall' });
+    if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: HZ - 0.02, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffe9b0, target: 'hall', theme: 'exitHorses' });
 
     /* ----- éclairage ----- */
     g.add(new THREE.AmbientLight(0xf0dcc4, 0.95));

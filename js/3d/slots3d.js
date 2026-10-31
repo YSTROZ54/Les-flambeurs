@@ -784,18 +784,12 @@
       n2.textAlign = 'center'; n2.textBaseline = 'middle'; n2.fillStyle = '#fff4e0'; n2.font = '900 ' + Math.round(nc.height * 0.56) + 'px ' + SERIF; n2.fillText(text, nc.width / 2, nc.height * 0.53, nc.width - 150);
       var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(nc) })); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m);
     }
-    function plant(x, z) {
-      var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.2 })); pot.position.set(x, 0.275, z); scene.add(pot);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 8, 20), goldMat); rim.rotation.x = Math.PI / 2; rim.position.set(x, 0.55, z); scene.add(rim);
-      var leafM = new THREE.MeshStandardMaterial({ color: 0x1f6b3a, roughness: 0.7 });
-      for (var q = 0; q < 8; q++) { var an = q / 8 * TAU, lf = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), leafM); lf.scale.set(0.55, 1.5, 0.28); lf.position.set(x + Math.cos(an) * 0.28, 1.25 + (q % 2) * 0.25, z + Math.sin(an) * 0.28); lf.rotation.set(Math.sin(an) * 0.5, -an, Math.cos(an) * 0.5); scene.add(lf); }
-    }
+    function plant(x, z) { var pg = F.makePlant(1.1); pg.position.set(x, 0, z); scene.add(pg); }
     // mur de la porte (z = front), tourné vers la salle
     neonSign(0, 5.9, ROOM.front - 0.06, Math.PI, 'JACKPOT 777', 6.6, 1.3, '#ff4fa8');
     poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
-    poster(-8.0, 3.6, ROOM.front - 0.05, Math.PI, '🍒', 'CERISES', 1.5, 2.0); poster(8.0, 3.6, ROOM.front - 0.05, Math.PI, '🔔', 'CLOCHES', 1.5, 2.0);
-    [-3.6, 3.6, -6.8, 6.8].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
-    plant(-7.4, ROOM.front - 0.9); plant(7.4, ROOM.front - 0.9); plant(-3.0, ROOM.front - 0.9); plant(3.0, ROOM.front - 0.9);
+        [-3.6, 3.6].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
+    plant(-3.6, ROOM.front - 0.9); plant(3.6, ROOM.front - 0.9);
     // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
     [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
     [1.8, 5.0, 8.2, -1.4].forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2); });

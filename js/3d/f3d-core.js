@@ -36,6 +36,46 @@
   F.EMOJI_FONT = EMOJI_FONT; F.SERIF = SERIF; F.MONO = MONO; F.TAU = TAU;
   F.fmtN = fmtN; F.isMobile = isMobile; F.isTouch = isTouch; F.mkCanvas = mkCanvas; F.mkTex = mkTex; F.roundRectPath = roundRectPath;
 
+  /* ---------- décor partagé par plusieurs salles : plante en pot et tabouret de bar ---------- */
+  // plante d'intérieur touffue (feuilles qui retombent en arc dans un pot en céramique crème à bande dorée) ; ~1,9 m de haut à l'échelle 1
+  var plantGeo = null, plantMats = null;
+  F.makePlant = function (s) {
+    var grp = new THREE.Group(); s = s || 1;
+    if (!plantGeo) {
+      plantGeo = new THREE.SphereGeometry(1, 8, 6);
+      plantMats = [new THREE.MeshLambertMaterial({ color: 0x2f9a4c }), new THREE.MeshLambertMaterial({ color: 0x1f7a3a }), new THREE.MeshLambertMaterial({ color: 0x4cb860 })];
+    }
+    var cream = new THREE.MeshStandardMaterial({ color: 0xeee6d4, roughness: 0.35, metalness: 0.05 }), gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.7 });
+    var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.56, 20), cream); pot.position.y = 0.28; grp.add(pot);
+    var band = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.022, 8, 24), gold); band.rotation.x = Math.PI / 2; band.position.y = 0.52; grp.add(band);
+    var soil = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.03, 16), new THREE.MeshLambertMaterial({ color: 0x2a1a10 })); soil.position.y = 0.55; grp.add(soil);
+    var N = 11, f, j;
+    for (f = 0; f < N; f++) {
+      var a = f / N * Math.PI * 2 + (f % 2) * 0.2, fg = new THREE.Group(); fg.rotation.y = a; grp.add(fg);
+      var phi = 0.12 + (f % 3) * 0.16, len = 0.26 + (f % 4) * 0.035, x = 0.03, y = 0.56, mat = plantMats[f % 3], segs = 5 + (f % 2);
+      for (j = 0; j < segs; j++) {
+        var lf = new THREE.Mesh(plantGeo, mat);
+        lf.scale.set(0.085 - j * 0.006, len * 0.62, 0.018); lf.position.set(x + Math.sin(phi) * len * 0.5, y + Math.cos(phi) * len * 0.5, 0); lf.rotation.z = -phi; fg.add(lf);
+        x += Math.sin(phi) * len; y += Math.cos(phi) * len; phi += 0.3 + j * 0.03;
+      }
+    }
+    grp.scale.set(s, s, s);
+    return grp;
+  };
+  // tabouret de bar : large assise ronde rembourrée, dossier bas, pied chromé, repose-pieds et socle (hauteur d'assise ~0,68 m)
+  F.makeStool = function (seatColor) {
+    var grp = new THREE.Group(), chrome = new THREE.MeshStandardMaterial({ color: 0xd4d8e0, roughness: 0.25, metalness: 0.9 });
+    var pad = new THREE.MeshStandardMaterial({ color: seatColor || 0x6a1226, roughness: 0.55 });
+    var base = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.04, 20), chrome); base.position.y = 0.02; grp.add(base);
+    var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.6, 10), chrome); pole.position.y = 0.34; grp.add(pole);
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.016, 8, 24), chrome); ring.rotation.x = Math.PI / 2; ring.position.y = 0.22; grp.add(ring);
+    [0, 1, 2].forEach(function (k) { var sp = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.015, 0.015), chrome); sp.position.y = 0.22; sp.rotation.y = k * Math.PI / 3; grp.add(sp); });
+    var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.12, 24), pad); cush.position.y = 0.66; grp.add(cush);
+    var top = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.03, 24), pad); top.position.y = 0.735; grp.add(top);
+    var plate = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 16), chrome); plate.position.y = 0.6; grp.add(plate);
+    return grp;
+  };
+
   /* ---------- registre des salles : chaque fichier de salle s'y inscrit ---------- */
   var ROOMS = {};
   F.registerRoom = function (id, factory) { ROOMS[id] = factory; };

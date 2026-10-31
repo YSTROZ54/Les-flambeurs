@@ -254,12 +254,48 @@
     var bigSign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.6), new THREE.MeshBasicMaterial({ map: signTex }));
     bigSign.position.set(0, 5.6, -HZ + 0.06); g.add(bigSign);
 
-    /* --- colonnes aux quatre coins --- */
-    var colMat = std(0x1a0f18, 0.55, 0.2);
+    /* --- colonnes aux quatre coins : marbre clair cannelé, base et chapiteau dorés, guirlandes de LED comme dans le hall --- */
+    var ledTex = (function () {
+      var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
+    })();
+    var garlands = [], wireMat = new THREE.MeshBasicMaterial({ color: 0x2a1a30 });
+    function garland(cx, cz) {
+      var turns = 4, y0 = 0.7, y1 = H - 0.7, R = 0.62, strands = 2, step = low ? 0.13 : 0.07, s;
+      for (s = 0; s < strands; s++) {
+        var ph = s * Math.PI, pts = [], k, n = turns * 40;
+        for (k = 0; k <= n; k++) { var f = k / n, a = ph + f * turns * TAU; pts.push(new THREE.Vector3(cx + Math.cos(a) * R, y0 + f * (y1 - y0), cz + Math.sin(a) * R)); }
+        var curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), cnt = Math.round(len / step), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), v;
+        for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+        var pts3 = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.27, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        pts3.frustumCulled = false; g.add(pts3);
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, n, 0.012, 4, false), wireMat));
+        garlands.push({ geo: geo, col: col, cnt: cnt, dir: s ? -1 : 1 });
+      }
+    }
+    var ledC = new THREE.Color(), ledT = 0;
+    function garlandsUpdate(dt) {
+      ledT += dt;
+      garlands.forEach(function (row) {
+        var k, h, wv, v;
+        for (k = 0; k < row.cnt; k++) {
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 14 - ledT * 6 * row.dir);
+          h = (k / row.cnt * 2 + ledT * 0.07) % 1; v = 0.12 + 0.88 * wv * wv;
+          ledC.setHSL(h, 1, 0.5); row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
+        }
+        row.geo.attributes.color.needsUpdate = true;
+      });
+    }
+    var colMat = std(0xefe8d8, 0.3, 0.1), flute = std(0xd9d0bc, 0.4, 0.1);
     [[-HX + 1.1, -HZ + 1.1], [HX - 1.1, -HZ + 1.1], [-HX + 1.1, HZ - 1.1], [HX - 1.1, HZ - 1.1]].forEach(function (p) {
-      cyl(g, 0.42, 0.46, H, colMat, p[0], H / 2, p[1], 18);
-      [0.3, H - 0.3].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.05, 6, 20), gold); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); g.add(r); });
+      cyl(g, 0.4, 0.4, H - 0.9, colMat, p[0], H / 2, p[1], 24);
+      for (var fi = 0; fi < 12; fi++) { var fa = fi / 12 * TAU; cyl(g, 0.045, 0.045, H - 1.0, flute, p[0] + Math.cos(fa) * 0.4, H / 2, p[1] + Math.sin(fa) * 0.4, 6); }
+      box(g, 1.0, 0.3, 1.0, GOLD(), p[0], 0.15, p[1]); box(g, 0.8, 0.2, 0.8, GOLD(), p[0], 0.4, p[1]);
+      box(g, 1.0, 0.3, 1.0, GOLD(), p[0], H - 0.15, p[1]); box(g, 0.8, 0.2, 0.8, GOLD(), p[0], H - 0.4, p[1]);
       room.colliders.push({ x: p[0], z: p[1], r: 0.9 });
+      garland(p[0], p[1]);
     });
 
     /* --- pièce maîtresse au centre : grande pièce d'or qui tourne sur un piédestal de marbre --- */
@@ -318,9 +354,19 @@
     if (!low) { var p2 = new THREE.PointLight(0xffb070, 0.55, 22); p2.position.set(0, 3, -7); g.add(p2); }
 
     /* --- porte de retour vers le hall --- */
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.2, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.2, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall', theme: 'exitShop' });
     // porte du PMU (bureau de tabac, bar, cartes à gratter) : salle pmu3d.js
     world.addDoor(room, { x: PMU_DOOR_X, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.2, label: 'PMU', sub: 'ESPACE SOCIALE', color: 0xff4a4a, target: 'pmu' });
+
+    // de chaque côté de la porte du PMU : un grand panneau doré éclairé par deux appliques, et un banc de velours
+    [-1, 1].forEach(function (sd) {
+      var px = PMU_DOOR_X + sd * 2.35, pz = -HZ + 0.06;
+      box(g, 1.5, 2.9, 0.06, GOLD(), px, 2.1, pz); box(g, 1.34, 2.74, 0.04, std(0x1a0e14, 0.5, 0.2), px, 2.1, pz + 0.03);
+      box(g, 1.1, 2.5, 0.02, std(0x3a1626, 0.6, 0.1), px, 2.1, pz + 0.055);
+      [0.8, 3.4].forEach(function (y) { box(g, 0.14, 0.14, 0.1, GOLD(), px, y, pz + 0.07); });
+      box(g, 1.3, 0.45, 0.45, std(0x5a1020, 0.8, 0), px, 0.25, pz + 0.3); box(g, 1.4, 0.06, 0.5, GOLD(), px, 0.5, pz + 0.3);
+      room.colliders.push({ x: px, z: pz + 0.3, r: 0.6 });
+    });
 
     /* --- les six stands --- */
     function toWorld(def, lx, lz) {   // repère du stand (x = à droite en regardant le vendeur, z = vers la salle) -> repère du monde
@@ -526,7 +572,7 @@
     };
 
     room.update = function (dt, w) {
-      clockT += dt;
+      clockT += dt; garlandsUpdate(dt);
       var t = clockT, p = w.player;
       coinPivot.rotation.y = t * 0.9; coin.position.y = 2.55 + Math.sin(t * 1.4) * 0.08;
       for (var i = 0; i < medals.length; i++) { var m = medals[i]; m.g.rotation.y = t * 0.9 + m.ph; m.g.position.y = m.y + Math.sin(t * 1.6 + m.ph) * 0.03; }
