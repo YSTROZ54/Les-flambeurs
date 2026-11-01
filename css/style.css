@@ -2072,6 +2072,39 @@ body.s3d-full-on #sidebarBackdrop {
   transform: translateY(-1px);
 }
 .ph-row-btn:active { transform: translateY(0); }
+/* Réglages › Touches (une ligne par action, un bouton qui attend la prochaine frappe) */
+.ph-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+.ph-key-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 7px;
+  padding: 4px 10px;
+  min-width: 64px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ph-key-btn:hover { background: rgba(96, 165, 250, 0.22); border-color: rgba(96, 165, 250, 0.5); }
+.ph-key-btn.listening {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+  animation: ph-key-pulse 1s ease-in-out infinite;
+}
+@keyframes ph-key-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 .ph-btn-danger {
   color: #fca5a5;
   background: rgba(239, 68, 68, 0.1);

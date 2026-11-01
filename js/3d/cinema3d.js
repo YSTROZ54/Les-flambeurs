@@ -9,7 +9,7 @@
    - Le film est la présentation Premium de Tropi Stream (video/tropistream-presentation.mp4, 58 s). Chacun la lance pour soi :
      bouton « Lancer la séance », clic sur l'écran ou touche P. Pendant la séance les lumières baissent et la musique se tait.
    - La musique de fond : les morceaux de assets/musique/cinema/ (playlist.json) ; sans fichier, un petit air de jazz lent fabriqué à la volée (WebAudio).
-     Elle démarre à l'arrivée, se coupe avec le bouton « Musique » (choix gardé d'une visite à l'autre) et quitte la salle avec nous.
+     Elle démarre à l'arrivée, suit le volume « Musique d'ambiance » des Réglages (plus de bouton dédié) et quitte la salle avec nous.
    Fichiers liés : f3d-core.js, world3d.js, hall3d.js (la porte), video/tropistream-presentation.mp4.
    ===================================================================== */
 (function () {
@@ -26,7 +26,6 @@
   var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
   var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
   var VELVET = 0x8c1a26;
-  var MUSIC_KEY = 'f3d_cinema_music';
 
   /* ---------- petits outils ---------- */
   var cache = {};
@@ -54,8 +53,7 @@
 
   function createMusic() {
     var AC = window.AudioContext || window.webkitAudioContext;
-    var m = { ctx: null, master: null, dry: null, wet: null, noise: null, timer: 0, nextT: 0, step: 0, level: 1, on: true, up: false, lastTarget: -1, files: null, el: null, lastFile: '' };
-    try { if (localStorage.getItem(MUSIC_KEY) === '0') m.on = false; } catch (e) { /* stockage bloqué : musique activée */ }
+    var m = { ctx: null, master: null, dry: null, wet: null, noise: null, timer: 0, nextT: 0, step: 0, level: 1, up: false, lastTarget: -1, files: null, el: null, lastFile: '' };
 
     // vrais morceaux : assets/musique/cinema/ (playlist.json) ; sans fichier, l'air de jazz synthétisé ci-dessous
     if (F.audio && F.audio.withPlaylist) F.audio.withPlaylist(function (pl) {
@@ -139,10 +137,12 @@
         m.nextT = t + EIGHTH; m.step++;
       }
     }
+    // suit le volume « Musique d'ambiance » des Réglages (F.audio.musicVol), même dosage que les autres salles (audio3d.js)
     m.setLevel = function (v) {
       m.level = v;
-      var target = m.on && m.up ? 0.55 * v : 0;
-      if (m.master && m.ctx && target !== m.lastTarget) { m.lastTarget = target; m.master.gain.setTargetAtTime(target, m.ctx.currentTime, 0.7); }
+      var vol = F.audio ? F.audio.musicVol : 0.5, mast = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.5;
+      var target = m.up ? v * vol * mast * 1.4 : 0;
+      if (m.master && m.ctx && Math.abs(target - m.lastTarget) > 0.002) { m.lastTarget = target; m.master.gain.setTargetAtTime(target, m.ctx.currentTime, 0.7); }
     };
     function closeCtx() {                              // fondu rapide, puis on libère le son
       clearInterval(m.timer); m.timer = 0;
@@ -154,7 +154,6 @@
     }
     m.start = function () {
       m.up = true;
-      if (!m.on) return false;
       if (!m.ctx && !build()) return false;
       if (m.ctx.state === 'suspended') m.ctx.resume();
       if (m.files) { if (!m.el) playFile(); }
@@ -163,12 +162,6 @@
       return true;
     };
     m.stop = function () { m.up = false; closeCtx(); };
-    m.toggle = function () {
-      m.on = !m.on;
-      try { localStorage.setItem(MUSIC_KEY, m.on ? '1' : '0'); } catch (e) { /* stockage bloqué */ }
-      if (m.on) { if (m.up) m.start(); } else closeCtx();
-      return m.on;
-    };
     return m;
   }
 
@@ -453,13 +446,12 @@
     room.hudBottom =
       '<div class="cin"><div class="cin-t"><img class="cin-logo" src="assets/cinema/tropistream-serveur.png" alt="">Cinéma Tropi Stream</div><div class="cin-st" data-s3d="cinst"></div>' +
       '<div class="cin-bar"><i data-s3d="cinbar"></i></div>' +
-      '<div class="cin-row"><button class="cin-play" data-s3d="cinplay"><i class="fa-solid fa-play"></i> Lancer la séance</button><button class="cin-mus" data-s3d="cinmus"></button></div>' +
+      '<div class="cin-row"><button class="cin-play" data-s3d="cinplay"><i class="fa-solid fa-play"></i> Lancer la séance</button></div>' +
       '<div class="cin-tip">Avance vers un fauteuil et appuie sur <b>F</b> (ou clique dessus) pour t\'asseoir · clic sur l\'écran ou <b>P</b> : lecture / pause</div></div>';
     room.bindHud = function (hud) {
       room.elSt = hud.querySelector('[data-s3d="cinst"]'); room.elBar = hud.querySelector('[data-s3d="cinbar"]');
-      room.elPlay = hud.querySelector('[data-s3d="cinplay"]'); room.elMus = hud.querySelector('[data-s3d="cinmus"]');
+      room.elPlay = hud.querySelector('[data-s3d="cinplay"]');
       room.elPlay.addEventListener('click', function () { togglePlay(); });
-      room.elMus.addEventListener('click', function () { music.toggle(); refreshHud(); });
       refreshHud();
     };
     function setBtn(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
@@ -470,8 +462,6 @@
       setBtn(room.elPlay, s === 'playing' ? '<i class="fa-solid fa-pause"></i> Pause' : s === 'paused' ? '<i class="fa-solid fa-play"></i> Reprendre' : s === 'ended' ? '<i class="fa-solid fa-rotate-right"></i> Revoir la séance' : '<i class="fa-solid fa-play"></i> Lancer la séance');
       room.elSt.textContent = s === 'playing' ? 'En salle · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'paused' ? 'En pause · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'ended' ? 'Séance terminée' : 'Présentation Premium · ' + (dur ? fmtT(dur) : '0:58');
       room.elBar.style.width = (dur ? clamp(video.currentTime / dur, 0, 1) * 100 : 0) + '%';
-      setBtn(room.elMus, music.on ? '<i class="fa-solid fa-volume-high"></i> Musique' : '<i class="fa-solid fa-volume-xmark"></i> Musique');
-      room.elMus.classList.toggle('off', !music.on);
     }
 
     room.hint = function (w) {
@@ -528,7 +518,7 @@
       '.cin-st{font-size:12px;font-weight:800;color:#e9ddb4}' +
       '.cin-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}.cin-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-row{display:flex;gap:6px}.cin-row button{cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:8px 10px}' +
-      '.cin-play{flex:1;border:1px solid #ff7a1a;background:#c2410c;color:#fff}.cin-mus{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#f4e3b0}.cin-mus.off{opacity:.6}' +
+      '.cin-play{flex:1;border:1px solid #ff7a1a;background:#c2410c;color:#fff}' +
       '.cin-tip{font-size:11px;line-height:1.35;color:#d9c88f}.cin-tip b{color:#ffb066}' +
       '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}' +
       '.cin-eye{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:7;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;color:#fff;background:rgba(8,5,12,.7);border:1px solid rgba(255,122,26,.6);border-radius:999px;padding:7px 14px;opacity:.55;transition:opacity .2s}.cin-eye:hover{opacity:1}' +

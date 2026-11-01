@@ -26,6 +26,42 @@
     } catch (e) { return v || 1; }
   };
 
+  /* ---------- touches de déplacement : personnalisables (téléphone › Réglages › Touches), gardées d'une visite à l'autre ----------
+     Flèches, Maj (droite ou gauche) et ZQSD restent toujours actives en plus de la touche choisie : on ne peut jamais se retrouver bloqué. */
+  var KEY_ACTIONS = ['f', 'b', 'l', 'r', 'jump', 'run'];
+  var KEY_DEFAULTS = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD', jump: 'Space', run: 'ShiftLeft' };
+  F.keyActions = KEY_ACTIONS;
+  F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir' };
+  // touches déjà utilisées ailleurs dans le jeu (interagir, vues, émotes…) : on ne laisse pas les reprendre, pour ne rien casser
+  var KEY_RESERVED = { Escape: 1, KeyF: 1, Enter: 1, KeyP: 1, KeyT: 1, Tab: 1, KeyE: 1, KeyV: 1, KeyB: 1 };
+  var KEY_LABELS = {
+    Space: 'Espace', ShiftLeft: 'Maj (gauche)', ShiftRight: 'Maj (droite)', ControlLeft: 'Ctrl (gauche)', ControlRight: 'Ctrl (droite)',
+    AltLeft: 'Alt', AltRight: 'Alt droite', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Enter: 'Entrée', Tab: 'Tab', CapsLock: 'Maj. verr.',
+    Backquote: '²', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: '\'', Comma: ',', Period: '.', Slash: '/', Backslash: '\\'
+  };
+  F.keyLabel = function (code) {
+    if (!code) return '?';
+    if (KEY_LABELS[code]) return KEY_LABELS[code];
+    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+    if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+    return code;
+  };
+  F.keyReserved = function (code, e) {
+    return !code || KEY_RESERVED[code] || (e && (e.key === 'a' || e.key === 'A')); // la touche A ouvre les émotes (hud3d.js)
+  };
+  F.keys = function () {
+    var out = {}, cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem('f3d_keys') || '{}') || {}; } catch (e) { /* stockage bloqué : valeurs par défaut */ }
+    for (var i = 0; i < KEY_ACTIONS.length; i++) { var a = KEY_ACTIONS[i]; out[a] = (typeof cfg[a] === 'string' && cfg[a]) ? cfg[a] : KEY_DEFAULTS[a]; }
+    return out;
+  };
+  F.setKey = function (action, code) {
+    if (KEY_ACTIONS.indexOf(action) < 0 || !code) return;
+    var cfg = F.keys(); cfg[action] = code;
+    try { localStorage.setItem('f3d_keys', JSON.stringify(cfg)); } catch (e) { /* stockage bloqué */ }
+  };
+  F.resetKeys = function () { try { localStorage.removeItem('f3d_keys'); } catch (e) { /* ok */ } };
+
   /* ===================== LE MONDE ===================== */
   function World(container, opts) {
     opts = opts || {};
@@ -410,15 +446,26 @@
 
   /* ---------- clavier / souris / doigt ---------- */
   World.prototype._bindKeys = function () {
-    var self = this, map = { KeyW: 'f', KeyZ: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyQ: 'l', KeyD: 'r', ArrowLeft: 'l', ArrowRight: 'r', Space: 'jump', ShiftLeft: 'run', ShiftRight: 'run' };
+    var self = this, map = {};
+    function fallback(code, action) { if (!map[code]) map[code] = action; }   // n'écrase jamais une touche choisie par le joueur
+    function buildMap() {
+      map = {};
+      var cfg = F.keys();
+      map[cfg.f] = 'f'; map[cfg.b] = 'b'; map[cfg.l] = 'l'; map[cfg.r] = 'r'; map[cfg.jump] = 'jump'; map[cfg.run] = 'run';
+      fallback('ArrowUp', 'f'); fallback('ArrowDown', 'b'); fallback('ArrowLeft', 'l'); fallback('ArrowRight', 'r');
+      fallback('ShiftLeft', 'run'); fallback('ShiftRight', 'run'); fallback('KeyZ', 'f'); fallback('KeyQ', 'l');  // AZERTY, et pour ne jamais se retrouver bloqué
+    }
+    buildMap();
+    self._rebuildKeyMap = buildMap;   // appelé par le téléphone (hud3d.js) après un changement de touche
     function ok(e) {
       var t = e.target, tag = t && t.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return false;
+      if (self._keyCapture) return false;   // on écoute une touche pour la reconfigurer (téléphone › Réglages › Touches)
       return self.running && !self.dead && self.container.clientWidth > 0 && self.mode === 'room' && !self.trans && !e.ctrlKey && !e.metaKey && !e.altKey;
     }
     this._kd = function (e) {
       var sr = self.seatRoom, tg = e.target && e.target.tagName;
-      if (self.mode === 'seat' && sr && sr.standKey && sr.stand && e.code === 'KeyF' && self.running && !self.dead && !self.trans && !e.ctrlKey && !e.metaKey && !e.altKey && tg !== 'INPUT' && tg !== 'TEXTAREA') {
+      if (self.mode === 'seat' && sr && sr.standKey && sr.stand && e.code === 'KeyF' && self.running && !self.dead && !self.trans && !self._keyCapture && !e.ctrlKey && !e.metaKey && !e.altKey && tg !== 'INPUT' && tg !== 'TEXTAREA') {
         sr.stand(); e.preventDefault(); return;                  // F : on se lève (machines à sous, courses de chevaux)
       }
       if (!ok(e)) return;
@@ -429,7 +476,7 @@
     this._ku = function (e) { if (map[e.code]) self.keys[map[e.code]] = false; };
     this._blur = function () { self.keys = {}; };
     this._esc = function (e) {
-      if (e.code !== 'Escape' || !self.full) return;
+      if (e.code !== 'Escape' || !self.full || self._keyCapture) return;   // Échap pendant une capture de touche : annule juste la capture (hud3d.js)
       if (document.pointerLockElement === self.dom || Date.now() - (self._libereLe || 0) < 300) return;
       self.setFull(false);
     };

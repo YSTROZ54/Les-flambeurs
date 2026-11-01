@@ -326,12 +326,33 @@
 
     /* ---------- navigation : retour d'un cran, puis accueil, puis ferme ---------- */
     function goBack() {
+      if (keyListening) stopKeyCapture();
       if (page === 'profile' && (refuse || pfEdit)) { refuse = null; pfEdit = ''; renderPhone(); }
       else if (page === 'profile' && sub === 'avpreview') { sub = 'avatars'; renderPhone(); }
       else if ((page === 'bank' || page === 'profile') && sub !== 'home') { sub = 'home'; renderPhone(); }
       else if (page !== 'menu') { page = 'menu'; sub = 'home'; renderPhone(); }
       else closePhone(true);
     }
+
+    /* ---------- Réglages › Touches : un clic sur une touche, puis on écoute la prochaine, capturée dans kd() ci-dessous ---------- */
+    var keyListening = '';
+    function keysHtml() {
+      var cfg = F.keys ? F.keys() : {};
+      return (F.keyActions || ['f', 'b', 'l', 'r', 'jump', 'run']).map(function (act) {
+        var listening = keyListening === act;
+        return '<div class="ph-key-row">' +
+          '<span>' + esc(F.keyNames[act]) + '</span>' +
+          '<button class="ph-key-btn' + (listening ? ' listening' : '') + '" data-act="key-bind" data-key="' + act + '">' +
+          (listening ? 'Appuie sur une touche…' : esc(F.keyLabel(cfg[act]))) + '</button>' +
+          '</div>';
+      }).join('');
+    }
+    function startKeyCapture(action) {
+      keyListening = action; w._keyCapture = true;
+      try { document.activeElement && document.activeElement.blur(); } catch (e) { /* ok */ }
+      if (page === 'settings') renderPhone();
+    }
+    function stopKeyCapture() { keyListening = ''; w._keyCapture = false; }
 
     /* ---------- appli Mon Profil : crayons d'édition, galerie d'avatars (Mes logos / À acheter dans le Tropi Shop), aperçu, refus ---------- */
     var pfEdit = '', avSel = '', refuse = null;
@@ -487,6 +508,14 @@
             '</div>' +
             '<input type="range" min="0" max="100" step="1" value="' + sfx + '" class="ph-slider" data-set="sfx">' +
           '</div>' +
+          // Touches : flèches et ZQSD restent toujours actives en plus de la touche choisie (world3d.js)
+          '<div class="ph-card-setting">' +
+            '<div class="ph-row-head">' +
+              '<div class="ph-row-title">' + logo(fa('fa-keyboard'), '96,165,250') + '<span><b>Touches</b><small>Déplacements, saut, course</small></span></div>' +
+            '</div>' +
+            keysHtml() +
+            '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="key-reset">' + fa('fa-rotate-left') + ' Touches par défaut</button></div>' +
+          '</div>' +
           // Qualité
           '<div class="ph-card-setting">' +
             '<div class="ph-row-head">' +
@@ -552,6 +581,7 @@
     function closePhone(reprendreSouris) {
       var etaitOuvert = phoneOpen;
       elPhone.hidden = true; phoneOpen = false; typingNotify(false); markHotbar();
+      if (keyListening) stopKeyCapture();   // on ferme le téléphone pendant qu'on écoutait une touche : on annule proprement
       if (reprendreSouris && etaitOuvert) relock();
     }
     function closeAll() { closeWheel(); closePhone(); closeChat(); closePause(); closeInv(); }
@@ -920,6 +950,12 @@
       else if (t.hasAttribute('data-bk')) { sub = t.getAttribute('data-bk'); renderPhone(); }
       else if (t.hasAttribute('data-amt')) { var am = q('bkamt'); if (am) am.value = t.getAttribute('data-amt'); }
       else if (t.hasAttribute('data-pick')) { var to = q('bkto'); if (to) to.value = t.getAttribute('data-pick'); bankSuggest(''); var am2 = q('bkamt'); if (am2) am2.focus(); }
+      else if (a === 'key-bind') startKeyCapture(t.getAttribute('data-key'));
+      else if (a === 'key-reset') {
+        if (typeof F.resetKeys === 'function') F.resetKeys();
+        if (w._rebuildKeyMap) w._rebuildKeyMap();
+        stopKeyCapture(); renderPhone();
+      }
       else if (a === 'classic-menu') { closeAll(); if (w.opts.onMenu) w.opts.onMenu(); else w.exitGame('hall'); }
       else if (a === 'toggle-mute') {
         try { if (typeof toggleSoundMute === 'function') toggleSoundMute(); } catch (e) {}
@@ -941,7 +977,7 @@
         if (fb) fb.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
       }
       else if (t.hasAttribute('data-tab')) setTab(t.getAttribute('data-tab'));
-      else if (t.hasAttribute('data-page')) { page = t.getAttribute('data-page'); sub = 'home'; pfEdit = ''; refuse = null; renderPhone(); if (page === 'bank') bankRefresh(); }
+      else if (t.hasAttribute('data-page')) { if (keyListening) stopKeyCapture(); page = t.getAttribute('data-page'); sub = 'home'; pfEdit = ''; refuse = null; renderPhone(); if (page === 'bank') bankRefresh(); }
       else if (t.hasAttribute('data-emo')) play(t.getAttribute('data-emo'));
     });
     root.addEventListener('mouseover', function (ev) {
@@ -962,6 +998,21 @@
 
     /* ---------- clavier ---------- */
     function kd(ev) {
+      // Réglages › Touches : on attend la prochaine touche à la place de tout le reste (emotes, chat, interagir…)
+      if (keyListening) {
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        if (ev.repeat) return;   // touche maintenue : on ignore la répétition auto, seule la première frappe compte
+        if (ev.code === 'Escape') { stopKeyCapture(); if (page === 'settings') renderPhone(); return; }
+        if (!ev.code || F.keyReserved(ev.code, ev)) {
+          try { if (typeof showToast === 'function') showToast('⌨️ Cette touche est déjà utilisée ailleurs, essaie une autre.'); } catch (e) { /* ok */ }
+          return;   // on continue d'écouter
+        }
+        F.setKey(keyListening, ev.code);
+        if (w._rebuildKeyMap) w._rebuildKeyMap();
+        stopKeyCapture();
+        if (page === 'settings') renderPhone();
+        return;
+      }
       if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev) || !w.running || w.dead || !w.container.clientWidth || w.modalOpen) return;   // modalOpen : un ticket à gratter est ouvert, il gère ses touches
       if (ev.code === 'Escape') {
         if (pauseOpen) {
