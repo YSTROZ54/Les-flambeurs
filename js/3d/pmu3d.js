@@ -121,7 +121,7 @@
     PMU.cards = Array.isArray(ids) ? ids.slice(0, MAX_CARDS) : [];
     if (!PMU.hud || !PMU.hud.setItems) return;
     PMU.hud.setItems('pmu', PMU.cards.map(function (id) {
-      return { id: 'pmu-' + id, name: 'Carte à gratter', icon: 'fa-ticket', color: '239,68,68', use: function () { scratch(id); }, clickOk: inPmu };   // clic dans le monde avec la carte en main : seulement au PMU
+      return { id: 'pmu-' + id, name: 'Carte à gratter', img: 'assets/icones/applis/carte-a-gratter.png', icon: 'fa-ticket', color: '239,68,68', use: function () { scratch(id); }, clickOk: inPmu };   // clic dans le monde avec la carte en main : seulement au PMU
     }));
   }
   function loadCards() {
