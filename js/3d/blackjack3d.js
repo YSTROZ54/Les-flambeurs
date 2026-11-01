@@ -301,12 +301,25 @@
     function clearCards(T) {
       (T.cards || []).forEach(function (m) { g.remove(m); m.material.dispose(); }); T.cards = []; T.dealerMeshes = []; T.handMeshes = {};
       (T.labels || []).forEach(function (l) { if (l.parent) l.parent.remove(l); if (l.material.map) l.material.map.dispose(); l.material.dispose(); }); T.labels = [];
+      Object.keys(T.scoreLabels || {}).forEach(function (k) { var o = T.scoreLabels[k]; g.remove(o.sp); o.sp.material.map.dispose(); o.sp.material.dispose(); }); T.scoreLabels = {};
       anims = anims.filter(function (a) { return a.m.parent; });
     }
     function label(T, x, z, text, col) {
       var cv = mkCanvas(256, 80), c = cv.getContext('2d'); roundRect(c, 4, 4, 248, 72, 24); c.fillStyle = 'rgba(8,5,12,0.85)'; c.fill(); c.strokeStyle = col; c.lineWidth = 5; c.stroke();
       c.fillStyle = col; c.font = '900 38px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 128, 42, 230);
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(x, TOP_Y + 0.32, z); g.add(sp); T.labels = T.labels || []; T.labels.push(sp);
+    }
+    // pastille du total, posée juste devant la main (sous les cartes, côté joueur) ; se redessine seulement si le total ou la couleur change
+    function scoreLabel(T, key, x, z, n, sc, hidden) {
+      T.scoreLabels = T.scoreLabels || {};
+      var cur = T.scoreLabels[key];
+      if (!n || hidden) { if (cur) { g.remove(cur.sp); cur.sp.material.map.dispose(); cur.sp.material.dispose(); delete T.scoreLabels[key]; } return; }
+      var col = sc > 21 ? '#ff8a80' : sc === 21 ? '#f3cf62' : '#f4e3b0';
+      if (cur) { cur.sp.position.set(x, TOP_Y + 0.16, z); if (cur.sc === sc) return; g.remove(cur.sp); cur.sp.material.map.dispose(); cur.sp.material.dispose(); }
+      var cv = mkCanvas(112, 72), c = cv.getContext('2d'); roundRect(c, 3, 3, 106, 66, 16); c.fillStyle = 'rgba(8,5,12,0.88)'; c.fill(); c.strokeStyle = col; c.lineWidth = 4; c.stroke();
+      c.fillStyle = col; c.font = '900 40px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(sc), 56, 38);
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.2, 0.13, 1); sp.position.set(x, TOP_Y + 0.16, z); g.add(sp);
+      T.scoreLabels[key] = { sp: sp, sc: sc };
     }
     function wake(T, tx, tz) { if (T && T.dealerO) { T.dealerO.awake = 1.1; T.dealerO.aimX = (tx === undefined ? T.x : tx) - T.x; T.dealerO.aimZ = (tz === undefined ? T.z + 0.7 : tz) - T.z; } }
     function showHand(T, s, cards, keep) {
@@ -316,12 +329,17 @@
       for (var k = have.length; k < cards.length; k++) have.push(placeCard('p', s.n, T, cards[k], spotPos(T, s, k, cards.length), 0));
       // recentre les cartes déjà posées
       have.forEach(function (m, k2) { var p = spotPos(T, s, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else { m.position.set(p.x, p.y, p.z); } });
+      // le total, juste devant la main : un peu plus loin du centre que les cartes, côté joueur
+      var ph = s.phi, lx = T.x + Math.sin(ph) * 1.42, lz = T.z + Math.cos(ph) * 1.42;
+      scoreLabel(T, 's' + s.n, lx, lz, cards.length, score(cards), false);
     }
     function showDealer(T, cards) {
       wake(T);
       T.dealerMeshes = T.dealerMeshes || [];
       for (var k = T.dealerMeshes.length; k < cards.length; k++) T.dealerMeshes.push(placeCard('d', 0, T, cards[k], dealerPos(T, k, cards.length), 0));
       T.dealerMeshes.forEach(function (m, k2) { var p = dealerPos(T, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else m.position.set(p.x, p.y, p.z); });
+      var hidden = cards.some(function (c) { return c.r === '?'; }), c0 = dealerPos(T, (cards.length - 1) / 2, cards.length);
+      scoreLabel(T, 'd', c0.x, c0.z + 0.42, cards.length, score(cards), hidden);
     }
     function reveal(T, cards) {
       T.dealerMeshes = T.dealerMeshes || [];
@@ -373,7 +391,9 @@
     function botSeats(T) { return T.spots.filter(function (s) { return s.bot; }); }
 
     function setMsg(t, col) { R.msg = t; if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
-    function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="n">🂠</span>' : '<span class="' + (red ? 'r' : 'n') + '">' + c.r + c.s + '</span>'; }).join(' '); }
+    var SUIT_CLASS = { '♥': 'fl-suit-h', '♦': 'fl-suit-d', '♣': 'fl-suit-c', '♠': 'fl-suit-s' };
+    // une petite pastille par carte : rang + logo du symbole (au lieu du caractère ♥♦♣♠ brut, qui rend mal selon la police)
+    function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="pip n">🂠</span>' : '<span class="pip ' + (red ? 'r' : 'n') + '">' + c.r + '<i class="fl-suit ' + SUIT_CLASS[c.s] + '"></i></span>'; }).join(''); }
     function setText(el, t) { if (el && el.textContent !== t) el.textContent = t; }
     function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
     var cardImgCache = {}, cardsEl = null;
@@ -399,7 +419,7 @@
       var hd = ui.el.querySelector('.bj-hands');
       if (R.phase !== 'idle' && R.me.length) {
         var hidden = R.dealer.some(function (c) { return c.r === '?'; });
-        setHtml(hd, '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : ' (' + score(R.dealer) + ')') + '</div><div>Toi : ' + handHtml(R.me) + ' (' + score(R.me) + ')</div>');
+        setHtml(hd, '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : '<span class="tot">' + score(R.dealer) + '</span>') + '</div><div>Toi : ' + handHtml(R.me) + '<span class="tot">' + score(R.me) + '</span></div>');
       } else setHtml(hd, '');
       refreshCards();
       var q = function (s) { return ui.el.querySelector(s); };
@@ -502,7 +522,11 @@
       if (document.getElementById('bj3d-css')) return;
       var s = document.createElement('style'); s.id = 'bj3d-css';
       s.textContent = '.bj3d{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);width:min(560px,92%);background:rgba(8,5,12,.9);border:1px solid rgba(201,162,39,.6);border-radius:16px;padding:12px 14px;color:#f4e3b0;pointer-events:auto;display:flex;flex-direction:column;gap:8px;font-family:inherit;z-index:5}' +
-        '.bj3d .bj-hands{display:flex;justify-content:space-around;gap:10px;font-weight:800;font-size:15px;flex-wrap:wrap}.bj3d .bj-hands span.r{color:#ff7a86}.bj3d .bj-hands span.n{color:#fff}.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
+        '.bj3d .bj-hands{display:flex;justify-content:space-around;gap:10px;font-weight:800;font-size:15px;flex-wrap:wrap;align-items:center}' +
+        '.bj3d .bj-hands .pip{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:2px 7px 2px 8px;margin:0 2px;font-size:14px}' +
+        '.bj3d .bj-hands .pip.r{color:#ff7a86}.bj3d .bj-hands .pip.n{color:#fff}.bj3d .bj-hands .pip .fl-suit{width:.78em;height:.78em;vertical-align:-.08em}' +
+        '.bj3d .bj-hands .tot{color:#f3cf62;font-weight:900;margin-left:4px}' +
+        '.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
         '.bj3d .bj-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.bj3d .bj-chip{padding:6px 10px;border-radius:999px;border:2px solid #f3cf62;background:#241218;color:#f3cf62;font-weight:900;font-size:13px;cursor:pointer}' +
         '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
         '.bj3d button.bj-b{padding:10px 18px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +

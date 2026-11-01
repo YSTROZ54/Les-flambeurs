@@ -345,6 +345,29 @@ select {
   --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3.35 2.35 17.3 19.3'%3E%3Cpath d='M12 2.5C10 6 3.5 9 3.5 13.6c0 2.8 2.1 4.6 4.4 4.6 1.5 0 2.7-.8 3.3-1.8-.2 2.2-1.1 3.8-2.6 5.1h6.8c-1.5-1.3-2.4-2.9-2.6-5.1.6 1 1.8 1.8 3.3 1.8 2.3 0 4.4-1.8 4.4-4.6C20.5 9 14 6 12 2.5z'/%3E%3C/svg%3E");
 }
 
+/* Symboles des cartes (♥♦♣♠), en logo plutôt qu'en caractère brut (rend mal selon la police) : pastilles des mains au blackjack */
+.fl-suit {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  vertical-align: -0.1em;
+  background-color: currentColor;
+  -webkit-mask: var(--fl-svg) center / contain no-repeat;
+  mask: var(--fl-svg) center / contain no-repeat;
+}
+.fl-suit-h {
+  --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='2 3 20 18.35'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+}
+.fl-suit-d {
+  --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3 2 18 20'%3E%3Cpath d='M12 2L3 12l9 10 9-10-9-10z'/%3E%3C/svg%3E");
+}
+.fl-suit-c {
+  --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3.5 3.5 17 18.8'%3E%3Ccircle cx='8' cy='10' r='4'/%3E%3Ccircle cx='16' cy='10' r='4'/%3E%3Ccircle cx='12' cy='6.3' r='4'/%3E%3Cpath d='M10.1 14.3h3.8l1.4 7.2H8.7l1.4-7.2z'/%3E%3C/svg%3E");
+}
+.fl-suit-s {
+  --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3.35 2.35 17.3 19.3'%3E%3Cpath d='M12 2.5C10 6 3.5 9 3.5 13.6c0 2.8 2.1 4.6 4.4 4.6 1.5 0 2.7-.8 3.3-1.8-.2 2.2-1.1 3.8-2.6 5.1h6.8c-1.5-1.3-2.4-2.9-2.6-5.1.6 1 1.8 1.8 3.3 1.8 2.3 0 4.4-1.8 4.4-4.6C20.5 9 14 6 12 2.5z'/%3E%3C/svg%3E");
+}
+
 /* Deux cartes en éventail, un cœur sur celle de devant (Blackjack) */
 .fl-cards {
   --fl-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='1.7 1.7 20.1 20.1'%3E%3Cdefs%3E%3Cmask id='g'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Crect x='9.5' y='2.5' width='11' height='15.5' rx='2' transform='rotate(12 15 10.25)' stroke='%23000' stroke-width='3'/%3E%3C/mask%3E%3Cmask id='h'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cpath transform='rotate(12 15 10.25)' d='M15 13.3c-.3-.3-2.9-2.3-2.9-4 0-1 .8-1.8 1.7-1.8.6 0 1 .3 1.2.7.2-.4.6-.7 1.2-.7.9 0 1.7.8 1.7 1.8 0 1.7-2.6 3.7-2.9 4z'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23g)'%3E%3Crect x='3' y='5.5' width='11' height='15.5' rx='2' transform='rotate(-12 8.5 13.25)'/%3E%3C/g%3E%3Cg mask='url(%23h)'%3E%3Crect x='9.5' y='2.5' width='11' height='15.5' rx='2' transform='rotate(12 15 10.25)'/%3E%3C/g%3E%3C/svg%3E");
