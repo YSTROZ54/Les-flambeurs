@@ -206,10 +206,10 @@
       for (st = 0; st < n; st++) {
         for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) {
           id = j * SN + i; avg = (simH[id - 1] + simH[id + 1] + simH[id - SN] + simH[id + SN]) * 0.25;
-          simV[id] = (simV[id] + (avg - simH[id]) * 0.16) * 0.992 * simW[id];
+          simV[id] = (simV[id] + (avg - simH[id]) * 0.05) * 0.985 * simW[id];
         }
         for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) { id = j * SN + i; simH[id] += simV[id]; }
-        for (var k = 0; k < 2; k++) { a = Math.random() * TAU; r = 1.02 + Math.random() * 0.12; simSplat(Math.cos(a) * r, Math.sin(a) * r, (Math.random() < 0.5 ? -1 : 1) * 0.6); }
+        if (Math.random() < 0.015) { a = Math.random() * TAU; r = 0.6 + Math.random() * 0.15; simSplat(Math.cos(a) * r, Math.sin(a) * r, -0.3); }
       }
       for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) {
         id = j * SN + i;
@@ -221,9 +221,9 @@
     }
     var WATER_VS = 'varying vec3 vW; varying vec2 vUv; void main() { vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }';
     var WATER_HGT = [
-      'float hgt(vec2 p) { float t = uT; vec2 q = p + 0.10 * vec2(sin(p.y * 2.3 + t * 0.5), cos(p.x * 2.1 - t * 0.45));',
+      'float hgt(vec2 p) { float t = uT * 0.3; vec2 q = p + 0.10 * vec2(sin(p.y * 2.3 + t * 0.5), cos(p.x * 2.1 - t * 0.45));',
       '  return sin(q.x * 5.0 + t * 1.1) * 0.30 + sin(q.y * 6.1 - t * 0.9) * 0.28 + sin((q.x + q.y) * 9.0 + t * 1.5) * 0.16 + sin((q.x - q.y) * 13.0 - t * 1.4) * 0.10 + sin(length(p) * 11.0 - t * 1.6) * 0.10; }',
-      'float hgt2(vec2 p) { float t = uT; return sin(p.x * 31.0 + t * 2.1 + sin(p.y * 17.0)) + sin(p.y * 37.0 - t * 1.9 + sin(p.x * 23.0)) + sin((p.x + p.y) * 47.0 + t * 2.7); }'].join(' ');
+      'float hgt2(vec2 p) { float t = uT * 0.3; return sin(p.x * 31.0 + t * 2.1 + sin(p.y * 17.0)) + sin(p.y * 37.0 - t * 1.9 + sin(p.x * 23.0)) + sin((p.x + p.y) * 47.0 + t * 2.7); }'].join(' ');
     // eau « mer claire » : on voit le fond à travers (plus ou moins selon la profondeur), l'eau prend une teinte turquoise qui s'assombrit au centre,
     // le fond reçoit des réseaux de lumière (caustiques) déformés par les vagues, la surface reflète le plafond et scintille au soleil
     var WATER_FS = [
@@ -233,7 +233,7 @@
       '  vec2 p = vW.xz; float e = 0.02;',
       '  float dx = (hgt(p + vec2(e, 0.0)) - hgt(p - vec2(e, 0.0))) / (2.0 * e), dz = (hgt(p + vec2(0.0, e)) - hgt(p - vec2(0.0, e))) / (2.0 * e);',
       '  vec2 sg = (texture2D(uSim, vUv).rg - 0.5) * 2.0 * uSimK;',
-      '  vec3 n = normalize(vec3(-dx * 0.04 - sg.x * 1.6, 1.0, -dz * 0.04 + sg.y * 1.6));',
+      '  vec3 n = normalize(vec3(-dx * 0.04 - sg.x * 1.0, 1.0, -dz * 0.04 + sg.y * 1.0));',
       '  float gx = (hgt2(p + vec2(0.01, 0.0)) - hgt2(p - vec2(0.01, 0.0))) / 0.02, gz = (hgt2(p + vec2(0.0, 0.01)) - hgt2(p - vec2(0.0, 0.01))) / 0.02;',
       '  vec3 n2 = normalize(vec3(n.x - gx * 0.003, 1.0, n.z - gz * 0.003));',
       '  vec3 v = normalize(cameraPosition - vW);',
@@ -244,7 +244,7 @@
       '  float deep = smoothstep(1.0, 0.1, rr);',
       '  vec3 tint = mix(vec3(0.03, 0.55, 0.62), vec3(0.0, 0.24, 0.40), deep);',
       '  float a = 1.0 - exp(-uK * mix(0.2, 0.6, deep));',
-      '  vec3 L0 = normalize(vec3(0.35, 1.0, 0.45)); vec3 col = mix(tint * (0.75 + 3.0 * (dot(n, L0) - dot(vec3(0.0, 1.0, 0.0), L0))), sky, fres);',
+      '  vec3 L0 = normalize(vec3(0.35, 1.0, 0.45)); vec3 col = mix(tint * (0.75 + 1.2 * (dot(n, L0) - dot(vec3(0.0, 1.0, 0.0), L0))), sky, fres);',
       '  a = clamp(a + fres * (1.0 - a), 0.0, 1.0);',
       '  vec3 L = normalize(vec3(0.35, 1.0, 0.45));',
       '  col += vec3(1.0, 0.97, 0.9) * pow(max(dot(reflect(-L, n2), v), 0.0), 300.0) * 3.0;',
@@ -256,8 +256,8 @@
       WATER_HGT,
       'void main() {',
       '  vec2 p = vW.xz; vec2 q = p + vec2(hgt(p), hgt(p * 1.3 + 4.0)) * 0.05 + (texture2D(uSim, vUv).rg - 0.5) * vec2(0.5, -0.5);',
-      '  float c1 = 1.0 - abs(sin(q.x * 5.0 + sin(q.y * 3.4 + uT * 0.6)) * sin(q.y * 5.0 + sin(q.x * 2.9 - uT * 0.5)));',
-      '  float c2 = 1.0 - abs(sin(q.x * 8.0 - uT * 0.4 + sin(q.y * 5.0)) * sin(q.y * 8.0 + uT * 0.5));',
+      '  float c1 = 1.0 - abs(sin(q.x * 5.0 + sin(q.y * 3.4 + uT * 0.2)) * sin(q.y * 5.0 + sin(q.x * 2.9 - uT * 0.15)));',
+      '  float c2 = 1.0 - abs(sin(q.x * 8.0 - uT * 0.12 + sin(q.y * 5.0)) * sin(q.y * 8.0 + uT * 0.15));',
       '  float cc = pow(c1, 6.0) * 0.8 + pow(c2, 8.0) * 0.5;',
       '  vec3 sand = vec3(0.80, 0.74, 0.60) * (0.9 + 0.1 * sin(p.x * 23.0) * sin(p.y * 19.0));',
       '  gl_FragColor = vec4(sand * vec3(0.12, 0.30, 0.36) + vec3(0.4, 0.9, 1.0) * cc * 0.9, 1.0);',
@@ -269,7 +269,7 @@
     bed.rotation.x = -Math.PI / 2; bed.position.y = 0.42; g.add(bed);
     var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 64), waterMat(1.66, 2.2, 1));
     water.rotation.x = -Math.PI / 2; water.position.y = 0.62; g.add(water);   // 2 cm au-dessus du rebord de marbre : plus aucune surface au même niveau
-    // fontaine à trois étages : colonne tournée en marbre, deux vasques, rideaux d'eau qui tombent d'une vasque à l'autre, jets et gouttes
+    // fontaine à trois étages : colonne tournée en marbre, deux vasques, 
     var marbleD = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.25, metalness: 0.1, side: THREE.DoubleSide });
     function lathe(pts, mat) {
       var m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 40), mat); g.add(m); return m;
@@ -284,20 +284,6 @@
     [[0.84, 1.72, 1.4], [0.38, 2.14, 1.4]].forEach(function (v) {
       var w2 = new THREE.Mesh(new THREE.CircleGeometry(v[0], 40), waterMat(v[0], v[2], 0)); w2.rotation.x = -Math.PI / 2; w2.position.y = v[1]; g.add(w2);
     });
-    var fc2 = mkCanvas(64, 128), fx2 = fc2.getContext('2d'), fi;
-    fx2.clearRect(0, 0, 64, 128);
-    for (fi = 0; fi < 20; fi++) {
-      var fxp = Math.random() * 64, fg = fx2.createLinearGradient(0, 0, 0, 128);
-      fg.addColorStop(0, 'rgba(255,255,255,0)'); fg.addColorStop(0.3, 'rgba(255,255,255,' + (0.4 + Math.random() * 0.6) + ')'); fg.addColorStop(1, 'rgba(255,255,255,0)');
-      fx2.fillStyle = fg; fx2.fillRect(fxp, 0, 1 + Math.random() * 2.5, 128);
-    }
-    var falls = [];
-    function fall(rTop, rBot, yTop, yBot, op) {          // rideau d'eau : cylindre ouvert, rayures qui défilent vers le bas
-      var tx = new THREE.CanvasTexture(fc2); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(Math.round(rTop * 9), 1);
-      var m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, yTop - yBot, 40, 1, true), new THREE.MeshBasicMaterial({ map: tx, color: 0xcdeeff, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-      m.position.y = (yTop + yBot) / 2; g.add(m); falls.push(tx);
-    }
-    fall(0.5, 0.56, 2.2, 1.74, 0.4); fall(1.0, 1.12, 1.8, 0.64, 0.34);
     if (!low) { var fl = new THREE.PointLight(0x58c8ff, 0.7, 7); fl.position.set(0, 1.1, 0); g.add(fl); }
     var arm = new THREE.Group(); arm.position.y = 3.15; g.add(arm);
     var ringMat = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.2, metalness: 0.8, emissive: 0x6a4500 });
@@ -390,7 +376,6 @@
       garlandsUpdate(dt);
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
       hallT += dt; waterT.value = hallT; simStep(dt);
-      falls.forEach(function (tx) { tx.offset.y += dt * 1.1; });
       if (!low) chandeliers.forEach(function (c, ci) {          // les flammes vacillent
         var dm = c.dummy, nf = c.tips.length, i;
         dm.rotation.set(0, 0, 0);
