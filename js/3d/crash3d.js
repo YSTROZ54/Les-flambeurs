@@ -134,9 +134,9 @@
       box(dsk, 1.9, 0.03, 0.03, glowM, 0, 0.06, 0.36);                              // néon au pied du caisson
       box(dsk, 1.6, 0.012, 0.3, new THREE.MeshBasicMaterial({ color: 0x14306e }), 0, 0.875, 0.1);   // zone clavier éclairée
       for (var kx = -3; kx <= 3; kx++) box(dsk, 0.16, 0.012, 0.18, new THREE.MeshBasicMaterial({ color: 0x4aa0ff }), kx * 0.2, 0.882, 0.1);
-      var mon = new THREE.Group(); mon.position.set(0, 0.87, -0.22); mon.rotation.x = -0.25; dsk.add(mon);           // écran bas, penché vers le joueur
-      box(mon, 1.15, 0.5, 0.04, blackM, 0, 0.3, 0);
-      var ms = new THREE.Mesh(new THREE.PlaneGeometry(1.07, 0.42), new THREE.MeshBasicMaterial({ map: consoleTex(k + 1) })); ms.position.set(0, 0.3, 0.022); mon.add(ms);
+      var mon = new THREE.Group(); mon.position.set(0, 0.87, -0.22); mon.rotation.x = -0.25; dsk.add(mon);           // écran bas, penché vers le joueur ; petit, pour ne pas cacher le grand écran et ses « Derniers vols »
+      box(mon, 0.8, 0.35, 0.03, blackM, 0, 0.21, 0);
+      var ms = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.29), new THREE.MeshBasicMaterial({ map: consoleTex(k + 1) })); ms.position.set(0, 0.21, 0.017); mon.add(ms);
       box(mon, 0.12, 0.1, 0.1, chromeM, 0, 0.03, -0.02);
       room.colliders.push({ x: sx0, z: dz, r: 0.95 });
       var seatZ = dz + 1.25, s = { n: k, x: sx0, z: seatZ, yaw: 0, tx: sx0, tz: dz, sx: sx0, sz: seatZ + 1.1 };
@@ -178,14 +178,15 @@
     /* --- interface --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, msg = '', msgCol = '', busy = false, ejecting = false;
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
-    function setMsg(t, c) { msg = t || ''; msgCol = c || ''; if (ui) { var m = ui.el.querySelector('.cr-msg'); m.textContent = msg; m.style.color = msgCol; } }
+    function setText(el, t) { if (el && el.textContent !== t) el.textContent = t; }   // ne touche au texte que s'il change : sinon l'émoji 🪙 clignote (rafraîchi ~12x/s en vol)
+    function setMsg(t, c) { msg = t || ''; msgCol = c || ''; if (ui) { var m = ui.el.querySelector('.cr-msg'); setText(m, msg); m.style.color = msgCol; } }
     function refreshUi() {
       if (!ui || !seat) return;
       var q = function (s) { return ui.el.querySelector(s); }, mb = myBet(), pre = S.status === 'waiting' || S.status === 'countdown', flying = S.status === 'flying';
-      q('.cr-bal b').textContent = fmtN(balance()) + ' 🪙'; q('.cr-bet b').textContent = mb ? fmtN(mb.bet) + ' 🪙 misés' + (mb.cashedOut ? ' · encaissé x' + mb.cashMult : '') : fmtN(bet) + ' 🪙';
+      setText(q('.cr-bal b'), fmtN(balance()) + ' 🪙'); setText(q('.cr-bet b'), mb ? fmtN(mb.bet) + ' 🪙 misés' + (mb.cashedOut ? ' · encaissé x' + mb.cashMult : '') : fmtN(bet) + ' 🪙');
       q('.cr-chips').style.display = pre && !mb ? '' : 'none'; q('[data-a=bet]').style.display = pre && !mb ? '' : 'none';
       q('[data-a=cancel]').style.display = pre && mb ? '' : 'none';
-      var eb = q('[data-a=eject]'); eb.style.display = flying && mb && !mb.cashedOut ? '' : 'none'; if (mb) eb.textContent = 'S\'ÉJECTER (+' + fmtN(Math.floor(mb.bet * multNow())) + ' 🪙)';
+      var eb = q('[data-a=eject]'); eb.style.display = flying && mb && !mb.cashedOut ? '' : 'none'; if (mb) setText(eb, 'S\'ÉJECTER (+' + fmtN(Math.floor(mb.bet * multNow())) + ' 🪙)');
     }
     function injectCss() {
       if (document.getElementById('cr3d-css')) return;
