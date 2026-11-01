@@ -6,8 +6,12 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'musique');
-// dossier -> salle du casino 3D (le cinéma garde sa propre musique)
-const SALLES = { 'hall': 'hall', 'machines-a-sous': 'slots', 'poker': 'pokerroom', 'courses': 'horses', 'tropi-shop': 'shop3d', 'pmu': 'pmu' };
+// dossier -> salle du casino 3D (cinema est joué par cinema3d.js, qui le coupe pendant le film)
+const SALLES = {
+  'hall': 'hall', 'machines-a-sous': 'slots', 'poker': 'pokerroom', 'courses': 'horses', 'tropi-shop': 'shop3d', 'pmu': 'pmu',
+  'blackjack': 'blackjack', 'blind-test': 'blindtest', 'crash': 'crash', 'gobelets': 'cups', 'mini-jeux': 'uno', 'loup-garou': 'loupgarou',
+  'cinema': 'cinema'
+};
 const EXT = /\.(mp3|ogg|m4a|wav)$/i;
 
 const liste = {};

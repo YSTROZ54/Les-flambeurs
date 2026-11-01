@@ -8,7 +8,7 @@
      garde le HUD du joueur (barre du bas, téléphone, emotes). Les autres joueurs nous voient assis (canal temps réel du monde).
    - Le film est la présentation Premium de Tropi Stream (video/tropistream-presentation.mp4, 58 s). Chacun la lance pour soi :
      bouton « Lancer la séance », clic sur l'écran ou touche P. Pendant la séance les lumières baissent et la musique se tait.
-   - La musique de fond est fabriquée à la volée (WebAudio, un petit air de jazz lent qui boucle) : aucun fichier son à charger.
+   - La musique de fond : les morceaux de assets/musique/cinema/ (playlist.json) ; sans fichier, un petit air de jazz lent fabriqué à la volée (WebAudio).
      Elle démarre à l'arrivée, se coupe avec le bouton « Musique » (choix gardé d'une visite à l'autre) et quitte la salle avec nous.
    Fichiers liés : f3d-core.js, world3d.js, hall3d.js (la porte), video/tropistream-presentation.mp4.
    ===================================================================== */
@@ -54,8 +54,27 @@
 
   function createMusic() {
     var AC = window.AudioContext || window.webkitAudioContext;
-    var m = { ctx: null, master: null, dry: null, wet: null, noise: null, timer: 0, nextT: 0, step: 0, level: 1, on: true, up: false, lastTarget: -1 };
+    var m = { ctx: null, master: null, dry: null, wet: null, noise: null, timer: 0, nextT: 0, step: 0, level: 1, on: true, up: false, lastTarget: -1, files: null, el: null, lastFile: '' };
     try { if (localStorage.getItem(MUSIC_KEY) === '0') m.on = false; } catch (e) { /* stockage bloqué : musique activée */ }
+
+    // vrais morceaux : assets/musique/cinema/ (playlist.json) ; sans fichier, l'air de jazz synthétisé ci-dessous
+    if (F.audio && F.audio.withPlaylist) F.audio.withPlaylist(function (pl) {
+      m.files = pl.cinema && pl.cinema.length ? pl.cinema : null;
+      if (m.files && m.ctx && !m.el) { clearInterval(m.timer); m.timer = 0; playFile(); }
+    });
+    function playFile() {
+      var c = m.ctx, list = m.files, pick = list[0];
+      if (list.length > 1) { do { pick = list[(Math.random() * list.length) | 0]; } while (pick === m.lastFile); }
+      m.lastFile = pick;
+      var el = new Audio(), g;
+      el.src = 'assets/musique/' + pick;
+      try { var src = c.createMediaElementSource(el); g = c.createGain(); g.gain.value = 0.4; src.connect(g); g.connect(m.master); }   // les vrais morceaux sont mixés bien plus fort que l'air synthétisé
+      catch (e) { return; }
+      m.el = el;
+      el.addEventListener('ended', function () { if (m.el === el && m.ctx === c) playFile(); });
+      var pr = el.play(); if (pr && pr.catch) pr.catch(function () { /* lecture refusée : silence */ });
+    }
+    function dropFile(el) { if (!el) return; try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) { /* ok */ } }
 
     function build() {
       if (!AC || !(navigator.userActivation && navigator.userActivation.hasBeenActive)) return false;   // le navigateur exige un geste avant tout son
@@ -130,14 +149,16 @@
       var c = m.ctx; if (!c) return;
       m.ctx = null; m.lastTarget = -1;
       try { m.master.gain.setTargetAtTime(0, c.currentTime, 0.15); } catch (e) { /* déjà fermé */ }
-      setTimeout(function () { try { c.close(); } catch (e) { /* déjà fermé */ } }, 900);
+      var el = m.el; m.el = null;
+      setTimeout(function () { dropFile(el); try { c.close(); } catch (e) { /* déjà fermé */ } }, 900);
     }
     m.start = function () {
       m.up = true;
       if (!m.on) return false;
       if (!m.ctx && !build()) return false;
       if (m.ctx.state === 'suspended') m.ctx.resume();
-      if (!m.timer) { m.nextT = m.ctx.currentTime + 0.15; m.step = 0; m.timer = setInterval(tick, 120); }
+      if (m.files) { if (!m.el) playFile(); }
+      else if (!m.timer) { m.nextT = m.ctx.currentTime + 0.15; m.step = 0; m.timer = setInterval(tick, 120); }
       m.setLevel(m.level);
       return true;
     };

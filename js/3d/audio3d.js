@@ -1,9 +1,10 @@
 /* =====================================================================
-   audio3d.js — Sons du casino 3D : bruits de pas et musique d'ambiance différente dans chaque salle (tout est synthétisé, aucun fichier audio)
+   audio3d.js — Sons du casino 3D : bruits de pas et musique d'ambiance différente dans chaque salle
    ---------------------------------------------------------------------
-   - F.audio.step(courir, salle) : un bruit de pas (marbre, moquette ou parquet selon la salle) ; F.audio.land() : réception d'un saut.
+   - F.audio.step(courir, salle) : un bruit de pas tiré de assets/sons/walking.mp3 ou running.mp3, étouffé selon le sol (synthétisé tant qu'ils chargent) ;
+     F.audio.land() : réception d'un saut.
    - F.audio.setRoom(id) : lance la musique de la salle (hall, machines, poker, courses, Tropi Shop, PMU) avec un fondu ; '' l'arrête.
-     Le cinéma garde sa propre musique (cinema3d.js) : ici il n'y en a pas.
+     Vrais morceaux dans assets/musique/<salle>/ (playlist.json) ; le cinéma joue les siens lui-même (cinema3d.js).
    - Réglages (téléphone › Réglages) : volume de la musique et des bruitages, en plus du volume général du jeu (getMasterVolume) ; gardés pour la prochaine visite.
    Utilise le contexte audio du jeu (getAudioCtx) : le navigateur n'autorise le son qu'après un clic ou une touche, la musique démarre à ce moment-là.
    ===================================================================== */
@@ -35,6 +36,7 @@
     conv.buffer = imp; bus.stepRev.gain.value = 0; bus.stepIn.connect(bus.sfx); bus.stepIn.connect(bus.stepRev); bus.stepRev.connect(conv); conv.connect(bus.sfx);
     var nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     noiseBuf = nb;
+    loadSteps(c);                                                  // vrais bruits de pas (plus bas)
     return bus;
   }
   // volumes : appliqués en douceur (la musique est volontairement discrète)
@@ -86,18 +88,58 @@
     noise(dst, t, h.dur * dk, { type: 'bandpass', f: h.f0 * r, fTo: h.f1 * r, q: h.q, v: h.v * k, a: 0.002, pan: pan });
     tone(dst, h.th * r, t, h.dur * 1.7 * dk, { to: h.th * r * 0.55, v: h.tv * k, a: 0.002 });
   }
+  /* ---------- vrais pas : assets/sons/walking.mp3 et running.mp3, deux enregistrements d'une série de pas ----------
+     Au chargement, on repère le début de chaque pas (la bande remonte après un silence) ; à chaque foulée on en joue un au hasard
+     (jamais le même deux fois de suite), étouffé sur la moquette. Tant qu'ils ne sont pas chargés, les pas synthétisés ci-dessus servent. */
+  var STEP_FILES = { walk: { src: 'assets/sons/walking.mp3', gap: 0.35, len: 0.4, v: 1.1 }, run: { src: 'assets/sons/running.mp3', gap: 0.2, len: 0.26, v: 1 } };
+  var MUFFLE = { marble: 0, wood: 6000, carpet: 2600 };            // filtre passe-bas selon le sol (0 : son brut)
+  var stepsAsked = false;
+  function findSteps(buf, gap) {                                   // débuts de pas : enveloppe par fenêtres de 5 ms, seuil à 25 % du plus fort
+    var d = buf.getChannelData(0), w = Math.floor(buf.sampleRate * 0.005), env = [], peak = 0, i, j;
+    for (i = 0; i + w <= d.length; i += w) { var m = 0; for (j = i; j < i + w; j++) { var a = Math.abs(d[j]); if (a > m) m = a; } env.push(m); if (m > peak) peak = m; }
+    var th = peak * 0.25, out = [], last = -1;
+    for (i = 1; i < env.length; i++) { var t = i * 0.005; if (env[i] >= th && env[i - 1] < th && (last < 0 || t - last >= gap)) { out.push(Math.max(0, t - 0.012)); last = t; } }
+    return out;
+  }
+  function loadSteps(c) {
+    if (stepsAsked) return; stepsAsked = true;
+    Object.keys(STEP_FILES).forEach(function (k) {
+      var S = STEP_FILES[k];
+      fetch(S.src).then(function (r) { return r.ok ? r.arrayBuffer() : Promise.reject(); })
+        .then(function (ab) { return new Promise(function (ok, ko) { c.decodeAudioData(ab, ok, ko); }); })
+        .then(function (buf) { var on = findSteps(buf, S.gap); if (on.length) { S.buf = buf; S.on = on; } }, function () { /* fichier absent : pas synthétisés */ });
+    });
+  }
+  function playStep(b, S, t, vol, pan, sol) {
+    var i = (Math.random() * S.on.length) | 0;
+    if (S.on.length > 1 && i === S.last) i = (i + 1) % S.on.length;
+    S.last = i;
+    var c = b.c, src = c.createBufferSource(), g = c.createGain(), node = src, start = S.on[i];
+    var len = Math.min(S.len, (S.on[i + 1] || S.buf.duration) - start);
+    src.buffer = S.buf; src.playbackRate.value = 0.94 + Math.random() * 0.12;
+    if (MUFFLE[sol]) { var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = MUFFLE[sol]; src.connect(lp); node = lp; }
+    g.gain.setValueAtTime(vol, t); g.gain.setValueAtTime(vol, t + len * 0.7); g.gain.linearRampToValueAtTime(0.0001, t + len);
+    node.connect(g);
+    if (pan && c.createStereoPanner) { var p = c.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(b.stepIn); } else g.connect(b.stepIn);
+    src.start(t, start, len + 0.02);
+  }
+
   var foot = 0;
   A.step = function (run, room) {
     var b = getBus(); if (!b || b.c.state !== 'running') return;
-    var sol = SOLS[SURFACE[room] || 'carpet'], t = b.c.currentTime + 0.005, k = (run ? 1.3 : 1) * (0.85 + Math.random() * 0.25), r = 0.93 + Math.random() * 0.14, dk = run ? 0.8 : 1, pan = (foot++ % 2 ? 1 : -1) * 0.14;
+    var solName = SURFACE[room] || 'carpet', sol = SOLS[solName], t = b.c.currentTime + 0.005, k = (run ? 1.3 : 1) * (0.85 + Math.random() * 0.25), r = 0.93 + Math.random() * 0.14, dk = run ? 0.8 : 1, pan = (foot++ % 2 ? 1 : -1) * 0.14;
     b.stepRev.gain.value = sol.rev;
+    var S = STEP_FILES[run ? 'run' : 'walk'];
+    if (S.buf) { playStep(b, S, t, S.v * (0.85 + Math.random() * 0.2), pan, solName); return; }
     foot1(b.stepIn, t, sol.heel, k, r, dk, pan);
     foot1(b.stepIn, t + sol.gap * (run ? 0.7 : 1), sol.toe, k * 0.9, r * 1.05, dk, pan);
   };
   A.land = function () {
     var b = getBus(); if (!b || b.c.state !== 'running') return;
-    var sol = SOLS[SURFACE[A.room] || 'carpet'], t = b.c.currentTime + 0.005;
+    var solName = SURFACE[A.room] || 'carpet', sol = SOLS[solName], t = b.c.currentTime + 0.005;
     b.stepRev.gain.value = sol.rev;
+    var S = STEP_FILES.run;
+    if (S.buf) { playStep(b, S, t, S.v * 1.5, 0, solName); return; }
     foot1(b.stepIn, t, sol.heel, 1.5, 0.85, 1.2, -0.1); foot1(b.stepIn, t + 0.012, sol.heel, 1.4, 0.8, 1.2, 0.1);
   };
 
@@ -242,5 +284,6 @@
     if (!id || id === 'cinema') { stopSong(); return; }
     start(id);
   };
+  A.withPlaylist = function (fn) { withPlaylist(function () { fn(PL || {}); }); };   // pour le cinéma, qui joue sa musique lui-même
   A.hasFiles = function () { return !!PL && Object.keys(PL).some(function (k) { return PL[k] && PL[k].length; }); };
 })();

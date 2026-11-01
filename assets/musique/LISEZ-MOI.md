@@ -11,8 +11,15 @@ Un dossier par salle. Dépose-y **plusieurs** fichiers (.mp3, .ogg, .m4a ou .wav
 | `courses/` | Courses de chevaux | fanfare, orchestral dynamique, épique |
 | `tropi-shop/` | Tropi Shop | bossa nova, acoustique, chill |
 | `pmu/` | PMU | folk joyeux, marimba, café |
+| `blackjack/` | Blackjack | jazz chic, swing, piano |
+| `blind-test/` | Blind test | attention : les extraits du quiz passent par-dessus |
+| `crash/` | Crash (fusée) | électro tendue, synthwave |
+| `gobelets/` | Gobelets | jazz manouche, cabaret |
+| `mini-jeux/` | Mini jeux (UNO, Puissance 4) | pop légère, chiptune |
+| `loup-garou/` | Loup-garou | ambiance sombre, cordes, mystère |
+| `cinema/` | Cinéma | bande-annonce, orchestral (se tait pendant le film) |
 
-Le cinéma garde sa propre musique.
+Sans fichier, le hall, les machines, le poker, les courses, le Tropi Shop, le PMU et le cinéma jouent une musique synthétisée ; les autres salles restent silencieuses.
 
 Ensuite, depuis le dossier du projet :
 
@@ -21,7 +28,6 @@ npm run playlist
 ```
 
 Cela écrit `playlist.json` (la liste des titres). Envoie le dossier `assets/musique/` (fichiers + `playlist.json`) sur l'hébergeur.
-Tant qu'une salle n'a aucun fichier, le jeu joue sa musique synthétisée de secours.
 
 ## Où trouver des musiques
 
