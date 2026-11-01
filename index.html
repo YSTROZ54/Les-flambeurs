@@ -4450,7 +4450,36 @@
       } catch (e) { }
     }
 
+    /* ================= DEMANDES D'AMI TRAITÉES (ANTI-RETOUR) ================= */
+    // Une synchro lancée avant le clic relit l'ancienne copie du compte (demande encore là) puis la renvoie au serveur :
+    // on retient les demandes acceptées / refusées et l'heure de la dernière action pour ne plus les faire revenir.
+    const STORAGE_KEY_HANDLED_FREQS = 'flambeurs_handled_freqs';
+    let lastFriendActionAt = 0;
+    function friendReqKey(req) {
+      return (req.id || ('from_' + (req.from || '') + '_' + (req.timestamp || 0))).toLowerCase().trim();
+    }
+    function isFriendReqHandled(req) {
+      if (!req) return true;
+      try {
+        const map = JSON.parse(localStorage.getItem(STORAGE_KEY_HANDLED_FREQS) || '{}');
+        return Boolean(map[friendReqKey(req)]);
+      } catch (e) { return false; }
+    }
+    // senderKey = null : toutes les demandes de la liste
+    function forgetFriendRequestsFrom(list, senderKey) {
+      lastFriendActionAt = Date.now();
+      try {
+        const map = JSON.parse(localStorage.getItem(STORAGE_KEY_HANDLED_FREQS) || '{}');
+        (Array.isArray(list) ? list : []).forEach(r => {
+          if (r && (senderKey === null || (r.from || '').toLowerCase().trim() === senderKey)) map[friendReqKey(r)] = lastFriendActionAt;
+        });
+        const kept = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 200);
+        localStorage.setItem(STORAGE_KEY_HANDLED_FREQS, JSON.stringify(Object.fromEntries(kept)));
+      } catch (e) { }
+    }
+
     async function syncRemoteAccounts() {
+      const syncStartedAt = Date.now();
       try { processExpiredBankDonations(); } catch (e) { }
       const db = getAccountsDB();
       let changed = false;
@@ -4653,19 +4682,23 @@
 
           const newTransfers = Array.isArray(state.pendingTransfers) ? state.pendingTransfers : [];
 
-          // Déduplication stricte des demandes d'amis (exclure ceux déjà amis)
+          // Amis accepté / refusé / ajouté / retiré pendant cette synchro : la copie lue est périmée, on garde la locale
+          const friendsStale = lastFriendActionAt >= syncStartedAt;
+
+          // Déduplication stricte des demandes d'amis (exclure ceux déjà amis et celles déjà traitées)
           const friendsSet = new Set((myAcc.friends || []).map(f => (f || '').toLowerCase().trim()));
           const uniqueFriendReqs = [];
           const seenFriendFroms = new Set();
           (Array.isArray(myAcc.pendingFriendRequests) ? myAcc.pendingFriendRequests : []).forEach(req => {
             if (!req || !req.from) return;
+            if (isFriendReqHandled(req)) return;
             const fk = req.from.toLowerCase().trim();
             if (!friendsSet.has(fk) && !seenFriendFroms.has(fk)) {
               seenFriendFroms.add(fk);
               uniqueFriendReqs.push(req);
             }
           });
-          const newFriendReqs = uniqueFriendReqs;
+          const newFriendReqs = friendsStale ? (state.pendingFriendRequests || []) : uniqueFriendReqs;
 
           // Déduplication absolue et expiration des invitations de jeu (TTL 2 minutes max, 1 seule notif par expéditeur)
           const nowTs = Date.now();
@@ -4693,7 +4726,7 @@
           });
           const newGameInvs = uniqueGameInvs;
 
-          const newFriends = Array.isArray(myAcc.friends) ? myAcc.friends : [];
+          const newFriends = friendsStale ? (state.friends || []) : (Array.isArray(myAcc.friends) ? myAcc.friends : []);
           const remoteBankTransfers = [];  // l'historique des virements vient directement du serveur (refreshBankState)
 
           // Synchroniser les statuts des virements bancaires ('Accepté', 'Refusé', 'Expiré')
@@ -4729,7 +4762,7 @@
 
           const newOutgoing = Array.isArray(myAcc.outgoingFriendRequests) ? myAcc.outgoingFriendRequests : [];
           const confirmedFriendsSet = new Set((newFriends || []).map(f => (f || '').toLowerCase().trim()));
-          const cleanedOutgoing = newOutgoing.filter(r => r && r.to && !confirmedFriendsSet.has(r.to.toLowerCase().trim()));
+          const cleanedOutgoing = friendsStale ? (state.outgoingFriendRequests || []) : newOutgoing.filter(r => r && r.to && !confirmedFriendsSet.has(r.to.toLowerCase().trim()));
           const hasOutgoingDiff = JSON.stringify(state.outgoingFriendRequests || []) !== JSON.stringify(cleanedOutgoing);
 
           const hasTransfersDiff = JSON.stringify(state.pendingTransfers || []) !== JSON.stringify(newTransfers);
@@ -6516,6 +6549,7 @@
       const fKey = friendName.toLowerCase().trim();
       const meKey = (state.username || '').toLowerCase().trim();
 
+      forgetFriendRequestsFrom(list, fKey);
       state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== fKey);
       if (Array.isArray(state.outgoingFriendRequests)) {
         state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== fKey);
@@ -6563,6 +6597,7 @@
       const fKey = (cur.from || '').toLowerCase().trim();
       const meKey = (state.username || '').toLowerCase().trim();
 
+      forgetFriendRequestsFrom(list, fKey);
       state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== fKey);
       document.getElementById('friendRequestNotification')?.classList.add('hidden');
 
@@ -9216,6 +9251,7 @@
       const sKey = String(senderName).toLowerCase().trim();
       const meKey = (state.username || '').toLowerCase().trim();
 
+      forgetFriendRequestsFrom(list, sKey);
       state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== sKey);
       if (Array.isArray(state.outgoingFriendRequests)) {
         state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== sKey);
@@ -9261,6 +9297,7 @@
       const sKey = String(senderName).toLowerCase().trim();
       const meKey = (state.username || '').toLowerCase().trim();
 
+      forgetFriendRequestsFrom(list, sKey);
       state.pendingFriendRequests = list.filter(r => (r.from || '').toLowerCase().trim() !== sKey);
 
       const db = getAccountsDB();
@@ -9320,6 +9357,7 @@
 
     async function clearAllDismissedNotifs() {
       state.pendingGameInvites = [];
+      forgetFriendRequestsFrom(state.pendingFriendRequests, null);
       state.pendingFriendRequests = [];
       // les virements en attente sont refusés (et remboursés à leurs expéditeurs) par le serveur
       if ((state.pendingTransfers || []).length) {
@@ -9531,6 +9569,7 @@
 
       // Enregistrer dans mes demandes envoyées en attente (PAS dans state.friends !)
       if (!Array.isArray(state.outgoingFriendRequests)) state.outgoingFriendRequests = [];
+      lastFriendActionAt = Date.now();
       state.outgoingFriendRequests = state.outgoingFriendRequests.filter(r => (r.to || '').toLowerCase().trim() !== targetKey);
       state.outgoingFriendRequests.push({
         to: targetAcc.username,
@@ -9703,7 +9742,8 @@
       const meKey = meName.toLowerCase();
 
       // 1. Retirer de mon profil local
-      state.friends = (state.friends || []).filter(f => (f || '').toLowerCase().trim() !== targetKey);
+      lastFriendActionAt = Date.now();
+      state.friends =(state.friends || []).filter(f => (f || '').toLowerCase().trim() !== targetKey);
       if (state.friendBalances) delete state.friendBalances[targetName];
       if (state.friendBalances) delete state.friendBalances[targetKey];
       if (Array.isArray(state.outgoingFriendRequests)) {
