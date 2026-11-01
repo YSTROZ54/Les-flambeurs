@@ -65,7 +65,7 @@
   function cardTex(c) {
     var key = c.r === '?' ? 'back' : c.r + c.s;
     if (texCache[key]) return texCache[key];
-    var cv = mkCanvas(640, 896), x = cv.getContext('2d'); x.scale(4, 4);   // texture 4x plus fine : les cartes se lisent sans les agrandir
+    var CS = F.isMobile() ? 4 : 6, cv = mkCanvas(160 * CS, 224 * CS), x = cv.getContext('2d'); x.scale(CS, CS);   // texture très fine (6x sur PC, 4x sur téléphone) : les cartes se lisent sans les agrandir
     roundRect(x, 3, 3, 154, 218, 14);
     if (key === 'back') {
       var g = x.createLinearGradient(0, 0, 160, 224); g.addColorStop(0, '#7a0f1c'); g.addColorStop(1, '#3d0610'); x.fillStyle = g; x.fill(); x.lineWidth = 6; x.strokeStyle = '#f3cf62'; x.stroke();
@@ -78,7 +78,7 @@
       x.save(); x.translate(129, 188); x.rotate(Math.PI); x.font = '900 52px ' + SERIF; x.fillText(c.r, 0, 0); x.font = '700 42px ' + SERIF; x.fillText(c.s, 0, 42); x.restore();
       x.font = '900 100px ' + SERIF; x.fillText(c.s, 80, 116);
     }
-    var t = mkTex(cv); t.anisotropy = 16; return (texCache[key] = t);
+    var t = new THREE.CanvasTexture(cv); t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 16; return (texCache[key] = t);   // mipmaps : net de loin comme de près, sans scintillement
   }
   var cardGeo = null;
   function makeCard(c) {
@@ -109,7 +109,7 @@
       fx.restore();
     });
     fx.strokeStyle = 'rgba(214,176,70,0.85)'; fx.lineWidth = 5; fx.strokeRect(0, 0, 512, 512); fx.beginPath(); fx.moveTo(256, 0); fx.lineTo(256, 512); fx.moveTo(0, 256); fx.lineTo(512, 256); fx.lineWidth = 3; fx.stroke();
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 3, HZ * 2 / 3); ft.anisotropy = 8;
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 3, HZ * 2 / 3); ft.anisotropy = 16;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.3, metalness: 0.18 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
     // grands tapis ronds bordeaux et or sous chaque table
     var rc = mkCanvas(512, 512), rx = rc.getContext('2d'), rg = rx.createRadialGradient(256, 256, 20, 256, 256, 250);
@@ -126,11 +126,11 @@
       wx.fillStyle = 'rgba(201,162,39,0.38)'; wx.beginPath(); wx.arc(q[0], q[1], 5, 0, TAU); wx.fill();
       [[0, -11], [11, 0], [0, 11], [-11, 0]].forEach(function (o) { wx.beginPath(); wx.arc(q[0] + o[0], q[1] + o[1], 3.2, 0, TAU); wx.fill(); });
     });
-    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
+    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 16;
     var wdc = mkCanvas(256, 256), wdx = wdc.getContext('2d'); wdx.fillStyle = '#2b150d'; wdx.fillRect(0, 0, 256, 256);
     for (i = 0; i < 40; i++) { wdx.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.08) + ')'; wdx.fillRect(Math.random() * 256, 0, 1 + Math.random() * 2, 256); }
     wdx.strokeStyle = 'rgba(201,162,39,0.55)'; wdx.lineWidth = 3; wdx.strokeRect(22, 22, 212, 212); wdx.strokeStyle = 'rgba(0,0,0,0.5)'; wdx.lineWidth = 6; wdx.strokeRect(34, 34, 188, 188);
-    var panelTex = new THREE.CanvasTexture(wdc); panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping; panelTex.anisotropy = 4;
+    var panelTex = new THREE.CanvasTexture(wdc); panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping; panelTex.anisotropy = 16;
     var wood = std(0x2b150d, 0.55, 0.25), gold = std(0xc9a227, 0.35, 0.7);
     // une paroi : le papier peint au-dessus, le lambris en bas (len : longueur, c : centre x/z, ry : orientation)
     function wall(len, px, pz, ry, doorGap) {
@@ -205,7 +205,7 @@
       c.font = '700 38px ' + SERIF; c.fillText('ASSURANCE 2 POUR 1', W / 2, 1.58 * sc, 1.4 * sc);
       c.font = '700 34px ' + SERIF; c.fillStyle = 'rgba(232,196,96,0.65)'; c.fillText('CROUPIER', W / 2, 0.16 * sc, 1.0 * sc);
       c.font = '900 120px ' + SERIF; c.fillStyle = 'rgba(232,196,96,0.18)'; c.fillText('♠', W / 2, 0.98 * sc);
-      var t = new THREE.CanvasTexture(cv); t.flipY = false; t.anisotropy = 8; t.repeat.set(1 / (TABLE_R * 2), 1 / TABLE_R); t.offset.set(0.5, 0); return t;
+      var t = new THREE.CanvasTexture(cv); t.flipY = false; t.anisotropy = 16; t.repeat.set(1 / (TABLE_R * 2), 1 / TABLE_R); t.offset.set(0.5, 0); return t;
     }
     var feltTop = new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
     // fauteuil capitonné : pied doré, assise de velours, dossier enveloppant (le dos est derrière, à -z ; le fauteuil regarde vers +z)
@@ -217,7 +217,7 @@
       var back = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, bh, 28, 1, true, Math.PI - 1.15, 2.3), velvetM); back.position.set(0, by, 0); q.add(back);
       var back2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bh + 0.04, 28, 1, true, Math.PI - 1.17, 2.34), velvetD); back2.position.set(0, by, 0); q.add(back2);
       [-1, 1].forEach(function (sd) { cyl(q, 0.016, 0.016, bh + 0.06, gold, sd * Math.sin(1.15) * 0.3, by, Math.cos(Math.PI - 1.15) * 0.3, 8); });
-      var top = new THREE.Mesh(new THREE.TorusGeometry(0.285, 0.014, 8, 28, 2.3), gold); top.rotation.x = Math.PI / 2; top.rotation.z = Math.PI / 2 + 1.15 - Math.PI; top.position.y = by + bh / 2 + 0.02; q.add(top);
+      var top = new THREE.Mesh(new THREE.TorusGeometry(0.285, 0.014, 8, 28, 2.3), gold); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 1.15; top.position.y = by + bh / 2 + 0.02; q.add(top);
       return q;
     }
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }

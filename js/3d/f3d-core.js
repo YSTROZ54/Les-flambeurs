@@ -93,7 +93,7 @@
   Q.start = function (low) { Q.level = Q.mode === 'high' ? 0 : Q.mode === 'medium' ? 1 : Q.mode === 'low' ? 3 : (low ? 1 : 0); };
   Q.pixelRatio = function () {
     var d = window.devicePixelRatio || 1;
-    return [Math.min(d, 2), Math.min(d, 1.5), 1, 0.75][Q.level];
+    return [Math.min(Math.max(d, 1.5), 2), Math.min(d, 1.5), 1, 0.75][Q.level];   // niveau 0 : sur-échantillonné (net même sur un écran normal), l'Auto redescend si ça rame
   };
   Q.cycle = function () {
     var order = ['auto', 'high', 'medium', 'low'];

@@ -377,12 +377,12 @@
     [-1.2, -0.4, 0.4, 1.2].forEach(function (sx) {
       var stool = F.makeStool(0x6a1226); stool.position.set(sx, 0, -0.95); barG.add(stool);
     });
-    var mirror = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x2a1c12 })); mirror.position.set(0, 1.9, 1.17); mirror.rotation.y = Math.PI; barG.add(mirror);
+    var mirror = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.6), new THREE.MeshBasicMaterial({ color: 0x2a1c12 })); mirror.position.set(0, 1.9, 1.45); mirror.rotation.y = Math.PI; barG.add(mirror);
     [1.35, 1.9].forEach(function (sy) {
-      box(3.4, 0.04, 0.22, 0, sy, 1.06, goldM, barG);
+      box(3.4, 0.04, 0.22, 0, sy, 1.34, goldM, barG);
       for (var bt = 0; bt < 11; bt++) {
         var bcol = [0x2c8a4a, 0xc8412b, 0xe9c65a, 0x3a8dff, 0xb04bd0][(bt + (sy > 1.5 ? 2 : 0)) % 5];
-        var bot = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.28, 8), new THREE.MeshBasicMaterial({ color: bcol })); bot.position.set(-1.5 + bt * 0.3, sy + 0.16, 1.06); barG.add(bot);
+        var bot = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.28, 8), new THREE.MeshBasicMaterial({ color: bcol })); bot.position.set(-1.5 + bt * 0.3, sy + 0.16, 1.34); barG.add(bot);
       }
     });
     room.colliders.push({ x: -6.4, z: HZ - 1.5, r: 0.9 }, { x: -5.2, z: HZ - 1.5, r: 0.9 }, { x: -4.0, z: HZ - 1.5, r: 0.9 });
