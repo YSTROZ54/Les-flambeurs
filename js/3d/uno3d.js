@@ -68,31 +68,6 @@
     [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0],
       [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0608 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
-    // frise de rectangles de couleur UNO sous le plafond, tout autour de la salle
-    var friezeM = COLORS.map(function (col) { return new THREE.MeshBasicMaterial({ color: new THREE.Color(col) }); });
-    for (i = 0; i < 24; i++) { box(g, 1.1, 0.16, 0.06, friezeM[i % 4], -HX + 0.6 + i * 1.25, H - 0.45, -HZ + 0.04); }
-    for (i = 0; i < 24; i++) { if (Math.abs(-HX + 0.6 + i * 1.25) > DG + 0.6) box(g, 1.1, 0.16, 0.06, friezeM[(i + 2) % 4], -HX + 0.6 + i * 1.25, H - 0.45, HZ - 0.04); }
-    for (i = 0; i < 16; i++) { box(g, 0.06, 0.16, 1.1, friezeM[i % 4], -HX + 0.04, H - 0.45, -HZ + 0.6 + i * 1.3); box(g, 0.06, 0.16, 1.1, friezeM[(i + 1) % 4], HX - 0.04, H - 0.45, -HZ + 0.6 + i * 1.3); }
-
-    /* --- enseignes du mur du fond --- */
-    var sc0 = mkCanvas(1024, 256), sx = sc0.getContext('2d'); sx.fillStyle = '#0d0508'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#ffe08a'; sx.lineWidth = 10; sx.strokeRect(10, 10, 1004, 236);
-    sx.shadowColor = '#ffb347'; sx.shadowBlur = 26; sx.fillStyle = '#ffe9b0'; sx.font = '900 112px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('MINI JEUX', 512, 134, 540); sx.shadowBlur = 0;
-    sx.save(); sx.translate(120, 128); sx.rotate(-0.25); sx.fillStyle = '#d6221e'; rr(sx, -56, -84, 112, 168, 14); sx.fill(); sx.fillStyle = '#fff'; sx.beginPath(); sx.ellipse(0, 0, 36, 66, 0.55, 0, TAU); sx.fill(); sx.restore();
-    sx.fillStyle = '#4a57d6'; rr(sx, 800, 48, 168, 160, 14); sx.fill(); for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) { sx.fillStyle = (i + j) % 3 === 0 ? '#d02a2a' : (i + j) % 3 === 1 ? '#f0cc1a' : '#e8eaff'; sx.beginPath(); sx.arc(826 + j * 38, 74 + i * 38, 13, 0, TAU); sx.fill(); }
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: mkTex(sc0) })); sign.position.set(0, 3.9, -HZ + 0.07); g.add(sign);
-    var sc1 = mkCanvas(1024, 512), s1 = sc1.getContext('2d'); s1.fillStyle = '#0d0508'; s1.fillRect(0, 0, 1024, 512);
-    s1.save(); s1.translate(512, 256); s1.rotate(-0.12); s1.fillStyle = '#d6221e'; rr(s1, -380, -190, 760, 380, 60); s1.fill(); s1.fillStyle = '#fff'; s1.beginPath(); s1.ellipse(0, 0, 330, 150, -0.35, 0, TAU); s1.fill();
-    s1.fillStyle = '#f2c200'; s1.strokeStyle = '#111'; s1.lineWidth = 16; s1.font = '900 250px ' + SERIF; s1.textAlign = 'center'; s1.textBaseline = 'middle'; s1.strokeText('UNO', 0, 8); s1.fillText('UNO', 0, 8); s1.restore();
-    var signU = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: mkTex(sc1) })); signU.position.set(UNO_X, 2.5, -HZ + 0.07); g.add(signU);
-    var sc2 = mkCanvas(1024, 512), s2 = sc2.getContext('2d'); s2.fillStyle = '#0d0508'; s2.fillRect(0, 0, 1024, 512);
-    s2.fillStyle = '#4a57d6'; rr(s2, 40, 30, 944, 452, 40); s2.fill(); for (i = 0; i < 6; i++) for (j = 0; j < 12; j++) { if (j > 1 && j < 10 && i > 0 && i < 4) continue; s2.fillStyle = '#0d0508'; s2.beginPath(); s2.arc(92 + j * 76, 82 + i * 76, 28, 0, TAU); s2.fill(); }
-    for (i = 0; i < 6; i++) for (j = 0; j < 12; j++) { if (j > 1 && j < 10 && i > 0 && i < 4) continue; if ((i * 7 + j * 3) % 5 < 2) { s2.fillStyle = (i + j) % 2 ? '#d02a2a' : '#f0cc1a'; s2.beginPath(); s2.arc(92 + j * 76, 82 + i * 76, 28, 0, TAU); s2.fill(); } }
-    s2.fillStyle = '#0d0508'; rr(s2, 190, 130, 644, 252, 24); s2.fill(); s2.strokeStyle = '#ffe08a'; s2.lineWidth = 6; rr(s2, 190, 130, 644, 252, 24); s2.stroke();
-    s2.fillStyle = '#ffe9b0'; s2.shadowColor = '#ffb347'; s2.shadowBlur = 18; s2.font = '900 100px ' + SERIF; s2.textAlign = 'center'; s2.textBaseline = 'middle'; s2.fillText('PUISSANCE', 512, 218, 600); s2.font = '900 130px ' + SERIF; s2.fillText('4', 512, 320);
-    var signC = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); signC.position.set(C4_X, 2.5, -HZ + 0.07); g.add(signC);
-    var bn = mkCanvas(1024, 150), bx = bn.getContext('2d'); bx.fillStyle = '#12080f'; bx.fillRect(0, 0, 1024, 150); bx.strokeStyle = '#f2c200'; bx.lineWidth = 8; bx.strokeRect(6, 6, 1012, 138);
-    bx.fillStyle = '#ffe9a0'; bx.font = '800 54px ' + SERIF; bx.textAlign = 'center'; bx.textBaseline = 'middle'; bx.fillText("PARTIES MULTIJOUEUR · BIENTÔT DISPONIBLES", 512, 80, 960);
-    var banner = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.94), new THREE.MeshBasicMaterial({ map: mkTex(bn) })); banner.position.set(0, 2.1, -HZ + 0.07); g.add(banner);
 
     /* --- fauteuils capitonnés (le même modèle que le blackjack et les gobelets) --- */
     var velvetM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.75, side: THREE.DoubleSide }), velvetD = new THREE.MeshStandardMaterial({ color: 0x5c0a16, roughness: 0.8, side: THREE.DoubleSide });

@@ -207,17 +207,19 @@
     box(w + 0.08, 0.035, 0.03, 0, h + 0.02, 0.23, neonM); box(w + 0.7, 0.025, 0.012, 0, h + 0.2, 0.256);
     box(w + 0.5, 0.02, 0.6, 0, 0.01, 0.35);                                                 // seuil en laiton
     var wood = new THREE.MeshStandardMaterial({ color: th ? th.leaf : 0x4a1220, roughness: 0.55, metalness: 0.15 });
-    var leafTex = null;
+    var leafTex = null, leafTexR = null;
     if (th) {                                                              // un seul dessin pour les deux battants
       var lc = mkCanvas(256, Math.round(256 * (h - 0.3) / (w / 2 - 0.2)));
       th.paint(lc.getContext('2d'), lc.width, lc.height); leafTex = mkTex(lc);
+      if (th.paintR) { var lc2 = mkCanvas(lc.width, lc.height); th.paintR(lc2.getContext('2d'), lc2.width, lc2.height); leafTexR = mkTex(lc2); }
     }
     var leafGeo = new THREE.BoxGeometry(w / 2 + 0.01, h - 0.04, 0.07);     // les deux battants se recouvrent de 1 cm : porte fermée, aucune fente au milieu
     function leaf(sx) {
       var piv = new THREE.Group(); piv.position.set(sx * (w / 2), 0, 0.14); g.add(piv);
       var m = new THREE.Mesh(leafGeo, wood); m.position.set(-sx * (w / 4), h / 2, 0); piv.add(m);
+      var lt = (sx > 0 && leafTexR) ? leafTexR : leafTex;
       var trim = leafTex
-        ? new THREE.Mesh(new THREE.PlaneGeometry(w / 2 - 0.2, h - 0.3), new THREE.MeshLambertMaterial({ map: leafTex, emissive: 0x666666, emissiveMap: leafTex }))
+        ? new THREE.Mesh(new THREE.PlaneGeometry(w / 2 - 0.2, h - 0.3), new THREE.MeshLambertMaterial({ map: lt, emissive: 0x666666, emissiveMap: lt }))
         : new THREE.Mesh(new THREE.BoxGeometry(w / 2 - 0.3, h - 0.5, 0.02), gold);
       trim.position.set(-sx * (w / 4), h / 2, leafTex ? 0.037 : 0.045); piv.add(trim);
       var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.6, 10), gold); bar.position.set(-sx * (w / 2 - 0.15), h * 0.47, 0.095); piv.add(bar);      // barre de tirage dorée

@@ -255,18 +255,28 @@
       }
     },
     minijeux: {
-      frame: 0xc9a227, leaf: 0x1b1030, rgb: '160, 170, 255', logo: 'minijeux',
-      paint: function (c, W, H) {
-        var gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2a1a52'); gr.addColorStop(1, '#0c0814'); c.fillStyle = gr; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 8);
-        [[-0.38, '#1b63c9', '3'], [0, '#d6221e', '7'], [0.38, '#f2c200', '9']].forEach(function (cd) {          // trois cartes UNO en éventail
-          c.save(); c.translate(W / 2 + cd[0] * W * 0.32, H * 0.3); c.rotate(cd[0] * 0.6); c.fillStyle = '#fff'; rr(c, -W * 0.12, -H * 0.14, W * 0.24, H * 0.28, 10); c.fill(); c.fillStyle = cd[1]; rr(c, -W * 0.105, -H * 0.125, W * 0.21, H * 0.25, 8); c.fill();
-          c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, W * 0.07, H * 0.12, -0.5, 0, TAU); c.fill(); c.fillStyle = cd[1]; c.font = '900 ' + Math.round(W * 0.2) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(cd[2], 0, 4); c.restore();
-        });
-        c.fillStyle = '#4a57d6'; rr(c, W * 0.1, H * 0.52, W * 0.8, H * 0.36, 14); c.fill();                       // grille de Puissance 4 avec ses jetons
-        for (var i = 0; i < 5; i++) for (var j = 0; j < 7; j++) { var k = (i * 5 + j * 3) % 7; c.fillStyle = k < 2 ? '#d02a2a' : k < 4 ? '#f0cc1a' : '#0c0814'; c.beginPath(); c.arc(W * 0.17 + j * W * 0.11, H * 0.57 + i * H * 0.07, W * 0.04, 0, TAU); c.fill(); }
+      frame: 0xc9a227, leaf: 0x0a0a0c, rgb: '255, 214, 0', logo: 'minijeux',
+      paint: function (c, W, H) {                              // battant gauche : le dos d'une vraie carte UNO (fond noir, ovale rouge penché, logo jaune)
+        c.fillStyle = '#0a0a0c'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 6);
+        c.save(); c.translate(W / 2, H / 2); c.rotate(-0.32); c.fillStyle = '#d6221e'; c.beginPath(); c.ellipse(0, 0, W * 0.46, H * 0.24, 0, 0, TAU); c.fill(); c.restore();
+        c.save(); c.translate(W / 2, H / 2); c.rotate(-0.32); c.fillStyle = '#ffde00'; c.strokeStyle = '#111'; c.lineJoin = 'round'; c.lineWidth = W * 0.045; c.font = '900 ' + Math.round(W * 0.33) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
+        [[0.16, 0.07], [0.84, 0.93]].forEach(function (q, n) { c.save(); c.translate(W * q[0], H * q[1]); c.rotate(n ? Math.PI : 0); c.fillStyle = '#ffde00'; c.font = '900 ' + Math.round(W * 0.16) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('0', 0, 0); c.restore(); });
+      },
+      paintR: function (c, W, H) {                             // battant droit : une vraie grille de Puissance 4 (bleue, 7 colonnes, 6 rangées, jetons rouges et jaunes empilés)
+        c.fillStyle = '#0a0a0c'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 6);
+        var cell = (W - 28) / 7, bw = cell * 7 + 14, bh = cell * 6 + 14, bx = (W - bw) / 2, by = (H - bh) / 2 + H * 0.04, i, j;
+        c.fillStyle = '#1f4fd8'; rr(c, bx, by, bw, bh, 12); c.fill(); c.strokeStyle = '#0d2a8a'; c.lineWidth = 3; rr(c, bx, by, bw, bh, 12); c.stroke();
+        var rows = ['.......', '.......', '...Y...', '..RY...', '.RYR.Y.', 'RYRYRY.'];
+        for (i = 0; i < 6; i++) for (j = 0; j < 7; j++) {
+          var ch = rows[i].charAt(j), cx = bx + 7 + cell * (j + 0.5), cy = by + 7 + cell * (i + 0.5);
+          c.fillStyle = ch === 'R' ? '#d8222a' : ch === 'Y' ? '#ffd500' : '#0a0a0c'; c.beginPath(); c.arc(cx, cy, cell * 0.38, 0, TAU); c.fill();
+          if (ch !== '.') { c.strokeStyle = ch === 'R' ? '#8e1218' : '#b08f00'; c.lineWidth = 2.5; c.beginPath(); c.arc(cx, cy, cell * 0.26, 0, TAU); c.stroke(); }
+        }
+        c.fillStyle = '#ffd500'; c.beginPath(); c.arc(bx + 7 + cell * 4.5, by - cell * 0.55, cell * 0.38, 0, TAU); c.fill();     // un jeton qui tombe dans la colonne
+        c.fillStyle = '#0d2a8a'; c.fillRect(bx + 4, by + bh, 12, cell * 0.5); c.fillRect(bx + bw - 16, by + bh, 12, cell * 0.5);
       },
       deco: function (g, w) {                                  // deux piles de jetons de chaque côté de la porte
-        [[-1, 0xd02a2a], [1, 0xe8c71a]].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 20), new THREE.MeshStandardMaterial({ color: s[1], roughness: 0.3 })); m.position.set(s[0] * (w / 2 + 0.55), 0.18, 0.5); g.add(m); });
+        [[-1, 0xd8222a], [1, 0xffd500]].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 20), new THREE.MeshStandardMaterial({ color: s[1], roughness: 0.3 })); m.position.set(s[0] * (w / 2 + 0.55), 0.18, 0.5); g.add(m); });
       }
     },
     loupgarou: {
