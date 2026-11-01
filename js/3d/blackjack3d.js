@@ -328,6 +328,48 @@
       cards.forEach(function (c, k) { if (T.dealerMeshes[k]) { T.dealerMeshes[k].material.map = cardTex(c); T.dealerMeshes[k].material.needsUpdate = true; } });
       showDealer(T, cards);
     }
+    /* --- les cartes des autres joueurs : chacun envoie sa main aux autres (temps réel), tout le monde la voit sur la table, qu'il soit assis ou juste à côté --- */
+    var remHands = {}, bjSendT = 0, bjLast = { cards: [], res: '' };
+    function bjSend(cards, res) {
+      bjLast = { cards: cards || [], res: res || '' }; bjSendT = 2;
+      if (!seat || !world.rt || !world.rt.ready) return;
+      try { world.rt.send('bj', { k: F.me(), s: seat.n, cards: bjLast.cards.map(function (c) { return { r: c.r, s: c.s }; }), res: bjLast.res }); } catch (e) { /* ok */ }
+    }
+    function remClear(n) {
+      var rh = remHands[n]; if (!rh) return;
+      rh.meshes.concat(rh.labels).forEach(function (m) { if (m.parent) m.parent.remove(m); if (m.material) { if (m.material.map && m.isSprite) m.material.map.dispose(); m.material.dispose(); } });
+      delete remHands[n];
+    }
+    function remShow(n, cards, res) {
+      var s = seats[n]; if (!s || s.bot) return;
+      var T = s.table, rh = remHands[n], key = cards.map(function (c) { return c.r + c.s; }).join(',');
+      if (rh && (cards.length < rh.cards.length || (rh.cards.length && key.indexOf(rh.key) !== 0))) { remClear(n); rh = null; }   // nouvelle manche : on repart de zéro
+      if (!cards.length) { remClear(n); return; }
+      if (!rh) rh = remHands[n] = { meshes: [], labels: [], cards: [], key: '', res: '', t: 0 };
+      rh.t = performance.now();
+      for (var k = rh.meshes.length; k < cards.length; k++) {
+        var m = makeCard(cards[k]); m.scale.setScalar(cardScale('p')); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); g.add(m); rh.meshes.push(m);
+        var p0 = spotPos(T, s, k, cards.length); m.rotation.y = p0.ry;
+        anims.push({ m: m, t: 0, dur: 0.38, from: m.position.clone(), to: new THREE.Vector3(p0.x, p0.y, p0.z), delay: 0 });
+      }
+      rh.meshes.forEach(function (m, k2) { var p = spotPos(T, s, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else m.position.set(p.x, p.y, p.z); });
+      rh.cards = cards; rh.key = key;
+      if (res !== rh.res) {
+        rh.res = res; rh.labels.forEach(function (l) { if (l.parent) l.parent.remove(l); l.material.map.dispose(); l.material.dispose(); }); rh.labels = [];
+        if (res) {
+          var tx = res === 'win' ? 'GAGNÉ' : res === 'push' ? 'ÉGALITÉ' : res === 'bust' ? 'SAUTÉ' : 'PERDU', col = res === 'win' ? '#7ee0a0' : res === 'push' ? '#f3cf62' : '#ff8a80', pp = spotPos(T, s, 0, 1);
+          var cv = mkCanvas(256, 80), c = cv.getContext('2d'); roundRect(c, 4, 4, 248, 72, 24); c.fillStyle = 'rgba(8,5,12,0.85)'; c.fill(); c.strokeStyle = col; c.lineWidth = 5; c.stroke();
+          c.fillStyle = col; c.font = '900 38px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(tx, 128, 42, 230);
+          var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(pp.x, TOP_Y + 0.32, pp.z); g.add(sp); rh.labels.push(sp);
+        }
+      }
+    }
+    room.onRtMsg = function (ev, m, r) {
+      if (ev !== 'bj' || !Array.isArray(m.cards)) return;
+      var n = typeof m.s === 'number' ? m.s : (r ? r.seat : -1); if (n < 0) return;
+      if (seat && seat.n === n) return;
+      remShow(n, m.cards.slice(0, 8).filter(function (c) { return c && typeof c.r === 'string' && typeof c.s === 'string'; }).map(function (c) { return { r: c.r.slice(0, 2), s: c.s.slice(0, 1) }; }), typeof m.res === 'string' ? m.res : '');
+    };
     function botSeats(T) { return T.spots.filter(function (s) { return s.bot; }); }
 
     function setMsg(t, col) { R.msg = t; if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
@@ -381,7 +423,7 @@
         if (!r || !r.ok) { setMsg((r && r.error) || 'Impossible de distribuer.', '#ff8a80'); R.count = 6; refreshUi(); return; }
         var T = seat.table; clearCards(T);
         R.table = T; R.me = r.player || []; R.dealer = r.dealer || []; R.up = R.dealer[0] || null; R.final = null; R.botHands = {}; R.deck = newDeck(); R.done = false; R.res = null; R.bet = r.bet;
-        R.phase = 'dealing'; setMsg('');
+        R.phase = 'dealing'; setMsg(''); bjSend(R.me, '');
         var delay = 0.15;
         // distribution : une carte à chacun, puis la deuxième
         var order = T.spots.filter(function (s) { return s.bot || s === seat; });
@@ -422,7 +464,7 @@
       sg({ action: kind }).then(function (r) {
         R.busy = false;
         if (!r || !r.ok) { setMsg((r && r.error) || 'Action impossible.', '#ff8a80'); refreshUi(); return; }
-        R.me = r.player || R.me; R.dealer = r.dealer || R.dealer; showHand(R.table, seat, R.me);
+        R.me = r.player || R.me; R.dealer = r.dealer || R.dealer; showHand(R.table, seat, R.me); bjSend(R.me, '');
         if (r.done) { finish(r); } else { setMsg('Tu as ' + score(R.me) + '.'); refreshUi(); }
       });
     }
@@ -447,9 +489,9 @@
             else if (r.result === 'push') { txt = 'ÉGALITÉ'; col = '#f3cf62'; setMsg('🤝 Égalité : mise remboursée.', '#f3cf62'); }
             else if (r.result === 'bust') { txt = 'SAUTÉ'; col = '#ff8a80'; setMsg('💥 Tu as dépassé 21.', '#ff8a80'); }
             else { txt = 'PERDU'; col = '#ff8a80'; setMsg('Perdu : ' + r.pScore + ' contre ' + r.dScore + '.', '#ff8a80'); }
-            label(T, mine.x, mine.z, txt, col);
+            label(T, mine.x, mine.z, txt, col); bjSend(R.me, r.result === 'win' ? 'win' : r.result === 'push' ? 'push' : r.result === 'bust' ? 'bust' : 'lose');
             R.phase = 'result'; refreshUi();
-            later(4.5, function () { if (R.phase === 'result') { clearCards(T); R.phase = 'idle'; R.count = 9; setMsg('Place ta mise : la manche suivante démarre toute seule.'); refreshUi(); } });
+            later(4.5, function () { if (R.phase === 'result') { clearCards(T); bjSend([], ''); R.phase = 'idle'; R.count = 9; setMsg('Place ta mise : la manche suivante démarre toute seule.'); refreshUi(); } });
           });
         });
       });
@@ -521,6 +563,7 @@
       if (!seat) return;
       var s = seat, was = R.phase;
       if (was === 'me' && !R.busy) { sg({ action: 'bj_stand' }); }      // on ne laisse pas une manche ouverte : on reste et le serveur règle la mise
+      if (world.rt && world.rt.ready) { try { world.rt.send('bj', { k: F.me(), s: s.n, cards: [], res: '' }); } catch (e) { /* ok */ } } bjLast = { cards: [], res: '' };
       seat = null; R.phase = 'idle';
       timers = []; anims.forEach(function (a) { a.t = a.dur; }); clearCards(s.table);
       window.removeEventListener('keydown', onSeatKey, true);
@@ -583,6 +626,8 @@
     room._wake = wake; room._tables = tables;
     room.update = function (dt) {
       clockT += dt;
+      bjSendT -= dt; if (bjSendT <= 0) { bjSendT = 2; if (seat && bjLast.cards.length) bjSend(bjLast.cards, bjLast.res); }     // on renvoie ma main : celui qui arrive en cours de manche la voit aussi
+      var nowB = performance.now(); Object.keys(remHands).forEach(function (n) { if (nowB - remHands[n].t > 7000) remClear(n); });
       if (seat && R.phase === 'idle' && !R.busy) {
         R.count = (R.count === undefined ? 10 : R.count) - dt;
         if (ui) { var tm = ui.el.querySelector('.bj-count'); setText(tm, 'Manche dans ' + Math.max(0, Math.ceil(R.count)) + ' s'); }

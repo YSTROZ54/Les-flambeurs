@@ -148,7 +148,9 @@
     function api(body) {
       return world.post('/api/crash', body).then(function (r) { if (!r) return { ok: false, error: 'Connecte-toi pour jouer.' }; if (r.state) applyState(r.state); if (typeof r.balance === 'number') setBalance(r.balance); return r; });
     }
-    function myBet() { var me = myName(), k = Object.keys(S.bets).filter(function (n) { return n.toLowerCase().trim() === me; })[0]; return k ? S.bets[k] : null; }
+    var myCash = null;      // mon éjection en cours d'envoi : un sondage qui arrive avant la réponse du serveur ne doit pas la faire oublier
+    function myBet() { var me = myName(), k = Object.keys(S.bets).filter(function (n) { return n.toLowerCase().trim() === me; })[0], b = k ? S.bets[k] : null; if (b && myCash && myCash.lt === S.launchTime && !b.cashedOut) { b.cashedOut = true; b.cashMult = myCash.mult; } return b; }
+    function syncBalance(delay) { setTimeout(function () { if (loggedIn()) api({ action: 'balance' }); }, delay); }      // le gain est versé par le serveur : on redemande le solde pour être sûr de le voir
 
     /* --- interface --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, msg = '', msgCol = '', busy = false, ejecting = false;
@@ -165,10 +167,10 @@
     function injectCss() {
       if (document.getElementById('cr3d-css')) return;
       var s = document.createElement('style'); s.id = 'cr3d-css';
-      s.textContent = '.cr3d{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);width:min(540px,92%);background:rgba(6,9,20,.92);border:1px solid rgba(110,160,255,.7);border-radius:16px;padding:12px 14px;color:#d9e6ff;pointer-events:auto;display:flex;flex-direction:column;gap:8px;z-index:5}' +
-        '.cr3d .cr-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.cr3d .cr-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
-        '.cr3d .cr-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.cr3d .cr-chip{padding:6px 11px;border-radius:999px;border:2px solid #6ea0ff;background:#0f1630;color:#9fc2ff;font-weight:900;font-size:13px;cursor:pointer}' +
-        '.cr3d .cr-chip.minus{border-color:#ff8a80;color:#ff8a80}.cr3d .cr-b{padding:11px 22px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#06101e;background:linear-gradient(90deg,#4dd0ff,#3b82f6);align-self:center}' +
+      s.textContent = '.cr3d{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);width:min(520px,92%);background:rgba(6,9,20,.92);border:1px solid rgba(110,160,255,.7);border-radius:14px;padding:8px 12px;color:#d9e6ff;pointer-events:auto;display:flex;flex-direction:column;gap:5px;z-index:5}' +
+        '.cr3d .cr-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.cr3d .cr-msg{min-height:18px;text-align:center;font-weight:800;font-size:14px}' +
+        '.cr3d .cr-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.cr3d .cr-chip{padding:4px 10px;border-radius:999px;border:2px solid #6ea0ff;background:#0f1630;color:#9fc2ff;font-weight:900;font-size:13px;cursor:pointer}' +
+        '.cr3d .cr-chip.minus{border-color:#ff8a80;color:#ff8a80}.cr3d .cr-b{padding:8px 20px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#06101e;background:linear-gradient(90deg,#4dd0ff,#3b82f6);align-self:center}' +
         '.cr3d .cr-b.red{background:linear-gradient(90deg,#ff8a50,#ef3b3b);color:#fff}.cr3d .cr-b.alt{background:#27324f;color:#d9e6ff}.cr3d .cr-b:disabled{opacity:.4}' +
         '.cr3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.cr3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(110,160,255,.6);background:rgba(6,9,20,.85);color:#d9e6ff;font-weight:800;cursor:pointer}';
       document.head.appendChild(s);
@@ -178,12 +180,12 @@
     function doEject() {
       var mb = myBet();
       if (!seat || ejecting || !mb || mb.cashedOut || S.status !== 'flying') return;
-      var m = multNow(); ejecting = true; mb.cashedOut = true; mb.cashMult = Math.floor(m * 100) / 100;
+      var m = multNow(); ejecting = true; mb.cashedOut = true; mb.cashMult = Math.floor(m * 100) / 100; myCash = { lt: S.launchTime, mult: mb.cashMult };
       setMsg('🏆 Éjecté à x' + m.toFixed(2) + ' : +' + fmtN(Math.floor(mb.bet * m)) + ' 🪙', '#7ee0a0'); refreshUi();
       api({ action: 'cashout' }).then(function (r) {
-        ejecting = false;
-        if (r && r.ok) setMsg('🏆 Éjecté à x' + r.mult + ' : +' + fmtN(r.win) + ' 🪙', '#7ee0a0');
-        else { var m2 = myBet(); if (m2 && m2.cashedOut && !(r && r.state)) { m2.cashedOut = false; delete m2.cashMult; } setMsg((r && r.error) || 'Trop tard !', '#ff8a80'); }
+        ejecting = false; myCash = null;
+        if (r && r.ok) { setMsg('🏆 Éjecté à x' + r.mult + ' : +' + fmtN(r.win) + ' 🪙', '#7ee0a0'); syncBalance(1500); syncBalance(6000); }
+        else { var m2 = myBet(); if (m2 && m2.cashedOut && !(r && r.state)) { m2.cashedOut = false; delete m2.cashMult; } setMsg((r && r.error) || 'Trop tard !', '#ff8a80'); syncBalance(1500); }
         refreshUi();
       });
     }

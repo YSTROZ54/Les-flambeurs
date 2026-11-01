@@ -257,10 +257,22 @@ export default async function handler(req, res) {
         st.updatedAt = now;
         return { mult, win };
       });
-      await settleOwed().catch(() => {});
+      for (let i = 0; i < 3; i++) {            // le gain est versé tout de suite (on réessaie si l'écriture échoue) : le solde renvoyé le contient
+        await settleOwed().catch(() => {});
+        const left = (await getRowExact(ROW)).data.crash.owed || [];
+        if (!left.some((o) => o.name === actor || String(o.name).toLowerCase() === String(actor).toLowerCase())) break;
+      }
       const row = await getRowExact(actor);
       const st = (await getRowExact(ROW)).data.crash;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()), ...out, balance: row ? row.balance : undefined });
+    }
+
+    // ---- SOLDE : verse les gains en attente puis renvoie le solde du joueur ----
+    if (action === 'balance') {
+      await settleOwed().catch(() => {});
+      const row = await getRowExact(actor);
+      const st = (await getRowExact(ROW)).data.crash;
+      return res.status(200).json({ ok: true, state: publicState(st, Date.now()), balance: row ? row.balance : undefined });
     }
 
     return fail(res, 400, 'Action inconnue.');
