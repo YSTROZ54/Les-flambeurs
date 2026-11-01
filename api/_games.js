@@ -121,8 +121,7 @@ function minesPublic(g) {
 
 
 /* -------------------------------- Blackjack solo -------------------------------- */
-export const BJ_MIN_BET = 10;
-export const BJ_MAX_BET = 50000;
+export const BJ_MIN_BET = 10;   // pas de mise maximale : seul le solde limite (vérifié juste après)
 const BJ_BACK = { r: '?', v: 0, s: '♠', color: 'text-slate-900', type: 'suit-black' };
 const isTen = (c) => ['10', 'J', 'Q', 'K'].includes(c.r);
 const cardPts = (c, ace) => (isTen(c) ? 10 : (c.r === 'A' ? ace : parseInt(c.r, 10)));
@@ -323,7 +322,7 @@ export async function runGameAction(action, body, ctx) {
       return wrap((d) => {
         const s = srv(d);
         const bet = intBet(body.bet);
-        if (bet < BJ_MIN_BET || bet > BJ_MAX_BET) throw new GameError(400, 'La mise doit être comprise entre 10 € et 50 000 €.');
+        if (bet < BJ_MIN_BET) throw new GameError(400, 'La mise doit être d\'au moins 10 €.');
         if (bet > d.balance) throw new GameError(400, 'Solde insuffisant pour cette mise !', { balance: d.balance });
         d.balance -= bet; // une manche laissée ouverte avant est perdue (mise déjà payée)
         const L = bjLuck(luck);

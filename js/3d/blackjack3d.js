@@ -20,7 +20,7 @@
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
   var CHIPS = [10, 50, 100, 500, 1000, 5000];
-  var MIN_BET = 10, MAX_BET = 50000;
+  var MIN_BET = 10;   // pas de mise maximale : seul le solde limite
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -435,7 +435,7 @@
     function startRound() {
       if (!seat || R.busy || R.phase !== 'idle') return;
       if (!loggedIn()) { setMsg('Connecte-toi pour jouer au blackjack.', '#ff8a80'); R.count = 6; return; }
-      if (bet < MIN_BET || bet > MAX_BET) { setMsg('Mise entre ' + MIN_BET + ' et ' + fmtN(MAX_BET) + ' 🪙.', '#ff8a80'); R.count = 6; return; }
+      if (bet < MIN_BET) { setMsg('Mise d\'au moins ' + MIN_BET + ' 🪙.', '#ff8a80'); R.count = 6; return; }
       if (bet > balance()) { setMsg('Solde insuffisant : baisse ta mise.', '#ff8a80'); R.count = 6; return; }
       R.busy = true; setMsg('Distribution…'); refreshUi();
       sg({ action: 'bj_start', bet: bet }).then(function (r) {
@@ -528,7 +528,9 @@
         '.bj3d .bj-hands .tot{color:#f3cf62;font-weight:900;margin-left:4px}' +
         '.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
         '.bj3d .bj-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.bj3d .bj-chip{padding:6px 10px;border-radius:999px;border:2px solid #f3cf62;background:#241218;color:#f3cf62;font-weight:900;font-size:13px;cursor:pointer}' +
-        '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
+        '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-chip.custom{border-color:#9aa5c9;color:#c7cdea}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
+        '.bj3d .bj-custom-bet{display:flex;gap:6px;justify-content:center}.bj3d .bj-custom-bet input{width:140px;background:#1a1208;border:2px solid #f3cf62;border-radius:999px;padding:6px 12px;color:#f4e3b0;font-weight:800;font-family:inherit;text-align:center}' +
+        '.bj3d .bj-custom-bet input:focus{outline:none}.bj3d .bj-custom-bet button{padding:6px 14px;border-radius:999px;border:0;background:#f3cf62;color:#1a1208;font-weight:900;cursor:pointer}' +
         '.bj3d button.bj-b{padding:10px 18px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +
         '.bj3d button.bj-b.alt{background:#2a3b57;color:#e8f0ff}.bj3d button.bj-b.red{background:#8a1f2b;color:#ffe9ea}' +
         '.bj3d-cards{position:absolute;left:14px;bottom:182px;z-index:5;pointer-events:none;display:none;flex-direction:column;gap:5px;padding:8px 10px;border-radius:12px;background:rgba(8,5,12,.8);border:1px solid rgba(201,162,39,.5);color:#f4e3b0;font-weight:800;font-size:12px}.bj3d-cards .bj-cr{display:flex;gap:5px}.bj3d-cards img{width:68px;height:auto;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.55)}' +
@@ -539,15 +541,31 @@
       injectCss();
       var el = document.createElement('div'); el.className = 'bj3d';
       el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-hands"></div><div class="bj-msg"></div>' +
-        '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button></div>' +
+        '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button><button class="bj-chip custom" data-c="custom">✏️ Perso</button></div>' +
+        '<div class="bj-custom-bet" hidden><input type="number" min="10" step="10" placeholder="Montant…"><button data-c="custom-ok">✓ Valider</button></div>' +
         '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button><button class="bj-b" data-a="ready">✅ Prêt</button></div>';
       w.container.appendChild(el);
+      var customRow = el.querySelector('.bj-custom-bet'), customInput = customRow.querySelector('input');
+      function toggleCustomBet(open) {
+        customRow.hidden = !open;
+        if (open) { customInput.value = bet; customInput.focus(); customInput.select(); }
+      }
+      function applyCustomBet() {
+        var v = Math.floor(parseFloat(customInput.value));
+        if (isFinite(v) && v > 0) bet = Math.max(MIN_BET, Math.min(v, Math.max(MIN_BET, Math.floor(balance()))));
+        toggleCustomBet(false); refreshUi();
+      }
+      customInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); applyCustomBet(); } else if (e.key === 'Escape') { e.preventDefault(); toggleCustomBet(false); } });
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled) return;
+        if (b.dataset.c === 'custom-ok') { applyCustomBet(); return; }
         if (b.dataset.c) {
           if (R.phase !== 'idle') return;
-          if (b.dataset.c === '-1') bet = MIN_BET; else if (b.dataset.c === 'max') bet = Math.min(MAX_BET, Math.floor(balance())); else bet = bet + parseInt(b.dataset.c, 10);
-          bet = Math.max(MIN_BET, Math.min(MAX_BET, bet)); refreshUi(); return;
+          if (b.dataset.c === '-1') { bet = MIN_BET; toggleCustomBet(false); }
+          else if (b.dataset.c === 'max') { bet = Math.max(MIN_BET, Math.floor(balance())); toggleCustomBet(false); }
+          else if (b.dataset.c === 'custom') { toggleCustomBet(!customRow.hidden); return; }
+          else { bet = bet + parseInt(b.dataset.c, 10); toggleCustomBet(false); }
+          bet = Math.max(MIN_BET, bet); refreshUi(); return;
         }
         var a = b.dataset.a;
         if (a === 'ready') { if (R.phase === 'idle' && !R.busy) R.count = 0; return; }
@@ -604,7 +622,7 @@
     room.remotePose = function (r) { var s = seats[r.seat]; return s && !s.bot ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) {
-      if (!seat) return;
+      if (!seat || !view3) return;                                     // vue assise (1re personne) : regard fixe sur le croupier, pas de souris
       view.yaw = Math.max(-1.2, Math.min(1.2, drag.seat.yaw - dx * 0.006));
       if (drag.mouse) view.pitch = Math.max(-0.45, Math.min(0.35, drag.seat.pitch - dy * 0.004));
     };
@@ -616,11 +634,10 @@
         var sx = -rz * 0.55, sz = rx * 0.55;                           // un peu de côté (par-dessus l'épaule) : ma tête ne cache plus mes cartes
         return { cx: s.x + rx * 1.2 + sx, cy: 2.5, cz: s.z + rz * 1.2 + sz, tx: s.tx + ox * 0.62, ty: 0.8, tz: s.tz + oz * 0.62, fov: 55 };
       }
-      if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      // vue assis : la tête est un peu avancée au-dessus de la table et regarde vers le bas, entre mes cartes et celles du croupier
+      // vue assise : regard fixe sur le croupier et mes cartes, la souris ne bouge plus la caméra (seule la vue 3e personne tourne)
       var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.62, ez = s.z + (cz0 - s.z) * 0.12;
       var px = cx0 + (s.x - cx0) * 0.5, pz = cz0 + (s.z - cz0) * 0.5;
-      var a = Math.atan2(px - ex, -(pz - ez)) + view.yaw, p = Math.atan2(0.86 - ey, Math.hypot(px - ex, pz - ez)) + view.pitch;
+      var a = Math.atan2(px - ex, -(pz - ez)), p = Math.atan2(0.86 - ey, Math.hypot(px - ex, pz - ez));
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 60 };
     };
     room.syncHud = function () { refreshUi(); };

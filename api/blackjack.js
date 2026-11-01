@@ -171,9 +171,8 @@ async function saveSupabaseTables(tables) {
 /* ============================ PORTEFEUILLE (serveur) ============================
    Toutes les mises et tous les gains passent par ces fonctions. Chaque opération porte une
    clé unique : rejouée, elle ne s'applique jamais deux fois (pas de double paiement). */
-const BJ_MAX_BET = 50000;
-const BJ_MIN_BET = 10;
-const clampBet = (v, fallback) => Math.min(BJ_MAX_BET, Math.max(BJ_MIN_BET, Math.floor(Number(v)) || fallback || 100));
+const BJ_MIN_BET = 10;   // pas de mise maximale : seul le solde limite (walletCharge refuse si le solde est insuffisant)
+const clampBet = (v, fallback) => Math.max(BJ_MIN_BET, Math.floor(Number(v)) || fallback || 100);
 
 export async function bjCharge(username, key, amount) { await walletCharge(username, key, amount); }
 export async function bjPay(username, key, amount) { await walletPay(username, key, amount); }
@@ -327,7 +326,7 @@ function startServerDeal(table, participants, now) {
     const isBJ = sc === 21;
 
     const recordedBet = (table.readyBets && table.readyBets[pKey]) ? table.readyBets[pKey] : null;
-    const playerBet = Math.min(50000, Math.max(10, parseInt(p.bet) || recordedBet || 100));
+    const playerBet = Math.max(10, parseInt(p.bet) || recordedBet || 100);
 
     table.players[pKey] = {
       username: p.username,
@@ -561,7 +560,7 @@ export default async function handler(req, res) {
     // S. ENREGISTRER MA MISE (SET_BET)
     if (action === 'set_bet' && body.username) {
       const pKey = body.username.toLowerCase().trim();
-      const betVal = Math.min(50000, Math.max(10, parseInt(body.bet) || 100));
+      const betVal = Math.max(10, parseInt(body.bet) || 100);
       if (!table.readyBets || typeof table.readyBets !== 'object') table.readyBets = {};
       table.readyBets[pKey] = betVal;
       if (!table.knownPlayers) table.knownPlayers = {};

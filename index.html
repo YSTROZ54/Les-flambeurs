@@ -40,7 +40,7 @@
   <script src="js/3d/pokerroom3d.js?v=3.0"></script>
   <script src="js/3d/shop3d.js?v=2.2"></script>
   <script src="js/3d/pmu3d.js?v=2.0"></script>
-  <script src="js/3d/blackjack3d.js?v=2.8"></script>
+  <script src="js/3d/blackjack3d.js?v=2.9"></script>
   <script src="js/3d/loupgarou3d.js?v=1.0"></script>
   <script src="js/3d/cups3d.js?v=2.4"></script>
   <script src="js/3d/crash3d.js?v=2.0"></script>
@@ -1618,8 +1618,8 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="lg:col-span-4 rounded-2xl p-5 bg-stone-950/90 border border-amber-500/30 space-y-4">
           <div>
-            <label class="text-xs uppercase tracking-wider text-amber-300 font-bold">Mise (10 € à 50 000 €)</label>
-            <input id="bjBetInput" type="number" value="100" min="10" max="50000" placeholder="10 - 50 000 €"
+            <label class="text-xs uppercase tracking-wider text-amber-300 font-bold">Mise (à partir de 10 €)</label>
+            <input id="bjBetInput" type="number" value="100" min="10" placeholder="10 € minimum"
               oninput="onBjBetChange()" onchange="onBjBetChange()"
               class="mt-1.5 w-full bg-black/60 border border-amber-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num font-bold focus:outline-none">
           </div>
@@ -6120,7 +6120,7 @@
         title: '🃏 Comment jouer au Blackjack ?',
         html: `
           <p>🎯 <strong>Le but :</strong> Approcher le plus possible de 21 sans dépasser face au croupier.</p>
-          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins librement l'une des <strong>5 Tables Publiques (Table 1 à Table 5)</strong> pour jouer en direct avec d\'autres joueurs sans invitation (tu peux voir qui est déjà assis avant d\'entrer !). La mise est comprise entre <strong>10 € et 50 000 €</strong>.</p>
+          <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins librement l'une des <strong>5 Tables Publiques (Table 1 à Table 5)</strong> pour jouer en direct avec d\'autres joueurs sans invitation (tu peux voir qui est déjà assis avant d\'entrer !). La mise est libre, à partir de <strong>10 €</strong>.</p>
           <p>⏱️ <strong>Temps de décision :</strong> À ton tour, tu as un temps limite de <strong>30 secondes</strong> pour tirer, rester ou doubler. Prends tout ton temps entre les manches pour choisir ta mise, la partie ne se relance jamais toute seule !</p>
         `
       },
@@ -7090,7 +7090,7 @@
       const isBjLeft = (room === 'blackjack' && (existing.leftTable === true || !l.publicTableId));
       const isPokerLeft = (room === 'poker' && (existing.leftTable === true || (l.mode === 'multi' && !l.publicTableId)));
       const isLeft = (room === 'blackjack' ? isBjLeft : (room === 'poker' && l.mode === 'multi' ? isPokerLeft : false));
-      const currentBjBet = Math.min(50000, Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100));
+      const currentBjBet = Math.max(10, parseInt(document.getElementById('bjBetInput')?.value) || state.bjBet || 100);
 
       state.currentTable = {
         ...existing,
