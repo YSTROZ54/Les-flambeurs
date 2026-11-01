@@ -138,10 +138,10 @@
     })();
     var garlands = [], wireMat = new THREE.MeshBasicMaterial({ color: 0x2a1a30 });
     function garland(cx, cz) {
-      var turns = 4, y0 = 0.62, y1 = 7.38, R = 0.55, strands = 2, step = low ? 0.13 : 0.07, s;
+      var turns = 4, y0 = 0.3, y1 = 7.7, R = 0.55, strands = 2, step = low ? 0.13 : 0.07, s;   // part des anneaux dorés : le fil sort de l'anneau et y rentre
       for (s = 0; s < strands; s++) {
         var ph = s * Math.PI, pts = [], k, n = turns * 40;
-        for (k = 0; k <= n; k++) { var f = k / n, a = ph + f * turns * TAU; pts.push(new THREE.Vector3(cx + Math.cos(a) * R, y0 + f * (y1 - y0), cz + Math.sin(a) * R)); }
+        for (k = 0; k <= n; k++) { var f = k / n, a = ph + f * turns * TAU; var e = Math.min(1, Math.min(f, 1 - f) / 0.09), rr = 0.44 + (R - 0.44) * e * e * (3 - 2 * e); pts.push(new THREE.Vector3(cx + Math.cos(a) * rr, y0 + f * (y1 - y0), cz + Math.sin(a) * rr)); }
         var curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), cnt = Math.round(len / step), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), v;
         for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));

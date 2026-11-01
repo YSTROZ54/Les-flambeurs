@@ -128,9 +128,12 @@
   function border(c, W, H, col, w) { c.strokeStyle = col; c.lineWidth = w; c.strokeRect(w, w, W - w * 2, H - w * 2); }
   function bulbRing(g, w, h, mats) {                      // ampoules de chapiteau autour de la porte
     var n = 0;
-    function bulb(x, y) { var m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mats[n++ % mats.length]); m.position.set(x, y, 0.23); g.add(m); }
-    for (var x = -w / 2 - 0.07; x <= w / 2 + 0.08; x += 0.22) bulb(x, h + 0.1);
-    for (var y = 0.2; y < h; y += 0.24) { bulb(-w / 2 - 0.07, y); bulb(w / 2 + 0.07, y); }
+    var halo = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending });
+    function bulb(x, y) { var m = new THREE.Mesh(new THREE.SphereGeometry(0.058, 12, 8), mats[n++ % mats.length]); m.position.set(x, y, 0.24); g.add(m); var o = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), halo); o.position.copy(m.position); g.add(o); }
+    function row(x0, y0, x1, y1) { var len = Math.hypot(x1 - x0, y1 - y0), k = Math.max(1, Math.round(len / 0.24)); for (var i = 0; i <= k; i++) bulb(x0 + (x1 - x0) * i / k, y0 + (y1 - y0) * i / k); }
+    row(-w / 2 + 0.2, h + 0.1, w / 2 - 0.2, h + 0.1);              // rangée du haut, arrêtée avant les coins
+    row(-w / 2 - 0.07, 0.6, -w / 2 - 0.07, h - 0.25);              // côtés : ni au ras du sol ni dans le coin du haut
+    row(w / 2 + 0.07, 0.6, w / 2 + 0.07, h - 0.25);
   }
   function chips(g, x, z, cols) {                          // piles de jetons posées au sol
     cols.forEach(function (col, k) { for (var i = 0; i < 5 + k; i++) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16), new THREE.MeshLambertMaterial({ color: col })); m.position.set(x + k * 0.23, 0.02 + i * 0.033, z); g.add(m); } });
