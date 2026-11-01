@@ -60,6 +60,7 @@
     /* --- tour de lancement vitrée et fusée --- */
     var steel = new THREE.MeshStandardMaterial({ color: 0x8c96ac, roughness: 0.35, metalness: 0.85 });
     function buildTower(cx, cz) {
+    room.colliders.push({ x: cx, z: cz, r: 1.5 });                                   // la tour est pleine : on ne peut plus entrer dedans
     var pad = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.45, 0.2, 32), steel); pad.position.set(cx, 0.1, cz); g.add(pad);
     var glass = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, SILO.h, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
     glass.position.set(cx, SILO.h / 2 + 0.2, cz); g.add(glass);
@@ -67,13 +68,35 @@
     for (i = 0; i < 6; i++) { var a = i / 6 * TAU, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, SILO.h, 6), steel); bar.position.set(cx + Math.cos(a) * 1.15, SILO.h / 2 + 0.2, cz + Math.sin(a) * 1.15); g.add(bar); }
     }
     buildTower(SILO.x, SILO.z); buildTower(SILO2.x, SILO2.z);
+    function rocketSkin() {                                  // peau du fuselage : blanc brossé, joints, bande noire, rivets
+      var cv = mkCanvas(256, 256), c = cv.getContext('2d'), gr = c.createLinearGradient(0, 0, 256, 0); gr.addColorStop(0, '#c9ced8'); gr.addColorStop(0.35, '#ffffff'); gr.addColorStop(0.7, '#eef1f7'); gr.addColorStop(1, '#b9bfcb'); c.fillStyle = gr; c.fillRect(0, 0, 256, 256);
+      c.fillStyle = '#15171f'; c.fillRect(0, 60, 256, 30); c.fillStyle = '#d9262c'; c.fillRect(0, 54, 256, 6); c.fillRect(0, 90, 256, 6);
+      c.strokeStyle = 'rgba(80,90,110,0.55)'; c.lineWidth = 2; [0, 128, 190, 255].forEach(function (y) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); });
+      for (var k = 0; k < 8; k++) { c.beginPath(); c.moveTo(k * 32, 100); c.lineTo(k * 32, 255); c.strokeStyle = 'rgba(80,90,110,0.25)'; c.stroke(); }
+      c.fillStyle = 'rgba(70,80,100,0.6)'; for (k = 0; k < 32; k++) { c.beginPath(); c.arc(k * 8 + 4, 128 + 4, 1.2, 0, TAU); c.fill(); c.beginPath(); c.arc(k * 8 + 4, 190 - 4, 1.2, 0, TAU); c.fill(); }
+      c.fillStyle = '#d9262c'; c.font = '900 22px ' + SERIF; c.textAlign = 'center'; c.fillText('CRASH', 128, 218);
+      var t = mkTex(cv); t.wrapS = THREE.RepeatWrapping; return t;
+    }
+    var skinTex = rocketSkin();
     function buildRocket(rocket) {
-      var white = new THREE.MeshStandardMaterial({ color: 0xf2f4fa, roughness: 0.3, metalness: 0.5 }), red = new THREE.MeshStandardMaterial({ color: 0xd9262c, roughness: 0.4, metalness: 0.3 });
-      var body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 1.0, 20), white); body.position.y = 0.7; rocket.add(body);
-      var nose = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 20), red); nose.position.y = 1.45; rocket.add(nose);
-      var win = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshStandardMaterial({ color: 0x4aa3ff, emissive: 0x16406e, roughness: 0.2 })); win.position.set(0, 0.95, 0.22); rocket.add(win);
-      for (var k = 0; k < 3; k++) { var an = k / 3 * TAU, fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.32), red); fin.position.set(Math.cos(an) * 0.3, 0.38, Math.sin(an) * 0.3); fin.rotation.y = -an; rocket.add(fin); }
-      var flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.9, 14), new THREE.MeshBasicMaterial({ color: 0xffa640, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); flame.rotation.x = Math.PI; flame.position.y = -0.05; rocket.add(flame); rocket.userData.flame = flame;
+      var white = new THREE.MeshStandardMaterial({ map: skinTex, roughness: 0.4, metalness: 0.12 }), red = new THREE.MeshStandardMaterial({ color: 0xd9262c, roughness: 0.3, metalness: 0.5 }), dark = new THREE.MeshStandardMaterial({ color: 0x2a2d36, roughness: 0.35, metalness: 0.85 }), chrome = new THREE.MeshStandardMaterial({ color: 0xd8dde8, roughness: 0.2, metalness: 0.95 });
+      function lathe(pts, m) { var o = new THREE.Mesh(new THREE.LatheGeometry(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }), 28), m); rocket.add(o); return o; }
+      lathe([[0.001, 0.2], [0.17, 0.2], [0.2, 0.12], [0.24, 0.02], [0.2, 0.0], [0.14, 0.1], [0.001, 0.14]], dark).material.side = THREE.DoubleSide;                // tuyère
+      var body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.3, 28, 1, true), white); body.position.y = 0.95; rocket.add(body);                           // fuselage
+      lathe([[0.2, 0.2], [0.3, 0.3]], dark).material.side = THREE.DoubleSide;
+      lathe([[0.3, 1.6], [0.285, 1.78], [0.235, 1.98], [0.16, 2.17], [0.08, 2.3], [0.001, 2.38]], red);                                                           // ogive rouge
+      [0.3, 1.6].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.302, 0.018, 8, 28), chrome); r.rotation.x = Math.PI / 2; r.position.y = y; rocket.add(r); });
+      var port = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.022, 10, 24), chrome); port.position.set(0, 1.28, 0.298); rocket.add(port);                    // hublot
+      var glass = new THREE.Mesh(new THREE.CircleGeometry(0.085, 20), new THREE.MeshStandardMaterial({ color: 0x4aa3ff, emissive: 0x16406e, roughness: 0.1, metalness: 0.3 })); glass.position.set(0, 1.28, 0.296); rocket.add(glass);
+      var fs2 = new THREE.Shape(); fs2.moveTo(0.26, 0.95); fs2.lineTo(0.26, 0.4); fs2.lineTo(0.62, 0.05); fs2.lineTo(0.62, 0.32); fs2.lineTo(0.3, 0.95); fs2.closePath();
+      var finGeo = new THREE.ExtrudeGeometry(fs2, { depth: 0.04, bevelEnabled: false });
+      for (var k = 0; k < 4; k++) { var an = k / 4 * TAU + Math.PI / 4, fin = new THREE.Mesh(finGeo, red); fin.position.set(0, 0.12, 0); fin.rotation.y = -an; fin.translateZ(-0.02); rocket.add(fin); }
+      for (k = 0; k < 4; k++) { var ab = k / 4 * TAU, bst = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.8, 14), chrome); bst.position.set(Math.cos(ab) * 0.36, 0.7, Math.sin(ab) * 0.36); rocket.add(bst); var cap = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 14), red); cap.position.set(Math.cos(ab) * 0.36, 1.18, Math.sin(ab) * 0.36); rocket.add(cap); }
+      var fgeo = new THREE.ConeGeometry(0.17, 0.95, 16); fgeo.rotateX(Math.PI); fgeo.translate(0, -0.475, 0);
+      var flame = new THREE.Mesh(fgeo, new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); flame.position.y = 0.08; rocket.add(flame); rocket.userData.flame = flame;
+      var cgeo = new THREE.ConeGeometry(0.09, 0.6, 14); cgeo.rotateX(Math.PI); cgeo.translate(0, -0.3, 0);
+      var core = new THREE.Mesh(cgeo, new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); flame.add(core);
+      rocket.scale.setScalar(0.9);
     }
     var rocket = new THREE.Group(); g.add(rocket); buildRocket(rocket);
     var rocket2 = new THREE.Group(); g.add(rocket2); buildRocket(rocket2);      // la fusée de la tour de droite suit exactement celle de gauche
@@ -167,12 +190,12 @@
     function injectCss() {
       if (document.getElementById('cr3d-css')) return;
       var s = document.createElement('style'); s.id = 'cr3d-css';
-      s.textContent = '.cr3d{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);width:min(520px,92%);background:rgba(6,9,20,.92);border:1px solid rgba(110,160,255,.7);border-radius:14px;padding:8px 12px;color:#d9e6ff;pointer-events:auto;display:flex;flex-direction:column;gap:5px;z-index:5}' +
-        '.cr3d .cr-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.cr3d .cr-msg{min-height:18px;text-align:center;font-weight:800;font-size:14px}' +
+      s.textContent = '.cr3d{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);width:min(640px,96%);background:rgba(6,9,20,.94);border:1px solid rgba(110,160,255,.7);border-radius:12px;padding:5px 12px 6px;color:#d9e6ff;pointer-events:auto;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 10px;z-index:5}' +
+        '.cr3d .cr-top{display:flex;gap:14px;font-weight:800;font-size:13px}.cr3d .cr-msg{flex:1 0 100%;min-height:16px;text-align:center;font-weight:800;font-size:13px;order:-1}' +
         '.cr3d .cr-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.cr3d .cr-chip{padding:4px 10px;border-radius:999px;border:2px solid #6ea0ff;background:#0f1630;color:#9fc2ff;font-weight:900;font-size:13px;cursor:pointer}' +
-        '.cr3d .cr-chip.minus{border-color:#ff8a80;color:#ff8a80}.cr3d .cr-b{padding:8px 20px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#06101e;background:linear-gradient(90deg,#4dd0ff,#3b82f6);align-self:center}' +
+        '.cr3d .cr-chip.minus{border-color:#ff8a80;color:#ff8a80}.cr3d .cr-b{padding:8px 20px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#06101e;background:linear-gradient(90deg,#4dd0ff,#3b82f6);align-self:center;margin:0}' +
         '.cr3d .cr-b.red{background:linear-gradient(90deg,#ff8a50,#ef3b3b);color:#fff}.cr3d .cr-b.alt{background:#27324f;color:#d9e6ff}.cr3d .cr-b:disabled{opacity:.4}' +
-        '.cr3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.cr3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(110,160,255,.6);background:rgba(6,9,20,.85);color:#d9e6ff;font-weight:800;cursor:pointer}';
+        '.cr3d-stand{position:absolute;left:14px;bottom:88px;z-index:5;pointer-events:auto}.cr3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(110,160,255,.6);background:rgba(6,9,20,.85);color:#d9e6ff;font-weight:800;cursor:pointer}';
       document.head.appendChild(s);
     }
     var standEl = null;
@@ -247,7 +270,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 2, tz: -5, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(3.2 - ey, 10) + view.pitch;           // on regarde le grand écran
+      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(3.2 - ey, 10) - 0.1 + view.pitch;           // on regarde le grand écran
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8 - (s.x * 0.1), ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 62 };
     };
     room.syncHud = function () { refreshUi(); };
