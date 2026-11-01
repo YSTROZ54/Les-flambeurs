@@ -18,7 +18,7 @@
   var MIN_BET = 10, MAX_BET = 250, MULT = 1.25, CHIPS = [10, 25, 50, 100, 250];
   var TABLES = [{ x: -5.5, z: -3 }, { x: 0, z: -3 }, { x: 5.5, z: -3 }];
   var SLOT = [-0.55, 0, 0.55];           // les trois emplacements des gobelets sur la table
-  var TOP_Y = 0.86, CUP_Z = -0.75;         // les gobelets sont posés côté croupier : ses mains les atteignent
+  var TOP_Y = 0.86, CUP_Z = -0.68, T_R = 1.35, T_CUT = 1.0, DEALER_Z = 1.22;         // les gobelets sont posés côté croupier : ses mains les atteignent
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -37,23 +37,31 @@
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
 
     /* --- salle : parquet en bois, boiseries bleu nuit à lattes et filets de laiton, tapis de jeu vert sous les tables --- */
-    var fc = mkCanvas(512, 512), fx = fc.getContext('2d'), PL = 64, PH2 = 16;
-    for (var py = 0; py < 512; py += PH2) {
-      for (var pxx = -((py / PH2) % 4) * 16; pxx < 512; pxx += PL) {
-        var tone = 78 + Math.floor(Math.random() * 30);
-        fx.fillStyle = 'rgb(' + (tone + 36) + ',' + (tone + 6) + ',' + (tone - 28) + ')'; fx.fillRect(pxx + 1, py + 1, PL - 2, PH2 - 2);
-        fx.fillStyle = 'rgba(255,230,190,0.07)'; fx.fillRect(pxx + 1, py + 1, PL - 2, 3);
-        fx.fillStyle = 'rgba(0,0,0,0.12)'; fx.fillRect(pxx + 1, py + PH2 - 4, PL - 2, 3);
+    // parquet remplacé par un sol de marbre sombre à grands carreaux, veiné, avec des joints et des losanges dorés
+    var fc = mkCanvas(1024, 1024), fx = fc.getContext('2d'), tx, ty, vi;
+    for (ty = 0; ty < 2; ty++) for (tx = 0; tx < 2; tx++) {
+      var ox = tx * 512, oy = ty * 512;
+      fx.fillStyle = (tx + ty) % 2 ? '#1d2a38' : '#16212d'; fx.fillRect(ox, oy, 512, 512);
+      var tg = fx.createLinearGradient(ox, oy, ox + 512, oy + 512); tg.addColorStop(0, 'rgba(255,255,255,0.07)'); tg.addColorStop(0.5, 'rgba(255,255,255,0)'); tg.addColorStop(1, 'rgba(0,0,0,0.12)');
+      fx.fillStyle = tg; fx.fillRect(ox, oy, 512, 512);
+      for (vi = 0; vi < 16; vi++) {
+        var vx = ox + Math.random() * 512, vy = oy + Math.random() * 512;
+        fx.strokeStyle = vi % 5 === 0 ? 'rgba(201,162,39,0.10)' : 'rgba(255,255,255,' + (0.04 + Math.random() * 0.08) + ')'; fx.lineWidth = 0.8 + Math.random() * 1.4;
+        fx.beginPath(); fx.moveTo(vx, vy); fx.bezierCurveTo(vx + 80 - Math.random() * 160, vy + 40 + Math.random() * 120, vx + 80 - Math.random() * 160, vy + 120 + Math.random() * 160, vx + 120 - Math.random() * 240, vy + 200 + Math.random() * 200); fx.stroke();
       }
     }
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 4, HZ * 2 / 4); ft.anisotropy = 8;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.4, metalness: 0.08 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    fx.fillStyle = '#c9a227';
+    for (ty = 0; ty < 3; ty++) fx.fillRect(0, ty * 512 - 3, 1024, 6);
+    for (tx = 0; tx < 3; tx++) fx.fillRect(tx * 512 - 3, 0, 6, 1024);
+    for (ty = 0; ty < 3; ty++) for (tx = 0; tx < 3; tx++) { fx.save(); fx.translate(tx * 512, ty * 512); fx.rotate(Math.PI / 4); fx.fillStyle = '#e8c75a'; fx.fillRect(-11, -11, 22, 22); fx.fillStyle = '#16212d'; fx.fillRect(-6, -6, 12, 12); fx.restore(); }
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 4, HZ * 2 / 4); ft.anisotropy = 16;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.2, metalness: 0.2 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
     var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#10222e'; wx.fillRect(0, 0, 256, 256);
     for (i = 0; i < 4; i++) {
       var lx = i * 64, lg = wx.createLinearGradient(lx, 0, lx + 64, 0); lg.addColorStop(0, '#0b1821'); lg.addColorStop(0.5, '#183746'); lg.addColorStop(1, '#0b1821'); wx.fillStyle = lg; wx.fillRect(lx + 3, 0, 58, 256);
       wx.strokeStyle = 'rgba(224,186,92,0.55)'; wx.lineWidth = 2; wx.beginPath(); wx.moveTo(lx + 1.5, 0); wx.lineTo(lx + 1.5, 256); wx.stroke();
     }
-    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 4;
+    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 16;
     function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.0, H / 2.4); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.1 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     // lambris de noyer le long des murs
@@ -71,36 +79,89 @@
     tx2.fillStyle = '#ffe9b0'; tx2.font = '800 52px ' + SERIF; tx2.textAlign = 'center'; tx2.textBaseline = 'middle'; tx2.fillText('Trouve la bille : gain x1,25 · mise de 10 à 250 €', 512, 80, 960);
     var tipM = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.94), new THREE.MeshBasicMaterial({ map: mkTex(tip) })); tipM.position.set(0, 2.0, -HZ + 0.07); g.add(tipM);
 
-    /* --- tables, tabourets, gobelets --- */
-    var clothM = new THREE.MeshStandardMaterial({ color: 0x0d5a3a, roughness: 0.9 }), cupM = new THREE.MeshStandardMaterial({ color: 0xd02a2a, roughness: 0.45, metalness: 0.1 }), rimM = new THREE.MeshStandardMaterial({ color: 0xf6f0e0, roughness: 0.4 });
-    var ballM = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.2, metalness: 0.9, emissive: 0x553300 }), seatM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.6 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
-    var cupGeo = new THREE.CylinderGeometry(0.1, 0.14, 0.24, 20), cupRim = new THREE.CylinderGeometry(0.105, 0.105, 0.03, 20), ballGeo = new THREE.SphereGeometry(0.05, 16, 12);
+    /* --- tables, fauteuils, gobelets --- */
+    var cupM = new THREE.MeshStandardMaterial({ color: 0xd4202a, roughness: 0.15, metalness: 0.1, side: THREE.DoubleSide }), rimM = new THREE.MeshStandardMaterial({ color: 0xf6f0e0, roughness: 0.3 });
+    var ballM = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.2, metalness: 0.9, emissive: 0x553300 });
+    var velvetM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.75, side: THREE.DoubleSide }), velvetD = new THREE.MeshStandardMaterial({ color: 0x5c0a16, roughness: 0.8, side: THREE.DoubleSide });
+    var leatherM = new THREE.MeshStandardMaterial({ color: 0x6b1020, roughness: 0.45, metalness: 0.1 });
+    // gobelet retourné : coque évasée vers le bas, bord crème, deux filets dorés (centré sur sa mi-hauteur)
+    var cupGeo = new THREE.LatheGeometry([[0.150, -0.12], [0.147, -0.10], [0.140, -0.07], [0.126, 0.0], [0.112, 0.07], [0.102, 0.105], [0.098, 0.118], [0.08, 0.124], [0.04, 0.126], [0.001, 0.126]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 28);
+    var cupBand1 = new THREE.TorusGeometry(0.136, 0.008, 6, 28), cupBand2 = new THREE.TorusGeometry(0.109, 0.006, 6, 28), cupLip = new THREE.TorusGeometry(0.148, 0.009, 6, 28), ballGeo = new THREE.SphereGeometry(0.05, 16, 12);
     var tables = [], seats = [], timers = [], clockT = 0;
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
+    function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m); o.position.set(x, y, z); p.add(o); return o; }
+    function lathe(p, pts, m, seg) { var o = new THREE.Mesh(new THREE.LatheGeometry(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }), seg || 32), m); p.add(o); return o; }
+    // tapis rond sous chaque table : bleu nuit, deux filets dorés
+    var rc = mkCanvas(512, 512), rx = rc.getContext('2d'), rg = rx.createRadialGradient(256, 256, 20, 256, 256, 256);
+    rg.addColorStop(0, '#173f52'); rg.addColorStop(0.8, '#0c2230'); rg.addColorStop(1, '#091823'); rx.fillStyle = rg; rx.fillRect(0, 0, 512, 512);
+    rx.strokeStyle = '#d9b441'; rx.lineWidth = 7; rx.beginPath(); rx.arc(256, 256, 236, 0, TAU); rx.stroke(); rx.lineWidth = 3; rx.beginPath(); rx.arc(256, 256, 222, 0, TAU); rx.stroke();
+    rx.strokeStyle = 'rgba(217,180,65,0.45)'; rx.lineWidth = 2; rx.setLineDash([10, 10]); rx.beginPath(); rx.arc(256, 256, 190, 0, TAU); rx.stroke(); rx.setLineDash([]);
+    var rugMat = new THREE.MeshStandardMaterial({ map: mkTex(rc), roughness: 0.9 });
+    // feutre du plateau : filets dorés qui suivent le bord, trois cercles à l'emplacement des gobelets, inscription lisible côté joueur
+    function feltTexture() {
+      var S = 1024, cv = mkCanvas(S, S), c = cv.getContext('2d'), k = S / (T_R * 2), h = S / 2, n;
+      var gr = c.createRadialGradient(h, h, 40, h, h, S * 0.5); gr.addColorStop(0, '#18804f'); gr.addColorStop(1, '#0b4a30'); c.fillStyle = gr; c.fillRect(0, 0, S, S);
+      for (n = 0; n < 9000; n++) { c.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.05)'; c.fillRect(Math.random() * S, Math.random() * S, 2, 2); }
+      function loop(r, cutY) { var a = Math.asin(cutY / r); c.beginPath(); c.arc(h, h, r * k, -a, Math.PI + a, false); c.closePath(); c.stroke(); }
+      c.strokeStyle = '#e8c75a'; c.lineWidth = 6; loop(T_R - 0.1, T_CUT - 0.1); c.lineWidth = 2.5; loop(T_R - 0.17, T_CUT - 0.17);
+      c.strokeStyle = 'rgba(232,199,90,0.8)'; c.lineWidth = 3;
+      for (n = 0; n < 3; n++) { c.beginPath(); c.arc(h + SLOT[n] * k, h + CUP_Z * k, 0.175 * k, 0, TAU); c.stroke(); }
+      c.fillStyle = 'rgba(232,199,90,0.9)'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '800 54px ' + SERIF; c.fillText('GOBELETS', h, h + 0.82 * k);
+      c.font = '700 40px ' + SERIF; c.fillText('♠    ♦    ♥    ♣', h, h + 0.5 * k);
+      var t = new THREE.CanvasTexture(cv); t.flipY = false; t.anisotropy = 16; t.repeat.set(1 / (T_R * 2), 1 / (T_R * 2)); t.offset.set(0.5, 0.5); return t;
+    }
+    var feltTop = new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 0.92, metalness: 0 });
+    // fauteuil capitonné (même modèle que le blackjack) : pied doré, assise de velours, dossier enveloppant dont l'arc doré suit le dos
+    function makeChair(parent, x, z, ry) {
+      var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; parent.add(q);
+      var seatY = 0.6, bh = 0.52, by = seatY + 0.06 + bh / 2;
+      cyl(q, 0.27, 0.3, 0.035, gold, 0, 0.0175, 0, 24); cyl(q, 0.045, 0.06, seatY - 0.12, gold, 0, (seatY - 0.12) / 2 + 0.035, 0, 12);
+      cyl(q, 0.25, 0.25, 0.11, velvetM, 0, seatY, 0, 28);
+      var back = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, bh, 28, 1, true, Math.PI - 1.15, 2.3), velvetM); back.position.set(0, by, 0); q.add(back);
+      var back2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bh + 0.04, 28, 1, true, Math.PI - 1.17, 2.34), velvetD); back2.position.set(0, by, 0); q.add(back2);
+      [-1, 1].forEach(function (sd) { cyl(q, 0.016, 0.016, bh + 0.06, gold, sd * Math.sin(1.15) * 0.3, by, Math.cos(Math.PI - 1.15) * 0.3, 8); });
+      var top = new THREE.Mesh(new THREE.TorusGeometry(0.285, 0.014, 8, 28, 2.3), gold); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 1.15; top.position.y = by + bh / 2 + 0.02; q.add(top);
+      return q;
+    }
+    var xc = Math.sqrt(T_R * T_R - T_CUT * T_CUT), a0 = Math.asin(T_CUT / T_R);
     TABLES.forEach(function (td, ti) {
       var grp = new THREE.Group(); grp.position.set(td.x, 0, td.z); g.add(grp);
-      var top = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.1, 40), clothM); top.position.y = TOP_Y - 0.05; grp.add(top);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 8, 40), gold); rim.rotation.x = Math.PI / 2; rim.position.y = TOP_Y; grp.add(rim);
-      var ped = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.45, TOP_Y - 0.1, 14), woodM); ped.position.y = (TOP_Y - 0.1) / 2; grp.add(ped);
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.7, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.012, 0.3); grp.add(rug);
+      // plateau rond dont le dos est coupé droit : le croupier se tient derrière ce bord, jamais dans la table
+      var dS = new THREE.Shape(); dS.moveTo(-xc, -T_CUT); dS.lineTo(xc, -T_CUT); dS.absarc(0, 0, T_R, -a0, Math.PI + a0, false); dS.lineTo(-xc, -T_CUT);
+      var top = new THREE.Mesh(new THREE.ExtrudeGeometry(dS, { depth: 0.12, bevelEnabled: false, curveSegments: 48 }), [feltTop, woodM]); top.rotation.x = Math.PI / 2; top.position.y = TOP_Y; grp.add(top);
+      var outline = [], u;
+      for (u = 0; u <= 64; u++) { var an = -a0 + u / 64 * (Math.PI + 2 * a0); outline.push(new THREE.Vector3(Math.cos(an) * T_R, 0, Math.sin(an) * T_R)); }
+      for (u = 1; u < 12; u++) outline.push(new THREE.Vector3(-xc + u / 12 * xc * 2, 0, -T_CUT));
+      function tube(y, rad, m) { var path = new THREE.CatmullRomCurve3(outline.map(function (v) { return v.clone().setY(y); }), true, 'centripetal'); var o = new THREE.Mesh(new THREE.TubeGeometry(path, 240, rad, 10, true), m); grp.add(o); return o; }
+      tube(TOP_Y + 0.01, 0.07, leatherM); tube(TOP_Y + 0.072, 0.011, gold); tube(TOP_Y - 0.1, 0.014, gold);
+      // pied tourné en bois sombre, bagues dorées, large socle
+      lathe(grp, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.46, 0.07], [0.3, 0.12], [0.2, 0.22], [0.16, 0.4], [0.2, 0.55], [0.27, 0.66], [0.3, 0.72], [0.001, 0.74]], woodM, 36).material.side = THREE.DoubleSide;
+      [[0.5, 0.03, 0.03], [0.2, 0.22, 0.025], [0.28, 0.66, 0.025]].forEach(function (d) { var t = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 36), gold); t.rotation.x = Math.PI / 2; t.position.y = d[1]; grp.add(t); });
+      // lampe suspendue
+      var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.36, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x14202a, roughness: 0.45, metalness: 0.5, side: THREE.DoubleSide })); lamp.position.set(0, H - 1.5, 0); grp.add(lamp);
+      var lrim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.018, 6, 28), gold); lrim.rotation.x = Math.PI / 2; lrim.position.set(0, H - 1.68, 0); grp.add(lrim);
+      var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); bulb.position.set(0, H - 1.62, 0); grp.add(bulb);
+      cyl(grp, 0.012, 0.012, 1.4, new THREE.MeshBasicMaterial({ color: 0x222222 }), 0, H - 0.7, 0, 6);
       var T = { i: ti, x: td.x, z: td.z, group: grp, cups: [], pos: [0, 1, 2], phase: 'idle', ballCup: 0, cupMeshes: [] };
       for (var c = 0; c < 3; c++) {
         var cg = new THREE.Group(); cg.position.set(SLOT[c], TOP_Y, CUP_Z); grp.add(cg);
-        var mesh = new THREE.Mesh(cupGeo, cupM); mesh.position.y = 0.12; cg.add(mesh); var rm = new THREE.Mesh(cupRim, rimM); rm.position.y = -0.105; mesh.add(rm); mesh.userData.cup = { t: ti, id: c };      // le bord blanc suit le gobelet quand il se lève
+        var mesh = new THREE.Mesh(cupGeo, cupM); mesh.position.y = 0.12; cg.add(mesh); mesh.userData.cup = { t: ti, id: c };
+        var b1 = new THREE.Mesh(cupBand1, gold); b1.rotation.x = Math.PI / 2; b1.position.y = -0.03; mesh.add(b1);
+        var b2 = new THREE.Mesh(cupBand2, gold); b2.rotation.x = Math.PI / 2; b2.position.y = 0.085; mesh.add(b2);
+        var lip = new THREE.Mesh(cupLip, rimM); lip.rotation.x = Math.PI / 2; lip.position.y = -0.112; mesh.add(lip);      // les filets et le bord suivent le gobelet quand il se lève
         var ball = new THREE.Mesh(ballGeo, ballM); ball.position.set(0, 0.05, 0); ball.visible = false; cg.add(ball);
         T.cups.push({ g: cg, mesh: mesh, ball: ball, lift: 0, liftTo: 0, id: c });
         T.cupMeshes.push(mesh);
       }
       tables.push(T);
-      room.colliders.push({ x: td.x, z: td.z, r: 1.3 });
-      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;      // le croupier, debout derrière la table, face aux joueurs
-      if (dl) { dl.group.position.set(td.x, 0, td.z - 1.1); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); g.add(dl.group); T.dealer = dl; T.demoWait = 2 + ti * 1.7; room.colliders.push({ x: td.x, z: td.z - 1.1, r: 0.4 }); }
-      // tabouret face à la table
-      var sx0 = td.x, sz0 = td.z + 1.55, s = { n: ti, x: sx0, z: sz0, yaw: 0, tx: td.x, tz: td.z, table: T, sx: td.x, sz: td.z + 2.5 };
+      room.colliders.push({ x: td.x, z: td.z, r: 1.45 });
+      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;      // le croupier, debout derrière le bord droit de la table, face aux joueurs
+      if (dl) { dl.group.position.set(td.x, 0, td.z - DEALER_Z); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); g.add(dl.group); T.dealer = dl; T.demoWait = 2 + ti * 1.7; room.colliders.push({ x: td.x, z: td.z - DEALER_Z, r: 0.4 }); }
+      // fauteuil face à la table, assez loin du bord pour que le joueur ne rentre pas dedans
+      var sx0 = td.x, sz0 = td.z + 1.9, s = { n: ti, x: sx0, z: sz0, yaw: 0, tx: td.x, tz: td.z, table: T, sx: td.x, sz: td.z + 2.9 };
       seats.push(s);
-      var sc = new THREE.Group(); sc.position.set(sx0, 0, sz0); g.add(sc);
-      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 8), chromeM); stem.position.y = 0.3; sc.add(stem);
-      var base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.03, 14), chromeM); base.position.y = 0.02; sc.add(base);
-      var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.1, 16), seatM); cush.position.y = 0.6; sc.add(cush);
+      makeChair(g, sx0, sz0, Math.PI);
       room.colliders.push({ x: sx0, z: sz0, r: 0.3 });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, sz0); g.add(hit);
       room.interactables.push({ hit: hit, x: sx0, z: sz0, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Table ' + (ti + 1); }, use: function (w) { sit(w, s); } });

@@ -321,12 +321,19 @@
       for (i = 0; i < 28; i++) {                                 // éventail depuis le centre jusqu'aux murs
         a = i / 28 * TAU; t = Math.min((HX - 0.4) / Math.abs(Math.cos(a) || 1e-6), (HZ - 0.4) / Math.abs(Math.sin(a) || 1e-6));
         ex = Math.cos(a) * t; ez = Math.sin(a) * t;
-        swag(0, 0, ex, ez, hubY, H - 0.12, 0.55 + (i % 2) * 0.35, i % 2 ? -1 : 1);
+        swag(Math.cos(a) * 0.34, Math.sin(a) * 0.34, ex, ez, hubY, H - 0.12, 0.55 + (i % 2) * 0.35, i % 2 ? -1 : 1);   // chaque fil part de la surface de la boule
       }
       for (i = -3; i <= 3; i++) {                                // guirlandes en travers, accrochées de mur à mur
         for (var s = 0; s < 4; s++) swag(-HX + 0.4 + s * (HX * 2 - 0.8) / 4, i * 2.6, -HX + 0.4 + (s + 1) * (HX * 2 - 0.8) / 4, i * 2.6, H - 0.12, H - 0.12, 0.5, (i + s) % 2 ? -1 : 1);
       }
-      var hub = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); hub.position.set(0, hubY, 0); g.add(hub);
+      // boule de LED : une coque sombre entièrement couverte de LED lumineuses qui suivent le même défilé de couleurs que les guirlandes
+      var shell = new THREE.Mesh(new THREE.SphereGeometry(0.33, 28, 20), new THREE.MeshBasicMaterial({ color: 0x120a18 })); shell.position.set(0, hubY, 0); g.add(shell);
+      var nb = low ? 130 : 260, bp = new Float32Array(nb * 3), bc = new Float32Array(nb * 3), bg = new THREE.BufferGeometry(), ga = Math.PI * (3 - Math.sqrt(5)), yy, rr2;
+      for (i = 0; i < nb; i++) { yy = 1 - 2 * (i + 0.5) / nb; rr2 = Math.sqrt(1 - yy * yy); bp[i * 3] = Math.cos(ga * i) * rr2 * 0.345; bp[i * 3 + 1] = hubY + yy * 0.345; bp[i * 3 + 2] = Math.sin(ga * i) * rr2 * 0.345; }
+      bg.setAttribute('position', new THREE.BufferAttribute(bp, 3)); bg.setAttribute('color', new THREE.BufferAttribute(bc, 3).setUsage(THREE.DynamicDrawUsage));
+      var ballPts = new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.15, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); ballPts.frustumCulled = false; g.add(ballPts);
+      ledRows.push({ geo: bg, col: bc, cnt: nb, dir: 1 });
+      var halo = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, hubY, 0]), 3)), new THREE.PointsMaterial({ size: 2.4, map: ledTex, color: 0x8a4cff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); halo.frustumCulled = false; g.add(halo);
     })();
     var ledC = new THREE.Color(), ledT = 0;
     function ledsUpdate(dt) {
