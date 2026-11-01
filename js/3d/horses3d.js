@@ -348,12 +348,6 @@
       box(1.9, 0.04, 0.5, 0, 2.62, 0, ledDim, vg);
       var lamp = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.1), new THREE.MeshBasicMaterial({ color: 0xffe9bf })); lamp.position.set(0, 2.6, 0.24); lamp.rotation.x = Math.PI / 2; vg.add(lamp);
     });
-    // palmiers en pot
-    function palm(x, z, s) {
-      var pg = F.makePlant(s * 1.15); pg.position.set(x, 0, z); g.add(pg);
-      room.colliders.push({ x: x, z: z, r: 0.4 });
-    }
-    palm(-(HX - 0.9), HZ - 0.9, 1.1); palm(HX - 0.9, HZ - 0.9, 1.1); palm(-(HX - 0.9), 5.2, 1); palm(HX - 0.9, 5.2, 1); palm(-(HX - 0.9), -5.2, 1); palm(HX - 0.9, -5.2, 1);
     // salons : un canapé chesterfield bordeaux de chaque côté de l'écran, avec sa petite table et sa lampe
     var sofaM = new THREE.MeshStandardMaterial({ color: 0x6a1226, roughness: 0.7, metalness: 0.05 });
     function sofa(x, z) {
@@ -388,10 +382,10 @@
     room.colliders.push({ x: -6.4, z: HZ - 1.5, r: 0.9 }, { x: -5.2, z: HZ - 1.5, r: 0.9 }, { x: -4.0, z: HZ - 1.5, r: 0.9 });
     // statue de cheval en or sur un socle de marbre, au sud-est
     var pedM = new THREE.MeshStandardMaterial({ color: 0xe9e1d2, roughness: 0.3, metalness: 0.1 });
-    box(1.1, 0.9, 1.1, 5.3, 0.45, HZ - 1.5, pedM); box(1.2, 0.08, 1.2, 5.3, 0.94, HZ - 1.5, goldM); box(1.2, 0.08, 1.2, 5.3, 0.04, HZ - 1.5, goldM);
+    box(1.1, 0.9, 1.1, HX - 0.9, 0.45, HZ - 0.9, pedM); box(1.2, 0.08, 1.2, HX - 0.9, 0.94, HZ - 0.9, goldM); box(1.2, 0.08, 1.2, HX - 0.9, 0.04, HZ - 0.9, goldM);
     var stat = createHorse({ n: 1, silk: 0xffd24a, coat: 0xd9a227, ink: '#222222' }, 0);
-    stat.tag.visible = false; stat.group.scale.set(4.2, 4.2, 4.2); stat.group.position.set(5.3, 0.98, HZ - 1.5); stat.group.rotation.y = -2.5; g.add(stat.group);
-    room.colliders.push({ x: 5.3, z: HZ - 1.5, r: 0.95 });
+    stat.tag.visible = false; stat.group.scale.set(4.2, 4.2, 4.2); stat.group.position.set(HX - 0.9, 0.98, HZ - 0.9); stat.group.rotation.y = -2.4; g.add(stat.group);
+    room.colliders.push({ x: HX - 0.9, z: HZ - 0.9, r: 0.95 });
     // affiches encadrées
     function poster(x, y, z, ry, l1, l2, hue) {
       var cp = mkCanvas(420, 280), cx2 = cp.getContext('2d'), gg = cx2.createLinearGradient(0, 0, 0, 280);

@@ -16,9 +16,9 @@
 
   var HX = 12, HZ = 9, H = 5.2;
   var MIN_BET = 10, MAX_BET = 250, MULT = 1.25, CHIPS = [10, 25, 50, 100, 250];
-  var TABLES = [{ x: -5.5, z: -3 }, { x: 0, z: -3 }, { x: 5.5, z: -3 }];
-  var SLOT = [-0.55, 0, 0.55];           // les trois emplacements des gobelets sur la table
-  var TOP_Y = 0.86, CUP_Z = -0.68, T_R = 1.35, T_CUT = 1.0, DEALER_Z = 1.22;         // les gobelets sont posés côté croupier : ses mains les atteignent
+  var TABLES = [{ x: -8.25, z: -3 }, { x: -2.75, z: -3 }, { x: 2.75, z: -3 }, { x: 8.25, z: -3 }];
+  var SLOT = [-0.45, 0, 0.45];           // les trois emplacements des gobelets sur la table
+  var TOP_Y = 0.86, CUP_Z = -0.55, T_R = 1.35, T_CUT = 0.9, DEALER_Z = 1.12;         // les gobelets sont posés côté croupier : ses mains les atteignent
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -55,7 +55,7 @@
     for (tx = 0; tx < 3; tx++) fx.fillRect(tx * 512 - 3, 0, 6, 1024);
     for (ty = 0; ty < 3; ty++) for (tx = 0; tx < 3; tx++) { fx.save(); fx.translate(tx * 512, ty * 512); fx.rotate(Math.PI / 4); fx.fillStyle = '#e8c75a'; fx.fillRect(-11, -11, 22, 22); fx.fillStyle = '#16212d'; fx.fillRect(-6, -6, 12, 12); fx.restore(); }
     var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 4, HZ * 2 / 4); ft.anisotropy = 16;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.2, metalness: 0.2 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.4, metalness: 0.1 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
     var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#10222e'; wx.fillRect(0, 0, 256, 256);
     for (i = 0; i < 4; i++) {
       var lx = i * 64, lg = wx.createLinearGradient(lx, 0, lx + 64, 0); lg.addColorStop(0, '#0b1821'); lg.addColorStop(0.5, '#183746'); lg.addColorStop(1, '#0b1821'); wx.fillStyle = lg; wx.fillRect(lx + 3, 0, 58, 256);
@@ -65,11 +65,11 @@
     function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.0, H / 2.4); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6, metalness: 0.1 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     // lambris de noyer le long des murs
-    [[HX * 2, 0, -HZ + 0.04, 0], [HX * 2, 0, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
+    [[HX * 2, 0, -HZ + 0.04, 0], [HX - 1.35, -(HX + 1.35) / 2, HZ - 0.04, Math.PI], [HX - 1.35, (HX + 1.35) / 2, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
       var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.2), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 })); m.position.set(d[1], 0.6, d[2]); m.rotation.y = d[3]; g.add(m);
     });
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), woodM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.55, metalness: 0.2 });
-    [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0], [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX - 1.35, 0.12, 0.1, -(HX + 1.35) / 2, 1.2, HZ - 0.05], [HX - 1.35, 0.12, 0.1, (HX + 1.35) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0], [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x080d12 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     // enseigne
     var sc0 = mkCanvas(1024, 256), sx = sc0.getContext('2d'); sx.fillStyle = '#0a1820'; sx.fillRect(0, 0, 1024, 256); sx.strokeStyle = '#ffe08a'; sx.lineWidth = 10; sx.strokeRect(10, 10, 1004, 236);
@@ -166,7 +166,7 @@
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, sz0); g.add(hit);
       room.interactables.push({ hit: hit, x: sx0, z: sz0, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Table ' + (ti + 1); }, use: function (w) { sit(w, s); } });
     });
-    var lampLight = low ? null : [-5.5, 0, 5.5].forEach(function (x) { var pl = new THREE.PointLight(0xffd9a0, 0.8, 9); pl.position.set(x, 3.2, -2.4); g.add(pl); });
+    var lampLight = low ? null : [-8.25, -2.75, 2.75, 8.25].forEach(function (x) { var pl = new THREE.PointLight(0xffd9a0, 0.8, 9); pl.position.set(x, 3.2, -2.4); g.add(pl); });
 
     /* --- la partie --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 50, hover = -1;
@@ -203,32 +203,59 @@
       var swaps = 15, k;
       T.sw = [];
       for (k = 0; k < swaps; k++) { var a = Math.floor(Math.random() * 3), b; do { b = Math.floor(Math.random() * 3); } while (b === a); T.sw.push([a, b]); }
-      T.swI = -1; T.swT = 0; T.swDur = 0.27; T.cur = null;
+      T.swI = -1; T.swT = 0; T.swDur = 0.2; T.cur = null;
     }
-    // le croupier suit les gobelets des mains : bras tendus vers la table pendant un mélange (de démonstration ou de partie)
-    function dealerAnim(T, dt) {
-      var d = T.dealer, rig = d._rig; d.stopWalk(); d.applyHold(dt);
-      T.armK = (T.armK || 0) + (((T.phase === 'shuffle' || T.phase === 'demo') ? 1 : 0) - (T.armK || 0)) * Math.min(1, dt * 6);
-      if (!rig) return;
-      if (!T.base) {                                                    // pose de repos des bras, relevée une fois (le croupier est au repos à ce moment-là)
-        T.base = {}; ['r', 'l'].forEach(function (side) { ['upperarm_', 'lowerarm_'].forEach(function (n) { var b = rig.root.getObjectByName(n + side); if (b) T.base[n + side] = b.quaternion.clone(); }); });
-      }
-      if (T.armK < 0.01) {
-        if (T.armDirty) { T.armDirty = false; ['r', 'l'].forEach(function (side) { ['upperarm_', 'lowerarm_'].forEach(function (n) { var b = rig.root.getObjectByName(n + side); if (b && T.base[n + side]) b.quaternion.copy(T.base[n + side]); }); }); }
-        return;
-      }
-      T.armDirty = true;
-      var k = T.armK, sw = T.cur ? Math.sin(Math.min(1, T.cur.t / T.swDur) * Math.PI) : 0, sd = T.cur ? (T.cur.pb > T.cur.pa ? 1 : -1) : 0;
-      ['r', 'l'].forEach(function (side) {
-        var up = rig.root.getObjectByName('upperarm_' + side), lo = rig.root.getObjectByName('lowerarm_' + side); if (!up || !lo) return;
-        var P = ARMS[side], sgn = side === 'r' ? 1 : -1;
-        _e.set(P.u[0] * k, P.u[1] * k + sgn * sd * 0.22 * sw * k, P.u[2] * k, 'XYZ'); up.quaternion.copy(T.base['upperarm_' + side]).multiply(_q1.setFromEuler(_e));
-        _e.set(P.l[0] * k, P.l[1] * k, P.l[2] * k, 'XYZ'); lo.quaternion.copy(T.base['lowerarm_' + side]).multiply(_q2.setFromEuler(_e));
+    // le croupier suit les gobelets des mains : chaque main attrape un gobelet par le dessus et l'accompagne pendant tout le mélange (de démonstration ou de partie).
+    // Les bras sont calculés en « cinématique inverse » : on connaît où doit être le poignet, on en déduit l'angle de l'épaule et du coude.
+    var _vS = new THREE.Vector3(), _vE = new THREE.Vector3(), _vH = new THREE.Vector3(), _vU = new THREE.Vector3(), _vP = new THREE.Vector3(), _vA = new THREE.Vector3(), _vB = new THREE.Vector3(), _vEd = new THREE.Vector3(), _vHd = new THREE.Vector3();
+    var _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qo = new THREE.Quaternion();
+    function swingBone(b, from, to, k) {                         // tourne l'os pour que la direction « from » devienne « to » (k = dosage entre la pose d'origine et la pose visée)
+      _qd.setFromUnitVectors(from, to);
+      b.getWorldQuaternion(_qw); _qw.premultiply(_qd);
+      b.parent.getWorldQuaternion(_qp); _qp.invert().multiply(_qw);
+      _qo.copy(b.quaternion); b.quaternion.copy(_qo.slerp(_qp, k)); b.updateMatrixWorld(true);
+    }
+    function ikArm(rig, side, tgt, k) {
+      var ua = rig.root.getObjectByName('upperarm_' + side), la = rig.root.getObjectByName('lowerarm_' + side), ha = rig.root.getObjectByName('hand_' + side);
+      if (!ua || !la || !ha) return;
+      rig.root.updateMatrixWorld(true);
+      _vS.setFromMatrixPosition(ua.matrixWorld); _vE.setFromMatrixPosition(la.matrixWorld); _vH.setFromMatrixPosition(ha.matrixWorld);
+      var l1 = _vS.distanceTo(_vE), l2 = _vE.distanceTo(_vH), d = _vS.distanceTo(tgt);
+      if (d < 1e-4) return;
+      _vU.copy(tgt).sub(_vS).normalize();
+      var dd = Math.min(d, (l1 + l2) * 0.995), al = (l1 * l1 - l2 * l2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, l1 * l1 - al * al));
+      _vP.set(side === 'r' ? -0.5 : 0.5, -1, -0.25); _vP.addScaledVector(_vU, -_vP.dot(_vU)).normalize();            // le coude plie vers le bas et un peu vers l'extérieur
+      _vEd.copy(_vS).addScaledVector(_vU, al).addScaledVector(_vP, hh); _vHd.copy(_vS).addScaledVector(_vU, dd);
+      swingBone(ua, _vA.copy(_vE).sub(_vS).normalize(), _vB.copy(_vEd).sub(_vS).normalize(), k);
+      _vE.setFromMatrixPosition(la.matrixWorld); _vH.setFromMatrixPosition(ha.matrixWorld);
+      swingBone(la, _vA.copy(_vH).sub(_vE).normalize(), _vB.copy(_vHd).sub(_vE).normalize(), k);
+    }
+    var _vX = new THREE.Vector3(1, 0, 0);
+    function leanSpine(rig, ang) {                                // le croupier se penche au-dessus de la table (ses bras sont courts : sans ça il n'atteint pas les gobelets)
+      rig.root.updateMatrixWorld(true);
+      ['spine_01', 'spine_02', 'spine_03'].forEach(function (n) {
+        var b = rig.root.getObjectByName(n); if (!b || !b.parent) return;
+        _qd.setFromAxisAngle(_vX, ang / 3); b.getWorldQuaternion(_qw); _qw.premultiply(_qd);
+        b.parent.getWorldQuaternion(_qp); _qp.invert().multiply(_qw); b.quaternion.copy(_qp); b.updateMatrixWorld(true);
       });
     }
-    // pose des bras tendus vers les gobelets (angles trouvés en cherchant où les mains arrivent au-dessus de la table)
-    var ARMS = { r: { u: [0.74, -0.12, 0.08], l: [0.05, 0, -0.05] }, l: { u: [0.74, 0.12, -0.08], l: [0.05, 0, 0.05] } };
-    var _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
+    function dealerAnim(T, dt) {
+      var d = T.dealer, rig = d._rig; d.stopWalk(); d.applyHold(dt);
+      T.armK = (T.armK || 0) + (((T.phase === 'shuffle' || T.phase === 'demo') ? 1 : 0) - (T.armK || 0)) * Math.min(1, dt * 7);
+      if (!rig || T.armK < 0.01) { T.hr = null; return; }
+      var cr, cl;
+      if (T.cur) { var ca = T.cups[T.cur.ca], cb = T.cups[T.cur.cb]; cr = SLOT[T.cur.pa] < SLOT[T.cur.pb] ? ca : cb; cl = cr === ca ? cb : ca; }
+      else { cr = T.cups[T.pos.indexOf(0)]; cl = T.cups[T.pos.indexOf(2)]; }
+      if (!cr || !cl) return;
+      if (!T.hr) { T.hr = new THREE.Vector3(); T.hl = new THREE.Vector3(); T.hrOk = false; }
+      [[cr, T.hr], [cl, T.hl]].forEach(function (pr) {                // poignet : au-dessus du gobelet, un peu côté croupier, avec un léger retard pour que le geste soit fluide
+        _vA.set(pr[0].g.position.x, TOP_Y + 0.246 + pr[0].lift + 0.07, pr[0].g.position.z - 0.17); T.group.localToWorld(_vA);
+        if (!T.hrOk) pr[1].copy(_vA); else pr[1].lerp(_vA, Math.min(1, dt * 18));
+      });
+      T.hrOk = true;
+      leanSpine(rig, 0.7 * T.armK);
+      ikArm(rig, 'r', T.hr, T.armK); ikArm(rig, 'l', T.hl, T.armK);
+    }
     function stepSwap(T, dt) {
       if (T.phase !== 'shuffle' && T.phase !== 'demo') return;
       if (!T.cur) {
@@ -236,7 +263,7 @@
         var pa = T.sw[T.swI][0], pb = T.sw[T.swI][1], ca = T.pos.indexOf(pa), cb = T.pos.indexOf(pb);           // gobelets qui occupent les emplacements pa et pb
         T.cur = { ca: ca, cb: cb, pa: pa, pb: pb, t: 0 };
       }
-      var s = T.cur; s.t += dt; var u = Math.min(1, s.t / T.swDur), e = u * u * (3 - 2 * u), arc = Math.sin(u * Math.PI) * 0.22;
+      var s = T.cur; s.t += dt; var u = Math.min(1, s.t / T.swDur), e = u * u * (3 - 2 * u), arc = Math.sin(u * Math.PI) * 0.12;
       T.cups[s.ca].g.position.x = SLOT[s.pa] + (SLOT[s.pb] - SLOT[s.pa]) * e; T.cups[s.ca].g.position.z = CUP_Z + arc;
       T.cups[s.cb].g.position.x = SLOT[s.pb] + (SLOT[s.pa] - SLOT[s.pb]) * e; T.cups[s.cb].g.position.z = CUP_Z - arc;
       if (u >= 1) { T.pos[s.ca] = s.pb; T.pos[s.cb] = s.pa; T.cups[s.ca].g.position.z = CUP_Z; T.cups[s.cb].g.position.z = CUP_Z; T.cur = null; }
@@ -329,7 +356,7 @@
           T.demoWait -= dt;
           if (T.demoWait <= 0) {
             T.sw = []; for (var q = 0; q < 6; q++) { var a1 = Math.floor(Math.random() * 3), b1; do { b1 = Math.floor(Math.random() * 3); } while (b1 === a1); T.sw.push([a1, b1]); }
-            T.phase = 'demo'; T.swI = -1; T.swT = 0; T.swDur = 0.4; T.cur = null; T.demoWait = 99;
+            T.phase = 'demo'; T.swI = -1; T.swT = 0; T.swDur = 0.28; T.cur = null; T.demoWait = 99;
           }
         }
         stepSwap(T, dt);
