@@ -1,14 +1,14 @@
 /* =====================================================================
    hud3d.js — HUD du joueur, roue des danses et téléphone (monde 3D complet, PC)
    ---------------------------------------------------------------------
-   - HUD en bas à gauche : chat de la salle, avatar, pseudo, rang, solde, et quatre boutons-logos (Danses [E], Emotes [A], Téléphone [T], Chat [Entrée]).
+   - HUD en bas à gauche : chat de la salle, avatar, pseudo, rang, solde, et quatre boutons-logos (Danses, Emotes, Téléphone, Chat).
    - Inventaire en bas au milieu : 5 cases (touches 1 à 5 ou clic sur la case pour l'utiliser, molette pour changer de case) : Danses, Emotes, une case libre (cartes à gratter), Téléphone, Chat.
-     Case du téléphone choisie : un clic gauche ou droit dans le monde ouvre le téléphone.
+     Case du téléphone choisie : un clic gauche ou droit dans le monde ouvre le téléphone. Plus de touche dédiée à chacun (E/A/T/Entrée) : seulement le clic ou la case.
    - Menu pause : Échap (ou la souris libérée par le navigateur en grand écran) ; Échap ou « Reprendre » pour revenir.
-   - Roue des danses / emotes : touche E (ou B), 1 à 8 pour choisir, Tab pour passer des danses aux emotes.
-   - Téléphone : touche T. Écran d'accueil avec fond d'écran et applis (DanceFloor, Réactions, Chat, Mon Profil, Tropi Bank, Réglages) ; en bas, la barre de navigation : « retour » (revient d'un cran, puis ferme)
+   - Roue des danses / emotes : s'ouvre au clic (hotbar ou logos), 1 à 8 pour choisir une fois ouverte, Tab pour passer des danses aux emotes.
+   - Téléphone : s'ouvre au clic. Écran d'accueil avec fond d'écran et applis (DanceFloor, Réactions, Chat, Mon Profil, Tropi Bank, Réglages) ; en bas, la barre de navigation : « retour » (revient d'un cran, puis ferme)
      et le bouton rouge (accueil, puis ferme). Chaque clic sur un bouton du téléphone fait un petit « tic ». On le déplace en attrapant l'encoche en haut au milieu.
-   - Chat : Entrée pour écrire, Entrée pour envoyer, Échap pour fermer. Rien ne s'affiche à l'écran : le message sort en bulle au-dessus de la tête
+   - Chat : s'ouvre au clic, Entrée pour envoyer, Échap pour fermer. Rien ne s'affiche à l'écran : le message sort en bulle au-dessus de la tête
      de celui qui parle (trois points pendant qu'il écrit), et l'historique est dans l'onglet Chat du téléphone. Canal temps réel de la salle (« chat », « typing »).
      * Onglet Danses : déclencher danses et emotes depuis le téléphone avec les logos colorés.
      * Onglet Paramètres : gérer la sensibilité souris, le volume du son, la qualité 3D / FPS, plein écran, accueil casino.
@@ -74,7 +74,7 @@
           '<div class="ph-screen" data-ph="screen"></div>' +
           '<div class="ph-homebar">' +
             '<button class="ph-back" data-act="phone-back" title="Retour"><i class="fa-solid fa-chevron-left"></i></button>' +
-            '<button class="ph-home" data-act="phone-home" title="Accueil · puis fermer le téléphone (T)"></button>' +
+            '<button class="ph-home" data-act="phone-home" title="Accueil · puis fermer le téléphone"></button>' +
             '<span class="ph-nav-gap"></span>' +
           '</div>' +
         '</div>' +
@@ -600,7 +600,7 @@
     function renderHotbar() {
       elHotbar.innerHTML = INV.map(function (it, i) {
         return '<button class="ph-inv' + (it ? '' : ' empty') + '" data-slot="' + i + '"' + (it ? ' title="' + it.name + '"' : ' tabindex="-1"') + '>' +
-          '<kbd>' + (i + 1) + '</kbd>' + (it ? (it.img ? '<img class="ph-inv-img" src="' + it.img + '" alt="">' : logo(fa(it.icon), it.color)) + '<span class="ph-inv-nm">' + esc(it.name) + '</span>' : '') + (it && it.id === 'dance' ? '<i class="ph-inv-key">E</i>' : it && it.id === 'emote' ? '<i class="ph-inv-key">A</i>' : it && it.id === 'phone' ? '<i class="ph-inv-key">T</i>' : it && it.id === 'chat' ? '<i class="ph-inv-key">↵</i>' : '') + '</button>';
+          '<kbd>' + (i + 1) + '</kbd>' + (it ? (it.img ? '<img class="ph-inv-img" src="' + it.img + '" alt="">' : logo(fa(it.icon), it.color)) + '<span class="ph-inv-nm">' + esc(it.name) + '</span>' : '') + '</button>';
       }).join('');
       markHotbar();
     }
@@ -1022,28 +1022,9 @@
         else if (w.canEmote()) { ev.stopImmediatePropagation(); ev.preventDefault(); openPause(); }
         return;
       }
-      // Touche E (ou B) : ouvrir/fermer la roue sur l'onglet Danses
-      // Touche A : ouvrir/fermer la roue sur l'onglet Emotes
-      var isKeyE = (ev.code === 'KeyE' || ev.code === 'KeyB' || ev.key === 'e' || ev.key === 'E');
-      var isKeyA = (ev.key === 'a' || ev.key === 'A');
-      if (isKeyE) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        if (wheelOpen && tab === 'dance') closeWheel(); else openWheel('dance');
-      } else if (isKeyA) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        if (wheelOpen && tab === 'emote') closeWheel(); else openWheel('emote');
-      } else if (ev.code === 'Enter' && wheelOpen) {
+      // Danses, Emotes, Téléphone et Chat s'ouvrent au clic (hotbar, logos du HUD) : plus de touche dédiée à chacun.
+      if (ev.code === 'Enter' && wheelOpen) {
         ev.preventDefault(); ev.stopImmediatePropagation(); confirmWheel();
-      } else if (ev.code === 'Enter' && !(w.near && w.blend === 0)) {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        openChat();
-      } else if (ev.code === 'KeyT' || ev.key === 't' || ev.key === 'T') {
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        if (phoneOpen) closePhone(true); else openPhone();
       } else if (wheelOpen && ev.code === 'Tab') {
         ev.preventDefault();
         setTab(tab === 'dance' ? 'emote' : 'dance');

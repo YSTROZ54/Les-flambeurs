@@ -33,7 +33,7 @@
   F.keyActions = KEY_ACTIONS;
   F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir' };
   // touches déjà utilisées ailleurs dans le jeu (interagir, vues, émotes…) : on ne laisse pas les reprendre, pour ne rien casser
-  var KEY_RESERVED = { Escape: 1, KeyF: 1, Enter: 1, KeyP: 1, KeyT: 1, Tab: 1, KeyE: 1, KeyV: 1, KeyB: 1 };
+  var KEY_RESERVED = { Escape: 1, KeyF: 1, Enter: 1, KeyP: 1, Tab: 1, KeyV: 1 };
   var KEY_LABELS = {
     Space: 'Espace', ShiftLeft: 'Maj (gauche)', ShiftRight: 'Maj (droite)', ControlLeft: 'Ctrl (gauche)', ControlRight: 'Ctrl (droite)',
     AltLeft: 'Alt', AltRight: 'Alt droite', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Enter: 'Entrée', Tab: 'Tab', CapsLock: 'Maj. verr.',
@@ -46,8 +46,8 @@
     if (/^Digit[0-9]$/.test(code)) return code.slice(5);
     return code;
   };
-  F.keyReserved = function (code, e) {
-    return !code || KEY_RESERVED[code] || (e && (e.key === 'a' || e.key === 'A')); // la touche A ouvre les émotes (hud3d.js)
+  F.keyReserved = function (code) {
+    return !code || !!KEY_RESERVED[code];
   };
   F.keys = function () {
     var out = {}, cfg = {};
@@ -469,7 +469,6 @@
         sr.stand(); e.preventDefault(); return;                  // F : on se lève (machines à sous, courses de chevaux)
       }
       if (!ok(e)) return;
-      if (e.key === 'a' || e.key === 'A') return; // Touche A réservée aux Emotes (hud3d.js)
       if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
       else if ((e.code === 'KeyF' || e.code === 'Enter') && self.near && self.blend === 0) { self._libererSouris(); self.near.use(self); e.preventDefault(); }
     };
