@@ -295,10 +295,55 @@
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xd9a0ff, target: 'hall', theme: 'exitBlindtest' });
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un fauteuil pour t\'asseoir' : 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil (F ou clic) : tu entres dans le salon de cet écran · F : se lever'; };
+    // plafond : voile de guirlandes de LED (mêmes LED lumineuses que la table des chevaux)
+    var ledTex = (function () {
+      var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
+    })();
+    var ledRows = [], ledWire = new THREE.MeshBasicMaterial({ color: 0x2a1a30 }), ledStep = low ? 0.22 : 0.12;
+    function ledString(pts, dir) {
+      var curve = new THREE.CatmullRomCurve3(pts), cnt = Math.round(curve.getLength() / ledStep), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), k, v;
+      for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+      var p = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.24, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      p.frustumCulled = false; g.add(p);
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.008, 4, false), ledWire));
+      ledRows.push({ geo: geo, col: col, cnt: cnt, dir: dir });
+    }
+    function swag(x0, z0, x1, z1, y0, y1, sag, dir) {            // fil accroché aux deux bouts, qui retombe au milieu
+      var pts = [], k, n = 14, f;
+      for (k = 0; k <= n; k++) { f = k / n; pts.push(new THREE.Vector3(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f - sag * Math.sin(Math.PI * f), z0 + (z1 - z0) * f)); }
+      ledString(pts, dir);
+    }
+    (function () {
+      var i, a, hubY = H - 0.35, ex, ez, t;
+      for (i = 0; i < 28; i++) {                                 // éventail depuis le centre jusqu'aux murs
+        a = i / 28 * TAU; t = Math.min((HX - 0.4) / Math.abs(Math.cos(a) || 1e-6), (HZ - 0.4) / Math.abs(Math.sin(a) || 1e-6));
+        ex = Math.cos(a) * t; ez = Math.sin(a) * t;
+        swag(0, 0, ex, ez, hubY, H - 0.12, 0.55 + (i % 2) * 0.35, i % 2 ? -1 : 1);
+      }
+      for (i = -3; i <= 3; i++) {                                // guirlandes en travers, accrochées de mur à mur
+        for (var s = 0; s < 4; s++) swag(-HX + 0.4 + s * (HX * 2 - 0.8) / 4, i * 2.6, -HX + 0.4 + (s + 1) * (HX * 2 - 0.8) / 4, i * 2.6, H - 0.12, H - 0.12, 0.5, (i + s) % 2 ? -1 : 1);
+      }
+      var hub = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); hub.position.set(0, hubY, 0); g.add(hub);
+    })();
+    var ledC = new THREE.Color(), ledT = 0;
+    function ledsUpdate(dt) {
+      ledT += dt;
+      ledRows.forEach(function (row) {
+        var k, wv, v;
+        for (k = 0; k < row.cnt; k++) {
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 7 - ledT * 5 * row.dir); v = 0.25 + 0.75 * wv * wv;
+          ledC.setHSL(0.78 + 0.12 * Math.sin(k / row.cnt * TAU + ledT * 0.4), 0.55, 0.62); row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
+        }
+        row.geo.attributes.color.needsUpdate = true;
+      });
+    }
     room.onEnter = function () { pollList(); };
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
-      pollT += dt; listT += dt;
+      pollT += dt; listT += dt; ledsUpdate(dt);
       if (seat && pollT > 1) { pollT = 0; poll(); }
       if (listT > 3) { listT = 0; pollList(); }
       for (var z = 0; z < 3; z++) { drawScreen(z, !!seat && seat.zone === z); if (screens[z].sig !== screens[z].shown) { screens[z].tex.needsUpdate = true; screens[z].shown = screens[z].sig; } }
