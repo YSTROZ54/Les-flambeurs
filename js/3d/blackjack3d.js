@@ -3,9 +3,11 @@
    ---------------------------------------------------------------------
    On y entre par la porte « BLACKJACK » du hall (hall3d.js) et on en ressort vers le hall.
    Cinq tables en demi-cercle (quatre le long des murs, une au milieu), chacune avec son croupier assis en face et deux places de jeu (F ou clic pour s'asseoir) : on peut jouer seul.
-   Assis, on règle sa mise : la manche démarre toute seule à la fin du compte à rebours et est jouée contre le croupier EXACTEMENT comme le blackjack solo du menu
-   (api/_games.js : bj_start / bj_hit / bj_stand / bj_double — le serveur tire les cartes, prélève la mise et paie les gains).
-   Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/_games.js (serveur).
+   Manche partagée, gérée entièrement par le serveur (api/blackjack.js, tables bj_pub_1 à bj_pub_5, une par table 3D) : dès qu'un joueur mise, les autres ont
+   BJ_BET_COUNTDOWN_MS (10 s) pour miser à leur tour et rejoindre la MÊME manche (même croupier, même résultat) ; passé ce délai elle démarre quand même, seul si besoin.
+   « Prêt » n'attend plus le délai. Le client sonde l'état de la table environ 1x/s (world.post / fetch), avec un petit ping temps réel pour sonder plus tôt dès qu'un
+   adversaire joue. Chaque joueur ne voit QUE sa propre place et celle d'en face (2 places par table) ; les cartes et pastilles sont posées à partir de cet état, jamais simulées localement.
+   Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/blackjack.js (serveur).
    ===================================================================== */
 (function () {
   'use strict';
@@ -25,10 +27,6 @@
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
   function loggedIn() { try { return typeof isUserLoggedIn !== 'function' || !!isUserLoggedIn(); } catch (e) { return false; } }
-  function sg(payload) {
-    try { if (typeof serverGame === 'function') return Promise.resolve(serverGame(payload)).catch(function () { return { ok: false, error: 'Réseau indisponible.' }; }); } catch (e) { /* ok */ }
-    return Promise.resolve({ ok: false, error: 'Serveur indisponible.' });
-  }
   var cache = {};
   function lam(c) { var k = 'l' + c; return cache[k] || (cache[k] = new THREE.MeshLambertMaterial({ color: c })); }
   function std(c, r, m) { var k = 's' + c + r + m; return cache[k] || (cache[k] = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m })); }
@@ -42,23 +40,6 @@
     cards.forEach(function (c) { if (!c || c.r === '?') return; if (c.r === 'A') { a++; t += 11; } else if (c.r === 'K' || c.r === 'Q' || c.r === 'J') t += 10; else t += parseInt(c.r, 10) || 0; });
     while (t > 21 && a > 0) { t -= 10; a--; }
     return t;
-  }
-  function isSoft(cards) { var t = 0, a = 0; cards.forEach(function (c) { if (c.r === 'A') { a++; t += 11; } else if (c.r === 'K' || c.r === 'Q' || c.r === 'J') t += 10; else t += parseInt(c.r, 10) || 0; }); return a > 0 && t <= 21; }
-  function newDeck() {
-    var d = [], r, s;
-    ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'].forEach(function (rk) { ['♠', '♥', '♦', '♣'].forEach(function (su) { d.push({ r: rk, s: su }); }); });
-    for (var i = d.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); r = d[i]; d[i] = d[j]; d[j] = r; }
-    return d;
-  }
-  // les robots jouent la stratégie de base simplifiée
-  function botWantsCard(cards, up) {
-    var sc = score(cards), u = up ? score([up]) : 7;
-    if (sc >= 18) return false;
-    if (isSoft(cards)) return sc <= 17;
-    if (sc >= 17) return false;
-    if (sc >= 13) return u >= 7;
-    if (sc === 12) return !(u >= 4 && u <= 6);
-    return true;
   }
   var texCache = {};
   function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
@@ -279,7 +260,11 @@
 
     /* --- la manche (affichage + serveur) --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, view3 = false, meRig = null;
-    var R = { phase: 'idle', table: null, me: [], dealer: [], botHands: {}, deck: [], up: null, final: null, busy: false, msg: '' };
+    // manche partagée : l'état vient du serveur (api/blackjack.js, une table par 'bj_pub_N'), identique pour les 2 joueurs assis à la table
+    var TBL = null, tblOff = 0, polling = false, pollT = 0, busy = false;
+    function tableIdOf(T) { return 'bj_pub_' + (T.i + 1); }
+    function otherSeat(T) { return T.spots[0] === seat ? T.spots[1] : T.spots[0]; }
+    function bjNow() { return Date.now() + tblOff; }
     function seatTaken(s) {
       var now = performance.now();
       return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; });
@@ -346,51 +331,11 @@
       cards.forEach(function (c, k) { if (T.dealerMeshes[k]) { T.dealerMeshes[k].material.map = cardTex(c); T.dealerMeshes[k].material.needsUpdate = true; } });
       showDealer(T, cards);
     }
-    /* --- les cartes des autres joueurs : chacun envoie sa main aux autres (temps réel), tout le monde la voit sur la table, qu'il soit assis ou juste à côté --- */
-    var remHands = {}, bjSendT = 0, bjLast = { cards: [], res: '' };
-    function bjSend(cards, res) {
-      bjLast = { cards: cards || [], res: res || '' }; bjSendT = 2;
-      if (!seat || !world.rt || !world.rt.ready) return;
-      try { world.rt.send('bj', { k: F.me(), s: seat.n, cards: bjLast.cards.map(function (c) { return { r: c.r, s: c.s }; }), res: bjLast.res }); } catch (e) { /* ok */ }
-    }
-    function remClear(n) {
-      var rh = remHands[n]; if (!rh) return;
-      rh.meshes.concat(rh.labels).forEach(function (m) { if (m.parent) m.parent.remove(m); if (m.material) { if (m.material.map && m.isSprite) m.material.map.dispose(); m.material.dispose(); } });
-      delete remHands[n];
-    }
-    function remShow(n, cards, res) {
-      var s = seats[n]; if (!s || s.bot) return;
-      var T = s.table, rh = remHands[n], key = cards.map(function (c) { return c.r + c.s; }).join(',');
-      if (rh && (cards.length < rh.cards.length || (rh.cards.length && key.indexOf(rh.key) !== 0))) { remClear(n); rh = null; }   // nouvelle manche : on repart de zéro
-      if (!cards.length) { remClear(n); return; }
-      if (!rh) rh = remHands[n] = { meshes: [], labels: [], cards: [], key: '', res: '', t: 0 };
-      rh.t = performance.now();
-      for (var k = rh.meshes.length; k < cards.length; k++) {
-        var m = makeCard(cards[k]); m.scale.setScalar(cardScale('p')); m.position.set(T.x + 0.55, TOP_Y + 0.45, T.z - 0.1); g.add(m); rh.meshes.push(m);
-        var p0 = spotPos(T, s, k, cards.length); m.rotation.y = p0.ry;
-        anims.push({ m: m, t: 0, dur: 0.38, from: m.position.clone(), to: new THREE.Vector3(p0.x, p0.y, p0.z), delay: 0 });
-      }
-      rh.meshes.forEach(function (m, k2) { var p = spotPos(T, s, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else m.position.set(p.x, p.y, p.z); });
-      rh.cards = cards; rh.key = key;
-      if (res !== rh.res) {
-        rh.res = res; rh.labels.forEach(function (l) { if (l.parent) l.parent.remove(l); l.material.map.dispose(); l.material.dispose(); }); rh.labels = [];
-        if (res) {
-          var tx = res === 'win' ? 'GAGNÉ' : res === 'push' ? 'ÉGALITÉ' : res === 'bust' ? 'SAUTÉ' : 'PERDU', col = res === 'win' ? '#7ee0a0' : res === 'push' ? '#f3cf62' : '#ff8a80', pp = spotPos(T, s, 0, 1);
-          var cv = mkCanvas(256, 80), c = cv.getContext('2d'); roundRect(c, 4, 4, 248, 72, 24); c.fillStyle = 'rgba(8,5,12,0.85)'; c.fill(); c.strokeStyle = col; c.lineWidth = 5; c.stroke();
-          c.fillStyle = col; c.font = '900 38px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(tx, 128, 42, 230);
-          var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(pp.x, TOP_Y + 0.32, pp.z); g.add(sp); rh.labels.push(sp);
-        }
-      }
-    }
-    room.onRtMsg = function (ev, m, r) {
-      if (ev !== 'bj' || !Array.isArray(m.cards)) return;
-      var n = typeof m.s === 'number' ? m.s : (r ? r.seat : -1); if (n < 0) return;
-      if (seat && seat.n === n) return;
-      remShow(n, m.cards.slice(0, 8).filter(function (c) { return c && typeof c.r === 'string' && typeof c.s === 'string'; }).map(function (c) { return { r: c.r.slice(0, 2), s: c.s.slice(0, 1) }; }), typeof m.res === 'string' ? m.res : '');
-    };
-    function botSeats(T) { return T.spots.filter(function (s) { return s.bot; }); }
+    // ping temps réel : « quelqu'un vient de jouer à cette salle », pour sonder tout de suite plutôt que d'attendre le prochain tour (poll de secours)
+    room.onRtMsg = function (ev, m) { if (ev === 'bj' && seat && m && m.k !== F.me()) pollT = 999; };
+    function bjNudge() { if (world.rt && world.rt.ready) { try { world.rt.send('bj', { k: F.me() }); } catch (e) { /* ok */ } } }
 
-    function setMsg(t, col) { R.msg = t; if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
+    function setMsg(t, col) { if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
     var SUIT_CLASS = { '♥': 'fl-suit-h', '♦': 'fl-suit-d', '♣': 'fl-suit-c', '♠': 'fl-suit-s' };
     // une petite pastille par carte : rang + logo du symbole (au lieu du caractère ♥♦♣♠ brut, qui rend mal selon la police)
     function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="pip n">🂠</span>' : '<span class="pip ' + (red ? 'r' : 'n') + '">' + c.r + '<i class="fl-suit ' + SUIT_CLASS[c.s] + '"></i></span>'; }).join(''); }
@@ -406,115 +351,132 @@
     // 3e personne : mes cartes en bas à gauche, celles du croupier juste au-dessus, en grand et bien lisibles
     function refreshCards() {
       if (!ui) return;
-      var show = view3 && R.phase !== 'idle' && R.me.length;
+      var mineP = TBL && TBL.players && TBL.players[F.me()];
+      var show = view3 && mineP && mineP.cards && mineP.cards.length;
       if (!cardsEl) { cardsEl = document.createElement('div'); cardsEl.className = 'bj3d-cards'; ui.el.parentNode.appendChild(cardsEl); }
       cardsEl.style.display = show ? 'flex' : 'none';
       if (!show) return;
-      var hidden = R.dealer.some(function (c) { return c.r === '?'; });
+      var dCards = (TBL.dealer && TBL.dealer.cards) || [], dHidden = !!(TBL.dealer && TBL.dealer.hidden);
       function row(cards) { return '<div class="bj-cr">' + cards.map(function (c) { return '<img src="' + cardImg(c) + '" alt="">'; }).join('') + '</div>'; }
-      setHtml(cardsEl, '<div class="bj-cl">Croupier' + (hidden ? '' : ' · ' + score(R.dealer)) + '</div>' + row(R.dealer) + '<div class="bj-cl">Toi · ' + score(R.me) + '</div>' + row(R.me));
+      setHtml(cardsEl, '<div class="bj-cl">Croupier' + (dHidden ? '' : ' · ' + score(dCards)) + '</div>' + row(dCards) + '<div class="bj-cl">Toi · ' + mineP.score + '</div>' + row(mineP.cards));
     }
     function refreshUi() {
       if (!ui) return;
-      var hd = ui.el.querySelector('.bj-hands');
-      if (R.phase !== 'idle' && R.me.length) {
-        var hidden = R.dealer.some(function (c) { return c.r === '?'; });
-        setHtml(hd, '<div>Croupier : ' + handHtml(R.dealer) + (hidden ? '' : '<span class="tot">' + score(R.dealer) + '</span>') + '</div><div>Toi : ' + handHtml(R.me) + '<span class="tot">' + score(R.me) + '</span></div>');
+      var me = F.me(), hd = ui.el.querySelector('.bj-hands'), mineP = TBL && TBL.players && TBL.players[me];
+      if (mineP) {
+        var dCards = (TBL.dealer && TBL.dealer.cards) || [], dHidden = !!(TBL.dealer && TBL.dealer.hidden);
+        var html = '<div>Croupier : ' + handHtml(dCards) + (dHidden ? '' : '<span class="tot">' + score(dCards) + '</span>') + '</div><div>Toi : ' + handHtml(mineP.cards) + '<span class="tot">' + mineP.score + '</span></div>';
+        var otherKey = Object.keys(TBL.players).filter(function (k) { return k !== me; })[0];
+        if (otherKey) {
+          var oP = TBL.players[otherKey], oName = (TBL.knownPlayers && TBL.knownPlayers[otherKey] && TBL.knownPlayers[otherKey].username) || otherKey;
+          html += '<div>' + esc(oName) + ' : ' + handHtml(oP.cards) + '<span class="tot">' + oP.score + '</span></div>';
+        }
+        setHtml(hd, html);
       } else setHtml(hd, '');
       refreshCards();
       var q = function (s) { return ui.el.querySelector(s); };
       setText(q('.bj-bal b'), fmtN(balance()) + ' 🪙'); setText(q('.bj-bet b'), fmtN(bet) + ' 🪙');   // on ne réécrit le texte que s'il change : sinon l'émoji clignote
-      var idle = R.phase === 'idle' && !R.busy, mine = R.phase === 'me' && !R.busy;
-      q('.bj-chips').style.display = idle ? '' : 'none';
-      var rdy = q('[data-a=ready]'); if (rdy) rdy.style.display = idle && seat ? '' : 'none';
-      ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = R.phase === 'me' ? '' : 'none'; b.disabled = !mine; });
-      var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = !mine || R.me.length !== 2;
+      var waiting = !TBL || TBL.status === 'waiting';
+      q('.bj-chips').style.display = waiting ? '' : 'none';
+      var rdy = q('[data-a=ready]'); if (rdy) rdy.style.display = waiting && TBL && TBL.readyBets && TBL.readyBets[me] ? '' : 'none';
+      var mine = !busy && TBL && TBL.status === 'playing' && TBL.turn === me && mineP && mineP.status === 'playing';
+      ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = (TBL && TBL.status === 'playing') ? '' : 'none'; b.disabled = !mine; });
+      var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = !mine || !mineP || mineP.cards.length !== 2;
+      var cnt = q('.bj-count');
+      if (cnt) {
+        if (waiting && TBL && TBL.bettingStartTime) setText(cnt, 'Manche dans ' + Math.max(0, Math.ceil((TBL.bettingStartTime + (TBL.bettingDuration || 10000) - bjNow()) / 1000)) + ' s');
+        else setText(cnt, '');
+      }
     }
 
-    // la manche démarre toute seule quand le compte à rebours de mise arrive à zéro
-    function startRound() {
-      if (!seat || R.busy || R.phase !== 'idle') return;
-      if (!loggedIn()) { setMsg('Connecte-toi pour jouer au blackjack.', '#ff8a80'); R.count = 6; return; }
-      if (bet < MIN_BET) { setMsg('Mise d\'au moins ' + MIN_BET + ' 🪙.', '#ff8a80'); R.count = 6; return; }
-      if (bet > balance()) { setMsg('Solde insuffisant : baisse ta mise.', '#ff8a80'); R.count = 6; return; }
-      R.busy = true; setMsg('Distribution…'); refreshUi();
-      sg({ action: 'bj_start', bet: bet }).then(function (r) {
-        R.busy = false;
-        if (!r || !r.ok) { setMsg((r && r.error) || 'Impossible de distribuer.', '#ff8a80'); R.count = 6; refreshUi(); return; }
-        var T = seat.table; clearCards(T);
-        R.table = T; R.me = r.player || []; R.dealer = r.dealer || []; R.up = R.dealer[0] || null; R.final = null; R.botHands = {}; R.deck = newDeck(); R.done = false; R.res = null; R.bet = r.bet;
-        R.phase = 'dealing'; setMsg(''); bjSend(R.me, '');
-        var delay = 0.15;
-        // distribution : une carte à chacun, puis la deuxième
-        var order = T.spots.filter(function (s) { return s.bot || s === seat; });
-        for (var round = 0; round < 2; round++) {
-          order.forEach(function (s) {
-            later(delay, (function (s, round) { return function () {
-              if (s === seat) showHand(T, s, R.me.slice(0, round + 1)); else { var h = (R.botHands[s.n] = R.botHands[s.n] || { cards: [], done: false }); h.cards.push(R.deck.pop()); showHand(T, s, h.cards); }
-            }; })(s, round)); delay += 0.3;
-          });
-          later(delay, (function (round) { return function () { showDealer(T, R.dealer.slice(0, round + 1)); }; })(round)); delay += 0.3;
-        }
-        later(delay + 0.3, function () { startTurns(r); });
-        refreshUi();
+    // nouvel état de la table (reçu d'un POST ou d'un sondage) : place les cartes, affiche le résultat, met à jour les boutons
+    function applyTable(t) {
+      if (!t) return;
+      tblOff = (typeof t.serverNow === 'number' ? t.serverNow : Date.now()) - Date.now();
+      TBL = t;
+      if (!seat) { refreshUi(); return; }
+      var T = seat.table, me = F.me();
+      if (t.roundId && t.roundId !== T._roundId) { T._roundId = t.roundId; clearCards(T); T._dealerHidden = true; T._resultShown = -1; wake(T); }
+      // mes cartes, et celles de l'autre joueur assis à cette table (2 places : l'autre place = pas la mienne)
+      Object.keys(t.players || {}).forEach(function (pKey) {
+        var p = t.players[pKey]; if (!p || !Array.isArray(p.cards) || !p.cards.length) return;
+        var s = pKey === me ? seat : otherSeat(T);
+        if (s) showHand(T, s, p.cards);
       });
-    }
-    // ordre de jeu : les places d'indice plus petit que la mienne jouent d'abord (à ma droite), puis moi, puis les autres
-    function botTurn(list, then) {
-      if (!list.length) { then(); return; }
-      var s = list[0], h = R.botHands[s.n];
-      (function step() {
-        if (!seat) return;
-        if (h.cards.length < 5 && botWantsCard(h.cards, R.up)) {
-          later(0.9, function () { h.cards.push(R.deck.pop()); showHand(R.table, s, h.cards); if (score(h.cards) > 21) { h.busted = true; label(R.table, spotPos(R.table, s, 0, 1).x, spotPos(R.table, s, 0, 1).z, 'SAUTÉ', '#ff8a80'); later(0.7, function () { botTurn(list.slice(1), then); }); } else step(); });
-        } else later(0.8, function () { botTurn(list.slice(1), then); });
-      })();
-    }
-    function startTurns(r) {
-      var T = R.table, before = botSeats(T).filter(function (s) { return s.i < seat.i; }), after = botSeats(T).filter(function (s) { return s.i > seat.i; });
-      R.after = after;
-      botTurn(before, function () {
-        if (r.done) { finish(r); return; }
-        R.phase = 'me'; setMsg('À toi de jouer : ' + score(R.me) + (isSoft(R.me) && R.me.length ? '' : ''), ''); refreshUi();
-      });
-    }
-    function act(kind) {
-      if (!seat || R.phase !== 'me' || R.busy) return;
-      R.busy = true; refreshUi();
-      sg({ action: kind }).then(function (r) {
-        R.busy = false;
-        if (!r || !r.ok) { setMsg((r && r.error) || 'Action impossible.', '#ff8a80'); refreshUi(); return; }
-        R.me = r.player || R.me; R.dealer = r.dealer || R.dealer; showHand(R.table, seat, R.me); bjSend(R.me, '');
-        if (r.done) { finish(r); } else { setMsg('Tu as ' + score(R.me) + '.'); refreshUi(); }
-      });
-    }
-    function finish(r) {
-      var T = R.table; R.phase = 'bots'; R.busy = false; refreshUi();
-      R.me = r.player || R.me; showHand(T, seat, R.me);
-      var after = R.after || [];
-      botTurn(after, function () {
-        // le croupier retourne sa carte et tire (les cartes viennent du serveur)
-        later(0.5, function () {
-          reveal(T, r.dealer || R.dealer);
-          later(0.9, function () {
-            var dl = score(r.dealer || R.dealer);
-            // verdict des robots contre la main finale du croupier
-            botSeats(T).forEach(function (s) {
-              var h = R.botHands[s.n]; if (!h) return; var sc = score(h.cards), p = spotPos(T, s, 0, 1);
-              if (h.busted) return;
-              if (dl > 21 || sc > dl) label(T, p.x, p.z, 'GAGNÉ', '#7ee0a0'); else if (sc === dl) label(T, p.x, p.z, 'ÉGALITÉ', '#f3cf62'); else label(T, p.x, p.z, 'PERDU', '#ff8a80');
-            });
-            var mine = spotPos(T, seat, 0, 1), txt, col;
-            if (r.result === 'win') { txt = 'GAGNÉ'; col = '#7ee0a0'; setMsg('🏆 Gagné ! ' + r.pScore + ' contre ' + r.dScore + ' : +' + fmtN(r.win) + ' 🪙', '#7ee0a0'); }
-            else if (r.result === 'push') { txt = 'ÉGALITÉ'; col = '#f3cf62'; setMsg('🤝 Égalité : mise remboursée.', '#f3cf62'); }
-            else if (r.result === 'bust') { txt = 'SAUTÉ'; col = '#ff8a80'; setMsg('💥 Tu as dépassé 21.', '#ff8a80'); }
-            else { txt = 'PERDU'; col = '#ff8a80'; setMsg('Perdu : ' + r.pScore + ' contre ' + r.dScore + '.', '#ff8a80'); }
-            label(T, mine.x, mine.z, txt, col); bjSend(R.me, r.result === 'win' ? 'win' : r.result === 'push' ? 'push' : r.result === 'bust' ? 'bust' : 'lose');
-            R.phase = 'result'; refreshUi();
-            later(4.5, function () { if (R.phase === 'result') { clearCards(T); bjSend([], ''); R.phase = 'idle'; R.count = 9; setMsg('Place ta mise : la manche suivante démarre toute seule.'); refreshUi(); } });
-          });
+      // le croupier : cartes masquées pendant qu'on joue, révélées (et complétées) d'un coup à la fin du tour
+      var dc = (t.dealer && t.dealer.cards) || [];
+      if (dc.length) {
+        if (!t.dealer.hidden && T._dealerHidden !== false) reveal(T, dc); else showDealer(T, dc);
+        T._dealerHidden = !!t.dealer.hidden;
+      }
+      // bannières de résultat (une seule fois par manche)
+      if (t.status === 'finished' && T._resultShown !== t.roundId) {
+        T._resultShown = t.roundId;
+        Object.keys(t.players || {}).forEach(function (pKey) {
+          var p = t.players[pKey], s = pKey === me ? seat : otherSeat(T); if (!s || !p || !p.result) return;
+          var txt = (p.result === 'win' || p.result === 'forfeit_win') ? 'GAGNÉ' : p.result === 'push' ? 'ÉGALITÉ' : p.status === 'busted' ? 'SAUTÉ' : 'PERDU';
+          var col = txt === 'GAGNÉ' ? '#7ee0a0' : txt === 'ÉGALITÉ' ? '#f3cf62' : '#ff8a80';
+          var pp = spotPos(T, s, (p.cards.length - 1) / 2, p.cards.length);
+          label(T, pp.x, pp.z, txt, col);
         });
+        var mine = t.players[me];
+        if (mine) {
+          if (mine.result === 'forfeit_win') setMsg('🏆 L\'autre joueur est parti : tu gagnes la cagnotte, +' + fmtN(mine.payout) + ' 🪙', '#7ee0a0');
+          else if (mine.result === 'win') setMsg('🏆 Gagné ! ' + mine.score + ' contre ' + (t.dealer ? t.dealer.score : 0) + ' : +' + fmtN(mine.payout) + ' 🪙', '#7ee0a0');
+          else if (mine.result === 'push') setMsg('🤝 Égalité : mise remboursée.', '#f3cf62');
+          else if (mine.status === 'busted') setMsg('💥 Tu as dépassé 21.', '#ff8a80');
+          else setMsg('Perdu : ' + mine.score + ' contre ' + (t.dealer ? t.dealer.score : 0) + '.', '#ff8a80');
+        }
+      } else if (t.status === 'waiting') {
+        if (!(t.readyBets && Object.keys(t.readyBets).length)) setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.', '');
+        else if (t.readyBets[me]) setMsg('Mise prise en compte : la manche démarre toute seule.', '');
+        else setMsg('Un autre joueur mise : rejoins avant la fin du compte à rebours !', '#f3cf62');
+      } else if (t.status === 'playing') {
+        var mineP = t.players && t.players[me];
+        if (t.turn === me) setMsg('À toi de jouer : ' + (mineP ? mineP.score : '') + '.', '');
+        else if (mineP && mineP.status !== 'playing') setMsg('Tu as ' + mineP.score + '. En attente…', '');
+        else setMsg('Distribution…', '');
+      } else if (t.status === 'dealer_turn') {
+        setMsg('Le croupier joue…', '');
+      }
+      refreshUi();
+    }
+
+    function bjPost(action, extra) {
+      if (!seat) return Promise.resolve(null);
+      var body = { action: action, tableId: tableIdOf(seat.table) };
+      if (extra) for (var k in extra) body[k] = extra[k];
+      return world.post('/api/blackjack', body).then(function (r) {
+        if (!r) { setMsg('Connecte-toi pour jouer.', '#ff8a80'); refreshUi(); return null; }
+        if (r.table) applyTable(r.table);
+        if (r.ok === false) { setMsg(r.error || 'Action impossible.', '#ff8a80'); refreshUi(); } else bjNudge();
+        return r;
       });
+    }
+    function pollNow() {
+      if (polling || !seat) return;
+      polling = true;
+      fetch('/api/blackjack?table=' + encodeURIComponent(tableIdOf(seat.table)), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (t) { polling = false; if (seat) applyTable(t); })
+        .catch(function () { polling = false; });
+    }
+    // mise : chaque clic envoie tout de suite la nouvelle mise au serveur (les autres la voient monter en direct)
+    function setBet(v) {
+      bet = Math.max(MIN_BET, Math.min(Math.floor(v), Math.max(MIN_BET, Math.floor(balance()))));
+      refreshUi();
+      bjPost('set_bet', { bet: bet });
+    }
+    function clearBet() { bet = MIN_BET; refreshUi(); bjPost('unset_bet', {}); }
+    function readyNow() {
+      if (!TBL || TBL.status !== 'waiting' || !(TBL.readyBets && TBL.readyBets[F.me()])) return;
+      bjPost('set_ready', { ready: true });
+    }
+    function act(action) {
+      if (busy || !TBL || TBL.status !== 'playing' || TBL.turn !== F.me()) return;
+      var mine = TBL.players && TBL.players[F.me()]; if (!mine || mine.status !== 'playing') return;
+      busy = true; refreshUi();
+      bjPost(action, {}).then(function () { busy = false; refreshUi(); });
     }
 
     /* --- s'asseoir / se lever --- */
@@ -552,24 +514,23 @@
       }
       function applyCustomBet() {
         var v = Math.floor(parseFloat(customInput.value));
-        if (isFinite(v) && v > 0) bet = Math.max(MIN_BET, Math.min(v, Math.max(MIN_BET, Math.floor(balance()))));
-        toggleCustomBet(false); refreshUi();
+        toggleCustomBet(false);
+        if (isFinite(v) && v > 0) setBet(v);
       }
       customInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); applyCustomBet(); } else if (e.key === 'Escape') { e.preventDefault(); toggleCustomBet(false); } });
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled) return;
         if (b.dataset.c === 'custom-ok') { applyCustomBet(); return; }
         if (b.dataset.c) {
-          if (R.phase !== 'idle') return;
-          if (b.dataset.c === '-1') { bet = MIN_BET; toggleCustomBet(false); }
-          else if (b.dataset.c === 'max') { bet = Math.max(MIN_BET, Math.floor(balance())); toggleCustomBet(false); }
-          else if (b.dataset.c === 'custom') { toggleCustomBet(!customRow.hidden); return; }
-          else { bet = bet + parseInt(b.dataset.c, 10); toggleCustomBet(false); }
-          bet = Math.max(MIN_BET, bet); refreshUi(); return;
+          if (!TBL || TBL.status !== 'waiting') return;
+          if (b.dataset.c === '-1') { toggleCustomBet(false); clearBet(); return; }
+          if (b.dataset.c === 'max') { toggleCustomBet(false); setBet(Math.max(MIN_BET, Math.floor(balance()))); return; }
+          if (b.dataset.c === 'custom') { toggleCustomBet(!customRow.hidden); return; }
+          toggleCustomBet(false); setBet(bet + parseInt(b.dataset.c, 10)); return;
         }
         var a = b.dataset.a;
-        if (a === 'ready') { if (R.phase === 'idle' && !R.busy) R.count = 0; return; }
-        if (a === 'hit') act('bj_hit'); else if (a === 'stand') act('bj_stand'); else if (a === 'double') act('bj_double');
+        if (a === 'ready') { readyNow(); return; }
+        if (a === 'hit' || a === 'stand' || a === 'double') act(a);
       });
       return { el: el };
     }
@@ -594,19 +555,21 @@
         meRig = F.createPlayer(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
         g.add(meRig.group);
       }
-      if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; } R.phase = 'idle'; R.busy = false; R.count = 12;
+      if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; }
+      TBL = null; busy = false;
       ui = buildUi(w);
       standEl = document.createElement('div'); standEl.className = 'bj3d-stand'; standEl.innerHTML = '<button data-b="stand">🪑 Se lever <kbd>F</kbd></button> <button data-b="cam">👁 Vue 3e personne <kbd>V</kbd></button>'; standEl.querySelector('[data-b=stand]').addEventListener('click', function () { stand(); }); standEl.querySelector('[data-b=cam]').addEventListener('click', function () { toggleView(); });
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
-      R.count = 12; setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.'); refreshUi();
+      setMsg(loggedIn() ? 'Connexion à la table…' : 'Connecte-toi pour jouer.', '');
+      refreshUi();
+      pollT = 999;   // on sonde tout de suite, sans attendre le prochain tour
     }
     function stand() {
       if (!seat) return;
-      var s = seat, was = R.phase;
-      if (was === 'me' && !R.busy) { sg({ action: 'bj_stand' }); }      // on ne laisse pas une manche ouverte : on reste et le serveur règle la mise
-      if (world.rt && world.rt.ready) { try { world.rt.send('bj', { k: F.me(), s: s.n, cards: [], res: '' }); } catch (e) { /* ok */ } } bjLast = { cards: [], res: '' };
-      seat = null; R.phase = 'idle';
+      var s = seat;
+      bjPost('leave', {});   // retire ma mise si je n'avais pas encore joué, ou abandonne proprement (l'autre joueur gagne la cagnotte) si la manche est en cours
+      seat = null; TBL = null; busy = false;
       timers = []; anims.forEach(function (a) { a.t = a.dur; }); clearCards(s.table);
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
@@ -667,13 +630,7 @@
     room._wake = wake; room._tables = tables;
     room.update = function (dt) {
       clockT += dt;
-      bjSendT -= dt; if (bjSendT <= 0) { bjSendT = 2; if (seat && bjLast.cards.length) bjSend(bjLast.cards, bjLast.res); }     // on renvoie ma main : celui qui arrive en cours de manche la voit aussi
-      var nowB = performance.now(); Object.keys(remHands).forEach(function (n) { if (nowB - remHands[n].t > 7000) remClear(n); });
-      if (seat && R.phase === 'idle' && !R.busy) {
-        R.count = (R.count === undefined ? 10 : R.count) - dt;
-        if (ui) { var tm = ui.el.querySelector('.bj-count'); setText(tm, 'Manche dans ' + Math.max(0, Math.ceil(R.count)) + ' s'); }
-        if (R.count <= 0) startRound();
-      } else if (ui) { var tm2 = ui.el.querySelector('.bj-count'); setText(tm2, ''); }
+      pollT += dt; if (seat && pollT > 1.1) { pollT = 0; pollNow(); }     // l'état de la table vient du serveur (api/blackjack.js) : sondé environ une fois par seconde
       // animations des personnages
       people.forEach(function (o) {
         if (!o.p._rig) return;
