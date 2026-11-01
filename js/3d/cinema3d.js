@@ -170,7 +170,12 @@
     /* --- murs, plafond, panneaux acoustiques --- */
     var wallM = std(0x24090f, 0.9, 0.05), panelM = std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
-    wall(HX * 2, H, 0, H / 2, -HZ, 0); wall(HX * 2, H, 0, H / 2, HZ, Math.PI); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
+    wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection (x = 4, y = 6)
+      var bw = new THREE.Shape(), hole = new THREE.Path();
+      bw.moveTo(-HX, 0); bw.lineTo(HX, 0); bw.lineTo(HX, H); bw.lineTo(-HX, H); bw.closePath();
+      hole.moveTo(-5.0, 5.6); hole.lineTo(-3.0, 5.6); hole.lineTo(-3.0, 6.4); hole.lineTo(-5.0, 6.4); hole.closePath(); bw.holes.push(hole);
+      var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
+    })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     for (i = -HZ + 1.4; i < HZ - 1; i += 1.3) {            // lattes verticales sur les deux murs de côté
       box(g, 0.14, 4.8, 0.7, panelM, -HX + 0.07, 3.0, i); box(g, 0.14, 4.8, 0.7, panelM, HX - 0.07, 3.0, i);
@@ -181,8 +186,8 @@
     /* --- scène, rampe de lumières, écran --- */
     var stageD = 2.4;
     box(g, HX * 2, 0.3, stageD, std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
-    box(g, HX * 2, 0.04, 0.05, bas(0xffa040), 0, 0.2, -HZ + stageD + 0.01);       // petites lampes de la rampe, le long du bord
-    for (i = -7; i <= 7; i += 1) sph(g, 0.06, bas(0xffcf80), i, 0.34, -HZ + stageD - 0.1);
+    box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
+    for (i = -7.5; i <= 7.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var frame = box(g, SCR_W + 0.5, SCR_H + 0.5, 0.12, bas(0x050305), 0, SCR_Y + SCR_H / 2, -HZ + 0.09);   // cadre noir
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
     function paintPoster(label) {
@@ -264,26 +269,37 @@
     gr.addColorStop(0, 'rgba(255,200,130,0.85)'); gr.addColorStop(0.4, 'rgba(255,150,70,0.3)'); gr.addColorStop(1, 'rgba(255,140,60,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 64, 64);
     var glowM = new THREE.SpriteMaterial({ map: mkTex(glowC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     var lampGlow = [], shadeM = new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide });
-    function sconce(x, z, ry) {                         // ry : le mur regarde vers (sin ry, cos ry)
+    function sconce(x, z, ry) {                         // ry : le mur regarde vers (sin ry, cos ry) ; posée sur la face du panneau de bois, pas dedans
       var s = new THREE.Group(); s.position.set(x, 3.0, z); s.rotation.y = ry; g.add(s);
-      box(s, 0.12, 0.4, 0.04, trimM, 0, 0, 0.02);
-      var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.34, 14, 1, true), shadeM); sh.position.set(0, 0.05, 0.22); s.add(sh);
-      var gl = new THREE.Sprite(glowM); gl.scale.set(1.8, 1.8, 1); gl.position.set(0, 0.05, 0.3); s.add(gl); lampGlow.push(gl);
+      box(s, 0.16, 0.46, 0.03, trimM, 0, 0, 0.015);                              // platine dorée plaquée sur le panneau
+      cyl(s, 0.022, 0.022, 0.17, trimM, 0, -0.02, 0.1, 8).rotation.x = Math.PI / 2;   // bras
+      var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.15, 0.3, 16, 1, true), shadeM); sh.position.set(0, -0.02, 0.2); s.add(sh);
+      sph(s, 0.05, bas(0xfff0c0), 0, -0.02, 0.2);
+      var gl = new THREE.Sprite(glowM); gl.scale.set(1.6, 1.6, 1); gl.position.set(0, -0.02, 0.27); s.add(gl); lampGlow.push(gl);
     }
-    [-7, -3.5, 0, 3.5, 7].forEach(function (z) { sconce(-HX + 0.02, z, Math.PI / 2); sconce(HX - 0.02, z, -Math.PI / 2); });
-    // cabine de projection : fenêtre noire dans le mur du fond, projecteur au plafond
-    box(g, 2.2, 0.9, 0.08, bas(0x050305), 4.0, 6.0, HZ - 0.03); box(g, 2.4, 0.12, 0.12, trimM, 4.0, 6.5, HZ - 0.06); box(g, 2.4, 0.12, 0.12, trimM, 4.0, 5.5, HZ - 0.06);
-    var proj = new THREE.Group(); proj.position.set(0, H - 0.75, 6.8); g.add(proj);
-    box(proj, 0.6, 0.4, 0.9, std(0x2a2a30, 0.5, 0.6), 0, 0, 0); cyl(proj, 0.11, 0.14, 0.4, std(0x101014, 0.4, 0.7), 0, 0, -0.62, 14).rotation.x = Math.PI / 2;
-    box(proj, 0.06, 0.4, 0.06, std(0x2a2a30, 0.5, 0.6), 0, 0.4, 0.2);
-    // faisceau du projecteur : une pyramide à peine visible, allumée pendant la séance
-    var beamLen = Math.hypot(6.8 + HZ, (H - 0.75) - (SCR_Y + SCR_H / 2));
+    [-7, -3.1, 0.8, 4.7, 8.6].forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
+    // cabine de projection : une vraie fenêtre dans le mur du fond, et le projecteur dans la cabine, derrière la vitre
+    var BX = 4.0, BY = 6.0;
+    var glass = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb4d8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); glass.position.set(BX, BY, HZ - 0.01); g.add(glass);
+    box(g, 2.2, 0.1, 0.12, trimM, BX, BY + 0.45, HZ - 0.05); box(g, 2.2, 0.1, 0.12, trimM, BX, BY - 0.45, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX - 1.05, BY, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX + 1.05, BY, HZ - 0.05);
+    var shell = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 1.5), new THREE.MeshBasicMaterial({ color: 0x241c2c, side: THREE.BackSide })); shell.position.set(BX, BY, HZ + 0.75); g.add(shell);
+    var proj = new THREE.Group(); proj.position.set(BX, BY - 0.1, HZ + 0.55); g.add(proj);
+    box(proj, 1.6, 0.06, 1.0, std(0x1c1c22, 0.6, 0.3), 0, -0.3, 0);                                   // tablette
+    box(proj, 0.5, 0.18, 0.4, std(0x4a4a54, 0.5, 0.5), 0, -0.18, 0);                                  // pied
+    box(proj, 0.7, 0.36, 0.62, std(0x6a6a76, 0.4, 0.5), 0, 0.08, 0);                                  // corps
+    cyl(proj, 0.1, 0.13, 0.22, std(0x24242a, 0.4, 0.7), 0, 0.08, -0.4, 16).rotation.x = Math.PI / 2;   // objectif
+    cyl(proj, 0.085, 0.085, 0.02, new THREE.MeshBasicMaterial({ color: 0xdfeaff }), 0, 0.08, -0.51, 16).rotation.x = Math.PI / 2;   // lentille
+    [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
+    if (!low) { var bl = new THREE.PointLight(0xdfeaff, 0.8, 4); bl.position.set(BX, BY + 0.3, HZ + 0.2); g.add(bl); }       // un peu de lumière dans la cabine pour voir le projecteur
+    // faisceau du projecteur : une pyramide à peine visible, de la lentille jusqu'à l'écran, allumée pendant la séance
+    var pTop = new THREE.Vector3(BX, BY - 0.02, HZ + 0.1), pBot = new THREE.Vector3(0, SCR_Y + SCR_H / 2, -HZ + 0.2);
+    var beamLen = pTop.distanceTo(pBot);
     var beamGrp = new THREE.Group(), beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, SCR_W / 2 * Math.SQRT2, beamLen, 4, 1, true),
       new THREE.MeshBasicMaterial({ color: 0xcfe0ff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
     beamMesh.rotation.y = Math.PI / 4; beamGrp.add(beamMesh); beamGrp.scale.set(1, 1, 0.5625);
-    var pTop = new THREE.Vector3(0, H - 0.75, 6.0), pBot = new THREE.Vector3(0, SCR_Y + SCR_H / 2, -HZ + 0.2);
     beamGrp.position.copy(pTop).add(pBot).multiplyScalar(0.5);
-    beamGrp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pTop.clone().sub(pBot).normalize());
+    var bDir = pTop.clone().sub(pBot).normalize(), bX = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), bDir).normalize(), bZ = new THREE.Vector3().crossVectors(bX, bDir).normalize();
+    beamGrp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bX, bDir, bZ));     // largeur du faisceau à l'horizontale, hauteur à la verticale
     g.add(beamGrp);
     // comptoir à pop-corn
     var cw = new THREE.Group(); cw.position.set(-5.2, 0, HZ - 1.1); g.add(cw);
@@ -301,7 +317,7 @@
     var exC = mkCanvas(256, 80), ex = exC.getContext('2d'); ex.fillStyle = '#063a1a'; ex.fillRect(0, 0, 256, 80); ex.strokeStyle = '#3ddc7a'; ex.lineWidth = 5; ex.strokeRect(4, 4, 248, 72);
     ex.fillStyle = '#7dffae'; ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 128, 42, 230);
     var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, 4.55, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinema' });
 
     /* --- citrouilles d'Halloween de chaque côté de la scène --- */
     var pc = mkCanvas(256, 256), px = pc.getContext('2d');
@@ -312,7 +328,7 @@
     px.beginPath(); px.moveTo(78, 156); px.lineTo(96, 170); px.lineTo(112, 160); px.lineTo(128, 174); px.lineTo(144, 160); px.lineTo(160, 170); px.lineTo(178, 156); px.lineTo(168, 188); px.lineTo(128, 198); px.lineTo(88, 188); px.closePath(); px.fill();
     var pumpM = new THREE.MeshLambertMaterial({ map: mkTex(pc), emissive: 0x6a2a00 });
     [[-6.6, -HZ + 1.2], [6.6, -HZ + 1.2], [-5.6, -HZ + 1.9]].forEach(function (p, k) {
-      var pu = new THREE.Group(); pu.position.set(p[0], 0.3, p[1]); pu.rotation.y = k === 1 ? -0.5 : k === 0 ? 0.5 : 0.7; g.add(pu);
+      var pu = new THREE.Group(); pu.position.set(p[0], 0.3, p[1]); pu.rotation.y = Math.atan2(-(5 - p[1]), -p[0]); g.add(pu);
       var b = sph(pu, 0.38, pumpM, 0, 0.32, 0); b.scale.set(1.15, 0.9, 1.0); cyl(pu, 0.04, 0.07, 0.16, lam(0x3a5a1a), 0, 0.68, 0, 8);
       var gl = new THREE.Sprite(glowM); gl.scale.set(1.5, 1.5, 1); gl.position.set(0, 0.34, 0.1); pu.add(gl); lampGlow.push(gl);
     });

@@ -18,7 +18,7 @@
   var MIN_BET = 10, MAX_BET = 250, MULT = 1.25, CHIPS = [10, 25, 50, 100, 250];
   var TABLES = [{ x: -8.25, z: -3 }, { x: -2.75, z: -3 }, { x: 2.75, z: -3 }, { x: 8.25, z: -3 }];
   var SLOT = [-0.45, 0, 0.45];           // les trois emplacements des gobelets sur la table
-  var TOP_Y = 0.86, CUP_Z = -0.55, T_R = 1.35, T_CUT = 0.9, DEALER_Z = 1.12;         // les gobelets sont posés côté croupier : ses mains les atteignent
+  var TOP_Y = 0.86, CUP_Z = -0.45, T_R = 1.35, T_CUT = 0.9;         // les gobelets sont posés vers le bord du fond de la table
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -156,8 +156,8 @@
       }
       tables.push(T);
       room.colliders.push({ x: td.x, z: td.z, r: 1.45 });
-      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;      // le croupier, debout derrière le bord droit de la table, face aux joueurs
-      if (dl) { dl.group.position.set(td.x, 0, td.z - DEALER_Z); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); g.add(dl.group); T.dealer = dl; T.demoWait = 2 + ti * 1.7; room.colliders.push({ x: td.x, z: td.z - DEALER_Z, r: 0.4 }); }
+      T.auto = true; T.demoWait = 2 + ti * 1.7;                  // pas de croupier visible : des mains invisibles font bouger les gobelets
+      room.colliders.push({ x: td.x, z: td.z - 1.1, r: 0.4 });     // personne ne se glisse derrière la table
       // fauteuil face à la table, assez loin du bord pour que le joueur ne rentre pas dedans
       var sx0 = td.x, sz0 = td.z + 1.9, s = { n: ti, x: sx0, z: sz0, yaw: 0, tx: td.x, tz: td.z, table: T, sx: td.x, sz: td.z + 2.9 };
       seats.push(s);
@@ -205,57 +205,6 @@
       for (k = 0; k < swaps; k++) { var a = Math.floor(Math.random() * 3), b; do { b = Math.floor(Math.random() * 3); } while (b === a); T.sw.push([a, b]); }
       T.swI = -1; T.swT = 0; T.swDur = 0.2; T.cur = null;
     }
-    // le croupier suit les gobelets des mains : chaque main attrape un gobelet par le dessus et l'accompagne pendant tout le mélange (de démonstration ou de partie).
-    // Les bras sont calculés en « cinématique inverse » : on connaît où doit être le poignet, on en déduit l'angle de l'épaule et du coude.
-    var _vS = new THREE.Vector3(), _vE = new THREE.Vector3(), _vH = new THREE.Vector3(), _vU = new THREE.Vector3(), _vP = new THREE.Vector3(), _vA = new THREE.Vector3(), _vB = new THREE.Vector3(), _vEd = new THREE.Vector3(), _vHd = new THREE.Vector3();
-    var _qd = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qo = new THREE.Quaternion();
-    function swingBone(b, from, to, k) {                         // tourne l'os pour que la direction « from » devienne « to » (k = dosage entre la pose d'origine et la pose visée)
-      _qd.setFromUnitVectors(from, to);
-      b.getWorldQuaternion(_qw); _qw.premultiply(_qd);
-      b.parent.getWorldQuaternion(_qp); _qp.invert().multiply(_qw);
-      _qo.copy(b.quaternion); b.quaternion.copy(_qo.slerp(_qp, k)); b.updateMatrixWorld(true);
-    }
-    function ikArm(rig, side, tgt, k) {
-      var ua = rig.root.getObjectByName('upperarm_' + side), la = rig.root.getObjectByName('lowerarm_' + side), ha = rig.root.getObjectByName('hand_' + side);
-      if (!ua || !la || !ha) return;
-      rig.root.updateMatrixWorld(true);
-      _vS.setFromMatrixPosition(ua.matrixWorld); _vE.setFromMatrixPosition(la.matrixWorld); _vH.setFromMatrixPosition(ha.matrixWorld);
-      var l1 = _vS.distanceTo(_vE), l2 = _vE.distanceTo(_vH), d = _vS.distanceTo(tgt);
-      if (d < 1e-4) return;
-      _vU.copy(tgt).sub(_vS).normalize();
-      var dd = Math.min(d, (l1 + l2) * 0.995), al = (l1 * l1 - l2 * l2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, l1 * l1 - al * al));
-      _vP.set(side === 'r' ? -0.5 : 0.5, -1, -0.25); _vP.addScaledVector(_vU, -_vP.dot(_vU)).normalize();            // le coude plie vers le bas et un peu vers l'extérieur
-      _vEd.copy(_vS).addScaledVector(_vU, al).addScaledVector(_vP, hh); _vHd.copy(_vS).addScaledVector(_vU, dd);
-      swingBone(ua, _vA.copy(_vE).sub(_vS).normalize(), _vB.copy(_vEd).sub(_vS).normalize(), k);
-      _vE.setFromMatrixPosition(la.matrixWorld); _vH.setFromMatrixPosition(ha.matrixWorld);
-      swingBone(la, _vA.copy(_vH).sub(_vE).normalize(), _vB.copy(_vHd).sub(_vE).normalize(), k);
-    }
-    var _vX = new THREE.Vector3(1, 0, 0);
-    function leanSpine(rig, ang) {                                // le croupier se penche au-dessus de la table (ses bras sont courts : sans ça il n'atteint pas les gobelets)
-      rig.root.updateMatrixWorld(true);
-      ['spine_01', 'spine_02', 'spine_03'].forEach(function (n) {
-        var b = rig.root.getObjectByName(n); if (!b || !b.parent) return;
-        _qd.setFromAxisAngle(_vX, ang / 3); b.getWorldQuaternion(_qw); _qw.premultiply(_qd);
-        b.parent.getWorldQuaternion(_qp); _qp.invert().multiply(_qw); b.quaternion.copy(_qp); b.updateMatrixWorld(true);
-      });
-    }
-    function dealerAnim(T, dt) {
-      var d = T.dealer, rig = d._rig; d.stopWalk(); d.applyHold(dt);
-      T.armK = (T.armK || 0) + (((T.phase === 'shuffle' || T.phase === 'demo') ? 1 : 0) - (T.armK || 0)) * Math.min(1, dt * 7);
-      if (!rig || T.armK < 0.01) { T.hr = null; return; }
-      var cr, cl;
-      if (T.cur) { var ca = T.cups[T.cur.ca], cb = T.cups[T.cur.cb]; cr = SLOT[T.cur.pa] < SLOT[T.cur.pb] ? ca : cb; cl = cr === ca ? cb : ca; }
-      else { cr = T.cups[T.pos.indexOf(0)]; cl = T.cups[T.pos.indexOf(2)]; }
-      if (!cr || !cl) return;
-      if (!T.hr) { T.hr = new THREE.Vector3(); T.hl = new THREE.Vector3(); T.hrOk = false; }
-      [[cr, T.hr], [cl, T.hl]].forEach(function (pr) {                // poignet : au-dessus du gobelet, un peu côté croupier, avec un léger retard pour que le geste soit fluide
-        _vA.set(pr[0].g.position.x, TOP_Y + 0.246 + pr[0].lift + 0.07, pr[0].g.position.z - 0.17); T.group.localToWorld(_vA);
-        if (!T.hrOk) pr[1].copy(_vA); else pr[1].lerp(_vA, Math.min(1, dt * 18));
-      });
-      T.hrOk = true;
-      leanSpine(rig, 0.7 * T.armK);
-      ikArm(rig, 'r', T.hr, T.armK); ikArm(rig, 'l', T.hl, T.armK);
-    }
     function stepSwap(T, dt) {
       if (T.phase !== 'shuffle' && T.phase !== 'demo') return;
       if (!T.cur) {
@@ -263,7 +212,7 @@
         var pa = T.sw[T.swI][0], pb = T.sw[T.swI][1], ca = T.pos.indexOf(pa), cb = T.pos.indexOf(pb);           // gobelets qui occupent les emplacements pa et pb
         T.cur = { ca: ca, cb: cb, pa: pa, pb: pb, t: 0 };
       }
-      var s = T.cur; s.t += dt; var u = Math.min(1, s.t / T.swDur), e = u * u * (3 - 2 * u), arc = Math.sin(u * Math.PI) * 0.12;
+      var s = T.cur; s.t += dt; var u = Math.min(1, s.t / T.swDur), e = u * u * (3 - 2 * u), arc = Math.sin(u * Math.PI) * 0.2;
       T.cups[s.ca].g.position.x = SLOT[s.pa] + (SLOT[s.pb] - SLOT[s.pa]) * e; T.cups[s.ca].g.position.z = CUP_Z + arc;
       T.cups[s.cb].g.position.x = SLOT[s.pb] + (SLOT[s.pa] - SLOT[s.pb]) * e; T.cups[s.cb].g.position.z = CUP_Z - arc;
       if (u >= 1) { T.pos[s.ca] = s.pb; T.pos[s.cb] = s.pa; T.cups[s.ca].g.position.z = CUP_Z; T.cups[s.cb].g.position.z = CUP_Z; T.cur = null; }
@@ -352,7 +301,7 @@
       clockT += dt;
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { if (window.console) console.warn('[cups3d]', e); } } }
       tables.forEach(function (T) {
-        if (T.phase === 'idle' && !(seat && seat.table === T) && T.dealer) {
+        if (T.phase === 'idle' && !(seat && seat.table === T) && T.auto) {
           T.demoWait -= dt;
           if (T.demoWait <= 0) {
             T.sw = []; for (var q = 0; q < 6; q++) { var a1 = Math.floor(Math.random() * 3), b1; do { b1 = Math.floor(Math.random() * 3); } while (b1 === a1); T.sw.push([a1, b1]); }
@@ -360,11 +309,10 @@
           }
         }
         stepSwap(T, dt);
-        if (T.dealer) dealerAnim(T, dt);
         T.cups.forEach(function (c) { c.lift += (c.liftTo - c.lift) * Math.min(1, dt * 9); c.mesh.position.y = 0.12 + c.lift; });
       });
     };
-    room.dispose = function () { stand(); tables.forEach(function (T) { if (T.dealer) T.dealer.dispose(); }); };
+    room.dispose = function () { stand(); };
     return room;
   }
 

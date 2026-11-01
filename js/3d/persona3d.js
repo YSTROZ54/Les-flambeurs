@@ -134,7 +134,7 @@
         o.frustumCulled = false;
         if (/^SuperHero_|^Superhero_/.test(o.name)) {
           if (look.tone === 1 && T.skins[sx]) T.skins[sx].then(function (tx) { var m = o.material.clone(); m.map = tx; m.needsUpdate = true; o.material = m; mats.push(m); });
-        } else if (o.name === 'Eyebrows') { o.material = hairMat(hairHex, 0); }
+        } else if (o.name === 'Eyebrows') { o.visible = false; }   // les sourcils étaient des pièces séparées qui flottaient dans l'air : on ne les dessine plus
       });
       // la coiffure et la barbe sont collées à l'os de la tête (mises à plat au repos : même place que dans le fichier d'origine)
       root.updateMatrixWorld(true);

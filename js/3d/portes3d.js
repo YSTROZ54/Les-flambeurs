@@ -78,6 +78,10 @@
     uno: function (c, col, bg) {                           // une carte penchée avec un ovale
       c.save(); c.translate(12, 12); c.rotate(-0.25); c.fillStyle = col; rr(c, -7, -10, 14, 20, 2.4); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(0, 0, 3.6, 7.6, 0.55, 0, TAU); c.fill(); c.restore();
     },
+    minijeux: function (c, col, bg) {                      // une carte UNO penchée et quatre jetons de Puissance 4
+      c.save(); c.translate(8.5, 11); c.rotate(-0.25); c.fillStyle = col; rr(c, -5.5, -8.5, 11, 17, 2.2); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(0, 0, 2.8, 6.4, 0.55, 0, TAU); c.fill(); c.restore();
+      [[16, 14], [20.4, 14], [16, 18.4], [20.4, 18.4]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 1.8, 0, TAU); c.fill(); });
+    },
     wolf: function (c, col, bg) {                          // tête de loup de face
       c.fillStyle = col; c.beginPath(); c.moveTo(3.2, 2.6); c.lineTo(8.6, 8); c.lineTo(15.4, 8); c.lineTo(20.8, 2.6); c.lineTo(21.2, 12.5);
       c.quadraticCurveTo(21, 18.2, 12, 22.6); c.quadraticCurveTo(3, 18.2, 2.8, 12.5); c.closePath(); c.fill();
@@ -250,6 +254,21 @@
         [['#1f9d4a', 0.14, 0.1], ['#1b63c9', 0.86, 0.1], ['#f2c200', 0.14, 0.9], ['#1f9d4a', 0.86, 0.9]].forEach(function (q) { c.fillStyle = q[0]; rr(c, W * q[1] - 22, H * q[2] - 28, 44, 56, 8); c.fill(); });
       }
     },
+    minijeux: {
+      frame: 0xc9a227, leaf: 0x1b1030, rgb: '160, 170, 255', logo: 'minijeux',
+      paint: function (c, W, H) {
+        var gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2a1a52'); gr.addColorStop(1, '#0c0814'); c.fillStyle = gr; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 8);
+        [[-0.38, '#1b63c9', '3'], [0, '#d6221e', '7'], [0.38, '#f2c200', '9']].forEach(function (cd) {          // trois cartes UNO en éventail
+          c.save(); c.translate(W / 2 + cd[0] * W * 0.32, H * 0.3); c.rotate(cd[0] * 0.6); c.fillStyle = '#fff'; rr(c, -W * 0.12, -H * 0.14, W * 0.24, H * 0.28, 10); c.fill(); c.fillStyle = cd[1]; rr(c, -W * 0.105, -H * 0.125, W * 0.21, H * 0.25, 8); c.fill();
+          c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, W * 0.07, H * 0.12, -0.5, 0, TAU); c.fill(); c.fillStyle = cd[1]; c.font = '900 ' + Math.round(W * 0.2) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(cd[2], 0, 4); c.restore();
+        });
+        c.fillStyle = '#4a57d6'; rr(c, W * 0.1, H * 0.52, W * 0.8, H * 0.36, 14); c.fill();                       // grille de Puissance 4 avec ses jetons
+        for (var i = 0; i < 5; i++) for (var j = 0; j < 7; j++) { var k = (i * 5 + j * 3) % 7; c.fillStyle = k < 2 ? '#d02a2a' : k < 4 ? '#f0cc1a' : '#0c0814'; c.beginPath(); c.arc(W * 0.17 + j * W * 0.11, H * 0.57 + i * H * 0.07, W * 0.04, 0, TAU); c.fill(); }
+      },
+      deco: function (g, w) {                                  // deux piles de jetons de chaque côté de la porte
+        [[-1, 0xd02a2a], [1, 0xe8c71a]].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 20), new THREE.MeshStandardMaterial({ color: s[1], roughness: 0.3 })); m.position.set(s[0] * (w / 2 + 0.55), 0.18, 0.5); g.add(m); });
+      }
+    },
     loupgarou: {
       frame: 0x7b6dff, leaf: 0x0b0a18, rgb: '200, 190, 255', logo: 'wolf',
       paint: function (c, W, H) {
@@ -306,6 +325,8 @@
   T.exitShop = exitTheme(0x4a2a12, '255, 210, 74', '#ffe9a8', 0x6b3d1a);
   T.exitHorses = exitTheme(0x14502a, '127, 209, 255', '#f2f2f2', 0x1f6b2a);
   T.exitCups = exitTheme(0x0f2a3a, '255, 224, 138', '#ffe9a8', 0x1b4f6e);
+  T.exitUno = exitTheme(0x2a0f1c, '255, 214, 0', '#ffe9a8', 0x7a1020);
+  T.exitCinema = exitTheme(0x4a0a16, '255, 122, 26', '#ffd9a0', 0x9a1424);
   // les fichiers images des thèmes sont chargés à l'avance
   Object.keys(T).forEach(function (k) { if (T[k].image) loadImg(T[k].image, function () { /* le dessin se refait dans paintDoorSign */ }); });
 })();
