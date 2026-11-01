@@ -697,7 +697,7 @@
     room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); else if (ev === 'abs' || ev === 'abc') armMsg(ev, m, remote); };
 
     /* --- cycle de vie, interface --- */
-    room.hint = function (w) { return 'Bras de fer : prends place à la table de gauche · ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
+    room.hint = function (w) { if (w.touch) return 'Joystick : marcher · touche Bruno au comptoir ou une table pour jouer'; return 'Bras de fer : prends place à la table de gauche · ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.onEnter = function () { hereT = 99; if (loggedIn()) loadCards(); };
     room.onLeave = function () { closeTalk(true); stand(); if (PMU.self) PMU.self.finish(); shows.forEach(killShow); shows = []; };

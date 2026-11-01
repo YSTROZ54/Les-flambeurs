@@ -438,6 +438,7 @@
     }
 
     room.hint = function (w) {
+      if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir · touche l’écran pour lancer le film';
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir · clic sur l\'écran ou P : lancer le film' + (w.full ? ' · Échap : quitter' : '');
     };
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };

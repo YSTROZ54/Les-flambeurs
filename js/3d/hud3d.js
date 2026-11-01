@@ -29,7 +29,7 @@
 
   F.initPlayerHud = function (w) {
     var root = document.createElement('div');
-    root.className = 'ph';
+    root.className = 'ph' + (w.touch ? ' ph-touch' : '');
     root.innerHTML =
       '<div class="ph-hud s3d-room-only">' +
         '<div class="ph-chat" data-ph="chat">' +
@@ -44,6 +44,7 @@
           '<div class="ph-bal" title="Ton solde"><i class="fl-coin"></i><b data-ph="bal">0</b></div>' +
         '</div>' +
       '</div>' +
+      (w.touch ? '<button class="ph-menu-btn s3d-room-only" data-act="pause" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>' : '') +
       '<div class="ph-hotbar s3d-room-only" data-ph="hotbar"></div>' +
       '<div class="ph-inventory" data-ph="inv" hidden>' +
         '<div class="ph-inv-box">' +
@@ -59,7 +60,7 @@
           '<button class="ph-pause-btn" data-act="pause-profile">' + fa('fa-user') + '<span>Mon profil</span></button>' +
           '<button class="ph-pause-btn" data-act="pause-full">' + fa('fa-expand') + '<span data-ph="pausefull">Grand écran</span></button>' +
           '<button class="ph-pause-btn danger" data-act="classic-menu">' + fa('fa-door-open') + '<span>Retour au menu du casino</span></button>' +
-          '<small>Échap : reprendre</small>' +
+          '<small>' + (w.touch ? 'Touche « Reprendre » pour revenir' : 'Échap : reprendre') + '</small>' +
         '</div>' +
       '</div>' +
       '<div class="ph-wheel" data-ph="wheel" hidden>' +
@@ -701,7 +702,7 @@
     /* ---------- déplacer le téléphone : on l'attrape par l'encoche, en haut au milieu ---------- */
     var phoneDX = 0, phoneDY = 0, phoneDrag = null, elNotch = elPhone.querySelector('.ph-notch');
     function placePhone() {
-      var rw = root.clientWidth, rh = root.clientHeight, h = elPhone.offsetHeight || 560;
+      var rw = root.clientWidth, rh = root.clientHeight, h = elPhone.getBoundingClientRect().height || elPhone.offsetHeight || 560;
       phoneDX = Math.max(-rw / 2 + 40, Math.min(rw / 2 - 40, phoneDX));
       phoneDY = Math.max(h / 2 - rh / 2, Math.min(rh - 50 - rh / 2 + h / 2, phoneDY));   // l'encoche reste toujours dans l'écran
       elPhone.style.left = 'calc(50% + ' + Math.round(phoneDX) + 'px)';
@@ -894,6 +895,7 @@
       else if (a === 'phone') { if (phoneOpen) closePhone(true); else openPhone(); }
       else if (a === 'phone-back') goBack();
       else if (a === 'phone-home') { if (page !== 'menu') { page = 'menu'; sub = 'home'; renderPhone(); } else closePhone(true); }   // bouton rouge : accueil, puis ferme et la souris est reprise
+      else if (a === 'pause') openPause();
       else if (a === 'resume') closePause(true);
       else if (a === 'pause-settings') { closePause(); openPhone('settings'); }
       else if (a === 'pause-profile') { closePause(); openPhone('profile'); }

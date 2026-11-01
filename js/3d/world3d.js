@@ -280,6 +280,7 @@
   World.prototype._useDoor = function (d) {
     if (d.spec.go) { d.spec.go(this); return; }
     var t = d.spec.target;
+    if (this.touch && (t === 'uno' || t === 'loupgarou')) { this.flash('🔒 Bientôt sur téléphone', 'Ce jeu arrive plus tard'); return; }
     if (typeof t === 'string' && this.hasRoom(t)) this.goRoom(t, this.room.id);
     else this.exitGame(typeof t === 'string' ? t : (t && t.game), d);
   };
@@ -303,6 +304,7 @@
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
       '<div data-s3d="roombottom" style="display:contents"></div>' +
       '<div class="s3d-fade" data-s3d="fade"></div>';
+    if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small></div>'); }
     this.container.appendChild(hud);
     this.hud = hud;
     function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
@@ -475,7 +477,7 @@
       if (self.mode === 'room') {
         if (self.blend > 0 || self.trans) return;
         self.player.yaw = drag.pyaw + dx * 0.005;
-        if (drag.mouse) self.player.pitch = Math.max(-0.6, Math.min(0.5, drag.ppitch + dy * 0.004));
+        self.player.pitch = Math.max(-0.6, Math.min(0.5, drag.ppitch + dy * 0.004));
         return;
       }
       if (self.seatRoom && self.seatRoom.seatDrag) self.seatRoom.seatDrag(drag, dx, dy, self);
@@ -918,8 +920,26 @@
     return hasWebGL;
   }
   // le monde complet n'est proposé que sur ordinateur
-  F.canWorld = function () { return webgl() && !mainFailed && !F.isMobile() && !F.isTouch() && !!document.getElementById('world3dStage'); };
-  F.wantsWorldForSlots = function () { return F.canWorld(); };
+  // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, gobelets, poker, uno, loup-garou) garde le menu classique
+  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'];
+  F.isPhone = function () { return F.isMobile() || F.isTouch(); };
+  F.canWorld = function (room) { return webgl() && !mainFailed && !!document.getElementById('world3dStage') && (!F.isPhone() || !room || PHONE_ROOMS.indexOf(room) >= 0); };
+  F.wantsWorldForSlots = function () { return F.canWorld('slots'); };
+
+  // téléphone : plein écran du navigateur + paysage verrouillé quand c'est possible (Android) ; sur iPhone un message demande de tourner l'appareil (CSS)
+  function phoneLandscape(on) {
+    try {
+      var de = document.documentElement, fs = document.fullscreenElement || document.webkitFullscreenElement;
+      if (on) {
+        var p = !fs && (de.requestFullscreen ? de.requestFullscreen({ navigationUI: 'hide' }) : de.webkitRequestFullscreen && de.webkitRequestFullscreen());
+        var lock = function () { try { var l = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); if (l && l.catch) l.catch(function () { /* refusé : le message « tourne ton téléphone » prend le relais */ }); } catch (e) { /* idem */ } };
+        if (p && p.then) p.then(lock, function () { lock(); }); else lock();
+      } else {
+        try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) { /* ok */ }
+        if (fs) { var x = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen && document.webkitExitFullscreen(); if (x && x.catch) x.catch(function () { /* ok */ }); }
+      }
+    } catch (e) { /* pas de plein écran possible : on reste en CSS */ }
+  }
 
   var main = null, mainFailed = false, solo = null, soloFailed = false;
   F.active = null;
@@ -928,13 +948,15 @@
   F.openWorld = function (place) {
     var st = document.getElementById('world3dStage');
     if (!st || mainFailed || !webgl()) return false;
+    if (!F.canWorld(place || 'hall')) return false;
+    var phone = F.isPhone();
     if (!main) {
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
-          onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key); }
+          onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });
       } catch (err) {
         mainFailed = true; main = null; st.classList.add('hidden');
@@ -948,10 +970,11 @@
     }
     F.active = main;
     if (F.persona && F.persona.ensureLook) setTimeout(F.persona.ensureLook, 800);   // pas encore de personnage : écran de création (creation3d.js)
-    if (!main.touch && !main.full && place !== 'blackjack') main.setFull(true);   // on entre en plein écran (Échap ou « Quitter » pour en sortir), sauf au blackjack : là c'est au joueur de cliquer sur « Plein écran »
+    if (phone) phoneLandscape(true);
+    if ((phone || !main.touch) && !main.full && place !== 'blackjack') main.setFull(true);   // on entre en plein écran (Échap ou « Quitter » pour en sortir), sauf au blackjack : là c'est au joueur de cliquer sur « Plein écran »
     return true;
   };
-  F.closeWorld = function () { if (main) main.pause(); if (F.active === main) F.active = null; };
+  F.closeWorld = function () { if (main) main.pause(); if (F.active === main) F.active = null; if (F.isPhone()) phoneLandscape(false); };
 
   // téléphone : seulement la salle des machines à sous (comme avant)
   F.openSolo = function () {

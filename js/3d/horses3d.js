@@ -789,6 +789,7 @@
     room.netStart = function () { room.netOn = true; clearTimeout(room.pollT); pollState(); };
     room.netStop = function () { room.netOn = false; clearTimeout(room.pollT); };
     room.hint = function (w) {
+      if (w.touch) return 'Joystick : marcher · glisse : regarder · touche une chaise pour s’asseoir';
       return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · approche-toi d\'une chaise pour t\'asseoir' + (w.full ? ' · Échap : quitter' : '');
     };
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };

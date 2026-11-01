@@ -557,6 +557,7 @@
       return { x: 0, z: HZ - 3, yaw: 0 };
     };
     room.hint = function (w) {
+      if (w.touch) return 'Joystick : marcher · touche un vendeur pour voir ses articles';
       return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · approche-toi d\'un vendeur puis F (ou clique sur lui) pour voir ses articles' + (w.full ? ' · Échap : quitter' : '');
     };
     room.syncHud = function () {

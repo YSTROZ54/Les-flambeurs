@@ -3144,3 +3144,20 @@ body.s3d-full-on #sidebarBackdrop {
 .s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-sensi,
 .s3d-hud.has-ph[data-mode=seat] .s3d-top [data-s3d="qual"],
 .s3d-hud.has-ph[data-mode=seat] .s3d-top .s3d-full-btn { display: none !important; }
+
+/* ================= CASINO 3D SUR TÉLÉPHONE (paysage) ================= */
+.ph-menu-btn { display: none; }
+.ph.ph-touch .ph-menu-btn {
+  display: flex; align-items: center; justify-content: center;
+  position: absolute; top: 8px; left: 8px; z-index: 12; width: 42px; height: 42px;
+  border-radius: 12px; background: rgba(8, 5, 14, 0.85); border: 1px solid rgba(201, 162, 39, 0.55);
+  color: #f3cf62; font-size: 18px; pointer-events: auto; touch-action: manipulation;
+}
+.ph.ph-touch .ph-pause-btn[data-act="pause-full"] { display: none; }
+.ph.ph-touch .ph-hud { left: 148px; bottom: 12px; }
+.s3d-hud.s3d-touch .s3d-hint { top: 8px; left: 58px; right: 250px; font-size: 10px; text-align: left; display: flex; flex-wrap: wrap; gap: 4px; }
+@media (max-height: 520px) {
+  .ph-phone { zoom: 0.64; }
+  .ph-hotbar { bottom: 8px; }
+  .ph-pause-box { zoom: 0.85; }
+}
