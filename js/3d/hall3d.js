@@ -179,40 +179,55 @@
     var base = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.85, 0.56, 32), marble);   // dessus à 0,56 : à 0,60 (niveau de l'eau) il scintillait en rayons blancs (z-fighting)
     base.position.y = 0.28; g.add(base);
     var rim = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.07, 8, 40), gold); rim.rotation.x = Math.PI / 2; rim.position.y = 0.6; g.add(rim);
-    // vraie eau : shader animé (vagues qui bougent, reflet du ciel plus fort en rasant, éclats de lumière, caustiques au fond,
-    // eau plus claire près du bord et plus profonde au centre, écume là où les rideaux d'eau retombent). Un seul temps partagé.
     var waterT = { value: 0 };
     var WATER_VS = 'varying vec3 vW; varying vec2 vUv; void main() { vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }';
+    var WATER_HGT = [
+      'float hgt(vec2 p) { float t = uT; vec2 q = p + 0.10 * vec2(sin(p.y * 2.3 + t * 0.5), cos(p.x * 2.1 - t * 0.45));',
+      '  return sin(q.x * 5.0 + t * 1.1) * 0.30 + sin(q.y * 6.1 - t * 0.9) * 0.28 + sin((q.x + q.y) * 9.0 + t * 1.5) * 0.16 + sin((q.x - q.y) * 13.0 - t * 1.4) * 0.10 + sin(length(p) * 11.0 - t * 1.6) * 0.10; }',
+      'float hgt2(vec2 p) { float t = uT; return sin(p.x * 31.0 + t * 2.1 + sin(p.y * 17.0)) + sin(p.y * 37.0 - t * 1.9 + sin(p.x * 23.0)) + sin((p.x + p.y) * 47.0 + t * 2.7); }'].join(' ');
+    // eau « mer claire » : on voit le fond à travers (plus ou moins selon la profondeur), l'eau prend une teinte turquoise qui s'assombrit au centre,
+    // le fond reçoit des réseaux de lumière (caustiques) déformés par les vagues, la surface reflète le plafond et scintille au soleil
     var WATER_FS = [
-      'uniform float uT; uniform float uRad; uniform float uFoam; varying vec3 vW; varying vec2 vUv;',
-      'float hgt(vec2 p) { float t = uT; vec2 q = p + 0.12 * vec2(sin(p.y * 2.3 + t * 0.5), cos(p.x * 2.1 - t * 0.45));',
-      '  return sin(q.x * 6.0 + t * 1.2) * 0.30 + sin(q.y * 7.3 - t * 1.0) * 0.28 + sin((q.x + q.y) * 11.0 + t * 1.7) * 0.16 + sin((q.x - q.y) * 15.0 - t * 1.5) * 0.10 + sin(length(p) * 13.0 - t * 1.8) * 0.12; }',
+      'uniform float uT; uniform float uRad; uniform float uK; varying vec3 vW; varying vec2 vUv;',
+      WATER_HGT,
       'void main() {',
       '  vec2 p = vW.xz; float e = 0.02;',
       '  float dx = (hgt(p + vec2(e, 0.0)) - hgt(p - vec2(e, 0.0))) / (2.0 * e), dz = (hgt(p + vec2(0.0, e)) - hgt(p - vec2(0.0, e))) / (2.0 * e);',
-      '  vec3 n = normalize(vec3(-dx * 0.07, 1.0, -dz * 0.07));',
+      '  vec3 n = normalize(vec3(-dx * 0.06, 1.0, -dz * 0.06));',
+      '  float gx = (hgt2(p + vec2(0.01, 0.0)) - hgt2(p - vec2(0.01, 0.0))) / 0.02, gz = (hgt2(p + vec2(0.0, 0.01)) - hgt2(p - vec2(0.0, 0.01))) / 0.02;',
+      '  vec3 n2 = normalize(vec3(n.x - gx * 0.003, 1.0, n.z - gz * 0.003));',
       '  vec3 v = normalize(cameraPosition - vW);',
       '  float rr = length(vUv - 0.5) * 2.0;',
-      '  float fres = 0.04 + 0.96 * pow(1.0 - max(dot(n, v), 0.0), 4.0);',
+      '  float fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);',
       '  vec3 r = reflect(-v, n);',
-      '  vec3 sky = mix(vec3(0.30, 0.24, 0.34), vec3(0.95, 0.78, 0.50), smoothstep(0.15, 1.0, r.y));',
-      '  sky += vec3(1.0, 0.85, 0.6) * pow(max(r.y, 0.0), 40.0) * 0.6;',
-      '  vec3 under = mix(vec3(0.36, 0.78, 0.84), vec3(0.04, 0.28, 0.42), smoothstep(1.0, 0.2, rr));',
-      '  vec2 cp = p * 3.0 + vec2(uT * 0.3, -uT * 0.2);',
-      '  float cs = 1.0 - abs(sin(cp.x + sin(cp.y * 1.7 + uT * 0.6)) * sin(cp.y + sin(cp.x * 1.3 - uT * 0.5)));',
-      '  under += vec3(0.5, 0.9, 1.0) * pow(cs, 5.0) * 0.3;',
-      '  vec3 col = mix(under, sky, fres);',
+      '  vec3 sky = mix(vec3(0.35, 0.45, 0.55), vec3(0.75, 0.68, 0.55), smoothstep(0.3, 1.0, r.y));',
+      '  float deep = smoothstep(1.0, 0.1, rr);',
+      '  vec3 tint = mix(vec3(0.03, 0.55, 0.62), vec3(0.0, 0.24, 0.40), deep);',
+      '  float a = 1.0 - exp(-uK * mix(0.2, 0.6, deep));',
+      '  vec3 L0 = normalize(vec3(0.35, 1.0, 0.45)); vec3 col = mix(tint * (0.75 + 1.6 * (dot(n, L0) - dot(vec3(0.0, 1.0, 0.0), L0))), sky, fres);',
+      '  a = clamp(a + fres * (1.0 - a), 0.0, 1.0);',
       '  vec3 L = normalize(vec3(0.35, 1.0, 0.45));',
-      '  col += vec3(1.0, 0.97, 0.88) * pow(max(dot(reflect(-L, n), v), 0.0), 200.0) * 1.6;',
-      '  col += vec3(1.0, 0.8, 0.5) * pow(max(dot(reflect(-normalize(vec3(-0.5, 0.8, -0.2)), n), v), 0.0), 140.0) * 0.8;',
-      '  gl_FragColor = vec4(col, 0.88 + fres * 0.12);',
-      '}'].join('\n');
-    function waterMat(rad, foamR) {
-      return new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: WATER_FS, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, uniforms: { uT: waterT, uRad: { value: rad }, uFoam: { value: foamR } } });
+      '  col += vec3(1.0, 0.97, 0.9) * pow(max(dot(reflect(-L, n2), v), 0.0), 300.0) * 3.0;',
+      '  col += vec3(1.0, 0.85, 0.6) * pow(max(dot(reflect(-normalize(vec3(-0.5, 0.8, -0.2)), n2), v), 0.0), 200.0) * 1.5;',
+      '  gl_FragColor = vec4(col, a);',
+      '}'].join(' ');
+    var BED_FS = [
+      'uniform float uT; varying vec3 vW; varying vec2 vUv;',
+      WATER_HGT,
+      'void main() {',
+      '  vec2 p = vW.xz; vec2 q = p + vec2(hgt(p), hgt(p * 1.3 + 4.0)) * 0.05;',
+      '  float c1 = 1.0 - abs(sin(q.x * 5.0 + sin(q.y * 3.4 + uT * 0.6)) * sin(q.y * 5.0 + sin(q.x * 2.9 - uT * 0.5)));',
+      '  float c2 = 1.0 - abs(sin(q.x * 8.0 - uT * 0.4 + sin(q.y * 5.0)) * sin(q.y * 8.0 + uT * 0.5));',
+      '  float cc = pow(c1, 6.0) * 0.8 + pow(c2, 8.0) * 0.5;',
+      '  vec3 sand = vec3(0.80, 0.74, 0.60) * (0.9 + 0.1 * sin(p.x * 23.0) * sin(p.y * 19.0));',
+      '  gl_FragColor = vec4(sand * vec3(0.12, 0.30, 0.36) + vec3(0.4, 0.9, 1.0) * cc * 0.9, 1.0);',
+      '}'].join(' ');
+    function waterMat(rad, k) {
+      return new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: WATER_FS, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, uniforms: { uT: waterT, uRad: { value: rad }, uK: { value: k } } });
     }
-    var bed = new THREE.Mesh(new THREE.CircleGeometry(1.66, 48), new THREE.MeshBasicMaterial({ color: 0x062a44 }));
+    var bed = new THREE.Mesh(new THREE.CircleGeometry(1.66, 48), new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: BED_FS, uniforms: { uT: waterT } }));
     bed.rotation.x = -Math.PI / 2; bed.position.y = 0.42; g.add(bed);
-    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 64), waterMat(1.66, 0));
+    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 64), waterMat(1.66, 2.2));
     water.rotation.x = -Math.PI / 2; water.position.y = 0.62; g.add(water);   // 2 cm au-dessus du rebord de marbre : plus aucune surface au même niveau
     // fontaine à trois étages : colonne tournée en marbre, deux vasques, rideaux d'eau qui tombent d'une vasque à l'autre, jets et gouttes
     var marbleD = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.25, metalness: 0.1, side: THREE.DoubleSide });
@@ -226,7 +241,7 @@
     lathe([[0.001, 1.58], [0.17, 1.62], [0.22, 1.72], [0.13, 1.84], [0.17, 1.94], [0.11, 2.02], [0.001, 2.04]], marbleD);                                                     // tige
     lathe([[0.001, 1.98], [0.16, 2.0], [0.36, 2.06], [0.52, 2.2], [0.47, 2.2], [0.38, 2.13], [0.001, 2.08]], marbleD);                                                        // vasque du haut
     ringAt(0.97, 1.8, 0.03); ringAt(0.5, 2.2, 0.025); ringAt(0.2, 1.0, 0.035); ringAt(0.3, 1.3, 0.03); ringAt(0.17, 1.9, 0.03);
-    [[0.84, 1.72, 0], [0.38, 2.14, 0]].forEach(function (v) {
+    [[0.84, 1.72, 1.4], [0.38, 2.14, 1.4]].forEach(function (v) {
       var w2 = new THREE.Mesh(new THREE.CircleGeometry(v[0], 40), waterMat(v[0], v[2])); w2.rotation.x = -Math.PI / 2; w2.position.y = v[1]; g.add(w2);
     });
     var fc2 = mkCanvas(64, 128), fx2 = fc2.getContext('2d'), fi;
