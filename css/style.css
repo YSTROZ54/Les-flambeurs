@@ -2800,14 +2800,6 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-profile .ph-card { min-width: 0; }
 @media (max-width: 767px) { .ph-profile { top: 8px; right: 8px; } .ph-profile .ph-card { min-width: 0; } }
 .ph-hotbar { gap: 5px; padding: 5px; }
-.ph-inv-key {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  color: #6b7280;
-  font: 700 9px 'JetBrains Mono', monospace;
-  font-style: normal;
-}
 @media (max-width: 900px) { .ph-hotbar { gap: 3px; padding: 4px; } .ph-inv { width: 38px; height: 38px; } .ph-inv .fl-logo { width: 24px; height: 24px; font-size: 11px; } }
 
 .ph-inventory {
