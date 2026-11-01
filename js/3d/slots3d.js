@@ -86,9 +86,11 @@
     var ban = mkCanvas(2048, 128), bctx = ban.getContext('2d');
     var banTex = track(mkTex(ban));
     banTex.wrapS = THREE.RepeatWrapping;
-    var matBanner = track(new THREE.MeshBasicMaterial({ map: banTex }));
+    var matBanner = track(new THREE.MeshBasicMaterial({ map: banTex, side: THREE.DoubleSide }));
     var crown = new THREE.Mesh(track(new THREE.CylinderGeometry(0.8, 0.8, 0.55, low ? 36 : 64, 1, true)), matBanner);
     crown.position.set(0, 3.15, 0); group.add(crown);
+    var under = new THREE.Mesh(track(new THREE.CylinderGeometry(0.8, 0.8, 0.05, low ? 36 : 64)), matDark);      // dessous de la couronne : plus de vide quand on regarde d'en bas
+    under.position.set(0, 2.875, 0); group.add(under);
     var neck = new THREE.Mesh(track(new THREE.CylinderGeometry(0.55, 0.62, 0.12, 24)), matDark);
     neck.position.set(0, 2.9, 0); group.add(neck);
     var cap = new THREE.Mesh(track(new THREE.CylinderGeometry(0.8, 0.8, 0.04, low ? 36 : 64)), matDark);
@@ -784,12 +786,10 @@
       n2.textAlign = 'center'; n2.textBaseline = 'middle'; n2.fillStyle = '#fff4e0'; n2.font = '900 ' + Math.round(nc.height * 0.56) + 'px ' + SERIF; n2.fillText(text, nc.width / 2, nc.height * 0.53, nc.width - 150);
       var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(nc) })); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m);
     }
-    function plant(x, z) { var pg = F.makePlant(1.1); pg.position.set(x, 0, z); scene.add(pg); }
     // mur de la porte (z = front), tourné vers la salle
     neonSign(0, 5.9, ROOM.front - 0.06, Math.PI, 'JACKPOT 777', 6.6, 1.3, '#ff4fa8');
     poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
         [-3.6, 3.6].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
-    plant(-3.6, ROOM.front - 0.9); plant(3.6, ROOM.front - 0.9);
     // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
     [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
     [1.8, 5.0, 8.2, -1.4].forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2); });

@@ -15,8 +15,8 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
   var HX = 15, HZ = 11, H = 5.6;
   var COLORS = ['#d6221e', '#f2c200', '#1f9d4a', '#1b63c9'];
-  var TBL_Z = [-5.5, 0, 5.5], UNO_X = -8.5, C4_X = 8.5;
-  var C4_PITCH = 0.14, C4_W = 1.12, C4_H = 0.98, C4_R = 0.052;       // grille de 7 colonnes x 6 lignes
+  var TBL_Z = [-6.4, 0, 6.4], UNO_X = -8.5, C4_X = 8.5;                    // tables bien espacées : les tapis ne se touchent plus
+  var C4_PITCH = 0.17, C4_W = 1.36, C4_H = 1.26, C4_R = 0.064, C4_Y0 = 0.19;       // grille de 7 colonnes x 6 lignes
 
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
   function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m); o.position.set(x, y, z); p.add(o); return o; }
@@ -33,7 +33,7 @@
   // face d'une carte du jeu : couleur + chiffre ou symbole ; les jokers sont noirs avec un ovale aux quatre couleurs
   function unoFaceCanvas(card) {
     var ci = +card.charAt(0), v = card.slice(1), wild = ci === 4, col = wild ? '#15151a' : COLORS[ci];
-    var cv = mkCanvas(320, 480), c = cv.getContext('2d');
+    var cv = mkCanvas(640, 960), c = cv.getContext('2d'); c.scale(2, 2);
     rr(c, 8, 8, 304, 464, 36); c.fillStyle = '#fff'; c.fill(); rr(c, 24, 24, 272, 432, 24); c.fillStyle = col; c.fill();
     c.save(); c.translate(160, 240); c.rotate(-0.5); c.beginPath(); c.ellipse(0, 0, 80, 168, 0, 0, TAU);
     if (wild) { c.clip(); COLORS.forEach(function (q, k) { c.fillStyle = q; c.fillRect(k % 2 ? 0 : -90, k < 2 ? -180 : 0, 90, 180); }); } else { c.fillStyle = '#fff'; c.fill(); }
@@ -48,7 +48,7 @@
     return cv;
   }
   function unoBackTex() {
-    var cv = mkCanvas(320, 480), c = cv.getContext('2d');
+    var cv = mkCanvas(640, 960), c = cv.getContext('2d'); c.scale(2, 2);
     rr(c, 8, 8, 304, 464, 36); c.fillStyle = '#fff'; c.fill(); rr(c, 24, 24, 272, 432, 24); c.fillStyle = '#15151a'; c.fill();
     c.save(); c.translate(160, 240); c.rotate(-0.5); c.fillStyle = '#d6221e'; c.beginPath(); c.ellipse(0, 0, 100, 190, 0, 0, TAU); c.fill(); c.restore();
     c.save(); c.translate(160, 240); c.rotate(-0.5); c.fillStyle = '#f2c200'; c.strokeStyle = '#111'; c.lineWidth = 10; c.font = '900 84px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
@@ -87,16 +87,23 @@
 
     /* --- fauteuils capitonnés (le même modèle que le blackjack et les gobelets) --- */
     var velvetM = new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.75, side: THREE.DoubleSide }), velvetD = new THREE.MeshStandardMaterial({ color: 0x5c0a16, roughness: 0.8, side: THREE.DoubleSide });
-    function makeChair(x, z, ry) {
+    function vm(col) { return new THREE.MeshStandardMaterial({ color: col, roughness: 0.72, side: THREE.DoubleSide }); }
+    var chairU = vm(0x0f6a45), chairUD = vm(0x083d29), chairC = vm(0x2347b8), chairCD = vm(0x132a70);
+    // fauteuil club : quatre pieds dorés effilés, assise épaisse, dossier incliné capitonné de boutons dorés, accoudoirs ; il regarde vers +z, le dos est à -z
+    function makeChair(x, z, ry, mat, matD) {
       var q = new THREE.Group(); q.position.set(x, 0, z); q.rotation.y = ry; g.add(q);
-      var seatY = 0.6, bh = 0.52, by = seatY + 0.06 + bh / 2;
-      cyl(q, 0.27, 0.3, 0.035, gold, 0, 0.0175, 0, 24); cyl(q, 0.045, 0.06, seatY - 0.12, gold, 0, (seatY - 0.12) / 2 + 0.035, 0, 12);
-      cyl(q, 0.25, 0.25, 0.11, velvetM, 0, seatY, 0, 28);
-      var back = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, bh, 28, 1, true, Math.PI - 1.15, 2.3), velvetM); back.position.set(0, by, 0); q.add(back);
-      var back2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, bh + 0.04, 28, 1, true, Math.PI - 1.17, 2.34), velvetD); back2.position.set(0, by, 0); q.add(back2);
-      [-1, 1].forEach(function (sd) { cyl(q, 0.016, 0.016, bh + 0.06, gold, sd * Math.sin(1.15) * 0.3, by, Math.cos(Math.PI - 1.15) * 0.3, 8); });
-      var top = new THREE.Mesh(new THREE.TorusGeometry(0.285, 0.014, 8, 28, 2.3), gold); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 1.15; top.position.y = by + bh / 2 + 0.02; q.add(top);
-      room.colliders.push({ x: x, z: z, r: 0.3 });
+      [[-0.22, -0.2], [0.22, -0.2], [-0.22, 0.2], [0.22, 0.2]].forEach(function (l) { cyl(q, 0.032, 0.02, 0.46, gold, l[0], 0.23, l[1], 10); });
+      box(q, 0.58, 0.05, 0.54, matD, 0, 0.47, 0);
+      var seatB = box(q, 0.58, 0.14, 0.54, mat, 0, 0.54, 0.01);
+      box(q, 0.6, 0.015, 0.56, gold, 0, 0.465, 0);
+      var back = box(q, 0.58, 0.7, 0.11, mat, 0, 0.98, -0.26); back.rotation.x = -0.12;
+      var back2 = box(q, 0.62, 0.74, 0.05, matD, 0, 0.99, -0.32); back2.rotation.x = -0.12;
+      var rail = box(q, 0.64, 0.045, 0.14, gold, 0, 1.36, -0.285); rail.rotation.x = -0.12;
+      for (var bx = -1; bx <= 1; bx++) for (var by = 0; by < 3; by++) { var btn = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), gold); btn.position.set(bx * 0.17, 0.82 + by * 0.19, -0.2 - by * 0.0227); q.add(btn); }
+      [-1, 1].forEach(function (sd) {
+        box(q, 0.07, 0.06, 0.46, matD, sd * 0.325, 0.78, -0.03); cyl(q, 0.016, 0.016, 0.2, gold, sd * 0.325, 0.68, 0.15, 8); box(q, 0.075, 0.015, 0.47, gold, sd * 0.325, 0.815, -0.03);
+      });
+      room.colliders.push({ x: x, z: z, r: 0.32 });
     }
     function lathe(p, pts, m, seg) { var o = new THREE.Mesh(new THREE.LatheGeometry(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }), seg || 32), m); p.add(o); return o; }
     var lampM = new THREE.MeshStandardMaterial({ color: 0x14202a, roughness: 0.45, metalness: 0.5, side: THREE.DoubleSide }), bulbM = new THREE.MeshBasicMaterial({ color: 0xffe9b0 }), cordM = new THREE.MeshBasicMaterial({ color: 0x222222 });
@@ -115,7 +122,7 @@
 
     /* --- cartes UNO du jeu : une texture par carte (créée à la demande), une miniature nette pour la main du joueur --- */
     var faceTexCache = {}, faceMatCache = {}, imgCache = {};
-    function faceMat(card) { return faceMatCache[card] || (faceMatCache[card] = new THREE.MeshBasicMaterial({ map: mkTex(unoFaceCanvas(card)) })); }
+    function faceMat(card) { return faceMatCache[card] || (faceMatCache[card] = new THREE.MeshBasicMaterial({ map: (function (t) { t.anisotropy = 16; return t; })(mkTex(unoFaceCanvas(card))) })); }
     function faceImg(card) {
       if (imgCache[card]) return imgCache[card];
       var cv = mkCanvas(160, 240), x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(unoFaceCanvas(card), 0, 0, 160, 240);
@@ -133,10 +140,11 @@
     /* --- 3 tables d'UNO : plateau rond de feutre vert, bord de cuir, pioche, défausse, 4 fauteuils (les cartes posées viennent de la partie) --- */
     var fe = mkCanvas(512, 512), fxx = fe.getContext('2d'), fg = fxx.createRadialGradient(256, 256, 20, 256, 256, 256); fg.addColorStop(0, '#1b8552'); fg.addColorStop(1, '#0b4a30'); fxx.fillStyle = fg; fxx.fillRect(0, 0, 512, 512);
     fxx.strokeStyle = '#e8c75a'; fxx.lineWidth = 8; fxx.beginPath(); fxx.arc(256, 256, 236, 0, TAU); fxx.stroke(); fxx.lineWidth = 3; fxx.beginPath(); fxx.arc(256, 256, 218, 0, TAU); fxx.stroke();
+    fxx.fillStyle = 'rgba(232,199,90,0.14)'; fxx.font = '900 130px ' + SERIF; fxx.textAlign = 'center'; fxx.textBaseline = 'middle'; fxx.fillText('UNO', 256, 256);
     COLORS.forEach(function (col, k) { fxx.fillStyle = col; fxx.globalAlpha = 0.85; var a = k / 4 * TAU + TAU / 8; fxx.beginPath(); fxx.arc(256 + Math.cos(a) * 186, 256 + Math.sin(a) * 186, 13, 0, TAU); fxx.fill(); }); fxx.globalAlpha = 1;
     var unoFelt = new THREE.MeshStandardMaterial({ map: mkTex(fe), roughness: 0.92 }), leatherM = new THREE.MeshStandardMaterial({ color: 0x6b1020, roughness: 0.45, metalness: 0.1 }), edgeM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5 });
-    var cardGeo = new THREE.PlaneGeometry(0.24, 0.36), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
-    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.3, 32);
+    var cardGeo = new THREE.PlaneGeometry(0.24, 0.36), bigCardGeo = new THREE.PlaneGeometry(0.31, 0.465), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
+    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.36, 40);
     function addChair(ch) {                                          // une place : le fauteuil, la zone cliquable pour s'asseoir et ses repères
       ch.yaw = Math.atan2(ch.tx - ch.x, -(ch.tz - ch.z)); ch.sx = ch.x + (ch.x - ch.tx) * 0.45; ch.sz = ch.z + (ch.z - ch.tz) * 0.45; chairs.push(ch);
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(ch.x, 0.7, ch.z); g.add(hit);
@@ -144,57 +152,75 @@
     }
     TBL_Z.forEach(function (tz, ti) {
       var t = new THREE.Group(), tid = 'u' + ti; t.position.set(UNO_X, 0, tz); g.add(t);
-      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.9, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.5, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
       cyl(t, 1.25, 1.25, 0.1, [edgeM, unoFelt, edgeM], 0, 0.8, 0, 48);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.065, 10, 48), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.85; t.add(rim);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.095, 12, 64), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.86; t.add(rim);
+      cyl(t, 1.2, 1.2, 0.13, edgeM, 0, 0.72, 0, 48); var skirt = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.022, 8, 64), gold); skirt.rotation.x = Math.PI / 2; skirt.position.y = 0.655; t.add(skirt);
       var inl = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.012, 6, 48), gold); inl.rotation.x = Math.PI / 2; inl.position.y = 0.915; t.add(inl);
       lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.75]], woodM, 32);
       [[0.5, 0.03, 0.028], [0.18, 0.22, 0.022]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
-      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.36), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.18, 0.885, 0); pile.rotation.y = 0.2; t.add(pile);
-      var pt = new THREE.Mesh(cardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.2; pt.position.set(-0.18, 0.922, 0); t.add(pt);
+      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.1, 0.465), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.32, 0.9, 0); pile.rotation.y = 0.15; t.add(pile);
+      var pt = new THREE.Mesh(bigCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.32, 0.952, 0); t.add(pt);
       var tv = TV[tid] = { kind: 'u', hands: [], labels: [] };
-      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.2, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
-      tv.top = new THREE.Mesh(cardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.25; tv.top.position.set(0.2, 0.868, 0); tv.top.visible = false; t.add(tv.top);
+      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.3, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
+      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.27, 0.866, 0.05); tv.top2.visible = false; t.add(tv.top2);
+      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.3, 0.873, 0); tv.top.visible = false; t.add(tv.top);
       for (var s = 0; s < 4; s++) {
         var sa = s / 4 * TAU + Math.PI / 4, hg = [];
         for (var k = 0; k < 9; k++) { var hc = new THREE.Mesh(cardGeo, backM); hc.rotation.x = -Math.PI / 2; hc.visible = false; t.add(hc); hg.push(hc); }
         tv.hands.push({ cards: hg, sa: sa });
         var lb = mkLabel(); lb.position.set(Math.cos(sa) * 1.0, 1.02, Math.sin(sa) * 1.0); t.add(lb); tv.labels.push(lb);
         var cx = UNO_X + Math.cos(sa) * 1.95, cz = tz + Math.sin(sa) * 1.95;
-        makeChair(cx, cz, Math.atan2(-Math.cos(sa), -Math.sin(sa)));
+        makeChair(cx, cz, Math.atan2(-Math.cos(sa), -Math.sin(sa)), chairU, chairUD);
         addChair({ tid: tid, ti: ti, local: s, n: ti * 4 + s, x: cx, z: cz, tx: UNO_X, tz: tz });
       }
       pendant(g, UNO_X, tz);
       room.colliders.push({ x: UNO_X, z: tz, r: 1.45 });
     });
 
-    /* --- 3 tables de PUISSANCE 4 : grille bleue debout avec ses vrais trous, deux piles de jetons, un fauteuil de chaque côté --- */
-    var redM = new THREE.MeshStandardMaterial({ color: 0xd02a2a, roughness: 0.3, metalness: 0.05 }), yelM = new THREE.MeshStandardMaterial({ color: 0xe8c71a, roughness: 0.3, metalness: 0.05 }), blueM = new THREE.MeshStandardMaterial({ color: 0x4a57d6, roughness: 0.4, metalness: 0.05, side: THREE.DoubleSide });
-    var redG = new THREE.MeshStandardMaterial({ color: 0xff4a4a, emissive: 0xc01818, roughness: 0.3 }), yelG = new THREE.MeshStandardMaterial({ color: 0xfff06a, emissive: 0xb88a00, roughness: 0.3 });
-    var bShape = new THREE.Shape(), hx = C4_W / 2; bShape.moveTo(-hx, 0); bShape.lineTo(hx, 0); bShape.lineTo(hx, C4_H); bShape.lineTo(-hx, C4_H); bShape.closePath();
-    for (var cc = 0; cc < 7; cc++) for (var rw = 0; rw < 6; rw++) { var hole = new THREE.Path(); hole.absarc((cc - 3) * C4_PITCH, 0.14 + rw * C4_PITCH, C4_R, 0, TAU, true); bShape.holes.push(hole); }
-    var boardGeo = new THREE.ExtrudeGeometry(bShape, { depth: 0.06, bevelEnabled: false, curveSegments: 14 });
-    var discGeo = new THREE.CylinderGeometry(0.057, 0.057, 0.045, 20), footGeo = new THREE.BoxGeometry(0.09, 0.1, 0.26);
+    /* --- 3 tables de PUISSANCE 4 : grille bleue brillante aux vrais trous, jetons qui tombent, et on clique directement sur la colonne voulue --- */
+    var redM = new THREE.MeshStandardMaterial({ color: 0xd8262b, roughness: 0.22, metalness: 0.1 }), yelM = new THREE.MeshStandardMaterial({ color: 0xf0cb14, roughness: 0.22, metalness: 0.1 }), blueM = new THREE.MeshStandardMaterial({ color: 0x2b4fe0, roughness: 0.2, metalness: 0.3 }), navyM = new THREE.MeshStandardMaterial({ color: 0x14217a, roughness: 0.35, metalness: 0.3 });
+    var redG = new THREE.MeshStandardMaterial({ color: 0xff5a5a, emissive: 0xd01818, roughness: 0.3 }), yelG = new THREE.MeshStandardMaterial({ color: 0xfff27a, emissive: 0xc89a00, roughness: 0.3 });
+    var c4Felt = new THREE.MeshStandardMaterial({ color: 0x14583a, roughness: 0.92 }), hx = C4_W / 2;
+    var bShape = new THREE.Shape(); bShape.moveTo(-hx, 0); bShape.lineTo(hx, 0); bShape.lineTo(hx, C4_H); bShape.lineTo(-hx, C4_H); bShape.closePath();
+    for (var cc = 0; cc < 7; cc++) for (var rw = 0; rw < 6; rw++) { var hole = new THREE.Path(); hole.absarc((cc - 3) * C4_PITCH, C4_Y0 + rw * C4_PITCH, C4_R, 0, TAU, true); bShape.holes.push(hole); }
+    var boardGeo = new THREE.ExtrudeGeometry(bShape, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 20 });
+    var discGeo = new THREE.CylinderGeometry(0.062, 0.062, 0.12, 28), footGeo = new THREE.BoxGeometry(0.12, 0.16, 0.46);
     var sk = mkCanvas(8, 84), skx = sk.getContext('2d'); for (i = 0; i < 21; i++) { skx.fillStyle = i % 2 ? '#ffffff' : '#c8c8c8'; skx.fillRect(0, i * 4, 8, 4); }
     function stackMat(col) { var tx = new THREE.CanvasTexture(sk); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return [new THREE.MeshStandardMaterial({ color: col, map: tx, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: col, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: col, roughness: 0.3 })]; }
-    var stackR = stackMat(0xd02a2a), stackY = stackMat(0xe8c71a);
+    var stackR = stackMat(0xd8262b), stackY = stackMat(0xf0cb14);
     var TT = 0.8;                                                   // hauteur du dessus de table
     TBL_Z.forEach(function (tz, ti) {
       var t = new THREE.Group(), tid = 'c' + ti; t.position.set(C4_X, 0, tz); g.add(t);
-      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.7, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
-      box(t, 2.0, 0.08, 1.2, new THREE.MeshStandardMaterial({ color: 0x14583a, roughness: 0.9 }), 0, TT - 0.04, 0);
-      box(t, 2.08, 0.05, 0.05, leatherM, 0, TT + 0.005, 0.6); box(t, 2.08, 0.05, 0.05, leatherM, 0, TT + 0.005, -0.6); box(t, 0.05, 0.05, 1.2, leatherM, 1.0, TT + 0.005, 0); box(t, 0.05, 0.05, 1.2, leatherM, -1.0, TT + 0.005, 0);
-      box(t, 1.92, 0.12, 1.12, edgeM, 0, TT - 0.14, 0); box(t, 2.04, 0.02, 1.24, gold, 0, TT - 0.075, 0);
-      [[0.88, 0.48], [-0.88, 0.48], [0.88, -0.48], [-0.88, -0.48]].forEach(function (c) { cyl(t, 0.032, 0.04, TT - 0.2, gold, c[0], (TT - 0.2) / 2, c[1], 10); });
-      var bd = new THREE.Mesh(boardGeo, blueM); bd.position.set(0, TT + 0.1, -0.03); t.add(bd);
-      [-1, 1].forEach(function (sd) { var f = new THREE.Mesh(footGeo, blueM); f.position.set(sd * (hx - 0.1), TT + 0.05, 0); t.add(f); });
-      [[-1, stackR], [1, stackY]].forEach(function (sp) { var sm = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.3, 20), sp[1]); sm.position.set(sp[0] * 0.8, TT + 0.15, 0.3); t.add(sm); });
-      var tv = TV[tid] = { kind: 'c', group: t, discs: {}, labels: [mkLabel(), mkLabel()] };
-      tv.labels[0].position.set(0, TT + 0.3, 0.5); tv.labels[1].position.set(0, TT + 0.3, -0.5); t.add(tv.labels[0]); t.add(tv.labels[1]);
-      makeChair(C4_X, tz + 1.25, Math.PI); makeChair(C4_X, tz - 1.25, 0);
-      addChair({ tid: tid, ti: ti, local: 0, n: 12 + ti * 2, x: C4_X, z: tz + 1.25, tx: C4_X, tz: tz }); addChair({ tid: tid, ti: ti, local: 1, n: 13 + ti * 2, x: C4_X, z: tz - 1.25, tx: C4_X, tz: tz });
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.5, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
+      // table ovale : plateau de feutre, rebord de cuir et filet doré, jupe de bois, piètement tourné
+      var top = cyl(t, 1, 1, 0.1, [edgeM, c4Felt, edgeM], 0, TT - 0.05, 0, 56); top.scale.set(1.4, 1, 0.9);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.075, 12, 72), leatherM); rim.rotation.x = Math.PI / 2; rim.scale.set(1.4, 0.9, 1); rim.position.y = TT; t.add(rim);
+      var inl = new THREE.Mesh(new THREE.TorusGeometry(1, 0.014, 6, 72), gold); inl.rotation.x = Math.PI / 2; inl.scale.set(1.4, 0.9, 1); inl.position.y = TT + 0.07; t.add(inl);
+      var apron = cyl(t, 0.96, 0.96, 0.12, edgeM, 0, TT - 0.16, 0, 56); apron.scale.set(1.4, 1, 0.9);
+      var aband = new THREE.Mesh(new THREE.TorusGeometry(0.96, 0.018, 6, 72), gold); aband.rotation.x = Math.PI / 2; aband.scale.set(1.4, 0.9, 1); aband.position.y = TT - 0.22; t.add(aband);
+      lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.72]], woodM, 32);
+      [[0.5, 0.03, 0.028], [0.18, 0.22, 0.022]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
+      // la grille : plaque bleue brillante épaisse percée de 42 trous, deux pieds, liserés dorés en haut
+      var bd = new THREE.Mesh(boardGeo, blueM); bd.position.set(0, TT + 0.16, -0.05); t.add(bd);
+      [-1, 1].forEach(function (sd) { var f = new THREE.Mesh(footGeo, navyM); f.position.set(sd * (hx - 0.1), TT + 0.08, 0); t.add(f); var fc = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.02, 0.475), gold); fc.position.set(sd * (hx - 0.1), TT + 0.165, 0); t.add(fc); });
+      box(t, C4_W + 0.04, 0.025, 0.14, gold, 0, TT + 0.16 + C4_H + 0.002, 0);
+      [[-1, stackR], [1, stackY]].forEach(function (sp) { var sm = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.076, 0.34, 24), sp[1]); sm.position.set(sp[0] * 1.02, TT + 0.17, 0); t.add(sm); });
+      var tv = TV[tid] = { kind: 'c', group: t, discs: {}, labels: [mkLabel(), mkLabel()], hits: [], bars: [] };
+      tv.labels[0].position.set(0, TT + 0.35, 0.6); tv.labels[1].position.set(0, TT + 0.35, -0.6); t.add(tv.labels[0]); t.add(tv.labels[1]);
+      // une barre cliquable par colonne (invisible) + un repère lumineux qui n'apparaît que quand c'est à moi de jouer
+      for (var c4 = 0; c4 < 7; c4++) {
+        var bx0 = (c4 - 3) * C4_PITCH, by0 = TT + 0.16 + C4_H / 2 + 0.05;
+        var hitC = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.98, C4_H + 0.3, 0.46), new THREE.MeshBasicMaterial({ visible: false })); hitC.position.set(bx0, by0, 0); hitC.userData.col = c4; t.add(hitC); tv.hits.push(hitC);
+        var bg = new THREE.Group(); bg.visible = false; t.add(bg);
+        var bar = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.92, C4_H + 0.06, 0.2), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending })); bar.position.set(bx0, TT + 0.16 + C4_H / 2, 0); bg.add(bar);
+        var arrow = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 4), new THREE.MeshBasicMaterial({ color: 0xffe35a })); arrow.rotation.x = Math.PI; arrow.position.set(bx0, TT + 0.16 + C4_H + 0.16, 0); arrow.userData.y0 = arrow.position.y; bg.add(arrow);
+        tv.bars.push(bg);
+      }
+      makeChair(C4_X, tz + 1.3, Math.PI, chairC, chairCD); makeChair(C4_X, tz - 1.3, 0, chairC, chairCD);
+      addChair({ tid: tid, ti: ti, local: 0, n: 12 + ti * 2, x: C4_X, z: tz + 1.3, tx: C4_X, tz: tz }); addChair({ tid: tid, ti: ti, local: 1, n: 13 + ti * 2, x: C4_X, z: tz - 1.3, tx: C4_X, tz: tz });
       pendant(g, C4_X, tz);
-      room.colliders.push({ x: C4_X - 0.7, z: tz, r: 0.8 }, { x: C4_X, z: tz, r: 0.8 }, { x: C4_X + 0.7, z: tz, r: 0.8 });
+      room.colliders.push({ x: C4_X - 0.9, z: tz, r: 0.75 }, { x: C4_X, z: tz, r: 0.8 }, { x: C4_X + 0.9, z: tz, r: 0.75 });
     });
 
     /* =====================================================================
@@ -234,16 +260,16 @@
     function bcast(tid) { if (world.rt && world.rt.ready && G[tid]) { try { world.rt.send('gs', { k: me(), tid: tid, st: G[tid] }); } catch (e) { /* ok */ } } }
     // modifie l'état d'une table (fn renvoie un texte d'erreur si la règle refuse), puis l'envoie aux autres
     function mutate(tid, fn) {
-      var st = clone(getSt(tid)), err = fn(st);
+      var before = G[tid], st = clone(getSt(tid)), err = fn(st);
       if (err) return err;
-      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid);
+      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st);
       if (seat && seat.tid === tid) refreshUi();
       return '';
     }
     function adopt(tid, st) {
       var cur = G[tid];
       if (cur && (st.ver < cur.ver || (st.ver === cur.ver && String(st.org || '') <= String(cur.org || '')))) return;
-      G[tid] = st; renderTable(tid);
+      G[tid] = st; renderTable(tid); announce(tid, cur, st);
       if (seat && seat.tid === tid) { reconcile(); refreshUi(); }
     }
     function joinFn(ch) { return function (st) { return (ch.tid.charAt(0) === 'u' ? MJ.unoJoin : MJ.c4Join)(st, ch.local, me(), myName()); }; }
@@ -263,6 +289,7 @@
     function renderUno(tv, st, tid) {
       var top = st.disc[st.disc.length - 1];
       tv.top.visible = tv.ring.visible = !!top;
+      var prev = st.disc[st.disc.length - 2]; tv.top2.visible = !!prev; if (prev) tv.top2.material = faceMat(prev);
       if (top) { tv.top.material = faceMat(top); tv.ring.material.color.set(st.col >= 0 && st.col < 4 ? COLORS[st.col] : '#888888'); }
       for (var s = 0; s < 4; s++) {
         var e = st.seats[s], hand = st.hands[s], n = hand ? hand.length : 0, h = tv.hands[s], vis = Math.min(n, 9), sa = h.sa, lb = tv.labels[s];
@@ -270,7 +297,7 @@
           var cm = h.cards[k]; cm.visible = k < vis; if (k >= vis) continue;
           var off = k - (vis - 1) / 2;
           cm.rotation.z = -sa - Math.PI / 2 + off * 0.2;
-          cm.position.set(Math.cos(sa) * 0.78 + Math.cos(sa + Math.PI / 2) * off * 0.075, 0.872 + k * 0.003, Math.sin(sa) * 0.78 + Math.sin(sa + Math.PI / 2) * off * 0.075);
+          cm.position.set(Math.cos(sa) * 0.86 + Math.cos(sa + Math.PI / 2) * off * 0.075, 0.872 + k * 0.003, Math.sin(sa) * 0.86 + Math.sin(sa + Math.PI / 2) * off * 0.075);
         }
         lb.visible = !!e && !(seat && seat.tid === tid && seat.local === s);        // mon propre nom ne cache pas la table
         if (e) { var act = st.ph === 'play' && st.turn === s; var key = e.name + '|' + n + '|' + act + '|' + (st.win === s); if (lb.userData.key !== key) { lb.userData.key = key; setLabel(lb, (st.win === s ? '🏆 ' : act ? '▶ ' : '') + e.name, hand ? n + ' carte' + (n > 1 ? 's' : '') : (st.ph === 'play' ? 'spectateur' : 'prêt'), act || st.win === s); } }
@@ -281,7 +308,7 @@
       for (c = 0; c < 7; c++) for (r = 0; r < st.g[c].length; r++) {
         var p = st.g[c][r], inLine = !!(st.line && st.line.some(function (q) { return q[0] === c && q[1] === r; }));
         key = c + ',' + r; want[key] = true;
-        var d = tv.discs[key], y1 = TT + 0.1 + 0.14 + r * C4_PITCH;
+        var d = tv.discs[key], y1 = TT + 0.16 + C4_Y0 + r * C4_PITCH;
         if (d && d.p !== p) { tv.group.remove(d.m); delete tv.discs[key]; d = null; }
         if (!d) {
           var m = new THREE.Mesh(discGeo, p === 1 ? redM : yelM); m.rotation.x = Math.PI / 2; m.position.set((c - 3) * C4_PITCH, y1 + 0.9, 0); tv.group.add(m);
@@ -290,6 +317,8 @@
         d.m.material = inLine ? (p === 1 ? redG : yelG) : (p === 1 ? redM : yelM);
       }
       Object.keys(tv.discs).forEach(function (k) { if (!want[k]) { tv.group.remove(tv.discs[k].m); delete tv.discs[k]; } });
+      var myTurn = !!seat && seat.tid === tid && st.ph === 'play' && st.turn === seat.local;
+      tv.bars.forEach(function (b, c3) { b.visible = myTurn && st.g[c3].length < 6; });
       for (var s = 0; s < 2; s++) {
         var e = st.seats[s], lb = tv.labels[s]; lb.visible = !!e && !(seat && seat.tid === tid && seat.local === s);
         if (e) { var act = st.ph === 'play' && st.turn === s, k2 = e.name + '|' + act + '|' + (st.win === s); if (lb.userData.key !== k2) { lb.userData.key = k2; setLabel(lb, (st.win === s ? '🏆 ' : act ? '▶ ' : '') + e.name, s === 0 ? 'jetons rouges' : 'jetons jaunes', act || st.win === s, s === 0 ? '#ff6a6a' : '#ffe35a'); } }
@@ -306,8 +335,38 @@
         '.mj3d .mj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.mj3d .mj-b{padding:8px 16px;border-radius:12px;border:0;font-weight:900;font-size:14px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.mj3d .mj-b:disabled{opacity:.4;cursor:not-allowed}.mj3d .mj-b.alt{background:#2a3b57;color:#e8f0ff}' +
         '.mj3d .mj-col{width:54px;padding:8px 0;border-radius:10px;border:2px solid #6a7bff;background:#1c2556;color:#fff;font-weight:900;font-size:15px;cursor:pointer}.mj3d .mj-col:disabled{opacity:.35;cursor:not-allowed}' +
         '.mj3d .mj-clr{width:64px;height:40px;border-radius:10px;border:3px solid #fff;cursor:pointer}' +
+        '.mj3d.myturn{border-color:#ffe35a;animation:mjGlow 1s ease-in-out infinite alternate}@keyframes mjGlow{from{box-shadow:0 0 0 rgba(255,227,90,0)}to{box-shadow:0 0 26px rgba(255,227,90,.85)}}' +
+        '.mj-toast{position:absolute;left:50%;top:16%;transform:translateX(-50%) scale(.6);opacity:0;padding:16px 34px;border-radius:20px;text-align:center;pointer-events:none;z-index:9;font-weight:900;font-size:30px;color:#fff;border:3px solid #fff;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1);max-width:90%}.mj-toast small{display:block;margin-top:4px;font-size:14px;font-weight:700;opacity:.92}.mj-toast.in{opacity:1;transform:translateX(-50%) scale(1)}' +
+        '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 36px rgba(255,227,90,.7)}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       document.head.appendChild(s);
+    }
+    var AC = null;
+    function ding(seq) {                                            // petits sons (sans fichier) pour attirer l'attention
+      try {
+        var A = F.audio, vol = A && typeof A.sfxVol === 'number' ? A.sfxVol : 0.7; AC = AC || new (window.AudioContext || window.webkitAudioContext)(); var t0 = AC.currentTime;
+        seq.forEach(function (f, k) { var o = AC.createOscillator(), gn = AC.createGain(); o.type = 'sine'; o.frequency.value = f; gn.gain.setValueAtTime(0.0001, t0 + k * 0.14); gn.gain.exponentialRampToValueAtTime(0.2 * vol + 0.0001, t0 + k * 0.14 + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.14 + 0.26); o.connect(gn); gn.connect(AC.destination); o.start(t0 + k * 0.14); o.stop(t0 + k * 0.14 + 0.3); });
+      } catch (e) { /* pas de son */ }
+    }
+    var toastEl = null, toastT = 0;
+    function toast(title, kind, sub) {
+      if (!ui) return;
+      if (!toastEl) { toastEl = document.createElement('div'); ui.el.parentNode.appendChild(toastEl); }
+      toastEl.className = 'mj-toast ' + kind; toastEl.innerHTML = '<div>' + esc(title) + '</div>' + (sub ? '<small>' + esc(sub) + '</small>' : ''); void toastEl.offsetWidth; toastEl.classList.add('in'); toastT = kind === 'hit' || kind === 'skip' ? 4.2 : 3.2;
+      ding(kind === 'turn' ? [660, 880] : kind === 'hit' ? [330, 220] : kind === 'skip' ? [440, 330] : kind === 'win' ? [660, 880, 1100] : [520]);
+    }
+    function announce(tid, old, st) {
+      if (!seat || seat.tid !== tid || !st || st.ph === 'wait') return;
+      old = old || {}; var loc = seat.local, msg = st.msg || '', nm0 = myName(), mine = st.turn === loc;
+      if (st.ph === 'over') { if (old.ph !== 'over') { if (st.win === loc) toast('🏆 Tu as gagné !', 'win'); else if (st.win === 2) toast('🤝 Match nul', 'info'); else toast('😵 Perdu…', 'hit', msg); } return; }
+      if (st.ph !== 'play') return;
+      if (kindOf(tid) === 'u') {
+        var oh = old.hands && old.hands[loc], nh = st.hands && st.hands[loc];
+        if (st.org !== me() && oh && nh && nh.length >= oh.length + 2 && /pioche (2|4) cartes/.test(msg) && msg.indexOf(nm0 + ' pioche') >= 0) { toast('💥 +' + (nh.length - oh.length) + ' ! Tu pioches ' + (nh.length - oh.length) + ' cartes', 'hit', 'Ton tour est passé'); return; }
+        if (st.org !== me() && msg.indexOf(nm0 + ' passe son tour') >= 0) { toast('⛔ Ton tour est passé !', 'skip', msg); return; }
+        if (st.org !== me() && /Le sens change|Sens inversé/.test(msg) && !mine) toast('🔄 Le sens du jeu change', 'info');
+      }
+      if (mine && (old.ph !== 'play' || old.turn !== loc)) toast('👉 À TOI DE JOUER !', 'turn', kindOf(tid) === 'u' ? 'Pose une carte de la bonne couleur ou du même chiffre, sinon pioche' : 'Clique sur une colonne de la grille');
     }
     function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
     function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -341,6 +400,7 @@
       if (!ui || !seat) return;
       var st = getSt(seat.tid), u = kindOf(seat.tid) === 'u', mine = st.ph === 'play' && st.turn === seat.local;
       var msg = errT > 0 ? errMsg : (st.msg || (Object.keys(st.seats).length < 2 ? 'En attente d\'un autre joueur…' : 'Tout le monde est là : lance la partie !'));
+      ui.el.classList.toggle('myturn', mine);
       if (st.ph === 'play' && mine && errT <= 0) msg = '👉 À toi de jouer ! ' + (st.msg && st.msg.indexOf('Au tour') !== 0 ? '— ' + st.msg : '');
       var m = ui.el.querySelector('.mj-msg'); if (m.textContent !== msg) m.textContent = msg; m.style.color = errT > 0 ? '#ff8a80' : (st.ph === 'over' && st.win === seat.local ? '#7ee0a0' : '');
       var pl = Object.keys(st.seats).map(Number).sort().map(function (n) {
@@ -361,7 +421,7 @@
         }
       } else {
         var mir = seat.local === 1, cols = [0, 1, 2, 3, 4, 5, 6].map(function (v) { return mir ? 6 - v : v; });      // le joueur du côté opposé voit la grille à l'envers
-        if (st.ph === 'play') body = '<div class="mj-row">' + cols.map(function (c) { return '<button class="mj-col" data-a="col" data-c="' + c + '"' + (mine && st.g[c].length < 6 ? '' : ' disabled') + '>▼ ' + (c + 1) + '</button>'; }).join('') + '</div>';
+        if (st.ph === 'play') body = '<div class="mj-row" style="font-weight:800;font-size:13px;color:' + (mine ? '#ffe35a' : '#c9b88a') + '">' + (mine ? '👆 Clique sur la colonne de la grille où tu veux poser ton jeton (ou touches 1 à 7)' : 'Ton adversaire réfléchit…') + '</div>';
         else body = '<div class="mj-row"><button class="mj-b" data-a="start"' + (canStart ? '' : ' disabled') + '>' + startTxt + '</button></div>';
       }
       setHtml(ui.el.querySelector('.mj-body'), body);
@@ -386,11 +446,11 @@
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
       if (world.rt && world.rt.ready) { try { world.rt.send('gq', { k: me(), tid: ch.tid }); } catch (e) { /* ok */ } }
-      mutate(ch.tid, joinFn(ch)); refreshUi();
+      mutate(ch.tid, joinFn(ch)); renderTable(ch.tid); refreshUi();
     }
     function stand(silent) {
       if (!seat) return;
-      var s = seat; seat = null; pendingWild = -1;
+      var s = seat; seat = null; pendingWild = -1; if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl); toastEl = null; renderTable(s.tid);
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
@@ -414,6 +474,12 @@
       var u = kindOf(s.tid) === 'u', ex = s.x + (s.tx - s.x) * (u ? 0.14 : -0.35), ey = u ? 1.6 : 1.55, ez = s.z + (s.tz - s.z) * (u ? 0.14 : -0.35), ty = u ? 0.86 : 1.2;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
+    };
+    room.seatClick = function (ray) {
+      if (!seat || kindOf(seat.tid) !== 'c') return;
+      var hit = ray.intersectObjects(TV[seat.tid].hits, false)[0];
+      if (!hit) return;
+      var err = dropCol(hit.object.userData.col); if (err) { errMsg = err; errT = 3; refreshUi(); }
     };
     room.syncHud = function () { refreshUi(); };
 
@@ -454,9 +520,13 @@
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un fauteuil pour jouer' : 'ZQSD / flèches : marcher · Maj : courir · à gauche : UNO (2 à 4 joueurs), à droite : Puissance 4 (2 joueurs) · avance vers un fauteuil (F ou clic) pour t\'asseoir et jouer avec les autres · F : se lever' + (w.full ? ' · Échap : quitter' : ''); };
     room.onLeave = function () { stand(); };
     room._etat = function () { return G; };
+    room._dbg = { adopt: adopt, toast: toast, renderTable: renderTable, seatOf: function () { return seat; } };
     room.dispose = function () { stand(); };
     room.update = function (dt) {
       if (errT > 0) { errT -= dt; if (errT <= 0 && ui) refreshUi(); }
+      if (toastT > 0) { toastT -= dt; if (toastT <= 0 && toastEl) toastEl.classList.remove('in'); }
+      var tnow = performance.now() / 1000;
+      TIDS.forEach(function (tid2) { var tv2 = TV[tid2]; if (tv2.kind !== 'c') return; tv2.bars.forEach(function (b) { if (!b.visible) return; b.children[0].material.opacity = 0.16 + 0.12 * Math.sin(tnow * 5); b.children[1].position.y = b.children[1].userData.y0 + 0.035 * Math.sin(tnow * 6); }); });
       pruneT += dt; if (pruneT > 1.5) { pruneT = 0; prune(); }
       for (var k = anims.length - 1; k >= 0; k--) {
         var a = anims[k]; a.t += dt / 0.42; var u = Math.min(1, a.t), y = a.y1 + (a.y0 - a.y1) * (1 - u) * (1 - u);
