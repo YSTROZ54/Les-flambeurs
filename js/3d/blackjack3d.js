@@ -295,10 +295,10 @@
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(0.46, 0.15, 1); sp.position.set(x, TOP_Y + 0.32, z); g.add(sp); T.labels = T.labels || []; T.labels.push(sp);
     }
     // pastille du total, posée juste devant la main (sous les cartes, côté joueur) ; se redessine seulement si le total ou la couleur change
-    function scoreLabel(T, key, x, z, n, sc, hidden) {
+    function scoreLabel(T, key, x, z, n, sc) {
       T.scoreLabels = T.scoreLabels || {};
       var cur = T.scoreLabels[key];
-      if (!n || hidden) { if (cur) { g.remove(cur.sp); cur.sp.material.map.dispose(); cur.sp.material.dispose(); delete T.scoreLabels[key]; } return; }
+      if (!n) { if (cur) { g.remove(cur.sp); cur.sp.material.map.dispose(); cur.sp.material.dispose(); delete T.scoreLabels[key]; } return; }
       var col = sc > 21 ? '#ff8a80' : sc === 21 ? '#f3cf62' : '#f4e3b0';
       if (cur) { cur.sp.position.set(x, TOP_Y + 0.16, z); if (cur.sc === sc) return; g.remove(cur.sp); cur.sp.material.map.dispose(); cur.sp.material.dispose(); }
       var cv = mkCanvas(112, 72), c = cv.getContext('2d'); roundRect(c, 3, 3, 106, 66, 16); c.fillStyle = 'rgba(8,5,12,0.88)'; c.fill(); c.strokeStyle = col; c.lineWidth = 4; c.stroke();
@@ -316,15 +316,16 @@
       have.forEach(function (m, k2) { var p = spotPos(T, s, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else { m.position.set(p.x, p.y, p.z); } });
       // le total, juste devant la main : un peu plus loin du centre que les cartes, côté joueur
       var ph = s.phi, lx = T.x + Math.sin(ph) * 1.42, lz = T.z + Math.cos(ph) * 1.42;
-      scoreLabel(T, 's' + s.n, lx, lz, cards.length, score(cards), false);
+      scoreLabel(T, 's' + s.n, lx, lz, cards.length, score(cards));
     }
     function showDealer(T, cards) {
       wake(T);
       T.dealerMeshes = T.dealerMeshes || [];
       for (var k = T.dealerMeshes.length; k < cards.length; k++) T.dealerMeshes.push(placeCard('d', 0, T, cards[k], dealerPos(T, k, cards.length), 0));
       T.dealerMeshes.forEach(function (m, k2) { var p = dealerPos(T, k2, cards.length); var a = anims.filter(function (x) { return x.m === m; })[0]; if (a) a.to.set(p.x, p.y, p.z); else m.position.set(p.x, p.y, p.z); });
-      var hidden = cards.some(function (c) { return c.r === '?'; }), c0 = dealerPos(T, (cards.length - 1) / 2, cards.length);
-      scoreLabel(T, 'd', c0.x, c0.z + 0.42, cards.length, score(cards), hidden);
+      // la pastille montre toujours le total connu (la carte cachée du croupier compte pour 0 dans score(), elle n'est jamais incluse)
+      var c0 = dealerPos(T, (cards.length - 1) / 2, cards.length);
+      scoreLabel(T, 'd', c0.x, c0.z + 0.42, cards.length, score(cards));
     }
     function reveal(T, cards) {
       T.dealerMeshes = T.dealerMeshes || [];
@@ -378,6 +379,7 @@
       setText(q('.bj-bal b'), fmtN(balance()) + ' 🪙'); setText(q('.bj-bet b'), fmtN(bet) + ' 🪙');   // on ne réécrit le texte que s'il change : sinon l'émoji clignote
       var waiting = !TBL || TBL.status === 'waiting';
       q('.bj-chips').style.display = waiting ? '' : 'none';
+      if (!waiting) { var cb = q('.bj-custom-bet'); if (cb) cb.hidden = true; }   // la manche a démarré : plus question de changer sa mise
       var rdy = q('[data-a=ready]'); if (rdy) rdy.style.display = waiting && TBL && TBL.readyBets && TBL.readyBets[me] ? '' : 'none';
       var mine = !busy && TBL && TBL.status === 'playing' && TBL.turn === me && mineP && mineP.status === 'playing';
       ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = (TBL && TBL.status === 'playing') ? '' : 'none'; b.disabled = !mine; });
@@ -598,10 +600,11 @@
         return { cx: s.x + rx * 1.2 + sx, cy: 2.5, cz: s.z + rz * 1.2 + sz, tx: s.tx + ox * 0.62, ty: 0.8, tz: s.tz + oz * 0.62, fov: 55 };
       }
       // vue assise : regard fixe sur le croupier et mes cartes, la souris ne bouge plus la caméra (seule la vue 3e personne tourne)
-      var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.62, ez = s.z + (cz0 - s.z) * 0.12;
+      // caméra plus haute et visée moins piquée vers le bas, pour garder le visage du croupier dans le cadre (pas seulement les cartes)
+      var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.74, ez = s.z + (cz0 - s.z) * 0.12;
       var px = cx0 + (s.x - cx0) * 0.5, pz = cz0 + (s.z - cz0) * 0.5;
-      var a = Math.atan2(px - ex, -(pz - ez)), p = Math.atan2(0.86 - ey, Math.hypot(px - ex, pz - ez));
-      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 60 };
+      var a = Math.atan2(px - ex, -(pz - ez)), p = Math.atan2(1.22 - ey, Math.hypot(px - ex, pz - ez));
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 64 };
     };
     room.syncHud = function () { refreshUi(); };
 
