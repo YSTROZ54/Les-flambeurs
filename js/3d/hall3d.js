@@ -180,6 +180,45 @@
     base.position.y = 0.28; g.add(base);
     var rim = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.07, 8, 40), gold); rim.rotation.x = Math.PI / 2; rim.position.y = 0.6; g.add(rim);
     var waterT = { value: 0 };
+    // vraies vagues : une grille 2D simule l'eau du grand bassin (équation des ondes). Les rideaux d'eau y font tomber des gouttes
+    // en continu, chaque goutte lance un rond qui s'étale, rebondit sur le bord et se croise avec les autres. La grille est envoyée
+    // au shader comme une petite image (pente des vagues en rouge/vert) : elle plie les reflets et le fond.
+    var SN = low ? 48 : 64, SR = 1.66, simH = new Float32Array(SN * SN), simV = new Float32Array(SN * SN), simW = new Float32Array(SN * SN), simD = new Uint8Array(SN * SN * 4);
+    var simTex = new THREE.DataTexture(simD, SN, SN, THREE.RGBAFormat);
+    simTex.minFilter = simTex.magFilter = THREE.LinearFilter; simTex.generateMipmaps = false; simTex.needsUpdate = true;
+    (function () {
+      for (var j = 0; j < SN; j++) for (var i = 0; i < SN; i++) {
+        var rx = (i + 0.5) / SN * 2 - 1, ry = (j + 0.5) / SN * 2 - 1, r = Math.sqrt(rx * rx + ry * ry) * SR;
+        simW[j * SN + i] = r > 1.55 ? 0.88 : 1;
+        simD[(j * SN + i) * 4] = simD[(j * SN + i) * 4 + 1] = simD[(j * SN + i) * 4 + 2] = 128; simD[(j * SN + i) * 4 + 3] = 255;
+      }
+    })();
+    function simSplat(x, y, amp) {
+      var cx = (x / SR * 0.5 + 0.5) * SN - 0.5, cy = (y / SR * 0.5 + 0.5) * SN - 0.5, i, j, d, w;
+      for (j = Math.floor(cy) - 2; j <= Math.ceil(cy) + 2; j++) for (i = Math.floor(cx) - 2; i <= Math.ceil(cx) + 2; i++) {
+        if (i < 1 || j < 1 || i > SN - 2 || j > SN - 2) continue;
+        d = Math.sqrt((i - cx) * (i - cx) + (j - cy) * (j - cy)); w = Math.max(0, 1 - d / 2.2);
+        simH[j * SN + i] += amp * w * w;
+      }
+    }
+    function simStep(dt) {
+      var n = Math.max(1, Math.min(3, Math.round(dt * 60))), st, i, j, id, avg, a, r;
+      for (st = 0; st < n; st++) {
+        for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) {
+          id = j * SN + i; avg = (simH[id - 1] + simH[id + 1] + simH[id - SN] + simH[id + SN]) * 0.25;
+          simV[id] = (simV[id] + (avg - simH[id]) * 0.16) * 0.992 * simW[id];
+        }
+        for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) { id = j * SN + i; simH[id] += simV[id]; }
+        for (var k = 0; k < 2; k++) { a = Math.random() * TAU; r = 1.02 + Math.random() * 0.12; simSplat(Math.cos(a) * r, Math.sin(a) * r, (Math.random() < 0.5 ? -1 : 1) * 0.6); }
+      }
+      for (j = 1; j < SN - 1; j++) for (i = 1; i < SN - 1; i++) {
+        id = j * SN + i;
+        simD[id * 4] = Math.max(-1, Math.min(1, (simH[id + 1] - simH[id - 1]) * 0.8)) * 127.5 + 127.5;
+        simD[id * 4 + 1] = Math.max(-1, Math.min(1, (simH[id + SN] - simH[id - SN]) * 0.8)) * 127.5 + 127.5;
+        simD[id * 4 + 2] = Math.max(-1, Math.min(1, simH[id] * 0.5)) * 127.5 + 127.5;
+      }
+      simTex.needsUpdate = true;
+    }
     var WATER_VS = 'varying vec3 vW; varying vec2 vUv; void main() { vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }';
     var WATER_HGT = [
       'float hgt(vec2 p) { float t = uT; vec2 q = p + 0.10 * vec2(sin(p.y * 2.3 + t * 0.5), cos(p.x * 2.1 - t * 0.45));',
@@ -188,12 +227,13 @@
     // eau « mer claire » : on voit le fond à travers (plus ou moins selon la profondeur), l'eau prend une teinte turquoise qui s'assombrit au centre,
     // le fond reçoit des réseaux de lumière (caustiques) déformés par les vagues, la surface reflète le plafond et scintille au soleil
     var WATER_FS = [
-      'uniform float uT; uniform float uRad; uniform float uK; varying vec3 vW; varying vec2 vUv;',
+      'uniform float uT; uniform float uRad; uniform float uK; uniform float uSimK; uniform sampler2D uSim; varying vec3 vW; varying vec2 vUv;',
       WATER_HGT,
       'void main() {',
       '  vec2 p = vW.xz; float e = 0.02;',
       '  float dx = (hgt(p + vec2(e, 0.0)) - hgt(p - vec2(e, 0.0))) / (2.0 * e), dz = (hgt(p + vec2(0.0, e)) - hgt(p - vec2(0.0, e))) / (2.0 * e);',
-      '  vec3 n = normalize(vec3(-dx * 0.06, 1.0, -dz * 0.06));',
+      '  vec2 sg = (texture2D(uSim, vUv).rg - 0.5) * 2.0 * uSimK;',
+      '  vec3 n = normalize(vec3(-dx * 0.04 - sg.x * 1.6, 1.0, -dz * 0.04 + sg.y * 1.6));',
       '  float gx = (hgt2(p + vec2(0.01, 0.0)) - hgt2(p - vec2(0.01, 0.0))) / 0.02, gz = (hgt2(p + vec2(0.0, 0.01)) - hgt2(p - vec2(0.0, 0.01))) / 0.02;',
       '  vec3 n2 = normalize(vec3(n.x - gx * 0.003, 1.0, n.z - gz * 0.003));',
       '  vec3 v = normalize(cameraPosition - vW);',
@@ -204,7 +244,7 @@
       '  float deep = smoothstep(1.0, 0.1, rr);',
       '  vec3 tint = mix(vec3(0.03, 0.55, 0.62), vec3(0.0, 0.24, 0.40), deep);',
       '  float a = 1.0 - exp(-uK * mix(0.2, 0.6, deep));',
-      '  vec3 L0 = normalize(vec3(0.35, 1.0, 0.45)); vec3 col = mix(tint * (0.75 + 1.6 * (dot(n, L0) - dot(vec3(0.0, 1.0, 0.0), L0))), sky, fres);',
+      '  vec3 L0 = normalize(vec3(0.35, 1.0, 0.45)); vec3 col = mix(tint * (0.75 + 3.0 * (dot(n, L0) - dot(vec3(0.0, 1.0, 0.0), L0))), sky, fres);',
       '  a = clamp(a + fres * (1.0 - a), 0.0, 1.0);',
       '  vec3 L = normalize(vec3(0.35, 1.0, 0.45));',
       '  col += vec3(1.0, 0.97, 0.9) * pow(max(dot(reflect(-L, n2), v), 0.0), 300.0) * 3.0;',
@@ -212,22 +252,22 @@
       '  gl_FragColor = vec4(col, a);',
       '}'].join(' ');
     var BED_FS = [
-      'uniform float uT; varying vec3 vW; varying vec2 vUv;',
+      'uniform float uT; uniform sampler2D uSim; varying vec3 vW; varying vec2 vUv;',
       WATER_HGT,
       'void main() {',
-      '  vec2 p = vW.xz; vec2 q = p + vec2(hgt(p), hgt(p * 1.3 + 4.0)) * 0.05;',
+      '  vec2 p = vW.xz; vec2 q = p + vec2(hgt(p), hgt(p * 1.3 + 4.0)) * 0.05 + (texture2D(uSim, vUv).rg - 0.5) * vec2(0.5, -0.5);',
       '  float c1 = 1.0 - abs(sin(q.x * 5.0 + sin(q.y * 3.4 + uT * 0.6)) * sin(q.y * 5.0 + sin(q.x * 2.9 - uT * 0.5)));',
       '  float c2 = 1.0 - abs(sin(q.x * 8.0 - uT * 0.4 + sin(q.y * 5.0)) * sin(q.y * 8.0 + uT * 0.5));',
       '  float cc = pow(c1, 6.0) * 0.8 + pow(c2, 8.0) * 0.5;',
       '  vec3 sand = vec3(0.80, 0.74, 0.60) * (0.9 + 0.1 * sin(p.x * 23.0) * sin(p.y * 19.0));',
       '  gl_FragColor = vec4(sand * vec3(0.12, 0.30, 0.36) + vec3(0.4, 0.9, 1.0) * cc * 0.9, 1.0);',
       '}'].join(' ');
-    function waterMat(rad, k) {
-      return new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: WATER_FS, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, uniforms: { uT: waterT, uRad: { value: rad }, uK: { value: k } } });
+    function waterMat(rad, k, simK) {
+      return new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: WATER_FS, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, uniforms: { uT: waterT, uRad: { value: rad }, uK: { value: k }, uSimK: { value: simK }, uSim: { value: simTex } } });
     }
-    var bed = new THREE.Mesh(new THREE.CircleGeometry(1.66, 48), new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: BED_FS, uniforms: { uT: waterT } }));
+    var bed = new THREE.Mesh(new THREE.CircleGeometry(1.66, 48), new THREE.ShaderMaterial({ vertexShader: WATER_VS, fragmentShader: BED_FS, uniforms: { uT: waterT, uSim: { value: simTex } } }));
     bed.rotation.x = -Math.PI / 2; bed.position.y = 0.42; g.add(bed);
-    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 64), waterMat(1.66, 2.2));
+    var water = new THREE.Mesh(new THREE.CircleGeometry(1.66, 64), waterMat(1.66, 2.2, 1));
     water.rotation.x = -Math.PI / 2; water.position.y = 0.62; g.add(water);   // 2 cm au-dessus du rebord de marbre : plus aucune surface au même niveau
     // fontaine à trois étages : colonne tournée en marbre, deux vasques, rideaux d'eau qui tombent d'une vasque à l'autre, jets et gouttes
     var marbleD = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.25, metalness: 0.1, side: THREE.DoubleSide });
@@ -242,7 +282,7 @@
     lathe([[0.001, 1.98], [0.16, 2.0], [0.36, 2.06], [0.52, 2.2], [0.47, 2.2], [0.38, 2.13], [0.001, 2.08]], marbleD);                                                        // vasque du haut
     ringAt(0.97, 1.8, 0.03); ringAt(0.5, 2.2, 0.025); ringAt(0.2, 1.0, 0.035); ringAt(0.3, 1.3, 0.03); ringAt(0.17, 1.9, 0.03);
     [[0.84, 1.72, 1.4], [0.38, 2.14, 1.4]].forEach(function (v) {
-      var w2 = new THREE.Mesh(new THREE.CircleGeometry(v[0], 40), waterMat(v[0], v[2])); w2.rotation.x = -Math.PI / 2; w2.position.y = v[1]; g.add(w2);
+      var w2 = new THREE.Mesh(new THREE.CircleGeometry(v[0], 40), waterMat(v[0], v[2], 0)); w2.rotation.x = -Math.PI / 2; w2.position.y = v[1]; g.add(w2);
     });
     var fc2 = mkCanvas(64, 128), fx2 = fc2.getContext('2d'), fi;
     fx2.clearRect(0, 0, 64, 128);
@@ -349,7 +389,7 @@
     room.update = function (dt) {
       garlandsUpdate(dt);
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
-      hallT += dt; waterT.value = hallT;
+      hallT += dt; waterT.value = hallT; simStep(dt);
       falls.forEach(function (tx) { tx.offset.y += dt * 1.1; });
       if (!low) chandeliers.forEach(function (c, ci) {          // les flammes vacillent
         var dm = c.dummy, nf = c.tips.length, i;
