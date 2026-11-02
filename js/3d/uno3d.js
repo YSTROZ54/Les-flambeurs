@@ -16,7 +16,7 @@
   var HX = 15, HZ = 11, H = 5.6;
   var COLORS = ['#d6221e', '#f2c200', '#1f9d4a', '#1b63c9'];
   var TBL_Z = [-6.4, 0, 6.4], UNO_X = -8.5, C4_X = 8.5;                    // tables bien espacées : les tapis ne se touchent plus
-  var C4_PITCH = 0.17, C4_W = 1.36, C4_H = 1.26, C4_R = 0.064, C4_Y0 = 0.19;       // grille de 7 colonnes x 6 lignes
+  var C4_PITCH = 0.0935, C4_W = 0.75, C4_H = 0.69, C4_R = 0.0355, C4_Y0 = 0.105;       // grille de 7 colonnes x 6 lignes
 
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
   function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m); o.position.set(x, y, z); p.add(o); return o; }
@@ -184,8 +184,8 @@
     var c4Felt = new THREE.MeshStandardMaterial({ color: 0x14583a, roughness: 0.92 }), hx = C4_W / 2;
     var bShape = new THREE.Shape(); bShape.moveTo(-hx, 0); bShape.lineTo(hx, 0); bShape.lineTo(hx, C4_H); bShape.lineTo(-hx, C4_H); bShape.closePath();
     for (var cc = 0; cc < 7; cc++) for (var rw = 0; rw < 6; rw++) { var hole = new THREE.Path(); hole.absarc((cc - 3) * C4_PITCH, C4_Y0 + rw * C4_PITCH, C4_R, 0, TAU, true); bShape.holes.push(hole); }
-    var boardGeo = new THREE.ExtrudeGeometry(bShape, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 20 });
-    var discGeo = new THREE.CylinderGeometry(0.062, 0.062, 0.12, 28), footGeo = new THREE.BoxGeometry(0.12, 0.16, 0.46);
+    var boardGeo = new THREE.ExtrudeGeometry(bShape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 20 });
+    var discGeo = new THREE.CylinderGeometry(0.034, 0.034, 0.07, 28), footGeo = new THREE.BoxGeometry(0.07, 0.1, 0.28);
     var sk = mkCanvas(8, 84), skx = sk.getContext('2d'); for (i = 0; i < 21; i++) { skx.fillStyle = i % 2 ? '#ffffff' : '#c8c8c8'; skx.fillRect(0, i * 4, 8, 4); }
     function stackMat(col) { var tx = new THREE.CanvasTexture(sk); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return [new THREE.MeshStandardMaterial({ color: col, map: tx, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: col, roughness: 0.3 }), new THREE.MeshStandardMaterial({ color: col, roughness: 0.3 })]; }
     var stackR = stackMat(0xd8262b), stackY = stackMat(0xf0cb14);
@@ -202,19 +202,19 @@
       lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.72]], woodM, 32);
       [[0.5, 0.03, 0.028], [0.18, 0.22, 0.022]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
       // la grille : plaque bleue brillante épaisse percée de 42 trous, deux pieds, liserés dorés en haut
-      var bd = new THREE.Mesh(boardGeo, blueM); bd.position.set(0, TT + 0.16, -0.05); t.add(bd);
-      [-1, 1].forEach(function (sd) { var f = new THREE.Mesh(footGeo, navyM); f.position.set(sd * (hx - 0.1), TT + 0.08, 0); t.add(f); var fc = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.02, 0.475), gold); fc.position.set(sd * (hx - 0.1), TT + 0.165, 0); t.add(fc); });
-      box(t, C4_W + 0.04, 0.025, 0.14, gold, 0, TT + 0.16 + C4_H + 0.002, 0);
-      [[-1, stackR], [1, stackY]].forEach(function (sp) { var sm = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.076, 0.34, 24), sp[1]); sm.position.set(sp[0] * 1.02, TT + 0.17, 0); t.add(sm); });
+      var bd = new THREE.Mesh(boardGeo, blueM); bd.position.set(0, TT + 0.1, -0.035); t.add(bd);
+      [-1, 1].forEach(function (sd) { var f = new THREE.Mesh(footGeo, navyM); f.position.set(sd * (hx - 0.06), TT + 0.05, 0); t.add(f); var fc = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.015, 0.29), gold); fc.position.set(sd * (hx - 0.06), TT + 0.102, 0); t.add(fc); });
+      box(t, C4_W + 0.03, 0.018, 0.1, gold, 0, TT + 0.1 + C4_H + 0.002, 0);
+      [[-1, stackR], [1, stackY]].forEach(function (sp) { var sm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 24), sp[1]); sm.position.set(sp[0] * 0.9, TT + 0.11, 0); t.add(sm); });
       var tv = TV[tid] = { kind: 'c', group: t, discs: {}, labels: [mkLabel(), mkLabel()], hits: [], bars: [] };
-      tv.labels[0].position.set(0, TT + 0.35, 0.6); tv.labels[1].position.set(0, TT + 0.35, -0.6); t.add(tv.labels[0]); t.add(tv.labels[1]);
+      tv.labels[0].position.set(0, TT + 0.3, 0.6); tv.labels[1].position.set(0, TT + 0.3, -0.6); t.add(tv.labels[0]); t.add(tv.labels[1]);
       // une barre cliquable par colonne (invisible) + un repère lumineux qui n'apparaît que quand c'est à moi de jouer
       for (var c4 = 0; c4 < 7; c4++) {
-        var bx0 = (c4 - 3) * C4_PITCH, by0 = TT + 0.16 + C4_H / 2 + 0.05;
-        var hitC = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.98, C4_H + 0.3, 0.46), new THREE.MeshBasicMaterial({ visible: false })); hitC.position.set(bx0, by0, 0); hitC.userData.col = c4; t.add(hitC); tv.hits.push(hitC);
+        var bx0 = (c4 - 3) * C4_PITCH, by0 = TT + 0.1 + C4_H / 2 + 0.05;
+        var hitC = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.98, C4_H + 0.3, 0.3), new THREE.MeshBasicMaterial({ visible: false })); hitC.position.set(bx0, by0, 0); hitC.userData.col = c4; t.add(hitC); tv.hits.push(hitC);
         var bg = new THREE.Group(); bg.visible = false; t.add(bg);
-        var bar = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.92, C4_H + 0.06, 0.2), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending })); bar.position.set(bx0, TT + 0.16 + C4_H / 2, 0); bg.add(bar);
-        var arrow = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 4), new THREE.MeshBasicMaterial({ color: 0xffe35a })); arrow.rotation.x = Math.PI; arrow.position.set(bx0, TT + 0.16 + C4_H + 0.16, 0); arrow.userData.y0 = arrow.position.y; bg.add(arrow);
+        var bar = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.92, C4_H + 0.04, 0.14), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending })); bar.position.set(bx0, TT + 0.1 + C4_H / 2, 0); bg.add(bar);
+        var arrow = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 4), new THREE.MeshBasicMaterial({ color: 0xffe35a })); arrow.rotation.x = Math.PI; arrow.position.set(bx0, TT + 0.1 + C4_H + 0.1, 0); arrow.userData.y0 = arrow.position.y; bg.add(arrow);
         tv.bars.push(bg);
       }
       makeChair(C4_X, tz + 1.3, Math.PI, chairC, chairCD); makeChair(C4_X, tz - 1.3, 0, chairC, chairCD);
@@ -308,11 +308,11 @@
       for (c = 0; c < 7; c++) for (r = 0; r < st.g[c].length; r++) {
         var p = st.g[c][r], inLine = !!(st.line && st.line.some(function (q) { return q[0] === c && q[1] === r; }));
         key = c + ',' + r; want[key] = true;
-        var d = tv.discs[key], y1 = TT + 0.16 + C4_Y0 + r * C4_PITCH;
+        var d = tv.discs[key], y1 = TT + 0.1 + C4_Y0 + r * C4_PITCH;
         if (d && d.p !== p) { tv.group.remove(d.m); delete tv.discs[key]; d = null; }
         if (!d) {
-          var m = new THREE.Mesh(discGeo, p === 1 ? redM : yelM); m.rotation.x = Math.PI / 2; m.position.set((c - 3) * C4_PITCH, y1 + 0.9, 0); tv.group.add(m);
-          d = tv.discs[key] = { m: m, p: p }; anims.push({ m: m, y0: y1 + 0.9, y1: y1, t: 0 });
+          var m = new THREE.Mesh(discGeo, p === 1 ? redM : yelM); m.rotation.x = Math.PI / 2; m.position.set((c - 3) * C4_PITCH, y1 + 0.6, 0); tv.group.add(m);
+          d = tv.discs[key] = { m: m, p: p }; anims.push({ m: m, y0: y1 + 0.6, y1: y1, t: 0 });
         }
         d.m.material = inLine ? (p === 1 ? redG : yelG) : (p === 1 ? redM : yelM);
       }
@@ -332,12 +332,12 @@
       s.textContent = '.mj3d{position:absolute;left:50%;bottom:62px;transform:translateX(-50%);width:min(700px,94%);background:rgba(8,5,12,.9);border:1px solid rgba(201,162,39,.6);border-radius:14px;padding:8px 12px;color:#f4e3b0;pointer-events:auto;display:flex;flex-direction:column;gap:6px;font-family:inherit;z-index:5}' +
         '.mj3d .mj-msg{min-height:18px;text-align:center;font-weight:800;font-size:14px}.mj3d .mj-pl{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-weight:800;font-size:12px;color:#c9b88a}.mj3d .mj-pl b{color:#ffe35a}' +
         '.mj3d .mj-hand{display:flex;gap:4px;justify-content:center;overflow-x:auto;padding:2px 0}.mj3d .mj-hand button{flex:none;border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;opacity:.45}.mj3d .mj-hand button.ok{opacity:1;border-color:#ffe35a}.mj3d .mj-hand img{display:block;width:58px;height:auto;border-radius:6px}' +
-        '.mj3d .mj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.mj3d .mj-b{padding:8px 16px;border-radius:12px;border:0;font-weight:900;font-size:14px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.mj3d .mj-b:disabled{opacity:.4;cursor:not-allowed}.mj3d .mj-b.alt{background:#2a3b57;color:#e8f0ff}' +
+        '.mj3d .mj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.mj3d .mj-b{padding:8px 16px;border-radius:12px;border:0;font-weight:900;font-size:14px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.mj3d .mj-b:disabled{opacity:.4;cursor:not-allowed}.mj3d .mj-b.alt{background:#2a3b57;color:#e8f0ff}.mj3d .mj-b.uno{background:linear-gradient(90deg,#ff5a5a,#d6221e);color:#fff}.mj3d .mj-b.red{background:linear-gradient(90deg,#7c3aed,#c026d3);color:#fff;animation:mjGlow .5s ease-in-out infinite alternate}.mj3d kbd{opacity:.75;font-size:11px;margin-left:4px}' +
         '.mj3d .mj-col{width:54px;padding:8px 0;border-radius:10px;border:2px solid #6a7bff;background:#1c2556;color:#fff;font-weight:900;font-size:15px;cursor:pointer}.mj3d .mj-col:disabled{opacity:.35;cursor:not-allowed}' +
         '.mj3d .mj-clr{width:64px;height:40px;border-radius:10px;border:3px solid #fff;cursor:pointer}' +
         '.mj3d.myturn{border-color:#ffe35a;animation:mjGlow 1s ease-in-out infinite alternate}@keyframes mjGlow{from{box-shadow:0 0 0 rgba(255,227,90,0)}to{box-shadow:0 0 26px rgba(255,227,90,.85)}}' +
         '.mj-toast{position:absolute;left:50%;top:16%;transform:translateX(-50%) scale(.6);opacity:0;padding:16px 34px;border-radius:20px;text-align:center;pointer-events:none;z-index:9;font-weight:900;font-size:30px;color:#fff;border:3px solid #fff;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1);max-width:90%}.mj-toast small{display:block;margin-top:4px;font-size:14px;font-weight:700;opacity:.92}.mj-toast.in{opacity:1;transform:translateX(-50%) scale(1)}' +
-        '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 36px rgba(255,227,90,.7)}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
+        '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       document.head.appendChild(s);
     }
@@ -352,7 +352,7 @@
     function toast(title, kind, sub) {
       if (!ui) return;
       if (!toastEl) { toastEl = document.createElement('div'); ui.el.parentNode.appendChild(toastEl); }
-      toastEl.className = 'mj-toast ' + kind; toastEl.innerHTML = '<div>' + esc(title) + '</div>' + (sub ? '<small>' + esc(sub) + '</small>' : ''); void toastEl.offsetWidth; toastEl.classList.add('in'); toastT = kind === 'hit' || kind === 'skip' ? 4.2 : 3.2;
+      toastEl.className = 'mj-toast ' + kind; toastEl.innerHTML = '<div>' + esc(title) + '</div>' + (sub ? '<small>' + esc(sub) + '</small>' : ''); void toastEl.offsetWidth; toastEl.classList.add('in'); toastT = kind === 'hit' || kind === 'skip' ? 4.2 : kind === 'turn' ? 1.3 : 3.2;
       ding(kind === 'turn' ? [660, 880] : kind === 'hit' ? [330, 220] : kind === 'skip' ? [440, 330] : kind === 'win' ? [660, 880, 1100] : [520]);
     }
     function announce(tid, old, st) {
@@ -362,11 +362,14 @@
       if (st.ph !== 'play') return;
       if (kindOf(tid) === 'u') {
         var oh = old.hands && old.hands[loc], nh = st.hands && st.hands[loc];
+        if (st.org !== me() && old.vuln === loc && st.vuln === -1 && oh && nh && nh.length >= oh.length + 2) { toast('😱 Contre UNO !', 'hit', 'Tu avais oublié de dire UNO : +2 cartes'); return; }
+        if (st.org !== me() && st.hands && st.hands[loc] && st.vuln >= 0 && st.vuln !== loc && old.vuln !== st.vuln) { toast('⚠️ ' + ((st.seats[st.vuln] || {}).name || 'Un joueur') + " n'a pas dit UNO !", 'skip', 'Vite : appuie sur CONTRE UNO (C)'); return; }
+        if (st.org !== me() && /crie UNO|: UNO !/.test(msg) && old.msg !== msg && !mine) toast('📣 UNO !', 'info', msg);
         if (st.org !== me() && oh && nh && nh.length >= oh.length + 2 && /pioche (2|4) cartes/.test(msg) && msg.indexOf(nm0 + ' pioche') >= 0) { toast('💥 +' + (nh.length - oh.length) + ' ! Tu pioches ' + (nh.length - oh.length) + ' cartes', 'hit', 'Ton tour est passé'); return; }
         if (st.org !== me() && msg.indexOf(nm0 + ' passe son tour') >= 0) { toast('⛔ Ton tour est passé !', 'skip', msg); return; }
         if (st.org !== me() && /Le sens change|Sens inversé/.test(msg) && !mine) toast('🔄 Le sens du jeu change', 'info');
       }
-      if (mine && (old.ph !== 'play' || old.turn !== loc)) toast('👉 À TOI DE JOUER !', 'turn', kindOf(tid) === 'u' ? 'Pose une carte de la bonne couleur ou du même chiffre, sinon pioche' : 'Clique sur une colonne de la grille');
+      if (mine && (old.ph !== 'play' || old.turn !== loc)) toast('👉 À toi de jouer', 'turn');
     }
     function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
     function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -380,6 +383,8 @@
         if (a === 'start') err = mutate(tid, function (st) { return kindOf(tid) === 'u' ? MJ.unoStart(st) : MJ.c4Start(st); });
         else if (a === 'draw') err = mutate(tid, function (st) { return MJ.unoDrawTurn(st, loc); });
         else if (a === 'pass') err = mutate(tid, function (st) { return MJ.unoPass(st, loc); });
+        else if (a === 'uno') err = mutate(tid, function (st) { return MJ.unoSayUno(st, loc); });
+        else if (a === 'counter') err = mutate(tid, function (st) { return MJ.unoCounter(st, loc); });
         else if (a === 'card') playCard(+b.dataset.i);
         else if (a === 'color') { var i = pendingWild; pendingWild = -1; err = mutate(tid, function (st) { return MJ.unoPlay(st, loc, i, +b.dataset.c); }); }
         else if (a === 'nocolor') { pendingWild = -1; refreshUi(); }
@@ -415,7 +420,10 @@
         else {
           if (hand.length) body += '<div class="mj-hand">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';
           body += '<div class="mj-row">';
-          if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '');
+          if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
+            + (hand.length <= 2 && !(st.said && st.said[seat.local]) ? '<button class="mj-b uno" data-a="uno">📣 UNO ! <kbd>U</kbd></button>' : '')
+            + (st.vuln >= 0 && st.vuln !== seat.local ? '<button class="mj-b red" data-a="counter">⚡ CONTRE UNO ! <kbd>C</kbd></button>' : '');
+          else if (st.ph === 'play') body += '<div style="font-weight:800;font-size:13px;color:#c9b88a;text-align:center">👀 Une partie est en cours : tu joueras à la prochaine manche, quand elle sera finie.</div>';
           else body += '<button class="mj-b" data-a="start"' + (canStart ? '' : ' disabled') + '>' + startTxt + '</button>';
           body += '</div>';
         }
@@ -431,6 +439,10 @@
     function onSeatKey(e) {
       if (!seat) return;
       if (e.code === 'Escape' || e.code === 'KeyF') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
+      else if (kindOf(seat.tid) === 'u' && (e.code === 'KeyU' || e.code === 'KeyC')) {
+        e.stopImmediatePropagation(); e.preventDefault();
+        var loc0 = seat.local, err0 = mutate(seat.tid, function (st) { return e.code === 'KeyU' ? MJ.unoSayUno(st, loc0) : MJ.unoCounter(st, loc0); }); if (err0) { errMsg = err0; errT = 3; refreshUi(); }
+      }
       else if (kindOf(seat.tid) === 'c' && /^(Digit|Numpad)[1-7]$/.test(e.code)) {
         e.stopImmediatePropagation(); e.preventDefault();
         var v = +e.code.slice(-1) - 1, err = dropCol(seat.local === 1 ? 6 - v : v); if (err) { errMsg = err; errT = 3; refreshUi(); }
@@ -471,7 +483,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', ex = s.x + (s.tx - s.x) * (u ? 0.14 : -0.35), ey = u ? 1.6 : 1.55, ez = s.z + (s.tz - s.z) * (u ? 0.14 : -0.35), ty = u ? 0.86 : 1.2;
+      var u = kindOf(s.tid) === 'u', ex = s.x + (s.tx - s.x) * (u ? 0.14 : -0.35), ey = u ? 1.6 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.14 : -0.35), ty = u ? 0.86 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
     };

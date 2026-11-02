@@ -2,7 +2,7 @@
    blindtest3d.js — La salle du Blind Test d'images (monde 3D, PC)
    ---------------------------------------------------------------------
    On y entre par la porte « BLIND TEST » du hall (hall3d.js) et on en ressort vers le hall.
-   Une salle de projection avec trois écrans, un par salon (Salon 1, 2, 3 : 6 places chacun, comme dans le menu). On s'assoit sur un
+   Une salle de projection avec deux grands écrans, un par salon (Salon 1 et 2 : 6 places chacun), et le nom du jeu entre les deux. On s'assoit sur un
    fauteuil devant l'écran du salon voulu (F ou clic) : on entre dans ce salon. L'image de la manche, le chrono, la réponse et les
    scores sont projetés sur l'écran ; on tape sa réponse dans le panneau du bas. Les écrans des autres salons n'affichent que le
    nombre de joueurs.
@@ -17,10 +17,11 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU, fmtN = F.fmtN;
 
-  var HX = 13, HZ = 10, H = 6;
-  var ZONES = [-8.5, 0, 8.5];                 // le centre de chaque salon (x)
-  var SEAT_DX = [-1.6, 0, 1.6, -0.8, 0.8, 2.4];   // les 6 fauteuils d'un salon (deux rangées)
-  var SEAT_Z = [0.9, 0.9, 0.9, 2.7, 2.7, 2.7];
+  var HX = 13, HZ = 10, H = 7.5;
+  var ZONES = [-7.5, 7.5];                    // deux salons (1 et 2) de chaque côté du nom du jeu
+  var SCR_W = 9.6, SCR_H = 5.4, SCR_Y = 3.9;  // grands écrans
+  var SEAT_DX = [-2, 0, 2, -2, 0, 2];         // deux rangées de trois fauteuils
+  var SEAT_Z = [-4.2, -4.2, -4.2, -2.4, -2.4, -2.4];   // avancés vers l'écran
   var BTN = [['all', '🎲 Tout'], ['film', '🎬 Films'], ['dessin', '🖍️ Dessins'], ['serie', '📺 Séries']];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
@@ -49,11 +50,12 @@
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x07040c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     var goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 });
-    box(g, HX * 2, 0.12, 0.12, goldM, 0, 0.9, -HZ + 0.06); box(g, HX * 2, 0.12, 0.12, goldM, 0, 5.5, -HZ + 0.06);
+    box(g, HX * 2, 0.12, 0.12, goldM, 0, 0.9, -HZ + 0.06); box(g, HX * 2, 0.12, 0.12, goldM, 0, H - 0.4, -HZ + 0.06);
 
     // nom du jeu : sur le mur de droite (on le lit en entrant, à droite des écrans)
-    var sc0 = mkCanvas(1024, 200), sx = sc0.getContext('2d'); sx.shadowColor = '#e040fb'; sx.shadowBlur = 30; sx.fillStyle = '#ffd9ff'; sx.font = '900 120px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('🎬 BLIND TEST', 512, 104, 980);
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.25), new THREE.MeshBasicMaterial({ map: mkTex(sc0), transparent: true, depthWrite: false })); sign.position.set(HX - 0.1, 3.6, 0); sign.rotation.y = -Math.PI / 2; g.add(sign);
+    var sc0 = mkCanvas(512, 640), sx = sc0.getContext('2d'); sx.shadowColor = '#e040fb'; sx.shadowBlur = 30; sx.fillStyle = '#ffd9ff'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
+    sx.font = '200px ' + F.EMOJI_FONT; sx.fillText('🎬', 256, 130); sx.font = '900 128px ' + SERIF; sx.fillText('BLIND', 256, 330, 480); sx.fillText('TEST', 256, 470, 480);
+    var sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 5.25), new THREE.MeshBasicMaterial({ map: mkTex(sc0), transparent: true, depthWrite: false })); sign.position.set(0, SCR_Y, -HZ + 0.1); g.add(sign);
     // règles : sur le mur de gauche (images seulement pour le moment)
     var RW = 1100, RH = 860, rc = mkCanvas(RW, RH), rx = rc.getContext('2d');
     rx.fillStyle = '#12081c'; rx.fillRect(0, 0, RW, RH); rx.strokeStyle = '#c9a227'; rx.lineWidth = 10; rx.strokeRect(12, 12, RW - 24, RH - 24); rx.strokeStyle = 'rgba(201,162,39,0.45)'; rx.lineWidth = 3; rx.strokeRect(34, 34, RW - 68, RH - 68);
@@ -82,8 +84,8 @@
     var rfs = 34; while (rfs > 20 && layoutRules(rfs, false) > RH - 80) rfs -= 1;
     layoutRules(rfs, true);
     var RPW = 5.6, RPH = RPW * RH / RW;                      // le panneau reste bien plus bas que le plafond (H = 6)
-    var rules = new THREE.Mesh(new THREE.PlaneGeometry(RPW, RPH), new THREE.MeshBasicMaterial({ map: mkTex(rc) })); rules.position.set(-HX + 0.13, 3.1, 0); rules.rotation.y = Math.PI / 2; g.add(rules);
-    box(g, 0.1, RPH + 0.2, RPW + 0.2, goldM, -HX + 0.06, 3.1, 0);
+    var rules = new THREE.Mesh(new THREE.PlaneGeometry(RPW, RPH), new THREE.MeshBasicMaterial({ map: mkTex(rc) })); rules.position.set(-HX + 0.13, 3.3, 0); rules.rotation.y = Math.PI / 2; g.add(rules);
+    box(g, 0.1, RPH + 0.2, RPW + 0.2, goldM, -HX + 0.06, 3.3, 0);
 
     /* --- les trois écrans (un par salon) --- */
     var imgCache = {};
@@ -93,11 +95,11 @@
     }
     ZONES.forEach(function (zx, zi) {
       var cv = mkCanvas(1024, 576), tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
-      var scr = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.6), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(zx, 3.2, -HZ + 0.12); g.add(scr);
-      box(g, 6.6, 3.8, 0.08, goldM, zx, 3.2, -HZ + 0.07);
+      var scr = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(zx, SCR_Y, -HZ + 0.12); g.add(scr);
+      box(g, SCR_W + 0.2, SCR_H + 0.2, 0.08, goldM, zx, SCR_Y, -HZ + 0.07);
       screens.push({ cv: cv, ctx: cv.getContext('2d'), tex: tex, sig: '' });
       // estrade et fauteuils
-      box(g, 6, 0.1, 4.6, new THREE.MeshStandardMaterial({ color: 0x2a1330, roughness: 0.9 }), zx, 0.05, 1.8);
+      box(g, 7, 0.1, 5.4, new THREE.MeshStandardMaterial({ color: 0x2a1330, roughness: 0.9 }), zx, 0.05, -3.3);
       var chairM = new THREE.MeshStandardMaterial({ color: 0x8c1a26, roughness: 0.7 }), blackM = new THREE.MeshStandardMaterial({ color: 0x15101a, roughness: 0.8 });
       SEAT_DX.forEach(function (dx, k) {
         var sxp = zx + dx, szp = SEAT_Z[k], s = { n: zi * 6 + k, zone: zi, x: sxp, z: szp, yaw: 0, sx: sxp, sz: szp + 1.0 };
@@ -110,7 +112,7 @@
         room.interactables.push({ hit: hit, x: sxp, z: szp, radius: 1.4, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Salon ' + (zi + 1) + (roomInfo(zi) ? ' (' + roomInfo(zi).players + '/6)' : ''); }, use: function (w) { sit(w, s); } });
       });
     });
-    if (!low) ZONES.forEach(function (zx) { var pl = new THREE.PointLight(0xe9d6ff, 0.9, 11); pl.position.set(zx, 3.6, -HZ + 3.4); g.add(pl); });
+    if (!low) ZONES.forEach(function (zx) { var pl = new THREE.PointLight(0xe9d6ff, 0.9, 11); pl.position.set(zx, 4.2, -HZ + 3.4); g.add(pl); });
     g.add(new THREE.AmbientLight(0xc8b4e8, 0.85));
 
     /* --- l'état du jeu (serveur) --- */
@@ -353,7 +355,7 @@
       pollT += dt; listT += dt; ledsUpdate(dt);
       if (seat && pollT > 1) { pollT = 0; poll(); }
       if (listT > 3) { listT = 0; pollList(); }
-      for (var z = 0; z < 3; z++) { drawScreen(z, !!seat && seat.zone === z); if (screens[z].sig !== screens[z].shown) { screens[z].tex.needsUpdate = true; screens[z].shown = screens[z].sig; } }
+      for (var z = 0; z < ZONES.length; z++) { drawScreen(z, !!seat && seat.zone === z); if (screens[z].sig !== screens[z].shown) { screens[z].tex.needsUpdate = true; screens[z].shown = screens[z].sig; } }
       if (seat && S) { var bal = ui && ui.el.querySelector('.bt-bal'); if (bal) bal.textContent = fmtN(st() ? st().balance : 0); }
     };
     room.dispose = function () { stand(); };

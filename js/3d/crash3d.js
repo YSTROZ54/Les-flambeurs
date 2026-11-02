@@ -65,6 +65,9 @@
     var pad = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.45, 0.2, 32), steel); pad.position.set(cx, 0.1, cz); g.add(pad);
     var glass = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, SILO.h, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
     glass.position.set(cx, SILO.h / 2 + 0.2, cz); g.add(glass);
+    var cap = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.12, 32), steel); cap.position.set(cx, SILO.h + 0.26, cz); g.add(cap);          // couvercle du tube
+    var capGlass = new THREE.Mesh(new THREE.CircleGeometry(1.15, 32), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); capGlass.rotation.x = -Math.PI / 2; capGlass.position.set(cx, SILO.h + 0.2, cz); g.add(capGlass);
+    var ceilCol = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, H - SILO.h - 0.32, 16), steel); ceilCol.position.set(cx, SILO.h + 0.32 + (H - SILO.h - 0.32) / 2, cz); g.add(ceilCol);   // mât qui relie le tube au plafond
     for (i = 0; i <= 5; i++) { var ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 8, 40), steel); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.25 + i * (SILO.h / 5), cz); g.add(ring); }
     for (i = 0; i < 6; i++) { var a = i / 6 * TAU, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, SILO.h, 6), steel); bar.position.set(cx + Math.cos(a) * 1.15, SILO.h / 2 + 0.2, cz + Math.sin(a) * 1.15); g.add(bar); }
     }
@@ -132,6 +135,21 @@
       c2.fillStyle = '#9fd0ff'; c2.font = '800 30px ' + SERIF; c2.textAlign = 'left'; c2.textBaseline = 'middle'; c2.fillText('POSTE ' + n, 12, 26);
       return mkTex(cv);
     }
+    var kbTex = (function () {                                                     // clavier mécanique rétro-éclairé dessiné une fois, partagé par les 7 postes
+      var cv = mkCanvas(768, 256), c = cv.getContext('2d'), r, k, n, x, y, w0 = 52, gp = 8;
+      var gr = c.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#1b2233'); gr.addColorStop(1, '#0c111c');
+      c.fillStyle = gr; c.beginPath(); c.moveTo(24, 0); c.arcTo(768, 0, 768, 256, 24); c.arcTo(768, 256, 0, 256, 24); c.arcTo(0, 256, 0, 0, 24); c.arcTo(0, 0, 768, 0, 24); c.closePath(); c.fill();
+      c.strokeStyle = '#4aa0ff'; c.lineWidth = 4; c.shadowColor = '#4aa0ff'; c.shadowBlur = 14; c.stroke(); c.shadowBlur = 0;
+      var rows = [13, 12, 11], offs = [0, 14, 30];
+      for (r = 0; r < 3; r++) for (k = 0; k < rows[r]; k++) {
+        x = 22 + offs[r] + k * (w0 + gp - 2.3); y = 24 + r * 62;
+        var kg = c.createLinearGradient(0, y, 0, y + 52); kg.addColorStop(0, '#3a4560'); kg.addColorStop(1, '#222a3d');
+        c.fillStyle = kg; c.beginPath(); c.moveTo(x + 8, y); c.arcTo(x + w0 - 2, y, x + w0 - 2, y + 52, 8); c.arcTo(x + w0 - 2, y + 52, x, y + 52, 8); c.arcTo(x, y + 52, x, y, 8); c.arcTo(x, y, x + w0 - 2, y, 8); c.closePath(); c.fill();
+        c.fillStyle = 'rgba(120,200,255,' + (0.35 + 0.4 * ((k * 7 + r * 3) % 5) / 4) + ')'; c.fillRect(x + 8, y + 46, w0 - 18, 3);
+      }
+      c.fillStyle = '#2a3350'; c.fillRect(150, 206, 380, 34); c.fillStyle = 'rgba(120,200,255,0.8)'; c.fillRect(160, 236, 360, 3);
+      return mkTex(cv);
+    })();
     var seats = [], timers = [];
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     SEATS_X.forEach(function (sx0, k) {
@@ -140,8 +158,7 @@
       box(dsk, 2.05, 0.07, 0.86, topM, 0, 0.835, 0);                                // plateau noir brillant
       box(dsk, 2.05, 0.025, 0.03, glowM, 0, 0.87, 0.43);                            // liseré lumineux devant
       box(dsk, 1.9, 0.03, 0.03, glowM, 0, 0.06, 0.36);                              // néon au pied du caisson
-      box(dsk, 1.6, 0.012, 0.3, new THREE.MeshBasicMaterial({ color: 0x14306e }), 0, 0.875, 0.1);   // zone clavier éclairée
-      for (var kx = -3; kx <= 3; kx++) box(dsk, 0.16, 0.012, 0.18, new THREE.MeshBasicMaterial({ color: 0x4aa0ff }), kx * 0.2, 0.882, 0.1);
+      var kb = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.333), new THREE.MeshBasicMaterial({ map: kbTex, transparent: true })); kb.rotation.x = -Math.PI / 2; kb.position.set(0, 0.874, 0.12); dsk.add(kb);   // clavier rétro-éclairé
       var mon = new THREE.Group(); mon.position.set(0, 0.87, -0.22); mon.rotation.x = -0.25; dsk.add(mon);           // écran bas, penché vers le joueur ; petit, pour ne pas cacher le grand écran et ses « Derniers vols »
       box(mon, 0.8, 0.35, 0.03, blackM, 0, 0.21, 0);
       var ms = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.29), new THREE.MeshBasicMaterial({ map: miniTex })); ms.position.set(0, 0.21, 0.017); mon.add(ms);

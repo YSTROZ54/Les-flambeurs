@@ -25,7 +25,7 @@
     for (n = 0; n < 4; n++) d.push('4W', '4F');
     return d;
   }
-  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '' }; }
+  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '', said: {}, vuln: -1 }; }
   function unoOrder(st) { return Object.keys(st.hands).map(Number).sort(function (a, b) { return a - b; }); }
   function unoNext(st, from, dir) {
     var o = unoOrder(st), i = o.indexOf(from);
@@ -39,6 +39,7 @@
   }
   function unoDraw(st, n, count) {                         // pioche `count` cartes pour le joueur n (la défausse est remélangée si la pioche est vide)
     var got = [];
+    if (st.said) delete st.said[n];                         // une main qui grossit annule un « UNO » déjà dit
     for (var i = 0; i < count; i++) {
       if (!st.deck.length && st.disc.length > 1) { var top = st.disc.pop(); st.deck = shuffle(st.disc); st.disc = [top]; }
       if (!st.deck.length) break;
@@ -49,9 +50,10 @@
   function nm(st, n) { return (st.seats[n] && st.seats[n].name) || ('Joueur ' + (n + 1)); }
 
   function unoStart(st) {
+    if (st.ph === 'play') return 'Une partie est déjà en cours : attends sa fin pour jouer.';
     var o = Object.keys(st.seats).map(Number).sort(function (a, b) { return a - b; });
     if (o.length < 2) return 'Il faut au moins 2 joueurs.';
-    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1;
+    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1; st.said = {}; st.vuln = -1;
     o.forEach(function (n) { st.hands[n] = []; });
     o.forEach(function (n) { unoDraw(st, n, 7); });
     var first, guard = 0;
@@ -71,6 +73,7 @@
     if (st.drawn && card !== st.drawn) return 'Tu peux seulement poser la carte piochée, ou passer.';
     if (!unoCanPlay(st, card)) return 'Cette carte ne va pas.';
     if (cc(card) === 4 && !(color >= 0 && color <= 3)) return 'Choisis une couleur.';
+    st.vuln = -1;                                          // le coup suivant ferme la fenêtre du « Contre UNO »
     hand.splice(idx, 1); st.disc.push(card); st.drawn = '';
     st.col = cc(card) === 4 ? color : cc(card);
     var v = cv(card), who = nm(st, n), txt = who + ' pose ' + cardName(card, st.col) + '.';
@@ -83,7 +86,11 @@
     else if (v === 'D') { unoDraw(st, nxt, 2); st.turn = unoNext(st, nxt); txt += ' ' + nm(st, nxt) + ' pioche 2 cartes.'; }
     else if (v === 'F') { unoDraw(st, nxt, 4); st.turn = unoNext(st, nxt); txt += ' ' + nm(st, nxt) + ' pioche 4 cartes.'; }
     else st.turn = nxt;
-    if (hand.length === 1) txt += ' ' + who + ' : UNO !';
+    if (hand.length === 1) {
+      if (st.said && st.said[n]) txt += ' ' + who + ' : UNO !';
+      else { st.vuln = n; txt += ' ⚠️ ' + who + " n'a pas dit UNO !"; }          // oublié : n'importe qui peut le contrer
+    }
+    if (st.said) delete st.said[n];
     st.msg = txt;
     return '';
   }
@@ -93,6 +100,7 @@
     if (st.ph !== 'play') return 'La partie n\'a pas commencé.';
     if (st.turn !== n) return 'Ce n\'est pas ton tour.';
     if (st.drawn) return 'Pose la carte piochée ou passe.';
+    st.vuln = -1;
     var got = unoDraw(st, n, 1);
     if (!got.length) { st.turn = unoNext(st, n); st.msg = 'Plus de cartes à piocher : ' + nm(st, n) + ' passe.'; return ''; }
     if (unoCanPlay(st, got[0])) { st.drawn = got[0]; st.msg = nm(st, n) + ' a pioché : il peut la poser ou passer.'; }
@@ -101,7 +109,26 @@
   }
   function unoPass(st, n) {
     if (st.ph !== 'play' || st.turn !== n || !st.drawn) return 'Tu ne peux pas passer maintenant.';
-    st.drawn = ''; st.turn = unoNext(st, n); st.msg = nm(st, n) + ' passe son tour.';
+    st.vuln = -1; st.drawn = ''; st.turn = unoNext(st, n); st.msg = nm(st, n) + ' passe son tour.';
+    return '';
+  }
+  // « UNO ! » : à dire quand il ne reste que 2 cartes (avant de poser l'avant-dernière) ; encore possible de justesse s'il vient d'être oublié
+  function unoSayUno(st, n) {
+    if (st.ph !== 'play' || !st.hands[n]) return 'Tu ne joues pas cette manche.';
+    if (st.hands[n].length > 2) return 'Tu as encore trop de cartes pour dire UNO.';
+    if (st.vuln === n) { st.vuln = -1; st.msg = '📣 ' + nm(st, n) + ' crie UNO juste à temps !'; return ''; }
+    if (st.said && st.said[n]) return 'Tu as déjà dit UNO.';
+    st.said = st.said || {}; st.said[n] = true; st.msg = '📣 ' + nm(st, n) + ' : UNO !';
+    return '';
+  }
+  // « Contre UNO ! » : le joueur qui n'a pas dit UNO pioche 2 cartes
+  function unoCounter(st, n) {
+    if (st.ph !== 'play' || !st.hands[n]) return 'Tu ne joues pas cette manche.';
+    var v = st.vuln;
+    if (!(v >= 0) || !st.hands[v] || st.hands[v].length !== 1) return 'Trop tard : personne à contrer.';
+    if (v === n) return 'Tu ne peux pas te contrer toi-même.';
+    unoDraw(st, v, 2); st.vuln = -1;
+    st.msg = '⚡ ' + nm(st, n) + ' fait un Contre UNO ! ' + nm(st, v) + ' pioche 2 cartes.';
     return '';
   }
   function unoJoin(st, n, key, name) {
@@ -111,6 +138,7 @@
   }
   function unoLeave(st, n) {
     if (!st.seats[n]) return '';
+    if (st.vuln === n) st.vuln = -1; if (st.said) delete st.said[n];
     var was = st.turn, nxt = (st.ph === 'play' && st.hands[n]) ? unoNext(st, n) : -1;
     if (st.hands[n]) { st.deck = shuffle(st.deck.concat(st.hands[n])); delete st.hands[n]; }
     delete st.seats[n];
@@ -172,7 +200,7 @@
 
   var API = {
     COLOR_NAMES: COLOR_NAMES, cardColor: cc, cardValue: cv,
-    unoNew: unoNew, unoStart: unoStart, unoPlay: unoPlay, unoDrawTurn: unoDrawTurn, unoPass: unoPass, unoJoin: unoJoin, unoLeave: unoLeave, unoCanPlay: unoCanPlay, unoDeck: unoDeck, unoOrder: unoOrder,
+    unoNew: unoNew, unoStart: unoStart, unoPlay: unoPlay, unoDrawTurn: unoDrawTurn, unoPass: unoPass, unoJoin: unoJoin, unoLeave: unoLeave, unoSayUno: unoSayUno, unoCounter: unoCounter, unoCanPlay: unoCanPlay, unoDeck: unoDeck, unoOrder: unoOrder,
     c4New: c4New, c4Start: c4Start, c4Drop: c4Drop, c4Join: c4Join, c4Leave: c4Leave
   };
   if (typeof window !== 'undefined') { window.F3D = window.F3D || {}; window.F3D.mj = API; }
