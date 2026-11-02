@@ -262,6 +262,8 @@
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, view3 = false, meRig = null;
     // manche partagée : l'état vient du serveur (api/blackjack.js, une table par 'bj_pub_N'), identique pour les 2 joueurs assis à la table
     var TBL = null, tblOff = 0, polling = false, pollT = 0, busy = false;
+    var autoRebet = null;   // { amount, deadline } : remise automatiquement la même mise après une manche, comme avant (plus besoin de recliquer à chaque fois)
+    var AUTO_REBET_MS = 8000;
     function tableIdOf(T) { return 'bj_pub_' + (T.i + 1); }
     function otherSeat(T) { return T.spots[0] === seat ? T.spots[1] : T.spots[0]; }
     function bjNow() { return Date.now() + tblOff; }
@@ -387,6 +389,7 @@
       var cnt = q('.bj-count');
       if (cnt) {
         if (waiting && TBL && TBL.bettingStartTime) setText(cnt, 'Manche dans ' + Math.max(0, Math.ceil((TBL.bettingStartTime + (TBL.bettingDuration || 10000) - bjNow()) / 1000)) + ' s');
+        else if (waiting && autoRebet) setText(cnt, 'Prochaine manche dans ' + Math.max(0, Math.ceil((autoRebet.deadline - Date.now()) / 1000)) + ' s');
         else setText(cnt, '');
       }
     }
@@ -428,12 +431,14 @@
           else if (mine.result === 'push') setMsg('🤝 Égalité : mise remboursée.', '#f3cf62');
           else if (mine.status === 'busted') setMsg('💥 Tu as dépassé 21.', '#ff8a80');
           else setMsg('Perdu : ' + mine.score + ' contre ' + (t.dealer ? t.dealer.score : 0) + '.', '#ff8a80');
+          autoRebet = { amount: mine.bet, deadline: Date.now() + AUTO_REBET_MS };   // la manche suivante reprend la même mise, toute seule
         }
       } else if (t.status === 'waiting') {
         if (!(t.readyBets && Object.keys(t.readyBets).length)) setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.', '');
         else if (t.readyBets[me]) setMsg('Mise prise en compte : la manche démarre toute seule.', '');
         else setMsg('Un autre joueur mise : rejoins avant la fin du compte à rebours !', '#f3cf62');
       } else if (t.status === 'playing') {
+        autoRebet = null;   // la manche a démarré (par mon auto-remise ou celle de l'autre joueur) : plus rien à armer
         var mineP = t.players && t.players[me];
         if (t.turn === me) setMsg('À toi de jouer : ' + (mineP ? mineP.score : '') + '.', '');
         else if (mineP && mineP.status !== 'playing') setMsg('Tu as ' + mineP.score + '. En attente…', '');
@@ -525,6 +530,7 @@
         if (b.dataset.c === 'custom-ok') { applyCustomBet(); return; }
         if (b.dataset.c) {
           if (!TBL || TBL.status !== 'waiting') return;
+          autoRebet = null;   // on touche sa mise à la main : on n'écrase plus avec la remise automatique
           if (b.dataset.c === '-1') { toggleCustomBet(false); clearBet(); return; }
           if (b.dataset.c === 'max') { toggleCustomBet(false); setBet(Math.max(MIN_BET, Math.floor(balance()))); return; }
           if (b.dataset.c === 'custom') { toggleCustomBet(!customRow.hidden); return; }
@@ -558,7 +564,7 @@
         g.add(meRig.group);
       }
       if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; }
-      TBL = null; busy = false;
+      TBL = null; busy = false; autoRebet = null;
       ui = buildUi(w);
       standEl = document.createElement('div'); standEl.className = 'bj3d-stand'; standEl.innerHTML = '<button data-b="stand">🪑 Se lever <kbd>F</kbd></button> <button data-b="cam">👁 Vue 3e personne <kbd>V</kbd></button>'; standEl.querySelector('[data-b=stand]').addEventListener('click', function () { stand(); }); standEl.querySelector('[data-b=cam]').addEventListener('click', function () { toggleView(); });
       w.container.appendChild(standEl);
@@ -571,7 +577,7 @@
       if (!seat) return;
       var s = seat;
       bjPost('leave', {});   // retire ma mise si je n'avais pas encore joué, ou abandonne proprement (l'autre joueur gagne la cagnotte) si la manche est en cours
-      seat = null; TBL = null; busy = false;
+      seat = null; TBL = null; busy = false; autoRebet = null;
       timers = []; anims.forEach(function (a) { a.t = a.dur; }); clearCards(s.table);
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
@@ -634,6 +640,10 @@
     room.update = function (dt) {
       clockT += dt;
       pollT += dt; if (seat && pollT > 1.1) { pollT = 0; pollNow(); }     // l'état de la table vient du serveur (api/blackjack.js) : sondé environ une fois par seconde
+      if (autoRebet && seat && TBL && TBL.status === 'waiting') {
+        if (Date.now() >= autoRebet.deadline) { var amt = autoRebet.amount; autoRebet = null; setBet(amt); }
+        else if (ui) { var cnt0 = ui.el.querySelector('.bj-count'); setText(cnt0, 'Prochaine manche dans ' + Math.max(0, Math.ceil((autoRebet.deadline - Date.now()) / 1000)) + ' s'); }
+      }
       // animations des personnages
       people.forEach(function (o) {
         if (!o.p._rig) return;
