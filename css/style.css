@@ -3010,6 +3010,7 @@ body.s3d-full-on #sidebarBackdrop {
   justify-content: center;
   gap: 6px 8px;
   top: 52px;
+  right: 290px;   /* laisse la place à la carte joueur (avatar + pseudo + solde), en haut à droite */
   padding: 0 10px;
   pointer-events: none;
   text-shadow: none;
