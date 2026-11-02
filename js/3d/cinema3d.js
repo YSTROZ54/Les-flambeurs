@@ -23,7 +23,9 @@
 
   var HX = 10, HZ = 13, H = 11;                      // demi-largeur, demi-profondeur, hauteur (mètres)
   var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
-  var SCR_W = 13, SCR_H = SCR_W * 9 / 16, SCR_Y = 2.4;   // l'écran : largeur, hauteur, bas de l'écran
+  var SCR_W = 19.9;                                   // plein mur gauche-droite (aucun bord gauche / droite)
+  var SCR_Y = 1.8;                                    // écran remonté au-dessus de la scène et des rangées
+  var SCR_H = H - SCR_Y;                              // 11 - 1.8 = 9.2m : monte exactement jusqu'au plafond (aucun bord en haut)
   var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
   var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
   var VELVET = 0x8c1a26;
@@ -207,7 +209,6 @@
     box(g, HX * 2, 0.3, stageD, std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
     for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
-    var frame = box(g, SCR_W + 0.5, SCR_H + 0.5, 0.12, bas(0x050305), 0, SCR_Y + SCR_H / 2, -HZ + 0.09);   // cadre noir
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
     function paintPoster(label) {
       var x = posterC.getContext('2d');
@@ -231,31 +232,8 @@
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
     room.interactables.push({ hit: screen, x: 0, z: -HZ, use: function () { togglePlay(); } });   // clic sur l'écran : lecture / pause (Patron / Co Fondateur)
 
-    /* --- rideaux de velours et lambrequin --- */
-    var cc = mkCanvas(256, 64), cx = cc.getContext('2d');
-    for (i = 0; i < 256; i++) { var sh = 0.62 + 0.38 * Math.abs(Math.sin(i / 256 * TAU * 7)); cx.fillStyle = 'rgb(' + Math.round(140 * sh) + ',' + Math.round(22 * sh) + ',' + Math.round(34 * sh) + ')'; cx.fillRect(i, 0, 1, 64); }
-    var ctex = mkTex(cc), curtM = new THREE.MeshLambertMaterial({ map: ctex });
-    var curtains = [], CW = HX - SCR_W / 2 - 0.1;
-    [-1, 1].forEach(function (s) {
-      var cm = box(g, CW, H - 0.9, 0.55, curtM, s * (SCR_W / 2 + 0.1 + CW / 2), (H - 0.9) / 2 + 0.3, -HZ + 0.42);
-      var tie = box(g, 0.1, 0.5, 0.7, trimM, s * (SCR_W / 2 + 0.2), 2.3, -HZ + 0.42);      // embrasse dorée
-      curtains.push({ s: s, m: cm, tie: tie });
-    });
-    var valance = box(g, HX * 2, 0.9, 0.75, curtM, 0, H - 0.45, -HZ + 0.45);
-    var valTrim = box(g, HX * 2, 0.07, 0.8, trimM, 0, H - 0.93, -HZ + 0.45);
-    var openK = 0;                                     // 0 = rideaux fermés, écran normal ; 1 = rideaux ouverts, l'écran prend tout le mur
-    function ease(v) { return v * v * (3 - 2 * v); }
-    function layoutScreen() {
-      var e = ease(openK), sc = 1 + (HX * 2 / SCR_W - 1) * e, cy = (SCR_Y + SCR_H / 2) + (H / 2 - (SCR_Y + SCR_H / 2)) * e;   // 16 x 9 m : exactement le mur
-      beamGrp.scale.set(sc, 1, 0.5625 * sc);          // le faisceau suit l'écran
-      screen.scale.set(sc, sc, 1); screen.position.y = cy; frame.scale.set(sc, sc, 1); frame.position.y = cy;
-      curtains.forEach(function (c) {
-        var w = 1 - 0.88 * e;                          // le rideau se plisse contre le mur
-        c.m.scale.x = w; c.m.position.x = c.s * (SCR_W / 2 + 0.1 + CW / 2 + (HX - 0.05 - CW * w / 2 - (SCR_W / 2 + 0.1 + CW / 2)) * e);
-        c.tie.position.x = c.s * (SCR_W / 2 + 0.2 + (HX - 0.4 - SCR_W / 2 - 0.2) * e); c.tie.visible = e < 0.5;
-      });
-      valance.position.y = H - 0.45 + 1.0 * e; valTrim.position.y = H - 0.93 + 1.0 * e;   // le lambrequin remonte dans le plafond
-    }
+    /* --- pas de bords gauche/droite ni en haut (ni cadre, ni rideaux, ni lambrequin) : écran géant plein mur --- */
+    function layoutScreen() {}
 
     /* --- fauteuils : velours rouge, accoudoirs, dossier légèrement penché --- */
     var seats = room.seats = [], seatGeo = {
@@ -316,7 +294,7 @@
     var beamLen = pTop.distanceTo(pBot);
     var beamGrp = new THREE.Group(), beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, SCR_W / 2 * Math.SQRT2, beamLen, 4, 1, true),
       new THREE.MeshBasicMaterial({ color: 0xcfe0ff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
-    beamMesh.rotation.y = Math.PI / 4; beamGrp.add(beamMesh); beamGrp.scale.set(1, 1, 0.5625);
+    beamMesh.rotation.y = Math.PI / 4; beamGrp.add(beamMesh); beamGrp.scale.set(1, 1, SCR_H / SCR_W);
     beamGrp.position.copy(pTop).add(pBot).multiplyScalar(0.5);
     var bDir = pTop.clone().sub(pBot).normalize(), bX = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), bDir).normalize(), bZ = new THREE.Vector3().crossVectors(bX, bDir).normalize();
     beamGrp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bX, bDir, bZ));     // largeur du faisceau à l'horizontale, hauteur à la verticale
@@ -841,7 +819,7 @@
     room.seatPose = function (dt, ctx) {
       if (!cur) return null;
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.9; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.3; }
-      var ex = cur.x, ey = 1.34, ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.38, tz0 = -HZ + 0.16;
+      var ex = cur.x, ey = 1.34, ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
       var a = Math.atan2(0 - ex, -(tz0 - ez)) + view.yaw, p = Math.atan2(ty0 - ey, Math.hypot(ex, tz0 - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 66 };
     };
@@ -856,18 +834,20 @@
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       music.start(); mountEye();
+      if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
       pollCinema();
     };
     function leave() {
       stand(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
       music.stop(); unmountEye(); unmountConsole();
+      if (world.container) world.container.classList.remove('cin-in-cinema');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
     }
     room.onLeave = leave;
-    room.onPause = function () { video.pause(); music.stop(); unmountEye(); };
+    room.onPause = function () { video.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); };
     room.onPageHide = function () { video.pause(); };
-    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); pollCinema(); } };
+    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); pollCinema(); } };
 
     var clock = 0, netT = 0;
     room.update = function (dt, w) {
@@ -876,7 +856,6 @@
       var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
-      var target = playing ? 1 : 0; openK += Math.max(-dt / 3, Math.min(dt / 4.5, target - openK)); layoutScreen();   // les rideaux s'ouvrent petit à petit (4,5 s), se referment plus vite
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
       amb.intensity = 0.95 * dim; key.intensity = 0.3 * dim;
       lights.forEach(function (l) { l.intensity = 0.55 * dim; });
@@ -896,7 +875,10 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      /* Général */
+      /* Général & Retrait du curseur en salle */
+      '.cin-in-cinema,.cin-in-cinema canvas,.cin-in-cinema .s3d-hud{cursor:none!important}' +
+      '.cin-in-cinema .cin-console,.cin-in-cinema .cin-console *,.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye{cursor:auto!important}' +
+      '.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye,.cin-in-cinema .cin-tab-btn,.cin-in-cinema .cin-genre-pill,.cin-in-cinema .cin-pl-item,.cin-in-cinema .cin-pl-pick-btn,.cin-in-cinema .cin-cn-playback button,.cin-in-cinema .cin-btn-load{cursor:pointer!important}' +
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
       '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}.hid{display:none!important}' +
       /* Bouton œil */
