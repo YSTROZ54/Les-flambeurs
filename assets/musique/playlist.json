@@ -2,6 +2,15 @@
   "hall": [
     "hall/ghost-in-the-attic.mp3"
   ],
+  "pokerroom": [
+    "poker/easy-breezy.mp3"
+  ],
+  "blackjack": [
+    "blackjack/easy-breezy.mp3"
+  ],
+  "loupgarou": [
+    "loup-garou/loup-garou-jeu.mp3"
+  ],
   "cinema": [
     "cinema/alex-morgan-cinema-trailer-grand-overture-573884.mp3"
   ]
