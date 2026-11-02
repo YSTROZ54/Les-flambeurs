@@ -75,7 +75,7 @@
     this.renderer.setPixelRatio(Q.pixelRatio());
     this.renderer.setClearColor(0x07050c, 1);
     var dom = this.dom = this.renderer.domElement;
-    dom.style.cssText = 'display:block;width:100%;height:100%;touch-action:pan-y;outline:none';
+    dom.style.cssText = 'display:block;width:100%;height:100%;touch-action:' + (this.touch ? 'none' : 'pan-y') + ';outline:none';     // téléphone : aucun défilement de page, le doigt ne fait que tourner la vue (haut et bas compris)
     container.appendChild(dom);
     // Sans carte graphique (accélération matérielle coupée dans le navigateur), la 3D tombe vers 15-20 images/s : on prévient
     this.sansGpu = false;
@@ -92,7 +92,7 @@
 
     this.rooms = {}; this.room = null; this.roomIds = opts.rooms || [];
     this.player = { x: 0, z: 9, yaw: 0, pitch: -0.04 };
-    this.keys = {}; this.stick = { x: 0, y: 0 }; this.mouse = { nx: 0, ny: 0, inside: false };
+    this.keys = {}; this.stick = { x: 0, y: 0 }; this.pstick = { x: 0, y: 0 }; this.mouse = { nx: 0, ny: 0, inside: false };
     this.mode = 'room'; this.blend = 0; this.seatRoom = null; this.near = null;
     this.remote = {}; this.full = false; this.trans = false;
     this.emoId = ''; this.emoN = 0; this.emoK = 0; this.emoYaw0 = 0; this.selfPerson = null;   // danse / emote en cours (voir « danses et emotes » plus bas)
@@ -318,7 +318,7 @@
   World.prototype._useDoor = function (d) {
     if (d.spec.go) { d.spec.go(this); return; }
     var t = d.spec.target;
-    if (this.touch && (t === 'uno' || t === 'loupgarou')) { this.flash('🔒 Bientôt sur téléphone', 'Ce jeu arrive plus tard'); return; }
+    if (this.touch && t === 'loupgarou') { this.flash('🔒 Bientôt sur téléphone', 'Ce jeu arrive plus tard'); return; }
     if (typeof t === 'string' && this.hasRoom(t)) this.goRoom(t, this.room.id);
     else this.exitGame(typeof t === 'string' ? t : (t && t.game), d);
   };
@@ -340,6 +340,7 @@
       '<div class="s3d-title" data-s3d="title"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none"></button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
+      (this.touch ? '<button class="s3d-tbtn s3d-tjump s3d-room-only" data-s3d="jump" aria-label="Sauter"><i class="fa-solid fa-angles-up"></i></button><button class="s3d-tbtn s3d-trun s3d-room-only" data-s3d="run" aria-label="Courir"><i class="fa-solid fa-person-running"></i></button>' : '') +
       '<div data-s3d="roombottom" style="display:contents"></div>' +
       '<div class="s3d-fade" data-s3d="fade"></div>';
     if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small></div>'); }
@@ -362,6 +363,10 @@
     }
     if (this.elMenu) this.elMenu.addEventListener('click', function () { if (self.opts.onMenu) self.opts.onMenu(); });
     this.elSit.addEventListener('click', function () { if (self.near) self.near.use(self); });
+    // boutons tactiles : saut (un appui) et course (on l'active, on le désactive ; le joystick poussé à fond fait aussi courir)
+    var bJump = q('jump'), bRun = q('run');
+    if (bJump) bJump.addEventListener('pointerdown', function (e) { e.preventDefault(); self._tapJump = true; });
+    if (bRun) bRun.addEventListener('pointerdown', function (e) { e.preventDefault(); self.touchRun = !self.touchRun; bRun.classList.toggle('on', self.touchRun); });
     // joystick tactile
     var knob = this.elStick.querySelector('i'), st = this.elStick, act = false;
     function mv(e) {
@@ -379,7 +384,7 @@
   World.prototype._setHint = function () {
     var r = this.room, t = r && r.hint ? r.hint(this) : null;
     if (!t) {
-      t = this.touch ? 'Joystick : marcher · glisse : regarder'
+      t = this.touch ? 'Joystick : marcher · glisse : regarder · bouton ⬆ : sauter · bouton coureur : courir'
         : this.full ? 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · la souris tourne la vue (bords de l\'écran) · Échap : quitter'
         : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder';
     }
@@ -568,13 +573,16 @@
   World.prototype._movePlayer = function (dt) {
     var k = this.keys, p = this.player, room = this.room;
     p.yaw += ((k.tr ? 1 : 0) - (k.tl ? 1 : 0)) * 1.8 * dt;
-    var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x;
+    var ps = this.pstick || { x: 0, y: 0 };
+    var fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + this.stick.y + ps.y, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + this.stick.x + ps.x;
     var len = Math.hypot(fwd, str);
-    if (this.emoId && (len > 0.05 || k.jump)) this.stopEmote();           // marcher ou sauter arrête la danse
+    if (this.emoId && (len > 0.05 || k.jump || this._tapJump)) this.stopEmote();           // marcher ou sauter arrête la danse
     if (len > 1) { fwd /= len; str /= len; }
-    var run = !!k.run && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z, wasAir = !!p.air;
+    var stickFull = Math.hypot(this.stick.x, this.stick.y) > 0.92 || !!this.padRun;           // téléphone : joystick poussé à fond ou bouton « courir » activé
+    var run = (!!k.run || !!this.touchRun || stickFull) && (fwd !== 0 || str !== 0), sp = (run ? 5.8 : 3.2) * dt, ox = p.x, oz = p.z, wasAir = !!p.air;
     this.running2 = run;
-    if (k.jump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
+    var wantJump = k.jump || this._tapJump; this._tapJump = false;
+    if (wantJump && !p.air) { p.air = true; p.vy = 4.3; p.jmp = (p.jmp || 0) + 1; }
     if (p.air) { p.vy -= 13 * dt; p.jy = (p.jy || 0) + p.vy * dt; if (p.jy <= 0) { p.jy = 0; p.vy = 0; p.air = false; } }
     p.x += (Math.sin(p.yaw) * fwd + Math.cos(p.yaw) * str) * sp;
     p.z += (-Math.cos(p.yaw) * fwd + Math.sin(p.yaw) * str) * sp;
@@ -593,6 +601,55 @@
     }
     var vk = Math.min(1, dt * 12), pv = this.pv;
     pv.x += ((p.x - ox) / Math.max(dt, 0.001) - pv.x) * vk; pv.z += ((p.z - oz) / Math.max(dt, 0.001) - pv.z) * vk;
+  };
+
+  /* ---------- manette (Xbox, PlayStation… via l'API Gamepad du navigateur, PC et téléphone) ----------
+     Stick gauche : marcher (poussé à fond ou gâchette gauche/droite : courir) · stick droit : regarder · A / ✕ : agir (s'asseoir, ouvrir) ou sauter · X / □ : sauter, ou viser le centre de l'écran (assis) ·
+     B / ○ : se lever · Y / △ : téléphone · croix directionnelle : choisir un bouton du panneau de jeu (assis), A le valide · Start : menu / pause. */
+  World.prototype._padStep = function (dt) {
+    var pads = navigator.getGamepads ? navigator.getGamepads() : null, gp = null, i, P = this._pad || (this._pad = { prev: [], dx: 0, dy: 0, sd: null, name: '', focus: null });
+    if (pads) for (i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { gp = pads[i]; break; }
+    this.pstick.x = this.pstick.y = 0; this.padRun = false;
+    if (!P.xh) { P.xh = document.createElement('div'); P.xh.style.cssText = 'position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #ffd24a;box-shadow:0 0 8px #000;pointer-events:none;z-index:7;display:none'; this.container.appendChild(P.xh); }
+    P.xh.style.display = gp && this.mode === 'seat' && this.blend > 0.9 ? '' : 'none';      // viseur au centre quand on joue assis à la manette
+    if (!gp) { if (P.name) { P.name = ''; } return; }
+    if (P.name !== gp.id) { P.name = gp.id; this.flash('🎮 Manette connectée', 'Stick gauche : marcher · stick droit : regarder · A : agir / sauter · B : se lever · gâchette : courir · Start : menu'); }
+    function dz(v) { var a = Math.abs(v); return a < 0.18 ? 0 : (v < 0 ? -1 : 1) * (a - 0.18) / 0.82; }
+    var ax = gp.axes || [], b = gp.buttons || [], self = this;
+    function down(n) { return !!(b[n] && b[n].pressed); }
+    function hit(n) { var was = !!P.prev[n], now = down(n); P.prev[n] = now; return now && !was; }
+    var lx = dz(ax[0] || 0), ly = dz(ax[1] || 0), rx = dz(ax[2] || 0), ry = dz(ax[3] || 0);
+    var A = hit(0), B = hit(1), X = hit(2), Y = hit(3), START = hit(9), UP = hit(12), DOWN = hit(13), LEFT = hit(14), RIGHT = hit(15);
+    var run = down(6) || down(7) || down(10) || (b[6] && b[6].value > 0.5) || (b[7] && b[7].value > 0.5);
+    if (this.mode === 'room' && this.blend === 0 && !this.trans) {
+      this.pstick.x = lx; this.pstick.y = -ly; this.padRun = !!run;
+      if (!this.lookLocked) { this.player.yaw += rx * 2.6 * dt * this.sensi; this.player.pitch = Math.max(-0.6, Math.min(0.5, this.player.pitch - ry * 1.6 * dt * this.sensi)); }
+      if (A) { if (this.near) { this._libererSouris(); this.near.use(this); } else this._tapJump = true; }
+      if (X) this._tapJump = true;
+      P.sd = null;
+    } else if (this.mode === 'seat' && this.seatRoom) {
+      var room = this.seatRoom;
+      if (room.seatDrag && room.seatDragStart) {
+        if (!P.sd) { P.sd = room.seatDragStart(); P.dx = P.dy = 0; }
+        if (rx || ry) { P.dx -= rx * 260 * dt; P.dy += ry * 200 * dt; room.seatDrag({ seat: P.sd, mouse: true }, P.dx, P.dy, this); }
+      }
+      // croix directionnelle : on passe d'un bouton du panneau de jeu au suivant, A le valide
+      var move = (RIGHT || DOWN) ? 1 : (LEFT || UP) ? -1 : 0;
+      if (move) {
+        var list = [].filter.call(this.container.querySelectorAll('button, select, input'), function (e) { return !e.disabled && e.offsetParent !== null && !e.closest('.ph') && !e.closest('.s3d-top') && !e.closest('.s3d-stick') && !e.classList.contains('s3d-tbtn') && !e.closest('.s3d-rotate'); });
+        if (list.length) { var at = list.indexOf(P.focus), nx = at < 0 ? (move > 0 ? 0 : list.length - 1) : (at + move + list.length) % list.length; if (P.focus) P.focus.classList.remove('s3d-padf'); P.focus = list[nx]; P.focus.classList.add('s3d-padf'); try { P.focus.scrollIntoView({ block: 'nearest' }); } catch (e) { /* ok */ } }
+      }
+      if (A && P.focus && P.focus.offsetParent !== null && !P.focus.disabled) P.focus.click();
+      else if (A || X) this._padAim();
+      if (B) { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyF', key: 'f', bubbles: true, cancelable: true })); if (P.focus) { P.focus.classList.remove('s3d-padf'); P.focus = null; } }
+    }
+    if (Y && this.mode === 'room') window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit4', key: '4', bubbles: true, cancelable: true }));
+    if (START) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true }));
+  };
+  // assis : « clic » au centre de l'écran (coffres, colonnes, cartes…)
+  World.prototype._padAim = function () {
+    if (this.trans || this.blend < 1 || !this.seatRoom || !this.seatRoom.seatClick) return;
+    this.ndc.set(0, 0); this.ray.setFromCamera(this.ndc, this.camera); this.seatRoom.seatClick(this.ray, null, this);
   };
 
   World.prototype._findNear = function () {
@@ -643,6 +700,7 @@
     if (Math.abs(target - this.blend) < 0.004) this.blend = target;
     var ms = this.mouse, mouseLook = ms.inside && !this.touch && this.full;
     function dz(v, t) { var a = Math.abs(v); return a < t ? 0 : (v < 0 ? -1 : 1) * (a - t) / (1 - t); }   // zone morte au centre
+    this._padStep(dt);
     if (this.mode === 'room' && this.blend === 0 && !this.trans) {
       // en grand écran, la vue suit la souris verrouillée (voir _bindPointer)
       this._movePlayer(dt);
@@ -971,7 +1029,7 @@
   }
   // le monde complet n'est proposé que sur ordinateur
   // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, gobelets, poker, uno, loup-garou) garde le menu classique
-  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'];
+  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno'];
   F.isPhone = function () { return F.isMobile() || F.isTouch(); };
   F.canWorld = function (room) { return webgl() && !mainFailed && !!document.getElementById('world3dStage') && (!F.isPhone() || !room || PHONE_ROOMS.indexOf(room) >= 0); };
   F.wantsWorldForSlots = function () { return F.canWorld('slots'); };
@@ -1004,7 +1062,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'vault', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'vault', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });
