@@ -150,8 +150,9 @@
     function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); return m; }
     add(G.hips, pants, 0, 0.98, 0); add(G.torso, shirt, 0, 1.3, 0); add(G.neck, skin, 0, 1.62, 0);
     var head = add(G.head, skin, 0, 1.75, 0);
-    if ((h >> 9) % 5 !== 0) add(G.hair, hairM, 0, 1.76, -0.005);          // 1 personne sur 5 est chauve
-    add(G.eye, dark, -0.05, 1.77, 0.125); add(G.eye, dark, 0.05, 1.77, 0.125);
+    var headParts = [{ m: head, x: 0, z: 0 }];                                  // pièces qui suivent le mouvement de tête (look)
+    if ((h >> 9) % 5 !== 0) headParts.push({ m: add(G.hair, hairM, 0, 1.76, -0.005), x: 0, z: -0.005 });          // 1 personne sur 5 est chauve
+    headParts.push({ m: add(G.eye, dark, -0.05, 1.77, 0.125), x: -0.05, z: 0.125 }, { m: add(G.eye, dark, 0.05, 1.77, 0.125), x: 0.05, z: 0.125 });
     var hips = [], knees = [], arms = [];
     [-1, 1].forEach(function (s) {
       var hip = new THREE.Group(); hip.position.set(s * 0.09, 0.92, 0); g.add(hip); hips.push(hip);
@@ -218,7 +219,23 @@
     // objet en main : le bras droit se lève devant le personnage avec l'objet ; sans objet il reste le long du corps (les autres joueurs voient la différence)
     var heldId = '', heldItem = null, heldK = 0, heldQ = new THREE.Quaternion(), heldUp = new THREE.Vector3();
     function ease01(v) { v = v < 0 ? 0 : v > 1 ? 1 : v; return v * v * (3 - 2 * v); }
+    // mouvements de table (Loup-Garou) : tête tournée vers quelqu'un, bras qui désigne, corps affalé quand on est éliminé
+    var lkT = 0, lkC = 0, ptT = null, ptK = 0, ptY = 0, ptArm = 0, slT = 0, slK = 0;
     return {
+      look: function (a) { lkT = Math.max(-1.1, Math.min(1.1, a || 0)); },                       // radians, positif = vers la gauche du personnage
+      point: function (a) { ptT = (a === null || a === undefined) ? null : Math.max(-1.3, Math.min(1.3, a)); },
+      slump: function (on) { slT = on ? 1 : 0; },
+      poseStep: function (dt) {
+        var k = Math.min(1, dt * 6), i, c, s;
+        lkC += (lkT - lkC) * k; c = Math.cos(lkC); s = Math.sin(lkC);
+        for (i = 0; i < headParts.length; i++) { var hp = headParts[i]; hp.m.rotation.y = lkC; hp.m.position.x = hp.x * c + hp.z * s; hp.m.position.z = -hp.x * s + hp.z * c; }
+        if (ptT !== null) { ptY += (ptT - ptY) * k; ptArm = ptT >= 0 ? 1 : 0; }
+        var want = ptT !== null && this.seated ? 1 : 0; ptK += (want - ptK) * Math.min(1, dt * 7);
+        if (ptK > 0.01) { var ar = arms[ptArm], other = arms[1 - ptArm]; ar.rotation.x = -1.05 + (-1.55 + 1.05) * ptK; ar.rotation.y = ptY * ptK; other.rotation.x = -1.05; other.rotation.y = 0; }
+        else if (ptK > 0) { ptK = 0; arms.forEach(function (a) { a.rotation.y = 0; a.rotation.x = this.seated ? -1.05 : 0; }, this); }
+        slK += (slT - slK) * Math.min(1, dt * 4);
+        if (slK > 0.01 && this.seated) g.rotation.x = 0.55 * slK; else if (slK <= 0.01 && g.rotation.x && !this.emoId) { g.rotation.x = 0; }
+      },
       // say : affiche un message au-dessus de la tête quelques secondes ; typing : trois points tant que la personne écrit
       say: function (text) {
         bubStopDots(); clearTimeout(bubTimer);
