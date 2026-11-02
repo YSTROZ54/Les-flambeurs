@@ -763,15 +763,22 @@
     var haloC = mkCanvas(128, 128), hxx = haloC.getContext('2d'), hgr = hxx.createRadialGradient(64, 64, 2, 64, 64, 62);
     hgr.addColorStop(0, 'rgba(255,235,190,1)'); hgr.addColorStop(0.3, 'rgba(255,200,120,0.45)'); hgr.addColorStop(1, 'rgba(255,170,80,0)'); hxx.fillStyle = hgr; hxx.fillRect(0, 0, 128, 128);
     var haloMat = new THREE.SpriteMaterial({ map: mkTex(haloC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9 });
-    function poster(x, y, z, ry, sym, title, w, h) {
+    function poster(x, y, z, ry, sym, title, w, h, imgSrc) {
       var pc = mkCanvas(400, Math.round(400 * h / w)), pc2 = pc.getContext('2d'), PWd = pc.width, PHt = pc.height;
       var pg = pc2.createLinearGradient(0, 0, 0, PHt); pg.addColorStop(0, '#2b1038'); pg.addColorStop(1, '#0d0612'); pc2.fillStyle = pg; pc2.fillRect(0, 0, PWd, PHt);
       pc2.strokeStyle = '#c9a227'; pc2.lineWidth = 8; pc2.strokeRect(10, 10, PWd - 20, PHt - 20); pc2.strokeStyle = 'rgba(201,162,39,0.45)'; pc2.lineWidth = 2; pc2.strokeRect(24, 24, PWd - 48, PHt - 48);
-      pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.46) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+      var tex = mkTex(pc);
+      if (imgSrc) {   // logo généré (sans fond en damier) plutôt que l'emoji du symbole
+        var img = new Image();
+        img.onload = function () { var s = PWd * 0.6, ix = (PWd - s) / 2, iy = PHt * 0.42 - s / 2; pc2.drawImage(img, ix, iy, s, s); tex.needsUpdate = true; };
+        img.src = imgSrc;
+      } else {
+        pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.46) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+      }
       pc2.fillStyle = '#f3cf62'; pc2.shadowColor = '#ffb300'; pc2.shadowBlur = 12; pc2.font = '800 ' + Math.round(PWd * 0.115) + 'px ' + SERIF; pc2.fillText(title, PWd / 2, PHt * 0.82, PWd - 70);
       var gp = new THREE.Group(); gp.position.set(x, y, z); gp.rotation.y = ry; scene.add(gp);
       var fr = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.07), goldMat); fr.position.z = 0.035; gp.add(fr);
-      var pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: mkTex(pc) })); pl.position.z = 0.075; gp.add(pl);
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex })); pl.position.z = 0.075; gp.add(pl);
     }
     function sconce(x, y, z, ry) {
       var gp = new THREE.Group(); gp.position.set(x, y, z); gp.rotation.y = ry; scene.add(gp);
@@ -788,7 +795,7 @@
     }
     // mur de la porte (z = front), tourné vers la salle
     neonSign(0, 5.9, ROOM.front - 0.06, Math.PI, 'JACKPOT 777', 6.6, 1.3, '#ff4fa8');
-    poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
+    poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8, 'assets/icones/symboles/sept.png'); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
         [-3.6, 3.6].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
     // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
     [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
