@@ -130,25 +130,6 @@
   /* ---------- peinture des battants (un battant : W × H pixels) ---------- */
   function noise(c, W, H, n, col) { c.fillStyle = col; for (var i = 0; i < n; i++) c.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
   function border(c, W, H, col, w) { c.strokeStyle = col; c.lineWidth = w; c.strokeRect(w, w, W - w * 2, H - w * 2); }
-  // plaque lumineuse « LA CHAMBRE FORTE » à côté de la porte des mini jeux : une grande porte de coffre, un bandeau « NOUVEAU » et un liseré vert
-  function vaultPlaque(g, w, h) {
-    var W = 512, H = 700, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var c = cv.getContext('2d'), i;
-    var bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0b1a13'); bg.addColorStop(1, '#050c09'); c.fillStyle = bg; c.fillRect(0, 0, W, H);
-    c.strokeStyle = '#3dff9a'; c.lineWidth = 10; c.shadowColor = '#3dff9a'; c.shadowBlur = 22; c.strokeRect(10, 10, W - 20, H - 20); c.shadowBlur = 0; c.strokeStyle = '#c9a227'; c.lineWidth = 4; c.strokeRect(28, 28, W - 56, H - 56);
-    var cx = W / 2, cy = 300, R = 190, dg = c.createRadialGradient(cx - 40, cy - 40, 20, cx, cy, R); dg.addColorStop(0, '#9aa3b6'); dg.addColorStop(0.75, '#4b5262'); dg.addColorStop(1, '#2a2f3a');
-    c.fillStyle = dg; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill(); c.strokeStyle = '#e1b92f'; c.lineWidth = 12; c.beginPath(); c.arc(cx, cy, R - 6, 0, TAU); c.stroke(); c.lineWidth = 5; c.beginPath(); c.arc(cx, cy, R - 48, 0, TAU); c.stroke();
-    for (i = 0; i < 12; i++) { var a = i / 12 * TAU; c.fillStyle = '#e1b92f'; c.beginPath(); c.arc(cx + Math.cos(a) * (R - 27), cy + Math.sin(a) * (R - 27), 7, 0, TAU); c.fill(); }
-    c.strokeStyle = '#e4e9f4'; c.lineWidth = 14; c.lineCap = 'round'; for (i = 0; i < 3; i++) { var sa = i / 3 * TAU - Math.PI / 2; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(sa) * 105, cy + Math.sin(sa) * 105); c.stroke(); }
-    c.fillStyle = '#e1b92f'; c.beginPath(); c.arc(cx, cy, 30, 0, TAU); c.fill(); c.fillStyle = '#3a2c08'; c.beginPath(); c.arc(cx, cy, 15, 0, TAU); c.fill();
-    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#e8fff1'; c.shadowColor = '#3dff9a'; c.shadowBlur = 18; c.font = '900 56px ' + SERIF; c.fillText('LA CHAMBRE', cx, 540, W - 90); c.fillText('FORTE', cx, 598, W - 90); c.shadowBlur = 0;
-    c.fillStyle = '#d9c88f'; c.font = '700 26px ' + MONO; c.fillText('💎 DIAMANTS · 💣 BOMBES', cx, 648, W - 80);
-    c.save(); c.translate(70, 92); c.rotate(-0.5); c.fillStyle = '#d6221e'; c.fillRect(-92, -22, 184, 44); c.fillStyle = '#fff'; c.font = '900 28px ' + SERIF; c.fillText('NOUVEAU', 0, 2); c.restore();
-    var tex = new THREE.CanvasTexture(cv); tex.anisotropy = 8;
-    var PWd = 1.3, PHt = PWd * H / W, px = w / 2 + 1.55, py = 1.75;
-    var back = new THREE.Mesh(new THREE.BoxGeometry(PWd + 0.14, PHt + 0.14, 0.08), new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.5, metalness: 0.5 })); back.position.set(px, py, 0.05); g.add(back);
-    var pl = new THREE.Mesh(new THREE.PlaneGeometry(PWd, PHt), new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); pl.position.set(px, py, 0.11); g.add(pl);
-    var halo = new THREE.Mesh(new THREE.PlaneGeometry(PWd + 0.9, PHt + 0.9), new THREE.MeshBasicMaterial({ color: 0x3dff9a, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending })); halo.position.set(px, py, 0.03); g.add(halo);
-  }
   function bulbRing(g, w, h, mats) {                      // ampoules de chapiteau autour de la porte
     var n = 0;
     var halo = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -274,29 +255,18 @@
       }
     },
     minijeux: {
-      frame: 0xc9a227, leaf: 0x0a0a0c, rgb: '255, 214, 0', logo: 'minijeux',
-      paint: function (c, W, H) {                              // battant gauche : le dos d'une vraie carte UNO (fond noir, ovale rouge penché, logo jaune)
-        c.fillStyle = '#0a0a0c'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 6);
-        c.save(); c.translate(W / 2, H / 2); c.rotate(-0.32); c.fillStyle = '#d6221e'; c.beginPath(); c.ellipse(0, 0, W * 0.46, H * 0.24, 0, 0, TAU); c.fill(); c.restore();
-        c.save(); c.translate(W / 2, H / 2); c.rotate(-0.32); c.fillStyle = '#ffde00'; c.strokeStyle = '#111'; c.lineJoin = 'round'; c.lineWidth = W * 0.045; c.font = '900 ' + Math.round(W * 0.33) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
-        [[0.16, 0.07], [0.84, 0.93]].forEach(function (q, n) { c.save(); c.translate(W * q[0], H * q[1]); c.rotate(n ? Math.PI : 0); c.fillStyle = '#ffde00'; c.font = '900 ' + Math.round(W * 0.16) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('0', 0, 0); c.restore(); });
-      },
-      paintR: function (c, W, H) {                             // battant droit : une vraie grille de Puissance 4 (bleue, 7 colonnes, 6 rangées, jetons rouges et jaunes empilés)
-        c.fillStyle = '#0a0a0c'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 6);
-        var cell = (W - 28) / 7, bw = cell * 7 + 14, bh = cell * 6 + 14, bx = (W - bw) / 2, by = (H - bh) / 2 + H * 0.04, i, j;
-        c.fillStyle = '#1f4fd8'; rr(c, bx, by, bw, bh, 12); c.fill(); c.strokeStyle = '#0d2a8a'; c.lineWidth = 3; rr(c, bx, by, bw, bh, 12); c.stroke();
-        var rows = ['.......', '.......', '...Y...', '..RY...', '.RYR.Y.', 'RYRYRY.'];
-        for (i = 0; i < 6; i++) for (j = 0; j < 7; j++) {
-          var ch = rows[i].charAt(j), cx = bx + 7 + cell * (j + 0.5), cy = by + 7 + cell * (i + 0.5);
-          c.fillStyle = ch === 'R' ? '#d8222a' : ch === 'Y' ? '#ffd500' : '#0a0a0c'; c.beginPath(); c.arc(cx, cy, cell * 0.38, 0, TAU); c.fill();
-          if (ch !== '.') { c.strokeStyle = ch === 'R' ? '#8e1218' : '#b08f00'; c.lineWidth = 2.5; c.beginPath(); c.arc(cx, cy, cell * 0.26, 0, TAU); c.stroke(); }
-        }
-        c.fillStyle = '#ffd500'; c.beginPath(); c.arc(bx + 7 + cell * 4.5, by - cell * 0.55, cell * 0.38, 0, TAU); c.fill();     // un jeton qui tombe dans la colonne
-        c.fillStyle = '#0d2a8a'; c.fillRect(bx + 4, by + bh, 12, cell * 0.5); c.fillRect(bx + bw - 16, by + bh, 12, cell * 0.5);
-      },
-      deco: function (g, w, h) {                               // une plaque « Chambre Forte » à droite de la porte, et deux piles de jetons de chaque côté
-        vaultPlaque(g, w, h);
-        [[-1, 0xd8222a], [1, 0xffd500]].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 20), new THREE.MeshStandardMaterial({ color: s[1], roughness: 0.3 })); m.position.set(s[0] * (w / 2 + 0.55), 0.18, 0.5); g.add(m); });
+      frame: 0xc9a227, leaf: 0x120a0e, rgb: '255, 214, 0', logo: 'minijeux',
+      paint: function (c, W, H) {                              // porte noire et or : deux grands panneaux moulurés, losange doré au centre (même dessin sur les deux battants)
+        var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#1b0f15'); g0.addColorStop(1, '#0b0609'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+        border(c, W, H, '#ffd24a', 6); c.strokeStyle = 'rgba(255,210,74,0.45)'; c.lineWidth = 2; c.strokeRect(22, 22, W - 44, H - 44);
+        var pw = W - 70, ph = H * 0.36, px = 35, py = [H * 0.07, H * 0.57];
+        py.forEach(function (y) {
+          c.strokeStyle = '#c9a227'; c.lineWidth = 4; rr(c, px, y, pw, ph, 10); c.stroke();
+          c.strokeStyle = 'rgba(255,210,74,0.4)'; c.lineWidth = 2; rr(c, px + 12, y + 12, pw - 24, ph - 24, 6); c.stroke();
+          var cx = px + pw / 2, cy = y + ph / 2, d = Math.min(pw, ph) * 0.22;
+          c.fillStyle = 'rgba(255,210,74,0.9)'; c.beginPath(); c.moveTo(cx, cy - d); c.lineTo(cx + d, cy); c.lineTo(cx, cy + d); c.lineTo(cx - d, cy); c.closePath(); c.fill();
+          c.fillStyle = '#120a0e'; c.beginPath(); c.moveTo(cx, cy - d * 0.5); c.lineTo(cx + d * 0.5, cy); c.lineTo(cx, cy + d * 0.5); c.lineTo(cx - d * 0.5, cy); c.closePath(); c.fill();
+        });
       }
     },
     loupgarou: {
