@@ -165,6 +165,19 @@
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.shadowColor = '#ff3b4f'; sx.shadowBlur = 30; sx.fillStyle = '#ffd7dc'; sx.font = '900 150px ' + SERIF; sx.fillText('♠ BLACKJACK ♥', 512, 138, 960);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.9), new THREE.MeshBasicMaterial({ map: mkTex(sc0) })); sign.position.set(0, 3.7, -HZ + 0.07); g.add(sign);
 
+    // tableaux muraux (affiches Art Déco, déjà encadrées dans l'image) : au-dessus de la main courante, sous la corniche
+    function poster(fichier, px, py, pz, ry, w, h) {
+      var mat = new THREE.MeshBasicMaterial({ color: 0x1c0810 });   // sombre le temps que l'image arrive
+      var plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); plane.position.set(px, py, pz); plane.rotation.y = ry; g.add(plane);
+      new THREE.TextureLoader().load(fichier, function (t) {
+        t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+        mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
+      }, undefined, function () { /* pas d'image : fond sombre */ });
+    }
+    poster('assets/bannieres/blackjack-cartes.jpg?v=1', 3.15, 2.6, HZ - 0.08, Math.PI, 1.6, 2.4);     // mur de la porte, à droite
+    poster('assets/bannieres/blackjack-roulette.jpg?v=1', -3.15, 2.6, HZ - 0.08, Math.PI, 1.6, 2.4);  // mur de la porte, à gauche
+    poster('assets/bannieres/blackjack-croupiere.jpg?v=1', -HX + 0.08, 2.6, 9, Math.PI / 2, 1.6, 2.4); // mur de gauche, coin du fond
+
     /* --- tables, croupiers, tabourets, robots --- */
     var felt = std(0x0e6b3f, 0.95, 0), woodM = std(0x2a140c, 0.5, 0.2), feltD = new THREE.MeshStandardMaterial({ color: 0x0e6b3f, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }), woodD = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }), seatM = std(0x8f0f20, 0.6, 0.1), chromeM = std(0xc9ced6, 0.35, 0.8);
     var tables = [], seats = [], people = [], anims = [], timers = [], clockT = 0;
