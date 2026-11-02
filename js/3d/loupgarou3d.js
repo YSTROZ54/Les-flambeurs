@@ -131,7 +131,7 @@
 
     /* --- état partagé (serveur) --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null, S = null, off = 0, rooms = null, polling = false, listPolling = false, pollT = 0, listT = 0, busy = false;
-    var code = '', shownKey = '', pick1 = '', pick2 = '', witchHeal = false, titleEl = null, titleT = 0, lastRoleSeen = '', env = 0, envTarget = 0, flash = '', flashT = 0;
+    var joined = false, joinedAt = 0, code = '', shownKey = '', pick1 = '', pick2 = '', witchHeal = false, titleEl = null, titleT = 0, lastRoleSeen = '', env = 0, envTarget = 0, flash = '', flashT = 0;
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (kk) { var r = world.remote[kk]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
     function roomInfo(ti) { return rooms && rooms[ti] ? rooms[ti] : null; }
     function nowS() { return Date.now() + off; }
@@ -146,7 +146,7 @@
     function applyState(s) { if (!s) return; S = s; off = s.serverNow - Date.now(); envTarget = s.isNight ? 0 : (s.status === 'playing' ? 1 : 0.25); refreshUi(); }
     function poll() {
       if (polling || !code) return; polling = true;
-      fetch('/api/loupgarou?code=' + encodeURIComponent(code), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok && d.state && seat) { if (!d.state.you) { world.flash('Tu n’es plus dans ce salon.'); stand(); } else applyState(d.state); } }).catch(function () { polling = false; });
+      fetch('/api/loupgarou?code=' + encodeURIComponent(code), { cache: 'no-store', headers: { 'X-Auth-Token': F.token() || '' } }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok && d.state && seat) { if (!d.state.you) { if (joined && Date.now() - joinedAt > 2500) { world.flash('Tu n’es plus dans ce salon.'); stand(); } } else applyState(d.state); } }).catch(function () { polling = false; });
     }
     function pollList() {
       if (listPolling) return; listPolling = true;
@@ -317,7 +317,7 @@
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (!loggedIn()) { w.flash('Connecte-toi pour jouer au Loup-Garou.'); return; }
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false; code = String(s.ti + 1); pick1 = pick2 = ''; witchHeal = false; flash = ''; lastRoleSeen = '';
+      w.sitDown(room); seat = s; view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false; code = String(s.ti + 1); joined = false; pick1 = pick2 = ''; witchHeal = false; flash = ''; lastRoleSeen = '';
       injectCss();
       var el = document.createElement('div'); el.className = 'lg3d';
       el.innerHTML = '<div class="lg-top"><b class="lg-ph"></b><span class="lg-time"></span></div><div class="lg-body"></div>';
@@ -331,6 +331,7 @@
       api({ action: 'join', seat: s.si, avatar: (st() && st().avatarEmoji) || '🧑‍🎤' }).then(function (r) {
         if (!seat || seat !== s) return;
         if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible d’entrer dans ce salon.'); stand(); return; }
+        joined = true; joinedAt = Date.now();
         if (r.state && r.state.you && typeof r.state.you.seat === 'number' && r.state.you.seat !== s.si) { /* le serveur a changé de place : on reste sur la nôtre pour l’affichage */ }
       });
     }

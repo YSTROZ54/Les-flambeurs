@@ -1,0 +1,9 @@
+import fs from 'fs';
+function ed(f, pairs){ let s=fs.readFileSync(f,'utf8'); const crlf=s.includes('\r\n'); s=s.replace(/\r\n/g,'\n'); for(const [a,b] of pairs){ if(s.split(a).length!==2) throw new Error(f+' '+a.slice(0,70)); s=s.replace(a,()=>b);} fs.writeFileSync(f,crlf?s.replace(/\n/g,'\r\n'):s); }
+for (const f of ['index.html','Les_Flambeurs.html']) ed(f,[["/\/api\/(blackjack|crash|poker|blindtest)/.test(url)","/\/api\/(blackjack|crash|poker|blindtest|loupgarou)/.test(url)"],['loupgarou3d.js?v=2.4','loupgarou3d.js?v=2.5']]);
+ed('js/3d/loupgarou3d.js',[
+["      fetch('/api/loupgarou?code=' + encodeURIComponent(code), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok && d.state && seat) { if (!d.state.you) { world.flash('Tu n’es plus dans ce salon.'); stand(); } else applyState(d.state); } })",
+ "      fetch('/api/loupgarou?code=' + encodeURIComponent(code), { cache: 'no-store', headers: { 'X-Auth-Token': F.token() || '' } }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok && d.state && seat) { if (!d.state.you) { if (joined && Date.now() - joinedAt > 2500) { world.flash('Tu n’es plus dans ce salon.'); stand(); } } else applyState(d.state); } })"],
+["    var code = '', shownKey = '',","    var joined = false, joinedAt = 0, code = '', shownKey = '',"],
+["code = String(s.ti + 1); pick1 = pick2 = '';","code = String(s.ti + 1); joined = false; pick1 = pick2 = '';"],
+["        if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible d’entrer dans ce salon.'); stand(); return; }\n        if (r.state","        if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible d’entrer dans ce salon.'); stand(); return; }\n        joined = true; joinedAt = Date.now();\n        if (r.state"]]);

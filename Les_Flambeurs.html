@@ -41,7 +41,7 @@
   <script src="js/3d/shop3d.js?v=2.3"></script>
   <script src="js/3d/pmu3d.js?v=2.2"></script>
   <script src="js/3d/blackjack3d.js?v=3.6"></script>
-  <script src="js/3d/loupgarou3d.js?v=2.4"></script>
+  <script src="js/3d/loupgarou3d.js?v=2.5"></script>
   <script src="js/3d/cups3d.js?v=2.5"></script>
   <script src="js/3d/crash3d.js?v=2.5"></script>
   <script src="js/3d/blindtest3d.js?v=1.8"></script>
@@ -4320,7 +4320,7 @@
       window.fetch = function (input, init) {
         try {
           const url = typeof input === 'string' ? input : (input && input.url) || '';
-          if (/\/api\/(blackjack|crash|poker|blindtest)/.test(url)) {
+          if (/\/api\/(blackjack|crash|poker|blindtest|loupgarou)/.test(url)) {
             const t = getAuthToken();
             if (t) init = { ...(init || {}), headers: { ...((init && init.headers) || {}), 'X-Auth-Token': t } };
           }
