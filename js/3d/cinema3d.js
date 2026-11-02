@@ -5,9 +5,11 @@
    Décor : grand écran entouré de rideaux de velours rouge, scène avec rampe de lumières, cinq rangées de fauteuils
    (deux blocs de quatre, allée au milieu), appliques, cabine de projection, comptoir à pop-corn, citrouilles d'Halloween.
    - On s'assoit sur n'importe quel fauteuil libre (F ou clic) : la caméra passe à hauteur d'yeux, face à l'écran, et on
-     garde le HUD du joueur (barre du bas, téléphone, emotes). Les autres joueurs nous voient assis (canal temps réel du monde).
-   - Le film est la présentation Premium de Tropi Stream (video/tropistream-presentation.mp4, 58 s). Chacun la lance pour soi :
-     bouton « Lancer la séance », clic sur l'écran ou touche P. Pendant la séance les lumières baissent et la musique se tait.
+     garde le HUD du joueur (téléphone, emotes). Les autres joueurs nous voient assis (canal temps réel du monde).
+   - Le film est partagé par le serveur (api/cinema.js) : seuls le Patron et le Co Fondateur choisissent le lien et lancent/
+     coupent la séance, depuis la console « RÉGIE » au fond à droite de la salle (ou en cliquant sur l'écran / touche P une
+     fois assis). Tout le monde voit exactement la même chose, à la même position. Pendant la séance les lumières baissent
+     et la musique se tait.
    - La musique de fond : les morceaux de assets/musique/cinema/ (playlist.json) ; sans fichier, un petit air de jazz lent fabriqué à la volée (WebAudio).
      Elle démarre à l'arrivée, suit le volume « Musique d'ambiance » des Réglages (plus de bouton dédié) et quitte la salle avec nous.
    Fichiers liés : f3d-core.js, world3d.js, hall3d.js (la porte), video/tropistream-presentation.mp4.
@@ -20,7 +22,6 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
   var HX = 8, HZ = 11, H = 9;                       // demi-largeur, demi-profondeur, hauteur (mètres)
-  var VIDEO_SRC = 'video/tropistream-presentation.mp4?v=1';
   var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
   var SCR_W = 10, SCR_H = SCR_W * 9 / 16, SCR_Y = 2.0;   // l'écran : largeur, hauteur, bas de l'écran
   var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
@@ -217,13 +218,14 @@
       x.fillStyle = '#ffb066'; x.font = '700 28px ' + MONO; x.fillText('Présentation Premium · tropistream.fr', 640, 678, 1180);
       posterTex.needsUpdate = true;
     }
-    paintPoster('LANCER LA SÉANCE');
+    var posterLabel = 'LANCER LA SÉANCE';
+    paintPoster(posterLabel);
     var img = new Image();
-    img.onload = function () { posterImg = img; paintPoster(film.state === 'ended' ? 'REVOIR LA SÉANCE' : 'LANCER LA SÉANCE'); };
+    img.onload = function () { posterImg = img; paintPoster(posterLabel); };
     img.src = POSTER_SRC;
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
-    room.interactables.push({ hit: screen, x: 0, z: -HZ, use: function () { togglePlay(); } });   // clic sur l'écran : lecture / pause
+    room.interactables.push({ hit: screen, x: 0, z: -HZ, use: function () { togglePlay(); } });   // clic sur l'écran : lecture / pause (Patron / Co Fondateur)
 
     /* --- rideaux de velours et lambrequin --- */
     var cc = mkCanvas(256, 64), cx = cc.getContext('2d');
@@ -327,6 +329,28 @@
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
     room.colliders.push({ x: -5.2 - 1.0, z: HZ - 1.1, r: 0.8 }, { x: -5.2, z: HZ - 1.1, r: 0.8 }, { x: -5.2 + 1.0, z: HZ - 1.1, r: 0.8 });
+    // --- régie : la console du Patron / Co Fondateur, au fond à droite (symétrique du comptoir à pop-corn) ---
+    var RX = 5.2, RZ = HZ - 1.1;
+    var regie = new THREE.Group(); regie.position.set(RX, 0, RZ); regie.rotation.y = Math.atan2(-(5 - RZ), -RX); g.add(regie);
+    box(regie, 1.1, 0.95, 0.65, lam(0x1b1016), 0, 0.475, 0);                             // socle sombre
+    box(regie, 1.16, 0.05, 0.7, trimM, 0, 0.975, 0);                                     // plateau doré
+    var regieScreen = box(regie, 0.62, 0.4, 0.04, std(0x0a0e18, 0.35, 0.1, 0x122240), 0, 1.33, -0.1); regieScreen.rotation.x = -0.35;  // petit écran incliné
+    box(regie, 0.7, 0.07, 0.18, trimM, 0, 1.0, 0.22);                                     // rebord clavier
+    for (i = 0; i < 3; i++) sph(regie, 0.028, bas(i === 1 ? 0xff5050 : 0xffd24a), -0.18 + i * 0.18, 1.04, 0.24);   // petits voyants
+    var rgC = mkCanvas(512, 128), rgx = rgC.getContext('2d');
+    rgx.fillStyle = '#120a16'; rgx.fillRect(0, 0, 512, 128); rgx.strokeStyle = '#c9a227'; rgx.lineWidth = 6; rgx.strokeRect(5, 5, 502, 118);
+    rgx.textAlign = 'center'; rgx.textBaseline = 'middle'; rgx.fillStyle = '#e9c66b'; rgx.font = '800 50px ' + SERIF; rgx.fillText('RÉGIE', 256, 46, 470);
+    rgx.fillStyle = '#9d8a53'; rgx.font = '700 24px ' + MONO; rgx.fillText('Patron · Co Fondateur', 256, 92, 470);
+    var regieSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(rgC) })); regieSign.position.set(0, 2.0, 0); regie.add(regieSign);
+    var regieGlow = new THREE.Sprite(glowM); regieGlow.scale.set(1.1, 1.1, 1); regieGlow.position.set(0, 1.33, 0.05); regie.add(regieGlow); lampGlow.push(regieGlow);
+    var regieHit = box(regie, 1.3, 1.7, 1.2, hitM, 0, 0.85, 0.15);
+    room.interactables.push({
+      hit: regieHit, x: RX, z: RZ, radius: 1.15,
+      enabled: function () { return isCinemaCtrl(); },
+      prompt: function () { return '🎛️ Régie — choisir le film  [F]'; },
+      use: function (w) { if (!isCinemaCtrl()) return; toggleConsole(); }
+    });
+    room.colliders.push({ x: RX, z: RZ, r: 0.85 });
     // pancarte « SORTIE » verte au-dessus de la porte
     var exC = mkCanvas(256, 80), ex = exC.getContext('2d'); ex.fillStyle = '#063a1a'; ex.fillRect(0, 0, 256, 80); ex.strokeStyle = '#3ddc7a'; ex.lineWidth = 5; ex.strokeRect(4, 4, 248, 72);
     ex.fillStyle = '#7dffae'; ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 128, 42, 230);
@@ -355,25 +379,60 @@
     var wash = new THREE.PointLight(0xaec8ff, 0, 18); wash.position.set(0, SCR_Y + SCR_H / 2, -HZ + 3.2); g.add(wash);    // reflet bleuté de l'écran sur les premières rangées
     var dim = 1;                                       // 1 = salle allumée, 0,22 = séance en cours
 
-    /* ===================== LE FILM ===================== */
+    /* ===================== LE FILM : partagé par le serveur (api/cinema.js) ===================== */
+    // Seuls le Patron et le Co Fondateur choisissent le lien et lancent/coupent la séance (console RÉGIE ou écran) ;
+    // tout le monde reçoit le même état (lien, lecture/pause, position) environ une fois par seconde.
+    function isCinemaCtrl() {
+      var boss = false, co = false;
+      try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); co = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) { /* ok */ }
+      return boss || co;
+    }
     var video = document.createElement('video');
-    video.src = VIDEO_SRC; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
+    video.crossOrigin = 'anonymous'; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-    var film = room.film = { state: 'idle' };           // idle | playing | paused | ended
+    var net = { url: '', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '' };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
-    video.addEventListener('playing', function () { var reprise = film.state === 'paused'; film.state = 'playing'; showVideo(true); if (!reprise) setHud(true); refreshHud(); });   // le film démarre : l'interface se cache
-    video.addEventListener('pause', function () { if (film.state === 'playing' && !video.ended) { film.state = 'paused'; refreshHud(); } });
-    video.addEventListener('ended', function () { film.state = 'ended'; showVideo(false); paintPoster('REVOIR LA SÉANCE'); setHud(false); refreshHud(); });
-    video.addEventListener('error', function () { film.state = 'idle'; world.flash('🎬 Le film n\'a pas pu se charger.', 'Réessaie dans un instant.'); refreshHud(); });
-    function playFilm() {
-      if (film.state === 'ended') video.currentTime = 0;
-      var p = video.play();
-      if (p && p.catch) p.catch(function () { world.flash('🎬 Clique sur « Lancer la séance » pour démarrer le film.'); });
+    function netPosNow() {
+      var p = net.position;
+      if (net.status === 'playing') p += (performance.now() - net.recvAt) / 1000;
+      return p;
+    }
+    video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
+    video.addEventListener('ended', function () { if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); });   // le Patron/Co Fondateur coupe la séance pour tout le monde
+    function applyNet(st) {
+      if (!st) return;
+      var wasPlaying = net.status === 'playing';
+      net.url = st.url || ''; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
+      if (net.url !== net.lastSrc) { net.lastSrc = net.url; video.src = net.url || ''; try { video.load(); } catch (e) { /* ok */ } }
+      if (net.status === 'playing') {
+        showVideo(true); if (!wasPlaying) setHud(true);
+        if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
+        var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis : la lecture reprendra au prochain geste de l'utilisateur */ });
+      } else {
+        if (!video.paused) video.pause();
+        if (wasPlaying) setHud(false);
+        if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
+        else { showVideo(false); var lbl = net.url ? 'LANCER LA SÉANCE' : 'AUCUNE VIDÉO CHARGÉE'; if (lbl !== posterLabel) { posterLabel = lbl; paintPoster(lbl); } }
+      }
+      refreshConsole();
+    }
+    function pollCinema() {
+      if (net.busy) return;
+      net.busy = true;
+      fetch('/api/cinema', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { net.busy = false; applyNet(st); }).catch(function () { net.busy = false; });
+    }
+    function cinemaAction(action, extra) {
+      if (!isCinemaCtrl()) return Promise.resolve(null);
+      return world.post('/api/cinema', Object.assign({ action: action }, extra || {})).then(function (r) {
+        if (r && r.ok && r.state) applyNet(r.state);
+        else if (r && r.error) world.flash('⛔ ' + r.error);
+        return r;
+      });
     }
     function togglePlay() {
-      if (film.state === 'playing') video.pause(); else playFilm();
+      if (!isCinemaCtrl()) { world.flash('🔒 Réservé au Patron et au Co Fondateur.'); return; }
+      cinemaAction(net.status === 'playing' ? 'pause' : 'play');
     }
-    function stopFilm() { video.pause(); film.state = 'idle'; showVideo(false); paintPoster('LANCER LA SÉANCE'); setHud(false); refreshHud(); }
     room.togglePlay = togglePlay;
 
     /* ===================== MASQUER / MONTRER L'INTERFACE ===================== */
@@ -392,6 +451,39 @@
     }
     function unmountEye() { if (eyeEl && eyeEl.parentNode) eyeEl.parentNode.removeChild(eyeEl); eyeEl = null; if (world.hud) world.hud.classList.remove('cin-nohud'); hudHidden = false; }
 
+    /* ===================== CONSOLE RÉGIE (Patron / Co Fondateur) ===================== */
+    var consoleEl = null;
+    function mountConsole() {
+      if (consoleEl || !isCinemaCtrl()) return;
+      consoleEl = document.createElement('div'); consoleEl.className = 'cin-console hid';
+      consoleEl.innerHTML =
+        '<button class="cin-cn-x" data-a="close"><i class="fa-solid fa-xmark"></i></button>' +
+        '<div class="cin-cn-t"><i class="fa-solid fa-sliders"></i> Régie du cinéma</div>' +
+        '<input class="cin-cn-url" type="text" placeholder="Lien de la vidéo (URL .mp4…)" maxlength="500">' +
+        '<div class="cin-cn-row"><button data-a="load"><i class="fa-solid fa-link"></i> Charger</button></div>' +
+        '<div class="cin-cn-row"><button data-a="play"><i class="fa-solid fa-play"></i> Lancer</button><button data-a="pause"><i class="fa-solid fa-pause"></i> Pause</button><button data-a="stop"><i class="fa-solid fa-stop"></i> Couper</button></div>' +
+        '<div class="cin-cn-st" data-a="status"></div>';
+      consoleEl.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null; if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (a === 'close') { consoleEl.classList.add('hid'); return; }
+        if (a === 'load') { var u = consoleEl.querySelector('.cin-cn-url').value.trim(); if (u) cinemaAction('set', { url: u }); return; }
+        if (a === 'play' || a === 'pause' || a === 'stop') cinemaAction(a);
+      });
+      world.container.appendChild(consoleEl);
+    }
+    function unmountConsole() { if (consoleEl && consoleEl.parentNode) consoleEl.parentNode.removeChild(consoleEl); consoleEl = null; }
+    function toggleConsole() {
+      mountConsole(); if (!consoleEl) return;
+      consoleEl.classList.toggle('hid');
+      if (!consoleEl.classList.contains('hid')) { consoleEl.querySelector('.cin-cn-url').value = net.url || ''; refreshConsole(); }
+    }
+    function refreshConsole() {
+      if (!consoleEl || consoleEl.classList.contains('hid')) return;
+      var st = consoleEl.querySelector('[data-a="status"]');
+      st.textContent = net.status === 'playing' ? '▶ En cours · ' + fmtT(netPosNow()) : net.status === 'paused' ? '⏸ En pause · ' + fmtT(net.position) : net.url ? 'Prêt · ' + net.url : 'Aucun lien chargé';
+    }
+
     /* ===================== S'ASSEOIR ===================== */
     var music = createMusic(), cur = null, view = { yaw: 0, pitch: 0 }, standEl = null;
     function taken(s) {
@@ -408,11 +500,11 @@
       if (taken(s)) { w.flash('Ce fauteuil est occupé.'); return; }
       w.sitDown(room); cur = seat_.cur = s; view.yaw = view.pitch = 0;
       standEl = document.createElement('div'); standEl.className = 'cin-stand';
-      standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button><button data-a="play">⏯ Lecture / pause <kbd>P</kbd></button>';
+      standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button>' + (isCinemaCtrl() ? '<button data-a="play">⏯ Lecture / pause <kbd>P</kbd></button>' : '');
       standEl.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('button') : null; if (!a) return; if (a.getAttribute('data-a') === 'stand') stand(); else togglePlay(); });
       w.container.appendChild(standEl); standEl.classList.toggle('hid', hudHidden);
       window.addEventListener('keydown', onSeatKey, true);
-      if (film.state === 'idle') w.flash('🎬 Bonne séance !', 'Clique sur l\'écran ou appuie sur P pour lancer le film.');
+      if (net.status === 'idle' && isCinemaCtrl()) w.flash('🎬 Bonne séance !', 'Appuie sur P ou clique sur l\'écran pour lancer le film.');
     }
     function stand() {
       if (!cur) return;
@@ -443,52 +535,33 @@
     };
 
     /* ===================== INTERFACE ===================== */
-    room.hudBottom =
-      '<div class="cin"><div class="cin-t"><img class="cin-logo" src="assets/cinema/tropistream-serveur.png" alt="">Cinéma Tropi Stream</div><div class="cin-st" data-s3d="cinst"></div>' +
-      '<div class="cin-bar"><i data-s3d="cinbar"></i></div>' +
-      '<div class="cin-row"><button class="cin-play" data-s3d="cinplay"><i class="fa-solid fa-play"></i> Lancer la séance</button></div>' +
-      '<div class="cin-tip">Avance vers un fauteuil et appuie sur <b>F</b> (ou clique dessus) pour t\'asseoir · clic sur l\'écran ou <b>P</b> : lecture / pause</div></div>';
-    room.bindHud = function (hud) {
-      room.elSt = hud.querySelector('[data-s3d="cinst"]'); room.elBar = hud.querySelector('[data-s3d="cinbar"]');
-      room.elPlay = hud.querySelector('[data-s3d="cinplay"]');
-      room.elPlay.addEventListener('click', function () { togglePlay(); });
-      refreshHud();
-    };
-    function setBtn(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
-    function refreshHud() {
-      if (!room.elPlay) return;
-      var s = film.state, dur = video.duration || 0;
-      // le HUD est rafraîchi 4 fois par seconde : on ne touche au bouton que si son contenu change (sinon le logo clignote)
-      setBtn(room.elPlay, s === 'playing' ? '<i class="fa-solid fa-pause"></i> Pause' : s === 'paused' ? '<i class="fa-solid fa-play"></i> Reprendre' : s === 'ended' ? '<i class="fa-solid fa-rotate-right"></i> Revoir la séance' : '<i class="fa-solid fa-play"></i> Lancer la séance');
-      room.elSt.textContent = s === 'playing' ? 'En salle · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'paused' ? 'En pause · ' + fmtT(video.currentTime) + ' / ' + fmtT(dur) : s === 'ended' ? 'Séance terminée' : 'Présentation Premium · ' + (dur ? fmtT(dur) : '0:58');
-      room.elBar.style.width = (dur ? clamp(video.currentTime / dur, 0, 1) * 100 : 0) + '%';
-    }
-
     room.hint = function (w) {
-      if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir · touche l’écran pour lancer le film';
-      return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir · clic sur l\'écran ou P : lancer le film' + (w.full ? ' · Échap : quitter' : '');
+      var ctrl = isCinemaCtrl();
+      if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
+      return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       music.start(); mountEye();
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
-      refreshHud();
+      pollCinema();
     };
     function leave() {
-      stand(); if (film.state !== 'idle') stopFilm();
-      music.stop(); unmountEye();
+      stand(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
+      music.stop(); unmountEye(); unmountConsole();
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
     }
     room.onLeave = leave;
-    room.onPause = function () { if (film.state === 'playing') video.pause(); music.stop(); unmountEye(); };
-    room.onPageHide = function () { if (film.state === 'playing') video.pause(); };
-    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); } };
+    room.onPause = function () { video.pause(); music.stop(); unmountEye(); };
+    room.onPageHide = function () { video.pause(); };
+    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); pollCinema(); } };
 
-    var hudT = 0, clock = 0;
+    var clock = 0, netT = 0;
     room.update = function (dt, w) {
       clock += dt;
-      var playing = film.state === 'playing';
+      netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
+      var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       var target = playing ? 1 : 0; openK += Math.max(-dt / 3, Math.min(dt / 4.5, target - openK)); layoutScreen();   // les rideaux s'ouvrent petit à petit (4,5 s), se referment plus vite
@@ -501,8 +574,7 @@
       // musique : elle se tait pendant le film (qui a son propre son)
       music.setLevel(playing ? 0 : 1);
       // son du film : plus fort près de l'écran
-      if (playing || film.state === 'paused') video.volume = clamp(1.15 - Math.hypot(w.player.x, w.player.z + HZ) / 26, 0.4, 1);
-      hudT += dt; if (hudT > 0.25) { hudT = 0; refreshHud(); }
+      if (playing || net.status === 'paused') video.volume = clamp(1.15 - Math.hypot(w.player.x, w.player.z + HZ) / 26, 0.4, 1);
     };
     room.dispose = function () { leave(); video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;
@@ -512,18 +584,19 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      '.cin{position:absolute;right:14px;bottom:62px;width:280px;background:rgba(8,5,12,.86);border:1px solid rgba(255,122,26,.6);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;pointer-events:auto;color:#f4e3b0}' +
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
-      '.cin-t{display:flex;align-items:center;gap:8px;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#ffb066}.cin-logo{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid rgba(255,122,26,.7)}' +
-      '.cin-st{font-size:12px;font-weight:800;color:#e9ddb4}' +
-      '.cin-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}.cin-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
-      '.cin-row{display:flex;gap:6px}.cin-row button{cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:8px 10px}' +
-      '.cin-play{flex:1;border:1px solid #ff7a1a;background:#c2410c;color:#fff}' +
-      '.cin-tip{font-size:11px;line-height:1.35;color:#d9c88f}.cin-tip b{color:#ffb066}' +
       '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}' +
       '.cin-eye{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:7;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;color:#fff;background:rgba(8,5,12,.7);border:1px solid rgba(255,122,26,.6);border-radius:999px;padding:7px 14px;opacity:.55;transition:opacity .2s}.cin-eye:hover{opacity:1}' +
       '.cin-stand{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:6;display:flex;gap:8px}' +
-      '.cin-stand button{cursor:pointer;background:rgba(8,5,12,.85);color:#fff;border:1.5px solid #ff7a1a;border-radius:12px;font-family:inherit;font-weight:800;font-size:13px;padding:10px 16px}.cin-stand kbd{opacity:.6;font-size:11px;margin-left:6px}';
+      '.cin-stand button{cursor:pointer;background:rgba(8,5,12,.85);color:#fff;border:1.5px solid #ff7a1a;border-radius:12px;font-family:inherit;font-weight:800;font-size:13px;padding:10px 16px}.cin-stand kbd{opacity:.6;font-size:11px;margin-left:6px}' +
+      '.cin-console{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;width:320px;background:rgba(8,5,12,.94);border:1.5px solid rgba(201,162,39,.75);border-radius:16px;padding:18px 16px 16px;display:flex;flex-direction:column;gap:10px;color:#f4e3b0;pointer-events:auto}' +
+      '.cin-console.hid{display:none}' +
+      '.cin-cn-t{font-weight:900;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:#e9c66b;display:flex;align-items:center;gap:8px}' +
+      '.cin-cn-url{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px}' +
+      '.cin-cn-row{display:flex;gap:6px}.cin-cn-row button{flex:1;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:9px 8px;border:1px solid rgba(255,122,26,.6);background:#2a1208;color:#fff}' +
+      '.cin-cn-row button[data-a="load"]{background:#c2410c}' +
+      '.cin-cn-st{font-size:11.5px;color:#d9c88f;word-break:break-all}' +
+      '.cin-cn-x{position:absolute;top:8px;right:10px;background:none;border:none;color:#d9c88f;cursor:pointer;font-size:14px;padding:4px}';
     document.head.appendChild(st);
   }
 
