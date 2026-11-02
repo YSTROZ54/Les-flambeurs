@@ -18,10 +18,12 @@
   // logos générés (sans fond en damier) pour certains symboles, affichés sur les rouleaux à la place de l'emoji ; chargés une seule fois pour toutes les bornes
   var SYM_IMAGES = { '7️⃣': 'assets/icones/symboles/sept.png' };
   var symImgCache = {};
-  function symImage(sym) {
+  // onReady (facultatif) : prévenu une fois, si l'image n'est pas encore prête (pour redessiner un canvas statique après le chargement)
+  function symImage(sym, onReady) {
     var src = SYM_IMAGES[sym]; if (!src) return null;
     var c = symImgCache[sym];
-    if (!c) { c = symImgCache[sym] = { img: new Image(), ready: false }; c.img.onload = function () { c.ready = true; }; c.img.src = src; }
+    if (!c) { c = symImgCache[sym] = { img: new Image(), ready: false, waiters: [] }; c.img.onload = function () { c.ready = true; var w = c.waiters; c.waiters = []; w.forEach(function (fn) { fn(); }); }; c.img.src = src; }
+    if (!c.ready && onReady) c.waiters.push(onReady);
     return c.ready ? c.img : null;
   }
   var BET_STEPS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
@@ -709,27 +711,36 @@
       var P2 = typeof SLOT_PAY_2 !== 'undefined' ? SLOT_PAY_2 : { '🔥': 2.5, '👑': 2.0, '7️⃣': 1.8, '💎': 1.5, '🔔': 1.1, '🍋': 0.8, '🍒': 0.4 };
       var NAMES = { '🔥': 'Flammes', '👑': 'Couronnes', '7️⃣': 'Sept', '💎': 'Diamants', '🔔': 'Cloches', '🍋': 'Citrons', '🍒': 'Cerises' };
       function mx(v) { return '×' + String(v).replace('.', ','); }
-      var g = rx.createLinearGradient(0, 0, 0, 720); g.addColorStop(0, '#1d0a1c'); g.addColorStop(1, '#0a0510');
-      rx.fillStyle = g; rx.fillRect(0, 0, 1400, 720);
-      rx.strokeStyle = '#c9a227'; rx.lineWidth = 6; rx.strokeRect(8, 8, 1384, 704);
-      rx.textBaseline = 'middle'; rx.textAlign = 'center';
-      rx.fillStyle = '#f3cf62'; rx.shadowColor = '#ffb300'; rx.shadowBlur = 14; rx.font = '800 64px ' + SERIF;
-      rx.fillText('RÈGLES & GAINS', 700, 62); rx.shadowBlur = 0;
-      rx.fillStyle = '#d9c88f'; rx.font = '600 28px ' + MONO; rx.fillText('Aligne les symboles sur la ligne rouge · gain = mise × multiplicateur', 700, 122);
-      [['🏆 3 SYMBOLES IDENTIQUES', 50, P3, 'Trois '], ['✨ 2 SYMBOLES IDENTIQUES', 720, P2, '2 ']].forEach(function (col, ci) {
-        rx.textAlign = 'left'; rx.fillStyle = '#ffb3c8'; rx.font = '800 34px ' + SERIF; rx.fillText(col[0], col[1], 180);
-        SYMS.forEach(function (s, i) {
-          var y = 240 + i * 62;
-          if (ci === 0 && i === 0) { rx.fillStyle = 'rgba(239,68,68,0.22)'; rx.fillRect(col[1] - 10, y - 28, 640, 56); }
-          rx.fillStyle = 'rgba(255,255,255,0.05)'; if (!(ci === 0 && i === 0)) rx.fillRect(col[1] - 10, y - 28, 640, 56);
-          rx.font = '34px ' + EMOJI_FONT; rx.fillStyle = '#fff';
-          rx.fillText(ci === 0 ? s + s + s : s + s, col[1], y);
-          rx.font = '700 30px ' + MONO; rx.fillStyle = '#f4e3b0'; rx.fillText(col[3] + NAMES[s] + (ci === 0 && i === 0 ? ' (Jackpot)' : ''), col[1] + (ci === 0 ? 150 : 100), y, ci === 0 ? 330 : 380);
-          rx.textAlign = 'right'; rx.font = '800 34px ' + MONO; rx.fillStyle = '#ffd24a'; rx.fillText(mx(col[2][s]), col[1] + 620, y); rx.textAlign = 'left';
+      // le ou les symboles d'une ligne : le logo généré (quand il y en a un) à la place de l'emoji répété
+      function drawRowSyms(s, x0, y, count) {
+        var im = symImage(s, paintRules);
+        if (!im) { rx.font = '34px ' + EMOJI_FONT; rx.fillStyle = '#fff'; rx.fillText(new Array(count + 1).join(s), x0, y); return; }
+        var sz = 42, gap = 6, n;
+        for (n = 0; n < count; n++) rx.drawImage(im, x0 + n * (sz + gap), y - sz / 2, sz, sz);
+      }
+      function paintRules() {
+        var g = rx.createLinearGradient(0, 0, 0, 720); g.addColorStop(0, '#1d0a1c'); g.addColorStop(1, '#0a0510');
+        rx.fillStyle = g; rx.fillRect(0, 0, 1400, 720);
+        rx.strokeStyle = '#c9a227'; rx.lineWidth = 6; rx.strokeRect(8, 8, 1384, 704);
+        rx.textBaseline = 'middle'; rx.textAlign = 'center';
+        rx.fillStyle = '#f3cf62'; rx.shadowColor = '#ffb300'; rx.shadowBlur = 14; rx.font = '800 64px ' + SERIF;
+        rx.fillText('RÈGLES & GAINS', 700, 62); rx.shadowBlur = 0;
+        rx.fillStyle = '#d9c88f'; rx.font = '600 28px ' + MONO; rx.fillText('Aligne les symboles sur la ligne rouge · gain = mise × multiplicateur', 700, 122);
+        [['🏆 3 SYMBOLES IDENTIQUES', 50, P3, 'Trois '], ['✨ 2 SYMBOLES IDENTIQUES', 720, P2, '2 ']].forEach(function (col, ci) {
+          rx.textAlign = 'left'; rx.fillStyle = '#ffb3c8'; rx.font = '800 34px ' + SERIF; rx.fillText(col[0], col[1], 180);
+          SYMS.forEach(function (s, i) {
+            var y = 240 + i * 62;
+            if (ci === 0 && i === 0) { rx.fillStyle = 'rgba(239,68,68,0.22)'; rx.fillRect(col[1] - 10, y - 28, 640, 56); }
+            rx.fillStyle = 'rgba(255,255,255,0.05)'; if (!(ci === 0 && i === 0)) rx.fillRect(col[1] - 10, y - 28, 640, 56);
+            drawRowSyms(s, col[1], y, ci === 0 ? 3 : 2);
+            rx.font = '700 30px ' + MONO; rx.fillStyle = '#f4e3b0'; rx.fillText(col[3] + NAMES[s] + (ci === 0 && i === 0 ? ' (Jackpot)' : ''), col[1] + (ci === 0 ? 150 : 100), y, ci === 0 ? 330 : 380);
+            rx.textAlign = 'right'; rx.font = '800 34px ' + MONO; rx.fillStyle = '#ffd24a'; rx.fillText(mx(col[2][s]), col[1] + 620, y); rx.textAlign = 'left';
+          });
         });
-      });
-      rx.textAlign = 'center'; rx.fillStyle = '#9a8a58'; rx.font = '600 26px ' + MONO; rx.fillText('Mise maximale : 100 000 €', 700, 692);
-      rTex.needsUpdate = true;
+        rx.textAlign = 'center'; rx.fillStyle = '#9a8a58'; rx.font = '600 26px ' + MONO; rx.fillText('Mise maximale : 100 000 €', 700, 692);
+        rTex.needsUpdate = true;
+      }
+      paintRules();
     })();
     var rulesMat = new THREE.MeshBasicMaterial({ map: rTex });
     var pcv = mkCanvas(768, 192), px = pcv.getContext('2d'), pTex = mkTex(pcv);
@@ -782,6 +793,7 @@
       var pg = pc2.createLinearGradient(0, 0, 0, PHt); pg.addColorStop(0, '#2b1038'); pg.addColorStop(1, '#0d0612'); pc2.fillStyle = pg; pc2.fillRect(0, 0, PWd, PHt);
       pc2.strokeStyle = '#c9a227'; pc2.lineWidth = 8; pc2.strokeRect(10, 10, PWd - 20, PHt - 20); pc2.strokeStyle = 'rgba(201,162,39,0.45)'; pc2.lineWidth = 2; pc2.strokeRect(24, 24, PWd - 48, PHt - 48);
       var tex = mkTex(pc);
+      pc2.textAlign = 'center'; pc2.textBaseline = 'middle';   // vaut aussi pour le titre plus bas : sinon il part de PWd/2 vers la droite et sort du cadre
       function clipSymbole() { pc2.save(); pc2.beginPath(); pc2.rect(26, 26, PWd - 52, PHt * 0.66); pc2.clip(); }   // le symbole (emoji ou logo) ne doit jamais déborder du cadre, même mal centré
       if (imgSrc) {   // logo généré (sans fond en damier) plutôt que l'emoji du symbole
         var img = new Image();
@@ -789,7 +801,7 @@
         img.src = imgSrc;
       } else {
         clipSymbole();
-        pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.42) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+        pc2.font = Math.round(PWd * 0.42) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
         pc2.restore();
       }
       pc2.fillStyle = '#f3cf62'; pc2.shadowColor = '#ffb300'; pc2.shadowBlur = 12; pc2.font = '800 ' + Math.round(PWd * 0.115) + 'px ' + SERIF; pc2.fillText(title, PWd / 2, PHt * 0.82, PWd - 70);
