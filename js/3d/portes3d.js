@@ -130,6 +130,25 @@
   /* ---------- peinture des battants (un battant : W × H pixels) ---------- */
   function noise(c, W, H, n, col) { c.fillStyle = col; for (var i = 0; i < n; i++) c.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
   function border(c, W, H, col, w) { c.strokeStyle = col; c.lineWidth = w; c.strokeRect(w, w, W - w * 2, H - w * 2); }
+  // plaque lumineuse « LA CHAMBRE FORTE » à côté de la porte des mini jeux : une grande porte de coffre, un bandeau « NOUVEAU » et un liseré vert
+  function vaultPlaque(g, w, h) {
+    var W = 512, H = 700, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var c = cv.getContext('2d'), i;
+    var bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0b1a13'); bg.addColorStop(1, '#050c09'); c.fillStyle = bg; c.fillRect(0, 0, W, H);
+    c.strokeStyle = '#3dff9a'; c.lineWidth = 10; c.shadowColor = '#3dff9a'; c.shadowBlur = 22; c.strokeRect(10, 10, W - 20, H - 20); c.shadowBlur = 0; c.strokeStyle = '#c9a227'; c.lineWidth = 4; c.strokeRect(28, 28, W - 56, H - 56);
+    var cx = W / 2, cy = 300, R = 190, dg = c.createRadialGradient(cx - 40, cy - 40, 20, cx, cy, R); dg.addColorStop(0, '#9aa3b6'); dg.addColorStop(0.75, '#4b5262'); dg.addColorStop(1, '#2a2f3a');
+    c.fillStyle = dg; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill(); c.strokeStyle = '#e1b92f'; c.lineWidth = 12; c.beginPath(); c.arc(cx, cy, R - 6, 0, TAU); c.stroke(); c.lineWidth = 5; c.beginPath(); c.arc(cx, cy, R - 48, 0, TAU); c.stroke();
+    for (i = 0; i < 12; i++) { var a = i / 12 * TAU; c.fillStyle = '#e1b92f'; c.beginPath(); c.arc(cx + Math.cos(a) * (R - 27), cy + Math.sin(a) * (R - 27), 7, 0, TAU); c.fill(); }
+    c.strokeStyle = '#e4e9f4'; c.lineWidth = 14; c.lineCap = 'round'; for (i = 0; i < 3; i++) { var sa = i / 3 * TAU - Math.PI / 2; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(sa) * 105, cy + Math.sin(sa) * 105); c.stroke(); }
+    c.fillStyle = '#e1b92f'; c.beginPath(); c.arc(cx, cy, 30, 0, TAU); c.fill(); c.fillStyle = '#3a2c08'; c.beginPath(); c.arc(cx, cy, 15, 0, TAU); c.fill();
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#e8fff1'; c.shadowColor = '#3dff9a'; c.shadowBlur = 18; c.font = '900 56px ' + SERIF; c.fillText('LA CHAMBRE', cx, 540, W - 90); c.fillText('FORTE', cx, 598, W - 90); c.shadowBlur = 0;
+    c.fillStyle = '#d9c88f'; c.font = '700 26px ' + MONO; c.fillText('💎 DIAMANTS · 💣 BOMBES', cx, 648, W - 80);
+    c.save(); c.translate(70, 92); c.rotate(-0.5); c.fillStyle = '#d6221e'; c.fillRect(-92, -22, 184, 44); c.fillStyle = '#fff'; c.font = '900 28px ' + SERIF; c.fillText('NOUVEAU', 0, 2); c.restore();
+    var tex = new THREE.CanvasTexture(cv); tex.anisotropy = 8;
+    var PWd = 1.3, PHt = PWd * H / W, px = w / 2 + 1.55, py = 1.75;
+    var back = new THREE.Mesh(new THREE.BoxGeometry(PWd + 0.14, PHt + 0.14, 0.08), new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.5, metalness: 0.5 })); back.position.set(px, py, 0.05); g.add(back);
+    var pl = new THREE.Mesh(new THREE.PlaneGeometry(PWd, PHt), new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); pl.position.set(px, py, 0.11); g.add(pl);
+    var halo = new THREE.Mesh(new THREE.PlaneGeometry(PWd + 0.9, PHt + 0.9), new THREE.MeshBasicMaterial({ color: 0x3dff9a, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending })); halo.position.set(px, py, 0.03); g.add(halo);
+  }
   function bulbRing(g, w, h, mats) {                      // ampoules de chapiteau autour de la porte
     var n = 0;
     var halo = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -275,7 +294,8 @@
         c.fillStyle = '#ffd500'; c.beginPath(); c.arc(bx + 7 + cell * 4.5, by - cell * 0.55, cell * 0.38, 0, TAU); c.fill();     // un jeton qui tombe dans la colonne
         c.fillStyle = '#0d2a8a'; c.fillRect(bx + 4, by + bh, 12, cell * 0.5); c.fillRect(bx + bw - 16, by + bh, 12, cell * 0.5);
       },
-      deco: function (g, w) {                                  // deux piles de jetons de chaque côté de la porte
+      deco: function (g, w, h) {                               // une plaque « Chambre Forte » à droite de la porte, et deux piles de jetons de chaque côté
+        vaultPlaque(g, w, h);
         [[-1, 0xd8222a], [1, 0xffd500]].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 20), new THREE.MeshStandardMaterial({ color: s[1], roughness: 0.3 })); m.position.set(s[0] * (w / 2 + 0.55), 0.18, 0.5); g.add(m); });
       }
     },

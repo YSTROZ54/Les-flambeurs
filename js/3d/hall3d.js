@@ -25,7 +25,7 @@
     // mur de gauche (regarde vers +x)
     { x: -HX, z: -5, nx: 1, nz: 0, label: '🐺 LOUP GAROU', sub: 'BIENTÔT EN 3D', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' },   // l'ancienne porte de la chambre forte : ce jeu reste dans le menu 2D
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
-    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · PUISSANCE 4', color: 0xffd400, target: 'uno', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
+    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · PUISSANCE 4 · COFFRES', color: 0xffd400, target: 'uno', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)
     { x: HX, z: -5, nx: -1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
     { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },

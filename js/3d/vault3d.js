@@ -3,11 +3,12 @@
    ---------------------------------------------------------------------
    On y entre par l'ouverture au fond de la salle des mini jeux (uno3d.js) et on en ressort par l'ouverture derrière soi.
    Une salle de banque : au fond, un grand mur de 20 coffres (4 colonnes x 5 rangées). On s'assoit à l'un des quatre postes (F ou clic),
-   on règle sa mise et le nombre de bombes (3, 5, 8 ou 12), puis on lance la partie et on clique sur les coffres : un coffre s'ouvre sur un
-   diamant (le multiplicateur monte) ou sur une bombe (la mise est perdue). On encaisse quand on veut.
+   on règle sa mise et le nombre de bombes (3, 5, 8 ou 12), puis on lance la partie et on clique sur les coffres : le volet d'un coffre
+   remonte sur un diamant (le multiplicateur monte) ou sur une bombe (la mise est perdue). On encaisse quand on veut.
    Le serveur décide de tout, comme dans le jeu du menu (api/_games.js : mines_start / mines_pick / mines_cashout) : il place les bombes,
    prélève la mise et paie le gain ; le navigateur ne connaît que les coffres déjà ouverts. Chaque poste montre sa propre partie.
-   Fichiers liés : f3d-core.js, world3d.js, uno3d.js (l'ouverture d'entrée), api/_games.js (serveur).
+   À droite du mur : le classement des plus gros gains encaissés (api/_games.js garde le top 5, lu par GET /api/crash?vault=1).
+   Fichiers liés : f3d-core.js, world3d.js, uno3d.js (l'ouverture d'entrée), api/_games.js + api/crash.js (serveur).
    ===================================================================== */
 (function () {
   'use strict';
@@ -16,7 +17,7 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU, fmtN = F.fmtN;
 
   var HX = 10, HZ = 9, H = 6.6, OG = 1.9, OPH = 3.5;                   // salle, demi-largeur et hauteur de l'ouverture d'entrée
-  var COLS = 4, ROWS = 5, PX = 1.15, PY = 0.9, Y0 = 1.15, CN = 20;       // mur de coffres
+  var COLS = 4, ROWS = 5, PX = 1.15, PY = 0.9, Y0 = 1.05, CN = 20;       // mur de coffres
   var BETS = [10, 100, 500, 1000, 5000], BOMBS = [3, 5, 8, 12];
   var STOOLS = [-3.6, -1.2, 1.2, 3.6], STOOL_Z = -2.4;
 
@@ -32,105 +33,142 @@
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function sfx(name) { try { if (typeof window[name] === 'function') window[name](); } catch (e) { /* pas de son */ } }
+  // matériau d'affiche (texte, logo) : décalé en profondeur pour ne jamais « clignoter » contre ce qui est derrière
+  function decal(tex, transparent) { return new THREE.MeshBasicMaterial({ map: tex, transparent: !!transparent, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); }
+  function sharp(tex) { tex.anisotropy = 16; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipMapLinearFilter; tex.needsUpdate = true; return tex; }
 
   function createVaultRoom(world) {
     var low = world.low;
     var room = { title: '🔐 LA CHAMBRE FORTE', subtitle: 'TROUVE LES DIAMANTS, ÉVITE LES BOMBES', topic: 'flambeurs-vault-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
-    var g = room.group, i, k;
+    var g = room.group, i;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
 
-    /* --- matériaux et textures : acier brossé, rivets, bandes de sécurité --- */
-    var steel = new THREE.MeshStandardMaterial({ color: 0x626b7a, roughness: 0.38, metalness: 0.85 }), darkM = new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.6, metalness: 0.6 });
-    var goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.75 }), neonM = new THREE.MeshBasicMaterial({ color: 0x3dff9a });
-    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wg = wx.createLinearGradient(0, 0, 0, 256); wg.addColorStop(0, '#2b323f'); wg.addColorStop(1, '#1c2029'); wx.fillStyle = wg; wx.fillRect(0, 0, 256, 256);
-    for (i = 0; i < 90; i++) { wx.fillStyle = 'rgba(255,255,255,' + (0.015 + Math.random() * 0.03) + ')'; wx.fillRect(0, Math.random() * 256, 256, 1 + Math.random() * 2); }
-    wx.strokeStyle = 'rgba(0,0,0,0.55)'; wx.lineWidth = 4; wx.strokeRect(0, 0, 256, 256); wx.strokeStyle = 'rgba(255,255,255,0.08)'; wx.lineWidth = 2; wx.strokeRect(5, 5, 246, 246);
-    wx.fillStyle = '#8a93a4'; [[16, 16], [240, 16], [16, 240], [240, 240]].forEach(function (p) { wx.beginPath(); wx.arc(p[0], p[1], 4, 0, TAU); wx.fill(); });
-    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 8;
-    function wallMat(len) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.4, H / 2.4); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0.5 }); }
-    function wall(len, px, pz, ry, hh, py) { var m = new THREE.Mesh(new THREE.PlaneGeometry(len, hh || H), wallMat(len)); m.position.set(px, py || H / 2, pz); m.rotation.y = ry; g.add(m); return m; }
+    /* --- matériaux et textures : acier brossé, rivets, sol de dalles --- */
+    var steel = new THREE.MeshStandardMaterial({ color: 0x626b7a, roughness: 0.38, metalness: 0.8 }), darkM = new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.6, metalness: 0.5 });
+    var neonM = new THREE.MeshBasicMaterial({ color: 0x3dff9a }), goldM = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.75 });
+    var wc = mkCanvas(512, 512), wx = wc.getContext('2d'), wg = wx.createLinearGradient(0, 0, 0, 512); wg.addColorStop(0, '#2d3441'); wg.addColorStop(1, '#1d212b'); wx.fillStyle = wg; wx.fillRect(0, 0, 512, 512);
+    for (i = 0; i < 160; i++) { wx.fillStyle = 'rgba(255,255,255,' + (0.012 + Math.random() * 0.03) + ')'; wx.fillRect(0, Math.random() * 512, 512, 1 + Math.random() * 2); }
+    wx.strokeStyle = 'rgba(0,0,0,0.6)'; wx.lineWidth = 8; wx.strokeRect(0, 0, 512, 512); wx.strokeStyle = 'rgba(255,255,255,0.09)'; wx.lineWidth = 3; wx.strokeRect(9, 9, 494, 494);
+    [[32, 32], [480, 32], [32, 480], [480, 480]].forEach(function (p) { var rg = wx.createRadialGradient(p[0] - 2, p[1] - 2, 1, p[0], p[1], 8); rg.addColorStop(0, '#c4ccda'); rg.addColorStop(1, '#5d6676'); wx.fillStyle = rg; wx.beginPath(); wx.arc(p[0], p[1], 8, 0, TAU); wx.fill(); });
+    var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; sharp(wallTex);
+    function wallMat(len, hh) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.4, (hh || H) / 2.4); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0.45 }); }
+    function wall(len, px, pz, ry, hh, py) { var m = new THREE.Mesh(new THREE.PlaneGeometry(len, hh || H), wallMat(len, hh)); m.position.set(px, py || H / 2, pz); m.rotation.y = ry; g.add(m); return m; }
     wall(HX * 2, 0, -HZ, 0); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     wall(HX - OG, -(HX + OG) / 2, HZ, Math.PI); wall(HX - OG, (HX + OG) / 2, HZ, Math.PI); wall(OG * 2, 0, HZ, Math.PI, H - OPH, OPH + (H - OPH) / 2);     // mur d'entrée, ouvert au milieu
-    // casiers de dépôt décoratifs sur les deux murs de côté
-    var dc = mkCanvas(1024, 512), dx = dc.getContext('2d'); dx.fillStyle = '#12151b'; dx.fillRect(0, 0, 1024, 512);
-    for (var dy = 0; dy < 4; dy++) for (var dxi = 0; dxi < 8; dxi++) {
-      var bx = 12 + dxi * 125, by = 12 + dy * 124; var bgr = dx.createLinearGradient(0, by, 0, by + 110); bgr.addColorStop(0, '#59606e'); bgr.addColorStop(1, '#3a404c');
-      dx.fillStyle = bgr; rr(dx, bx, by, 113, 110, 8); dx.fill(); dx.strokeStyle = '#8a93a4'; dx.lineWidth = 2; dx.stroke();
-      dx.fillStyle = '#c9a227'; dx.beginPath(); dx.arc(bx + 56, by + 52, 15, 0, TAU); dx.fill(); dx.fillStyle = '#2b2208'; dx.fillRect(bx + 52, by + 40, 8, 24);
-      dx.fillStyle = '#0c0f13'; dx.fillRect(bx + 30, by + 90, 53, 11); dx.fillStyle = '#7ee0a0'; dx.font = '700 9px ' + MONO; dx.textAlign = 'center'; dx.fillText(String(dy * 8 + dxi + 1).padStart(3, '0'), bx + 56, by + 99);
+    // casiers de dépôt sur les deux murs de côté : 14 x 3, dessinés en haute définition
+    var LW = 2560, LH = 480, dc = mkCanvas(LW, LH), dx = dc.getContext('2d'); dx.fillStyle = '#0f1218'; dx.fillRect(0, 0, LW, LH);
+    for (var dy = 0; dy < 3; dy++) for (var dxi = 0; dxi < 14; dxi++) {
+      var cw = LW / 14, ch = LH / 3, bx = dxi * cw + 6, by = dy * ch + 6, bw = cw - 12, bh = ch - 12;
+      var bgr = dx.createLinearGradient(0, by, 0, by + bh); bgr.addColorStop(0, '#6a7282'); bgr.addColorStop(0.5, '#4d5462'); bgr.addColorStop(1, '#3a404c');
+      dx.fillStyle = bgr; rr(dx, bx, by, bw, bh, 10); dx.fill(); dx.strokeStyle = 'rgba(255,255,255,0.28)'; dx.lineWidth = 3; dx.beginPath(); dx.moveTo(bx + 10, by + 3); dx.lineTo(bx + bw - 10, by + 3); dx.stroke();
+      dx.strokeStyle = '#272c36'; dx.lineWidth = 3; rr(dx, bx, by, bw, bh, 10); dx.stroke();
+      var kg = dx.createRadialGradient(bx + bw / 2 - 5, by + bh * 0.42 - 5, 2, bx + bw / 2, by + bh * 0.42, 26); kg.addColorStop(0, '#f3d878'); kg.addColorStop(1, '#a8841a'); dx.fillStyle = kg; dx.beginPath(); dx.arc(bx + bw / 2, by + bh * 0.42, 24, 0, TAU); dx.fill();
+      dx.fillStyle = '#2b2208'; dx.fillRect(bx + bw / 2 - 3, by + bh * 0.42 - 11, 6, 22); dx.beginPath(); dx.arc(bx + bw / 2, by + bh * 0.42 - 11, 5, 0, TAU); dx.fill();
+      dx.fillStyle = '#0a0d11'; rr(dx, bx + bw / 2 - 34, by + bh - 34, 68, 22, 4); dx.fill(); dx.fillStyle = '#7ee0a0'; dx.font = '800 17px ' + MONO; dx.textAlign = 'center'; dx.textBaseline = 'middle'; dx.fillText(String(dy * 14 + dxi + 1).padStart(3, '0'), bx + bw / 2, by + bh - 22);
     }
-    var dtex = mkTex(dc);
-    [-1, 1].forEach(function (sd) { var m = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), new THREE.MeshStandardMaterial({ map: dtex, roughness: 0.5, metalness: 0.4 })); m.scale.set(1, 0.38, 1); m.position.set(sd * (HX - 0.03), 1.9, -1.2); m.rotation.y = -sd * Math.PI / 2; g.add(m); });
-    // sol : dalles d'acier sombre et bande jaune de sécurité devant le mur de coffres
-    var fc = mkCanvas(512, 512), fxx = fc.getContext('2d'); fxx.fillStyle = '#181b22'; fxx.fillRect(0, 0, 512, 512);
-    for (i = 0; i < 300; i++) { fxx.fillStyle = 'rgba(255,255,255,' + (0.01 + Math.random() * 0.025) + ')'; fxx.fillRect(Math.random() * 512, Math.random() * 512, 30 + Math.random() * 80, 1); }
-    fxx.strokeStyle = '#05070a'; fxx.lineWidth = 6; fxx.strokeRect(0, 0, 512, 512); fxx.strokeRect(0, 0, 256, 256); fxx.strokeRect(256, 256, 256, 256);
-    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 5, HZ * 2 / 5); ft.anisotropy = 8;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.35, metalness: 0.7 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    var dtex = sharp(mkTex(dc));
+    [-1, 1].forEach(function (sd) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(14, 14 * LH / LW), decal(dtex)); m.position.set(sd * (HX - 0.06), 1.95, -1.2); m.rotation.y = -sd * Math.PI / 2; g.add(m);
+      box(g, 0.1, 0.12, 14.2, steel, sd * (HX - 0.05), 1.95 + 7 * LH / LW + 0.07, -1.2); box(g, 0.1, 0.12, 14.2, steel, sd * (HX - 0.05), 1.95 - 7 * LH / LW - 0.07, -1.2);
+    });
+    // sol : grandes dalles d'acier sombre ; bande jaune de sécurité devant le mur de coffres
+    var fc = mkCanvas(1024, 1024), fxx = fc.getContext('2d'); fxx.fillStyle = '#181b22'; fxx.fillRect(0, 0, 1024, 1024);
+    for (i = 0; i < 600; i++) { fxx.fillStyle = 'rgba(255,255,255,' + (0.008 + Math.random() * 0.02) + ')'; fxx.fillRect(Math.random() * 1024, Math.random() * 1024, 40 + Math.random() * 160, 1.5); }
+    fxx.strokeStyle = '#05070a'; fxx.lineWidth = 8; fxx.strokeRect(0, 0, 1024, 1024); fxx.strokeRect(0, 0, 512, 512); fxx.strokeRect(512, 512, 512, 512);
+    var ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 6, HZ * 2 / 6); sharp(ft);
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.35, metalness: 0.6 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
     var hz = mkCanvas(512, 64), hzx = hz.getContext('2d'); hzx.fillStyle = '#e8b800'; hzx.fillRect(0, 0, 512, 64); hzx.fillStyle = '#15171c';
     for (i = -2; i < 14; i++) { hzx.beginPath(); hzx.moveTo(i * 48, 64); hzx.lineTo(i * 48 + 24, 64); hzx.lineTo(i * 48 + 56, 0); hzx.lineTo(i * 48 + 32, 0); hzx.fill(); }
-    var hzt = mkTex(hz); hzt.wrapS = THREE.RepeatWrapping; hzt.repeat.set(5, 1);
-    var strip = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.5), new THREE.MeshBasicMaterial({ map: hzt })); strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.012, -HZ + 3.1); g.add(strip);
+    var hzt = sharp(mkTex(hz)); hzt.wrapS = THREE.RepeatWrapping; hzt.repeat.set(5, 1);
+    var strip = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.5), decal(hzt)); strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.02, -HZ + 3.1); g.add(strip);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0c10 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     for (i = -2; i <= 2; i++) box(g, 0.25, 0.05, HZ * 2 - 1, new THREE.MeshBasicMaterial({ color: i % 2 ? 0xdfe9ff : 0x9affc8 }), i * 3.2, H - 0.04, 0);
-    // corniche dorée et plinthe
-    [[HX * 2, 0.16, 0.14, 0, 0.9, -HZ + 0.07], [0.14, 0.16, HZ * 2, -HX + 0.07, 0.9, 0], [0.14, 0.16, HZ * 2, HX - 0.07, 0.9, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], goldM, d[3], d[4], d[5]); });
 
-    /* --- ouverture d'entrée (derrière soi) : montants d'acier, néons verts, petit couloir vers les mini jeux --- */
+    /* --- ouverture d'entrée (derrière soi) : cadre d'acier et néons verts, et au bout un petit couloir de velours rouge vers les mini jeux --- */
     [-1, 1].forEach(function (sd) { box(g, 0.34, OPH + 0.1, 0.3, steel, sd * (OG + 0.17), (OPH + 0.1) / 2, HZ - 0.12); box(g, 0.04, OPH, 0.04, neonM, sd * (OG - 0.02), OPH / 2, HZ - 0.3); });
     box(g, OG * 2 + 0.7, 0.3, 0.34, steel, 0, OPH + 0.1, HZ - 0.14); box(g, OG * 2, 0.04, 0.04, neonM, 0, OPH - 0.02, HZ - 0.3);
-    var ec = mkCanvas(512, 128), ex = ec.getContext('2d'); ex.fillStyle = '#0c1410'; ex.fillRect(0, 0, 512, 128); ex.strokeStyle = '#c9a227'; ex.lineWidth = 6; ex.strokeRect(4, 4, 504, 120);
-    ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.shadowColor = '#ffd24a'; ex.shadowBlur = 10; ex.fillStyle = '#fff1b8'; ex.font = '800 44px ' + SERIF; ex.fillText('🎮 MINI JEUX', 256, 50, 480); ex.shadowBlur = 0; ex.fillStyle = '#d9c88f'; ex.font = '600 22px ' + MONO; ex.fillText('RETOUR · UNO · PUISSANCE 4', 256, 96, 480);
-    var es = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: mkTex(ec) })); es.position.set(0, OPH + 0.6, HZ - 0.3); es.rotation.y = Math.PI; g.add(es);
-    var CL = 3, cf = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), darkM); cf.rotation.x = -Math.PI / 2; cf.position.set(0, 0.01, HZ + CL / 2); g.add(cf);
-    var cce = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), darkM); cce.rotation.x = Math.PI / 2; cce.position.set(0, OPH, HZ + CL / 2); g.add(cce);
-    [-1, 1].forEach(function (sd) { var cw = new THREE.Mesh(new THREE.PlaneGeometry(CL, OPH), steel); cw.rotation.y = -sd * Math.PI / 2; cw.position.set(sd * OG, OPH / 2, HZ + CL / 2); g.add(cw); box(g, 0.05, 0.05, CL, neonM, sd * (OG - 0.03), 0.9, HZ + CL / 2); });
-    box(g, OG * 2, OPH, 0.05, new THREE.MeshBasicMaterial({ color: 0x3a2410 }), 0, OPH / 2, HZ + CL);
+    var ec = mkCanvas(1024, 256), ex = ec.getContext('2d'); ex.fillStyle = '#0c1410'; ex.fillRect(0, 0, 1024, 256); ex.strokeStyle = '#c9a227'; ex.lineWidth = 10; ex.strokeRect(6, 6, 1012, 244);
+    ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.shadowColor = '#ffd24a'; ex.shadowBlur = 16; ex.fillStyle = '#fff1b8'; ex.font = '800 92px ' + SERIF; ex.fillText('🎮 MINI JEUX', 512, 100, 960); ex.shadowBlur = 0; ex.fillStyle = '#d9c88f'; ex.font = '600 44px ' + MONO; ex.fillText('RETOUR · UNO · PUISSANCE 4', 512, 190, 960);
+    box(g, 2.7, 0.76, 0.08, darkM, 0, OPH + 0.62, HZ - 0.36);
+    var es = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), decal(sharp(mkTex(ec)))); es.position.set(0, OPH + 0.62, HZ - 0.42); es.rotation.y = Math.PI; g.add(es);
+    var CL = 3.4, warm = new THREE.MeshStandardMaterial({ color: 0x4a1422, roughness: 0.85 }), warmD = new THREE.MeshStandardMaterial({ color: 0x2a0b14, roughness: 0.9 });
+    var cf = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), new THREE.MeshStandardMaterial({ color: 0x5a0f1c, roughness: 0.8 })); cf.rotation.x = -Math.PI / 2; cf.position.set(0, 0.02, HZ + CL / 2); g.add(cf);
+    box(g, 0.9, 0.02, CL, new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.4, metalness: 0.6 }), 0, 0.03, HZ + CL / 2);
+    var cce = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), warmD); cce.rotation.x = Math.PI / 2; cce.position.set(0, OPH, HZ + CL / 2); g.add(cce);
+    [-1, 1].forEach(function (sd) {
+      var cw2 = new THREE.Mesh(new THREE.PlaneGeometry(CL, OPH), warm); cw2.rotation.y = -sd * Math.PI / 2; cw2.position.set(sd * OG, OPH / 2, HZ + CL / 2); g.add(cw2);
+      box(g, 0.06, 0.06, CL, new THREE.MeshBasicMaterial({ color: 0xffd98a }), sd * (OG - 0.04), OPH - 0.08, HZ + CL / 2);
+      for (var lp = 0; lp < 2; lp++) { var lamp0 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff0c0 })); lamp0.position.set(sd * (OG - 0.12), 2.2, HZ + 0.9 + lp * 1.5); g.add(lamp0); }
+    });
+    // le fond du couloir : l'ambiance des mini jeux (papier peint bordeaux, cadre doré, carte UNO, grille de Puissance 4)
+    var pc = mkCanvas(1024, 1024), px = pc.getContext('2d'), pg = px.createLinearGradient(0, 0, 0, 1024); pg.addColorStop(0, '#5a1828'); pg.addColorStop(1, '#3a0c18'); px.fillStyle = pg; px.fillRect(0, 0, 1024, 1024);
+    px.strokeStyle = 'rgba(224,186,92,0.3)'; px.lineWidth = 3; for (i = -1; i < 9; i++) { px.beginPath(); px.moveTo(i * 128, 0); px.lineTo(i * 128 + 1024, 1024); px.moveTo(i * 128 + 1024, 0); px.lineTo(i * 128, 1024); px.stroke(); }
+    var rg2 = px.createRadialGradient(512, 440, 20, 512, 440, 520); rg2.addColorStop(0, 'rgba(255,230,160,0.55)'); rg2.addColorStop(1, 'rgba(255,230,160,0)'); px.fillStyle = rg2; px.fillRect(0, 0, 1024, 1024);
+    px.save(); px.translate(300, 470); px.rotate(-0.28); px.fillStyle = '#0a0a0c'; rr(px, -120, -170, 240, 340, 22); px.fill(); px.strokeStyle = '#ffd24a'; px.lineWidth = 8; rr(px, -120, -170, 240, 340, 22); px.stroke(); px.fillStyle = '#d6221e'; px.beginPath(); px.ellipse(0, 0, 100, 56, -0.5, 0, TAU); px.fill(); px.fillStyle = '#ffde00'; px.font = '900 68px ' + SERIF; px.textAlign = 'center'; px.textBaseline = 'middle'; px.fillText('UNO', 0, 4); px.restore();
+    px.fillStyle = '#1f4fd8'; rr(px, 560, 330, 340, 290, 18); px.fill(); for (var gi = 0; gi < 6; gi++) for (var gj = 0; gj < 7; gj++) { px.fillStyle = (gi * 7 + gj) % 5 === 0 ? '#d8222a' : (gi * 7 + gj) % 7 === 3 ? '#ffd500' : '#0a0a0c'; px.beginPath(); px.arc(588 + gj * 45, 358 + gi * 45, 17, 0, TAU); px.fill(); }
+    px.textAlign = 'center'; px.fillStyle = '#ffe9a8'; px.shadowColor = '#ffb300'; px.shadowBlur = 20; px.font = '900 96px ' + SERIF; px.fillText('MINI JEUX', 512, 140); px.shadowBlur = 0;
+    px.strokeStyle = '#c9a227'; px.lineWidth = 14; px.strokeRect(30, 30, 964, 964);
+    var endPlane = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, OPH), new THREE.MeshBasicMaterial({ map: sharp(mkTex(pc)) })); endPlane.rotation.y = Math.PI; endPlane.position.set(0, OPH / 2, HZ + CL); g.add(endPlane);
+    if (!low) { var el0 = new THREE.PointLight(0xffd9a0, 0.9, 7); el0.position.set(0, 2.8, HZ + 1.6); g.add(el0); }
 
-    /* --- le mur de 20 coffres, dans un grand cadre d'acier et d'or --- */
+    /* --- le mur de 20 coffres, dans un grand cadre d'acier à liseré vert --- */
     var WZ = -HZ;                                                  // plan du mur du fond
     var frameW = COLS * PX + 0.5, frameH = ROWS * PY + 0.5, frameY = Y0 + (ROWS - 1) * PY / 2;
-    box(g, frameW + 0.3, frameH + 0.3, 0.12, darkM, 0, frameY, WZ + 0.08); box(g, frameW + 0.34, 0.1, 0.18, goldM, 0, frameY + frameH / 2 + 0.17, WZ + 0.1); box(g, frameW + 0.34, 0.1, 0.18, goldM, 0, frameY - frameH / 2 - 0.17, WZ + 0.1);
-    box(g, 0.1, frameH + 0.3, 0.18, goldM, -frameW / 2 - 0.17, frameY, WZ + 0.1); box(g, 0.1, frameH + 0.3, 0.18, goldM, frameW / 2 + 0.17, frameY, WZ + 0.1);
-    var tc = mkCanvas(1024, 160), tx = tc.getContext('2d'); tx.fillStyle = '#0c1410'; tx.fillRect(0, 0, 1024, 160); tx.strokeStyle = '#c9a227'; tx.lineWidth = 8; tx.strokeRect(5, 5, 1014, 150);
-    tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.shadowColor = '#3dff9a'; tx.shadowBlur = 20; tx.fillStyle = '#d8ffe9'; tx.font = '900 92px ' + SERIF; tx.fillText('🔐 LA CHAMBRE FORTE', 512, 82, 980);
-    var title = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 0.875), new THREE.MeshBasicMaterial({ map: mkTex(tc) })); title.position.set(0, frameY + frameH / 2 + 0.78, WZ + 0.2); g.add(title);
+    box(g, frameW + 0.3, frameH + 0.3, 0.12, darkM, 0, frameY, WZ + 0.08);
+    box(g, frameW + 0.4, 0.12, 0.2, steel, 0, frameY + frameH / 2 + 0.2, WZ + 0.1); box(g, frameW + 0.4, 0.12, 0.2, steel, 0, frameY - frameH / 2 - 0.2, WZ + 0.1);
+    box(g, 0.12, frameH + 0.4, 0.2, steel, -frameW / 2 - 0.2, frameY, WZ + 0.1); box(g, 0.12, frameH + 0.4, 0.2, steel, frameW / 2 + 0.2, frameY, WZ + 0.1);
+    box(g, frameW + 0.14, 0.03, 0.04, neonM, 0, frameY + frameH / 2 + 0.11, WZ + 0.22); box(g, frameW + 0.14, 0.03, 0.04, neonM, 0, frameY - frameH / 2 - 0.11, WZ + 0.22);
+    box(g, 0.03, frameH + 0.14, 0.04, neonM, -frameW / 2 - 0.11, frameY, WZ + 0.22); box(g, 0.03, frameH + 0.14, 0.04, neonM, frameW / 2 + 0.11, frameY, WZ + 0.22);
+    var tc = mkCanvas(2048, 320), tx = tc.getContext('2d'); tx.fillStyle = '#0c1410'; tx.fillRect(0, 0, 2048, 320); tx.strokeStyle = '#3dff9a'; tx.lineWidth = 10; tx.strokeRect(8, 8, 2032, 304);
+    tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.shadowColor = '#3dff9a'; tx.shadowBlur = 30; tx.fillStyle = '#d8ffe9'; tx.font = '900 190px ' + SERIF; tx.fillText('🔐 LA CHAMBRE FORTE', 1024, 165, 1960);
+    var titleY = frameY + frameH / 2 + 0.78;
+    box(g, 5.7, 0.95, 0.08, darkM, 0, titleY, WZ + 0.2);
+    var title = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 0.875), decal(sharp(mkTex(tc)))); title.position.set(0, titleY, WZ + 0.27); g.add(title);
     var safes = [], hits = [];
-    var doorGeo = new THREE.BoxGeometry(1.0, 0.8, 0.07), gemGeo = new THREE.OctahedronGeometry(0.2, 0), bombGeo = new THREE.SphereGeometry(0.19, 16, 12);
+    var doorGeo = new THREE.BoxGeometry(1.0, 0.8, 0.07), gemGeo = new THREE.OctahedronGeometry(0.2, 0), bombGeo = new THREE.SphereGeometry(0.19, 20, 14);
     var gemMat = new THREE.MeshStandardMaterial({ color: 0x5dffd0, emissive: 0x18c9a0, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.3 }), bombMat = new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.35, metalness: 0.5 });
     var fuseMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a }), cavM = new THREE.MeshBasicMaterial({ color: 0x07090c });
     function makeSafe(idx) {
       var c = idx % COLS, r = Math.floor(idx / COLS), cx = (c - (COLS - 1) / 2) * PX, cy = Y0 + (ROWS - 1 - r) * PY;
       var sf = new THREE.Group(); sf.position.set(cx, cy, WZ); g.add(sf);
       box(sf, 1.06, 0.86, 0.14, darkM, 0, 0, 0.06);
-      var cav = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.76), cavM); cav.position.set(0, 0, 0.14); sf.add(cav);
-      var glow = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.76), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false })); glow.position.set(0, 0, 0.145); sf.add(glow);
+      var cav = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.76), cavM); cav.position.set(0, 0, 0.16); sf.add(cav);
+      var glow = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.76), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false })); glow.position.set(0, 0, 0.17); sf.add(glow);
       var gem = new THREE.Mesh(gemGeo, gemMat); gem.position.set(0, 0, 0.3); gem.visible = false; sf.add(gem);
       var bomb = new THREE.Group(); bomb.position.set(0, -0.04, 0.3); bomb.visible = false; sf.add(bomb);
       bomb.add(new THREE.Mesh(bombGeo, bombMat)); var fz = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 6), fuseMat); fz.position.set(0.04, 0.22, 0); fz.rotation.z = -0.4; bomb.add(fz);
       var spark = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), fuseMat); spark.position.set(0.09, 0.29, 0); bomb.add(spark);
-      var piv = new THREE.Group(); piv.position.set(-0.5, 0, 0.42); sf.add(piv);                      // la porte est devant le diamant ou la bombe
+      // le volet : il remonte dans le haut de sa case (il ne cache donc jamais les coffres voisins)
+      var piv = new THREE.Group(); piv.position.set(0, 0.4, 0.42); sf.add(piv);
+      var dg = new THREE.Group(); dg.position.set(0, -0.4, 0); piv.add(dg);
       var dmat = new THREE.MeshStandardMaterial({ color: 0x7d8696, roughness: 0.4, metalness: 0.55, emissive: 0x000000 });
-      var door = new THREE.Mesh(doorGeo, dmat); door.position.set(0.5, 0, 0); door.userData.idx = idx; piv.add(door); hits.push(door);
-      var dial = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 24), goldM); dial.rotation.x = Math.PI / 2; dial.position.set(0.5, 0.02, 0.055); piv.add(dial);
-      var dial2 = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.07, 16), darkM); dial2.rotation.x = Math.PI / 2; dial2.position.set(0.5, 0.02, 0.07); piv.add(dial2);
-      box(piv, 0.04, 0.2, 0.04, goldM, 0.5, 0.02, 0.095).rotation.z = 0.6;
-      var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x57b8ff })); lamp.position.set(0.85, 0.3, 0.04); piv.add(lamp);
-      var no = mkCanvas(64, 32), nx = no.getContext('2d'); nx.fillStyle = '#c9d2e0'; nx.font = '800 22px ' + MONO; nx.textAlign = 'center'; nx.textBaseline = 'middle'; nx.fillText(String(idx + 1), 32, 17);
-      var num = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1), new THREE.MeshBasicMaterial({ map: mkTex(no), transparent: true })); num.position.set(0.17, -0.27, 0.037); piv.add(num);
+      var door = new THREE.Mesh(doorGeo, dmat); door.userData.idx = idx; dg.add(door); hits.push(door);
+      var dial = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 28), goldM); dial.rotation.x = Math.PI / 2; dial.position.set(0, 0.02, 0.055); dg.add(dial);
+      var dial2 = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.07, 18), darkM); dial2.rotation.x = Math.PI / 2; dial2.position.set(0, 0.02, 0.07); dg.add(dial2);
+      box(dg, 0.04, 0.2, 0.04, goldM, 0, 0.02, 0.095).rotation.z = 0.6;
+      var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x57b8ff })); lamp.position.set(0.35, 0.3, 0.045); dg.add(lamp);
+      var no = mkCanvas(128, 64), nx = no.getContext('2d'); nx.fillStyle = '#c9d2e0'; nx.font = '800 44px ' + MONO; nx.textAlign = 'center'; nx.textBaseline = 'middle'; nx.fillText(String(idx + 1), 64, 34);
+      var num = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1), decal(sharp(mkTex(no)), true)); num.position.set(-0.33, -0.3, 0.05); dg.add(num);
       var s = { idx: idx, piv: piv, door: door, dmat: dmat, lamp: lamp, glow: glow, gem: gem, bomb: bomb, open: 0, want: 0, kind: '', t: Math.random() * 6 };
       safes.push(s); return s;
     }
     for (i = 0; i < CN; i++) makeSafe(i);
 
-    /* --- les deux grands écrans du mur : multiplicateur à gauche, tableau des gains à droite --- */
-    function mkScreen(x, w, h) {
-      var cv = mkCanvas(1024, Math.round(1024 * h / w)), tex = new THREE.CanvasTexture(cv); tex.anisotropy = 8;
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex })); m.position.set(x, 3.3, WZ + 0.12); g.add(m);
-      box(g, w + 0.2, h + 0.2, 0.08, darkM, x, 3.3, WZ + 0.07); box(g, w + 0.26, 0.05, 0.1, goldM, x, 3.3 + h / 2 + 0.12, WZ + 0.09); box(g, w + 0.26, 0.05, 0.1, goldM, x, 3.3 - h / 2 - 0.12, WZ + 0.09);
-      return { cv: cv, c: cv.getContext('2d'), tex: tex, sig: '', w: 1024, h: Math.round(1024 * h / w) };
+    /* --- les deux grands panneaux du mur : à gauche multiplicateur + tableau des gains, à droite le classement --- */
+    var BW = 3.8, BH = 4.4, BCW = 1536, BCH = Math.round(BCW * BH / BW), BY = 3.3;
+    function mkBoard(x) {
+      var cv = mkCanvas(BCW, BCH), tex = sharp(new THREE.CanvasTexture(cv));
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), decal(tex)); m.position.set(x, BY, WZ + 0.2); g.add(m);
+      box(g, BW + 0.2, BH + 0.2, 0.1, darkM, x, BY, WZ + 0.1);
+      box(g, BW + 0.3, 0.1, 0.16, steel, x, BY + BH / 2 + 0.15, WZ + 0.12); box(g, BW + 0.3, 0.1, 0.16, steel, x, BY - BH / 2 - 0.15, WZ + 0.12);
+      box(g, 0.1, BH + 0.3, 0.16, steel, x - BW / 2 - 0.15, BY, WZ + 0.12); box(g, 0.1, BH + 0.3, 0.16, steel, x + BW / 2 + 0.15, BY, WZ + 0.12);
+      return { cv: cv, c: cv.getContext('2d'), tex: tex, sig: '', w: BCW, h: BCH };
     }
-    var scrL = mkScreen(-5.9, 4.2, 3.1), scrR = mkScreen(5.9, 4.2, 3.1);
+    var scrL = mkBoard(-5.3), scrR = mkBoard(5.3), top = [], topT = 0, topBusy = false;
+    function loadTop() {
+      if (topBusy) return; topBusy = true;
+      fetch('/api/crash?vault=1', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { topBusy = false; if (d && d.ok && Array.isArray(d.top)) top = d.top; }).catch(function () { topBusy = false; });
+    }
 
     /* --- les quatre postes : tabouret rembourré et pupitre lumineux --- */
     var seats = [], seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null;
@@ -139,18 +177,17 @@
       var s = { n: n, x: sx0, z: STOOL_Z, yaw: 0, sx: sx0, sz: STOOL_Z + 1.1 };
       seats.push(s);
       var ch = new THREE.Group(); ch.position.set(sx0, 0, STOOL_Z); g.add(ch);
-      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.46, 10), steel); stem.position.y = 0.23; ch.add(stem);
-      var base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.04, 20), steel); base.position.y = 0.02; ch.add(base);
-      var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.1, 20), vel); cush.position.y = 0.5; ch.add(cush);
+      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.46, 12), steel); stem.position.y = 0.23; ch.add(stem);
+      var base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.04, 24), steel); base.position.y = 0.02; ch.add(base);
+      var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.1, 24), vel); cush.position.y = 0.5; ch.add(cush);
       var bk = box(ch, 0.5, 0.42, 0.08, vel, 0, 0.82, 0.24); bk.rotation.x = -0.1;
-      box(ch, 0.5, 0.03, 0.03, goldM, 0, 0.62, 0.24);
       var desk = new THREE.Group(); desk.position.set(sx0, 0, STOOL_Z - 0.95); g.add(desk);
       box(desk, 0.9, 0.6, 0.5, darkM, 0, 0.3, 0);
-      var top = box(desk, 0.9, 0.04, 0.52, steel, 0, 0.62, 0); top.rotation.x = 0;
+      box(desk, 0.9, 0.04, 0.52, steel, 0, 0.62, 0);
       box(desk, 0.8, 0.012, 0.4, new THREE.MeshBasicMaterial({ color: 0x0f2a1c }), 0, 0.646, 0); box(desk, 0.8, 0.02, 0.02, neonM, 0, 0.64, 0.25);
-      var kbc = mkCanvas(256, 96), kbx = kbc.getContext('2d'); kbx.fillStyle = '#0a1a12'; kbx.fillRect(0, 0, 256, 96);
-      for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 4; kc++) { kbx.fillStyle = kr === 2 && kc === 3 ? '#7ee0a0' : '#1f6b4a'; rr(kbx, 14 + kc * 60, 8 + kr * 28, 52, 22, 5); kbx.fill(); }
-      var pad = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.26), new THREE.MeshBasicMaterial({ map: mkTex(kbc) })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, 0.652, 0.02); desk.add(pad);
+      var kbc = mkCanvas(512, 192), kbx = kbc.getContext('2d'); kbx.fillStyle = '#0a1a12'; kbx.fillRect(0, 0, 512, 192);
+      for (var kr = 0; kr < 3; kr++) for (var kc = 0; kc < 4; kc++) { kbx.fillStyle = kr === 2 && kc === 3 ? '#7ee0a0' : '#1f6b4a'; rr(kbx, 28 + kc * 120, 16 + kr * 56, 104, 44, 10); kbx.fill(); }
+      var pad = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.26), decal(sharp(mkTex(kbc)))); pad.rotation.x = -Math.PI / 2; pad.position.set(0, 0.66, 0.02); desk.add(pad);
       room.colliders.push({ x: sx0, z: STOOL_Z, r: 0.3 }, { x: sx0, z: STOOL_Z - 0.95, r: 0.5 });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, STOOL_Z); g.add(hit);
       room.interactables.push({ hit: hit, x: sx0, z: STOOL_Z, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🔐 S\'asseoir — Poste ' + (n + 1); }, use: function (w) { sit(w, s); } });
@@ -176,28 +213,44 @@
       cash.style.display = G.active ? '' : 'none'; cash.disabled = !canCash();
       cash.innerHTML = '💰 Encaisser ' + (G.revealed.length ? fmtN(Math.floor(G.bet * G.mult)) + ' 🪙' : '') + ' <kbd>Entrée</kbd>';
     }
-    function drawScreens() {
+    function drawBoards() {
+      var W = BCW, Hh = BCH, c, d;
       var sigL = [G.active, G.over, G.mult, G.revealed.length, G.bet, G.win, bet, count].join('|');
       if (scrL.sig !== sigL) {
-        scrL.sig = sigL; var c = scrL.c, W = scrL.w, Hh = scrL.h; c.fillStyle = '#07100c'; c.fillRect(0, 0, W, Hh); c.strokeStyle = 'rgba(61,255,154,0.35)'; c.lineWidth = 6; c.strokeRect(10, 10, W - 20, Hh - 20);
-        c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#7ee0a0'; c.font = '800 44px ' + SERIF; c.fillText(G.active ? 'MULTIPLICATEUR' : (G.over ? (G.win > 0 ? 'GAIN ENCAISSÉ' : 'PERDU') : 'PRÊT À JOUER'), W / 2, 100, W - 80);
-        c.shadowColor = G.over && !G.win ? '#ff4a4a' : '#3dff9a'; c.shadowBlur = 26; c.fillStyle = G.over && !G.win ? '#ff8a80' : '#e8fff1'; c.font = '900 230px ' + MONO;
-        c.fillText(G.over && !G.win ? '💥' : '×' + fx2(G.active || G.over ? G.mult : 1), W / 2, Hh * 0.46, W - 80); c.shadowBlur = 0;
-        c.fillStyle = '#f3cf62'; c.font = '800 54px ' + SERIF;
-        c.fillText(G.active ? 'Gain : ' + fmtN(Math.floor(G.bet * G.mult)) + ' 🪙' : (G.over && G.win > 0 ? '+' + fmtN(G.win) + ' 🪙' : 'Mise : ' + fmtN(bet) + ' 🪙'), W / 2, Hh * 0.74, W - 80);
-        c.fillStyle = '#9fb6a8'; c.font = '700 36px ' + SERIF; c.fillText((G.active ? G.count : count) + ' 💣 · ' + (CN - (G.active ? G.count : count)) + ' 💎 cachés', W / 2, Hh * 0.9, W - 80);
+        scrL.sig = sigL; c = scrL.c; c.fillStyle = '#07100c'; c.fillRect(0, 0, W, Hh); c.strokeStyle = 'rgba(61,255,154,0.45)'; c.lineWidth = 8; c.strokeRect(12, 12, W - 24, Hh - 24);
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#7ee0a0'; c.font = '800 66px ' + SERIF; c.fillText(G.active ? 'MULTIPLICATEUR' : (G.over ? (G.win > 0 ? 'GAIN ENCAISSÉ' : 'PERDU') : 'PRÊT À JOUER'), W / 2, 100, W - 100);
+        c.shadowColor = G.over && !G.win ? '#ff4a4a' : '#3dff9a'; c.shadowBlur = 36; c.fillStyle = G.over && !G.win ? '#ff8a80' : '#e8fff1'; c.font = '900 270px ' + MONO;
+        c.fillText(G.over && !G.win ? '💥' : '×' + fx2(G.active || G.over ? G.mult : 1), W / 2, 330, W - 100); c.shadowBlur = 0;
+        c.fillStyle = '#f3cf62'; c.font = '800 72px ' + SERIF;
+        c.fillText(G.active ? 'Gain : ' + fmtN(Math.floor(G.bet * G.mult)) + ' 🪙' : (G.over && G.win > 0 ? '+' + fmtN(G.win) + ' 🪙' : 'Mise : ' + fmtN(bet) + ' 🪙'), W / 2, 520, W - 100);
+        var cnt = G.active || G.over ? G.count : count;
+        c.fillStyle = '#9fb6a8'; c.font = '700 46px ' + SERIF; c.fillText(cnt + ' 💣 · ' + (CN - cnt) + ' 💎 cachés', W / 2, 600, W - 100);
+        c.strokeStyle = 'rgba(243,207,98,0.5)'; c.lineWidth = 4; c.beginPath(); c.moveTo(80, 660); c.lineTo(W - 80, 660); c.stroke();
+        c.fillStyle = '#f3cf62'; c.font = '800 56px ' + SERIF; c.fillText('TABLEAU DES GAINS', W / 2, 725, W - 100);
+        var rows = 6, y0 = 780, rh = (Hh - y0 - 50) / rows, n0 = G.active ? Math.max(0, Math.min(G.revealed.length, CN - cnt - rows)) : 0;
+        for (var q = 0; q < rows; q++) {
+          var nn = n0 + q + 1, yy = y0 + q * rh, reached = G.active && G.revealed.length >= nn, nextOne = G.active && G.revealed.length + 1 === nn;
+          c.fillStyle = reached ? 'rgba(61,255,154,0.28)' : nextOne ? 'rgba(243,207,98,0.3)' : 'rgba(255,255,255,0.06)'; rr(c, 60, yy, W - 120, rh - 10, 14); c.fill();
+          c.textAlign = 'left'; c.fillStyle = reached ? '#9affc8' : '#cfd9d3'; c.font = '800 52px ' + SERIF; c.fillText(nn + ' 💎', 100, yy + rh / 2 - 4);
+          c.textAlign = 'right'; c.font = '900 56px ' + MONO; c.fillStyle = reached ? '#9affc8' : nextOne ? '#ffe08a' : '#e8fff1'; c.fillText('×' + fx2(minesMult(cnt, nn)), W - 100, yy + rh / 2 - 4);
+        }
         scrL.tex.needsUpdate = true;
       }
-      var cnt = G.active || G.over ? G.count : count, sigR = [cnt, G.revealed.length, G.active].join('|');
+      var sigR = JSON.stringify(top);
       if (scrR.sig !== sigR) {
-        scrR.sig = sigR; var d = scrR.c, w2 = scrR.w, h2 = scrR.h; d.fillStyle = '#07100c'; d.fillRect(0, 0, w2, h2); d.strokeStyle = 'rgba(243,207,98,0.45)'; d.lineWidth = 6; d.strokeRect(10, 10, w2 - 20, h2 - 20);
-        d.textAlign = 'center'; d.textBaseline = 'middle'; d.fillStyle = '#f3cf62'; d.font = '800 46px ' + SERIF; d.fillText('TABLEAU DES GAINS · ' + cnt + ' 💣', w2 / 2, 84, w2 - 80);
-        var rows = 6, rh = (h2 - 190) / rows, n0 = G.active ? Math.max(0, Math.min(G.revealed.length, CN - cnt - rows)) : 0;
-        for (var q = 0; q < rows; q++) {
-          var nn = n0 + q + 1, yy = 150 + q * rh, reached = G.active && G.revealed.length >= nn, nextOne = G.active && G.revealed.length + 1 === nn;
-          d.fillStyle = reached ? 'rgba(61,255,154,0.28)' : nextOne ? 'rgba(243,207,98,0.28)' : 'rgba(255,255,255,0.05)'; rr(d, 50, yy, w2 - 100, rh - 8, 10); d.fill();
-          d.textAlign = 'left'; d.fillStyle = reached ? '#9affc8' : '#cfd9d3'; d.font = '800 42px ' + SERIF; d.fillText(nn + ' 💎', 80, yy + rh / 2 - 4);
-          d.textAlign = 'right'; d.font = '900 46px ' + MONO; d.fillStyle = reached ? '#9affc8' : nextOne ? '#ffe08a' : '#e8fff1'; d.fillText('×' + fx2(minesMult(cnt, nn)), w2 - 80, yy + rh / 2 - 4);
+        scrR.sig = sigR; d = scrR.c; d.fillStyle = '#07100c'; d.fillRect(0, 0, W, Hh); d.strokeStyle = 'rgba(243,207,98,0.55)'; d.lineWidth = 8; d.strokeRect(12, 12, W - 24, Hh - 24);
+        d.textAlign = 'center'; d.textBaseline = 'middle'; d.fillStyle = '#ffe08a'; d.shadowColor = '#ffb300'; d.shadowBlur = 24; d.font = '900 78px ' + SERIF; d.fillText('🏆 CLASSEMENT', W / 2, 105, W - 100); d.shadowBlur = 0;
+        d.fillStyle = '#9fb6a8'; d.font = '700 44px ' + SERIF; d.fillText('Plus gros gains encaissés', W / 2, 185, W - 100);
+        var rh2 = (Hh - 270) / 5;
+        for (var k2 = 0; k2 < 5; k2++) {
+          var e = top[k2], yy2 = 235 + k2 * rh2, ml = ['🥇', '🥈', '🥉'][k2] || '#' + (k2 + 1);
+          d.fillStyle = e ? (k2 === 0 ? 'rgba(243,207,98,0.25)' : 'rgba(255,255,255,0.08)') : 'rgba(255,255,255,0.04)'; rr(d, 50, yy2, W - 100, rh2 - 14, 18); d.fill();
+          d.strokeStyle = k2 === 0 && e ? '#f3cf62' : 'rgba(255,255,255,0.12)'; d.lineWidth = 4; rr(d, 50, yy2, W - 100, rh2 - 14, 18); d.stroke();
+          d.textAlign = 'center'; d.font = '800 74px ' + F.EMOJI_FONT; d.fillStyle = '#fff'; d.fillText(ml, 135, yy2 + (rh2 - 14) / 2 + 4);
+          if (!e) { d.textAlign = 'left'; d.fillStyle = '#6f8478'; d.font = '700 52px ' + SERIF; d.fillText('Place libre', 230, yy2 + (rh2 - 14) / 2 + 4); continue; }
+          d.textAlign = 'left'; d.fillStyle = '#fff'; d.font = '800 56px ' + SERIF; d.fillText(e.name, 230, yy2 + (rh2 - 14) * 0.34, 760);
+          d.fillStyle = '#9fb6a8'; d.font = '600 38px ' + MONO; d.fillText('mise ' + fmtN(e.bet) + ' · ×' + fx2(e.mult), 230, yy2 + (rh2 - 14) * 0.74, 760);
+          d.textAlign = 'right'; d.fillStyle = '#7ee0a0'; d.font = '900 60px ' + MONO; d.fillText('+' + fmtN(e.win), W - 90, yy2 + (rh2 - 14) / 2 + 4, 520);
         }
         scrR.tex.needsUpdate = true;
       }
@@ -246,6 +299,7 @@
         G.active = false; G.over = true; G.win = r.win || 0; G.bombs = r.bombs || [];
         G.bombs.forEach(function (b) { if (safes[b] && safes[b].kind !== 'gem') { openSafe(safes[b], 'bomb'); safes[b].glow.material.opacity = 0.2; } });
         sfx('playCoinWinSound'); setMsg('💰 +' + fmtN(G.win) + ' 🪙 encaissés !', '#7ee0a0'); refreshUi();
+        setTimeout(loadTop, 700);                                       // le classement vient d'être mis à jour par le serveur
       });
     }
 
@@ -316,19 +370,20 @@
     room.syncHud = function () { refreshUi(); };
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Disponible sur PC pour le moment' : 'ZQSD / flèches : marcher · Maj : courir · avance vers un poste (F ou clic) · assis : mise, bombes, Lancer, puis clique sur les coffres · Entrée : lancer / encaisser · F : se lever · derrière toi : retour aux mini jeux'; };
+    room.onEnter = function () { loadTop(); };
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
-      clockT += dt;
+      clockT += dt; topT += dt; if (topT > 20) { topT = 0; loadTop(); }
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.player.z > HZ - 1.15 && Math.abs(world.player.x) < OG - 0.2) world.goRoom('uno', 'vault');     // on repasse l'ouverture : retour aux mini jeux
       var spd = Math.min(1, dt * 7);
       safes.forEach(function (s) {
-        s.open += (s.want - s.open) * spd; s.piv.rotation.y = -s.open * 1.95;
+        s.open += (s.want - s.open) * spd; s.piv.scale.y = 1 - 0.97 * s.open;
         s.gem.visible = s.kind === 'gem' && s.open > 0.05; s.bomb.visible = s.kind === 'bomb' && s.open > 0.05;
         if (s.open > 0.02) { s.gem.rotation.y += dt * 1.8; s.gem.position.y = Math.sin(clockT * 2.2 + s.t) * 0.03; s.bomb.rotation.y += dt * 0.6; }
         if (G.active && s.want === 0 && s.lamp.material.color.getHex() === 0x57b8ff) s.lamp.visible = Math.sin(clockT * 3 + s.t) > -0.6; else s.lamp.visible = true;
       });
       if (alarm) { alarmT = Math.max(0, alarmT - dt); alarm.intensity = alarmT > 0 ? 1.6 * (0.5 + 0.5 * Math.sin(clockT * 14)) : 0; }
-      drawScreens();
+      drawBoards();
     };
     room.dispose = function () { stand(); };
     return room;

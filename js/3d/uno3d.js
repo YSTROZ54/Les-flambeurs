@@ -92,9 +92,9 @@
       [-1, 1].forEach(function (sd) { box(g, 0.34, OPH + 0.1, 0.3, steel, sd * (OG + 0.17), (OPH + 0.1) / 2, -HZ + 0.12); box(g, 0.04, OPH, 0.04, neon, sd * (OG - 0.02), OPH / 2, -HZ + 0.3); });
       box(g, OG * 2 + 0.7, 0.3, 0.34, steel, 0, OPH + 0.1, -HZ + 0.14); box(g, OG * 2, 0.04, 0.04, neon, 0, OPH - 0.02, -HZ + 0.3);
       // enseigne
-      var sc = mkCanvas(768, 192), sx2 = sc.getContext('2d'); sx2.fillStyle = '#0c1410'; sx2.fillRect(0, 0, 768, 192); sx2.strokeStyle = '#c9a227'; sx2.lineWidth = 8; sx2.strokeRect(6, 6, 756, 180);
+      var sc = mkCanvas(1536, 384), sx2 = sc.getContext('2d'); sx2.scale(2, 2); sx2.fillStyle = '#0c1410'; sx2.fillRect(0, 0, 768, 192); sx2.strokeStyle = '#c9a227'; sx2.lineWidth = 8; sx2.strokeRect(6, 6, 756, 180);
       sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.shadowColor = '#3dff9a'; sx2.shadowBlur = 16; sx2.fillStyle = '#d8ffe9'; sx2.font = '900 76px ' + SERIF; sx2.fillText('🔐 LA CHAMBRE FORTE', 384, 84, 720); sx2.shadowBlur = 0; sx2.fillStyle = '#f3cf62'; sx2.font = '700 30px ' + F.MONO; sx2.fillText('MINES · ENTRÉE LIBRE', 384, 150, 720);
-      var sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: mkTex(sc) })); sign.position.set(0, OPH + 0.72, -HZ + 0.32); g.add(sign);
+      var sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: mkTex(sc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); sign.position.set(0, OPH + 0.72, -HZ + 0.4); g.add(sign);
       box(g, 3.8, 1.06, 0.1, dark, 0, OPH + 0.72, -HZ + 0.27); box(g, 3.9, 0.05, 0.12, gold, 0, OPH + 1.27, -HZ + 0.28); box(g, 3.9, 0.05, 0.12, gold, 0, OPH + 0.17, -HZ + 0.28);
       // couloir derrière l'ouverture (décor : on n'y entre pas, on passe par le fondu)
       var CL = 3.2, floorM = new THREE.MeshStandardMaterial({ color: 0x20242c, roughness: 0.35, metalness: 0.8 });
