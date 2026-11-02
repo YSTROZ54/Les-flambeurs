@@ -88,6 +88,8 @@
       '</div>';
     w.hud.insertBefore(root, w.elFade);
     w.hud.classList.add('has-ph');
+    // certaines salles masquent le curseur en permanence (ex. cinema3d.js, immersion) : on le remontre tant qu'une fenêtre (inventaire, téléphone, pause) est ouverte
+    function syncCursor() { if (w.container) w.container.classList.toggle('s3d-ui-open', invOpen || phoneOpen || pauseOpen); }
 
     function q(k) { return root.querySelector('[data-ph="' + k + '"]'); }
     var elAva = q('ava'), elName = q('name'), elRank = q('rank'), elBal = q('bal'), elNow = q('now'), elNowName = q('nowname');
@@ -594,7 +596,7 @@
       closeWheel(); closeInv();
       page = p || 'menu'; sub = 'home'; pfEdit = ''; refuse = null;                                 // on arrive toujours sur l'écran d'accueil, sauf si on demande une appli
       w._libererSouris();
-      renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; placePhone(); sync();
+      renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; syncCursor(); placePhone(); sync();
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/telephone.mp3');
       if (page === 'bank') bankRefresh();
     }
@@ -606,7 +608,7 @@
     // reprendreSouris : à la fermeture voulue par le joueur (bouton rouge, T, case, Échap), pas quand une autre fenêtre prend la place
     function closePhone(reprendreSouris) {
       var etaitOuvert = phoneOpen;
-      elPhone.hidden = true; phoneOpen = false; typingNotify(false); markHotbar();
+      elPhone.hidden = true; phoneOpen = false; syncCursor(); typingNotify(false); markHotbar();
       if (keyListening) stopKeyCapture();   // on ferme le téléphone pendant qu'on écoutait une touche : on annule proprement
       if (reprendreSouris && etaitOuvert) relock();
     }
@@ -678,11 +680,11 @@
       if (!w.canEmote()) return;
       closeWheel(); closePhone(); closeChat();
       w._libererSouris();
-      invOpen = true; paintInv(); elInv.hidden = false;
+      invOpen = true; syncCursor(); paintInv(); elInv.hidden = false;
     }
     function closeInv(reprendreSouris) {
       if (!invOpen) return;
-      invOpen = false; elInv.hidden = true;
+      invOpen = false; syncCursor(); elInv.hidden = true;
       if (reprendreSouris) relock();
     }
 
@@ -739,11 +741,11 @@
       closeWheel(); closePhone(); closeChat(); closeInv();
       w._libererSouris();
       elPauseFull.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
-      elPause.hidden = false; pauseOpen = true; pauseT = performance.now();
+      elPause.hidden = false; pauseOpen = true; syncCursor(); pauseT = performance.now();
     }
     function closePause(reprendre) {
       if (!pauseOpen) return;
-      elPause.hidden = true; pauseOpen = false;
+      elPause.hidden = true; pauseOpen = false; syncCursor();
       if (reprendre) relock();
     }
     // en grand écran, Échap rend la souris au navigateur sans que la touche nous parvienne : on ouvre la pause à ce moment
@@ -1135,6 +1137,7 @@
         document.removeEventListener('pointerlockchange', onLockChange);
         if (root.parentNode) root.parentNode.removeChild(root);
         w.hud.classList.remove('has-ph');
+        if (w.container) w.container.classList.remove('s3d-ui-open');
       }
     };
     (F.hudReady || []).forEach(function (fn) { try { fn(w, api); } catch (e) { /* un module en panne ne bloque pas le HUD */ } });   // ex. pmu3d.js : ses cartes à gratter vont dans la barre du bas

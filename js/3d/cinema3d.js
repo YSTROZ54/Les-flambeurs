@@ -922,6 +922,7 @@
       /* Général & Retrait du curseur en salle */
       '.cin-in-cinema,.cin-in-cinema canvas,.cin-in-cinema .s3d-hud{cursor:none!important}' +
       '.cin-in-cinema.cin-video-paused,.cin-in-cinema.cin-video-paused canvas,.cin-in-cinema.cin-video-paused .s3d-hud{cursor:auto!important}' +
+      '.cin-in-cinema.s3d-ui-open,.cin-in-cinema.s3d-ui-open canvas,.cin-in-cinema.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible
       '.cin-in-cinema .cin-console,.cin-in-cinema .cin-console *,.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye{cursor:auto!important}' +
       '.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye,.cin-in-cinema .cin-tab-btn,.cin-in-cinema .cin-genre-pill,.cin-in-cinema .cin-pl-item,.cin-in-cinema .cin-pl-pick-btn,.cin-in-cinema .cin-cn-playback button,.cin-in-cinema .cin-btn-load{cursor:pointer!important}' +
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
