@@ -1126,10 +1126,13 @@
       if (world.rt && room.seatCab) world.rt.send('fx', { k: F.me(), fx: fxo });
       world.post('/api/slots', Object.assign({ action: 'fx' }, fxo));
     };
-    room.spinStart = function () { room.cab.startSpin(); room.sendFx('start'); };
+    room.spinStart = function () { room.cab.startSpin(); room.sendFx('start'); if (F.audio) F.audio.playFile('assets/sons/lancer-machine.mp3'); };
     room.spinResult = function (finals, mult, win, bet) {
       var cab = room.cab;
-      cab.stopReels(finals, function () { cab.showResult(finals, mult || 0, win || 0, bet || 0); });
+      cab.stopReels(finals, function () {
+        cab.showResult(finals, mult || 0, win || 0, bet || 0);
+        if (F.audio) { if (!(mult > 0)) F.audio.playFile('assets/sons/perdu.mp3'); else if (levelFor(mult) <= 1) F.audio.playFile('assets/sons/gain-petit.mp3'); }     // perdu / petit gain (les gros gains gardent leur fête)
+      });
       room.sendFx('result', finals, mult || 0, win || 0, bet || 0);
     };
     room.spinError = function () { room.cab.abortSpin(); };

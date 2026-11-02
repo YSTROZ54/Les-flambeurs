@@ -277,11 +277,15 @@
       if (list && list.length) playFile(id, list); else startSynth(id);
     });
   }
+  var sfxEls = {};
+  A.playFile = function (src, gain) {                              // petit bruitage à partir d'un fichier (suit le volume du jeu ; muet = rien)
+    try { var e = sfxEls[src] || (sfxEls[src] = new Audio(src)); e.volume = Math.min(1, master() * (gain || 1.4)); if (e.volume <= 0) return; e.currentTime = 0; var p = e.play(); if (p && p.catch) p.catch(function () { }); } catch (x) { /* pas de son */ }
+  };
   A.setRoom = function (id) {
     id = id || '';
     if (id === A.room && (M.song || M.el || !(STYLES[id] || (PL && PL[id])))) return;
     A.room = id; M.pending = false;
-    if (!id || id === 'cinema') { stopSong(); return; }
+    if (!id || id === 'cinema' || id === 'slots') { stopSong(); return; }      // pas de musique au cinéma ni dans la salle des machines
     start(id);
   };
   A.withPlaylist = function (fn) { withPlaylist(function () { fn(PL || {}); }); };   // pour le cinéma, qui joue sa musique lui-même

@@ -595,6 +595,7 @@
       page = p || 'menu'; sub = 'home'; pfEdit = ''; refuse = null;                                 // on arrive toujours sur l'écran d'accueil, sauf si on demande une appli
       w._libererSouris();
       renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; placePhone(); sync();
+      if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/telephone.mp3');
       if (page === 'bank') bankRefresh();
     }
     // en grand écran, reprend la souris (le curseur disparaît, la vue la suit) ; refusé par le navigateur sans geste de l'utilisateur : un clic sur la vue la reprendra
