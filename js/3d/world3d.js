@@ -28,10 +28,10 @@
 
   /* ---------- touches de déplacement : personnalisables (téléphone › Réglages › Touches), gardées d'une visite à l'autre ----------
      Flèches, Maj (droite ou gauche) et ZQSD restent toujours actives en plus de la touche choisie : on ne peut jamais se retrouver bloqué. */
-  var KEY_ACTIONS = ['f', 'b', 'l', 'r', 'jump', 'run'];
-  var KEY_DEFAULTS = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD', jump: 'Space', run: 'ShiftLeft' };
+  var KEY_ACTIONS = ['f', 'b', 'l', 'r', 'jump', 'run', 'inv'];
+  var KEY_DEFAULTS = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD', jump: 'Space', run: 'ShiftLeft', inv: 'KeyI' };
   F.keyActions = KEY_ACTIONS;
-  F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir' };
+  F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir', inv: 'Inventaire' };
   // touches déjà utilisées ailleurs dans le jeu (interagir, vues, émotes…) : on ne laisse pas les reprendre, pour ne rien casser
   var KEY_RESERVED = { Escape: 1, KeyF: 1, Enter: 1, KeyP: 1, Tab: 1, KeyV: 1 };
   var KEY_LABELS = {

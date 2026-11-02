@@ -663,7 +663,7 @@
       if (it.id === 'phone') { if (phoneOpen) closePhone(true); else openPhone(); }
     }
 
-    /* ---------- inventaire (touche Tab) : ton skin, ton argent et trois cases de rangement ---------- */
+    /* ---------- inventaire (Tab ou I, personnalisable dans Réglages › Touches) : ton skin, ton argent et trois cases de rangement ---------- */
     function paintInv() {
       var s = st(), name = s && s.username ? s.username : 'Invité';
       var boss = false, co = false; try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); co = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) { /* ok */ }
@@ -1103,7 +1103,7 @@
       } else if (wheelOpen && ev.code === 'Tab') {
         ev.preventDefault();
         setTab(tab === 'dance' ? 'emote' : 'dance');
-      } else if (ev.code === 'Tab') {
+      } else if (ev.code === 'Tab' || (F.keys && ev.code === F.keys().inv)) {   // Tab (fixe) ou la touche choisie dans Réglages › Touches (I par défaut)
         ev.preventDefault(); ev.stopImmediatePropagation();
         if (invOpen) closeInv(true); else openInv();
       }
