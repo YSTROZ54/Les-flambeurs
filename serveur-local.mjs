@@ -16,7 +16,7 @@ const MIME = {
   '.mjs': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp'
 };
-const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'slots', 'horses'];
+const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'slots', 'horses', 'cinema', 'cinema-video'];
 const handlers = {};
 
 async function loadHandler(name) {
@@ -51,7 +51,7 @@ http.createServer(async (req, res) => {
     return;
   }
 
-  const m = path.match(/^\/api\/([a-z]+)$/);
+  const m = path.match(/^\/api\/([a-z-]+)$/);
   if (m && API.includes(m[1])) {
     try {
       const handler = await loadHandler(m[1]);

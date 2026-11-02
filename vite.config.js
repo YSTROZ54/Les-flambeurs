@@ -36,7 +36,7 @@ function apiLocale() {
 
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url, 'http://localhost');
-        const m = url.pathname.match(/^\/api\/([a-z]+)$/);
+        const m = url.pathname.match(/^\/api\/([a-z_-]+)$/);
         if (!m || !existsSync(join(server.config.root, 'api', `${m[1]}.js`))) return next();
         try {
           const { default: handler } = await server.ssrLoadModule(`/api/${m[1]}.js`);

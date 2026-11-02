@@ -15,7 +15,7 @@ const CAN_CONTROL = PATRONS.concat(CO_FONDATEURS);
 const DEFAULT_URL = 'video/tropistream-presentation.mp4';
 const TROPISTREAM = 'https://tropistream.fr';
 
-const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '' });
+const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '' });
 
 function positionAt(st, now) {
   if (st.status === 'playing') return Math.max(0, st.position + (now - st.updatedAt) / 1000);
@@ -24,7 +24,7 @@ function positionAt(st, now) {
 
 // ce que les navigateurs ont le droit de voir
 export function publicState(st, now) {
-  return { url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '' };
+  return { url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '' };
 }
 
 // Fsvid / Uqload / Vidzy : la page collée est l'embed du lecteur (pas un flux jouable tel quel).
@@ -104,6 +104,7 @@ export default async function handler(req, res) {
     // ---- CHARGER UN LIEN ----
     if (action === 'set') {
       const raw = String(body.url || '').trim().slice(0, 500);
+      const title = String(body.title || '').trim().slice(0, 200);
       if (!raw) return fail(res, 400, 'Donne un lien valide.');
 
       let finalUrl = raw, finalType = /\.m3u8(\?|#|$)/i.test(raw) ? 'hls' : 'mp4';
@@ -113,7 +114,7 @@ export default async function handler(req, res) {
         finalUrl = extracted.url; finalType = extracted.type;
       }
 
-      await mutateState((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
+      await mutateState((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }

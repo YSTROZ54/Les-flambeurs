@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "playlist": "node scripts/generer-playlist.mjs"
+    "playlist": "node scripts/generer-playlist.mjs",
+    "cinema-playlist": "node scripts/generer-cinema-playlist.mjs"
   },
   "devDependencies": {
     "vite": "^7.3.7"

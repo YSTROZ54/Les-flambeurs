@@ -394,7 +394,7 @@
     var video = document.createElement('video');
     video.crossOrigin = 'anonymous'; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '' };
+    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '' };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
     function netPosNow() {
       var p = net.position;
@@ -436,6 +436,7 @@
       if (!st) return;
       var wasPlaying = net.status === 'playing';
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
+      net.title = st.title || '';
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
       if (net.status === 'playing') {
         showVideo(true); if (!wasPlaying) setHud(true);
@@ -445,7 +446,11 @@
         if (!video.paused) video.pause();
         if (wasPlaying) setHud(false);
         if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
-        else { showVideo(false); var lbl = net.url ? 'LANCER LA SÉANCE' : 'AUCUNE VIDÉO CHARGÉE'; if (lbl !== posterLabel) { posterLabel = lbl; paintPoster(lbl); } }
+        else {
+          showVideo(false);
+          var lbl = net.title ? ('PRÊT : ' + net.title.toUpperCase()) : (net.url ? 'LANCER LA SÉANCE' : 'AUCUNE VIDÉO CHARGÉE');
+          if (lbl !== posterLabel) { posterLabel = lbl; paintPoster(lbl); }
+        }
       }
       refreshConsole();
     }
@@ -486,21 +491,232 @@
 
     /* ===================== CONSOLE RÉGIE (Patron / Co Fondateur) ===================== */
     var consoleEl = null;
+    var playlist = null, playlistLoading = false;
+    var plSearch = '', plGenre = 'all', plBatch = 30, plFiltered = [];
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function loadPlaylist(cb) {
+      if (playlist) { if (cb) cb(playlist); return; }
+      if (playlistLoading) return;
+      playlistLoading = true;
+      fetch('assets/cinema/playlist.json', { cache: 'default' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (data) {
+          playlist = Array.isArray(data) ? data : [];
+          playlistLoading = false;
+          filterPlaylist();
+          renderPlaylistGenres();
+          renderPlaylistItems(false);
+          if (cb) cb(playlist);
+        })
+        .catch(function (e) {
+          playlistLoading = false;
+          console.warn('Erreur chargement playlist cinéma:', e);
+          if (consoleEl) {
+            var l = consoleEl.querySelector('.cin-pl-list');
+            if (l) l.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-triangle-exclamation"></i> Impossible de charger la playlist.<br><small>' + escapeHtml(e.message) + '</small></div>';
+          }
+          if (cb) cb([]);
+        });
+    }
+
+    function filterPlaylist() {
+      if (!playlist) { plFiltered = []; return; }
+      var q = plSearch.trim().toLowerCase();
+      var g = plGenre;
+      plFiltered = playlist.filter(function (f) {
+        if (g !== 'all') {
+          var hasGenre = (f.genres || []).some(function (gen) {
+            return gen.toLowerCase() === g.toLowerCase();
+          });
+          if (!hasGenre) return false;
+        }
+        if (q) {
+          var hay = (f.nom + ' ' + (f.annee || '') + ' ' + (f.genres || []).join(' ') + ' ' + (f.host || '')).toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+      plBatch = 30;
+    }
+
+    function renderPlaylistGenres() {
+      if (!consoleEl) return;
+      var el = consoleEl.querySelector('[data-a="genres"]');
+      if (!el || !playlist) return;
+      var counts = {};
+      playlist.forEach(function (f) {
+        (f.genres || []).forEach(function (g) { counts[g] = (counts[g] || 0) + 1; });
+      });
+      var sorted = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 8);
+      var html = '<button class="cin-genre-pill' + (plGenre === 'all' ? ' active' : '') + '" data-g="all">Tous (' + playlist.length + ')</button>';
+      sorted.forEach(function (g) {
+        html += '<button class="cin-genre-pill' + (plGenre === g ? ' active' : '') + '" data-g="' + escapeHtml(g) + '">' + escapeHtml(g) + ' <small>(' + counts[g] + ')</small></button>';
+      });
+      el.innerHTML = html;
+    }
+
+    function renderPlaylistItems(append) {
+      if (!consoleEl) return;
+      var listEl = consoleEl.querySelector('.cin-pl-list');
+      var countEl = consoleEl.querySelector('.cin-pl-count');
+      if (!listEl) return;
+
+      if (!playlist) {
+        listEl.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-spinner fa-spin"></i> Chargement de la playlist Tropi Stream…</div>';
+        if (countEl) countEl.textContent = 'Chargement…';
+        return;
+      }
+
+      if (countEl) {
+        countEl.textContent = plFiltered.length + ' film' + (plFiltered.length > 1 ? 's' : '') + (plGenre !== 'all' || plSearch ? ' trouvé(s)' : ' disponible(s)');
+      }
+
+      if (plFiltered.length === 0) {
+        listEl.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-magnifying-glass"></i> Aucun film trouvé pour cette recherche.</div>';
+        return;
+      }
+
+      var slice = plFiltered.slice(append ? plBatch - 30 : 0, plBatch);
+      var itemsHtml = slice.map(function (f) {
+        var hostClass = (f.host || '').toLowerCase();
+        var genresHtml = (f.genres || []).slice(0, 2).map(function (g) {
+          return '<span class="cin-pl-tag">' + escapeHtml(g) + '</span>';
+        }).join('');
+
+        var vfBtn = f.vf ? '<button class="cin-pl-pick vf" data-a="pick" data-id="' + f.id + '" data-ver="VF" title="Charger en VF"><i class="fa-solid fa-play"></i> VF</button>' : '';
+        var voBtn = f.vo ? '<button class="cin-pl-pick vo" data-a="pick" data-id="' + f.id + '" data-ver="VO" title="Charger en VO"><i class="fa-solid fa-play"></i> VO</button>' : '';
+
+        return '<div class="cin-pl-item" data-id="' + f.id + '">' +
+          '<img class="cin-pl-thumb" src="' + escapeHtml(f.poster) + '" alt="" onerror="this.onerror=null;this.src=\'assets/cinema/tropistream-serveur.png\';" loading="lazy">' +
+          '<div class="cin-pl-info">' +
+            '<div class="cin-pl-title" title="' + escapeHtml(f.nom) + '">' + escapeHtml(f.titre) + (f.annee ? ' <span class="cin-pl-year">(' + f.annee + ')</span>' : '') + '</div>' +
+            '<div class="cin-pl-meta">' +
+              '<span class="cin-pl-badge ' + hostClass + '">' + escapeHtml(f.host || 'STREAM') + '</span>' +
+              genresHtml +
+            '</div>' +
+          '</div>' +
+          '<div class="cin-pl-actions">' + vfBtn + voBtn + '</div>' +
+        '</div>';
+      }).join('');
+
+      if (append) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = itemsHtml;
+        while (tmp.firstChild) listEl.appendChild(tmp.firstChild);
+      } else {
+        listEl.innerHTML = itemsHtml;
+        listEl.scrollTop = 0;
+      }
+    }
+
+    function pickFilm(id, ver) {
+      if (!playlist) return;
+      var f = playlist.find(function (x) { return String(x.id) === String(id); });
+      if (!f) return;
+      var targetUrl = (ver === 'VO' && f.vo) ? f.vo : (f.vf || f.url);
+      if (!targetUrl) return;
+      var fullTitle = f.nom + (ver ? ' [' + ver + ']' : '');
+      var urlInput = consoleEl.querySelector('.cin-cn-url');
+      if (urlInput) urlInput.value = targetUrl;
+      world.flash('🎬 ' + f.titre + ' (' + ver + ')', 'Extraction du flux ' + (f.host || 'Premium') + ' via Tropi Stream...');
+      cinemaAction('set', { url: targetUrl, title: fullTitle });
+    }
+
+    function setTab(tab) {
+      if (!consoleEl) return;
+      consoleEl.querySelectorAll('.cin-tab-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+      });
+      var panePl = consoleEl.querySelector('.cin-pane-playlist');
+      var paneDir = consoleEl.querySelector('.cin-pane-direct');
+      if (panePl) panePl.classList.toggle('hid', tab !== 'playlist');
+      if (paneDir) paneDir.classList.toggle('hid', tab !== 'direct');
+    }
+
     function mountConsole() {
       if (consoleEl || !isCinemaCtrl()) return;
       consoleEl = document.createElement('div'); consoleEl.className = 'cin-console hid';
       consoleEl.innerHTML =
-        '<button class="cin-cn-x" data-a="close"><i class="fa-solid fa-xmark"></i></button>' +
-        '<div class="cin-cn-t"><i class="fa-solid fa-sliders"></i> Régie du cinéma</div>' +
-        '<input class="cin-cn-url" type="text" placeholder="Lien .mp4 / .m3u8, ou page fsvid, uqload, vidzy…" maxlength="500">' +
-        '<div class="cin-cn-row"><button data-a="load"><i class="fa-solid fa-link"></i> Charger</button></div>' +
-        '<div class="cin-cn-row"><button data-a="play"><i class="fa-solid fa-play"></i> Lancer</button><button data-a="pause"><i class="fa-solid fa-pause"></i> Pause</button><button data-a="stop"><i class="fa-solid fa-stop"></i> Couper</button></div>' +
-        '<div class="cin-cn-st" data-a="status"></div>' +
-        '<div class="cin-cn-help">Fsvid / Uqload / Vidzy : colle directement le lien de la page du lecteur, le flux est extrait automatiquement (peut prendre quelques secondes).</div>';
+        '<button class="cin-cn-x" data-a="close" title="Fermer"><i class="fa-solid fa-xmark"></i></button>' +
+        '<div class="cin-cn-head">' +
+          '<div class="cin-cn-t"><i class="fa-solid fa-sliders"></i> Régie du cinéma</div>' +
+          '<div class="cin-cn-badge"><img class="cin-cn-logo" src="assets/cinema/tropistream-serveur.png" alt=""> Tropi Stream</div>' +
+        '</div>' +
+        '<div class="cin-cn-playback">' +
+          '<div class="cin-cn-st" data-a="status"></div>' +
+          '<div class="cin-cn-row">' +
+            '<button data-a="play" class="btn-play" title="Lancer la séance"><i class="fa-solid fa-play"></i> Lancer</button>' +
+            '<button data-a="pause" class="btn-pause" title="Mettre en pause"><i class="fa-solid fa-pause"></i> Pause</button>' +
+            '<button data-a="stop" class="btn-stop" title="Couper la séance"><i class="fa-solid fa-stop"></i> Couper</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cin-cn-tabs">' +
+          '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist Tropi Stream</button>' +
+          '<button class="cin-tab-btn" data-tab="direct"><i class="fa-solid fa-link"></i> Lien direct</button>' +
+        '</div>' +
+        '<div class="cin-pane cin-pane-playlist">' +
+          '<div class="cin-pl-bar">' +
+            '<div class="cin-pl-search-wrap">' +
+              '<i class="fa-solid fa-magnifying-glass cin-pl-icon"></i>' +
+              '<input class="cin-pl-search" type="text" placeholder="Rechercher par titre, année, genre..." maxlength="100">' +
+              '<button class="cin-pl-clear hid" data-a="clear-search" title="Effacer"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cin-pl-genres" data-a="genres"></div>' +
+          '<div class="cin-pl-subbar">' +
+            '<span class="cin-pl-count">Chargement…</span>' +
+            '<span class="cin-pl-hint"><i class="fa-solid fa-bolt"></i> Fsvid &amp; Vidzy</span>' +
+          '</div>' +
+          '<div class="cin-pl-list"></div>' +
+        '</div>' +
+        '<div class="cin-pane cin-pane-direct hid">' +
+          '<div class="cin-direct-desc">Colle directement l\'adresse d\'un flux (.mp4, .m3u8) ou la page d\'un lecteur (Fsvid, Vidzy, Uqload).</div>' +
+          '<input class="cin-cn-url" type="text" placeholder="https://fsvid.lol/embed-... ou https://vidzy.cc/..." maxlength="500">' +
+          '<div class="cin-cn-row"><button class="cin-btn-load" data-a="load"><i class="fa-solid fa-link"></i> Charger ce lien</button></div>' +
+          '<div class="cin-cn-help">L\'extraction du flux depuis Fsvid, Vidzy ou Uqload est automatique via Tropi Stream.</div>' +
+        '</div>';
+
       consoleEl.addEventListener('click', function (e) {
-        var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null; if (!b) return;
+        var tabBtn = e.target && e.target.closest ? e.target.closest('.cin-tab-btn') : null;
+        if (tabBtn) {
+          setTab(tabBtn.getAttribute('data-tab'));
+          return;
+        }
+
+        var genrePill = e.target && e.target.closest ? e.target.closest('.cin-genre-pill') : null;
+        if (genrePill) {
+          plGenre = genrePill.getAttribute('data-g');
+          consoleEl.querySelectorAll('.cin-genre-pill').forEach(function (p) {
+            p.classList.toggle('active', p === genrePill);
+          });
+          filterPlaylist();
+          renderPlaylistItems(false);
+          return;
+        }
+
+        var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null;
+        if (!b) return;
         var a = b.getAttribute('data-a');
         if (a === 'close') { consoleEl.classList.add('hid'); return; }
+        if (a === 'clear-search') {
+          var input = consoleEl.querySelector('.cin-pl-search');
+          if (input) { input.value = ''; input.focus(); }
+          b.classList.add('hid');
+          plSearch = '';
+          filterPlaylist();
+          renderPlaylistItems(false);
+          return;
+        }
+        if (a === 'pick') {
+          var fid = b.getAttribute('data-id');
+          var ver = b.getAttribute('data-ver') || 'VF';
+          pickFilm(fid, ver);
+          return;
+        }
         if (a === 'load') {
           var u = consoleEl.querySelector('.cin-cn-url').value.trim();
           if (!u) return;
@@ -510,18 +726,74 @@
         }
         if (a === 'play' || a === 'pause' || a === 'stop') cinemaAction(a);
       });
+
+      var searchTimeout = null;
+      var searchInput = consoleEl.querySelector('.cin-pl-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', function () {
+          var val = this.value;
+          var clearBtn = consoleEl.querySelector('[data-a="clear-search"]');
+          if (clearBtn) clearBtn.classList.toggle('hid', !val);
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(function () {
+            plSearch = val;
+            filterPlaylist();
+            renderPlaylistItems(false);
+          }, 150);
+        });
+      }
+
+      var listEl = consoleEl.querySelector('.cin-pl-list');
+      if (listEl) {
+        listEl.addEventListener('scroll', function () {
+          if (this.scrollTop + this.clientHeight >= this.scrollHeight - 60) {
+            if (plBatch < plFiltered.length) {
+              plBatch += 30;
+              renderPlaylistItems(true);
+            }
+          }
+        });
+      }
+
       world.container.appendChild(consoleEl);
+      loadPlaylist();
     }
-    function unmountConsole() { if (consoleEl && consoleEl.parentNode) consoleEl.parentNode.removeChild(consoleEl); consoleEl = null; }
+
+    function unmountConsole() {
+      if (consoleEl && consoleEl.parentNode) consoleEl.parentNode.removeChild(consoleEl);
+      consoleEl = null;
+    }
+
     function toggleConsole() {
-      mountConsole(); if (!consoleEl) return;
+      mountConsole();
+      if (!consoleEl) return;
       consoleEl.classList.toggle('hid');
-      if (!consoleEl.classList.contains('hid')) { consoleEl.querySelector('.cin-cn-url').value = net.url || ''; refreshConsole(); }
+      if (!consoleEl.classList.contains('hid')) {
+        consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+        refreshConsole();
+        loadPlaylist();
+      }
     }
+
     function refreshConsole() {
       if (!consoleEl || consoleEl.classList.contains('hid')) return;
       var st = consoleEl.querySelector('[data-a="status"]');
-      st.textContent = net.status === 'playing' ? '▶ En cours · ' + fmtT(netPosNow()) : net.status === 'paused' ? '⏸ En pause · ' + fmtT(net.position) : net.url ? 'Prêt · ' + net.url : 'Aucun lien chargé';
+      if (!st) return;
+      var displayTitle = net.title ? net.title : (net.url ? 'Lien personnalisé' : '');
+      if (net.status === 'playing') {
+        st.innerHTML = '<span class="cin-st-badge playing"><i class="fa-solid fa-circle-play"></i> En cours</span> ' +
+          (displayTitle ? '<span class="cin-st-title" title="' + escapeHtml(displayTitle) + '">' + escapeHtml(displayTitle) + '</span> · ' : '') +
+          '<span class="cin-st-time">' + fmtT(netPosNow()) + '</span>';
+      } else if (net.status === 'paused') {
+        st.innerHTML = '<span class="cin-st-badge paused"><i class="fa-solid fa-circle-pause"></i> En pause</span> ' +
+          (displayTitle ? '<span class="cin-st-title" title="' + escapeHtml(displayTitle) + '">' + escapeHtml(displayTitle) + '</span> · ' : '') +
+          '<span class="cin-st-time">' + fmtT(net.position) + '</span>';
+      } else if (net.url) {
+        st.innerHTML = '<span class="cin-st-badge ready"><i class="fa-solid fa-circle-check"></i> Prêt</span> ' +
+          '<span class="cin-st-title" title="' + escapeHtml(displayTitle || net.url) + '">' + escapeHtml(displayTitle || net.url) + '</span>';
+      } else {
+        st.innerHTML = '<span class="cin-st-badge idle"><i class="fa-solid fa-circle-stop"></i> Aucun film</span> <span class="cin-st-help">Choisis un film dans la playlist</span>';
+      }
     }
 
     /* ===================== S'ASSEOIR ===================== */
@@ -624,20 +896,85 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
+      /* Général */
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
-      '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}' +
+      '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}.hid{display:none!important}' +
+      /* Bouton œil */
       '.cin-eye{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:7;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;color:#fff;background:rgba(8,5,12,.7);border:1px solid rgba(255,122,26,.6);border-radius:999px;padding:7px 14px;opacity:.55;transition:opacity .2s}.cin-eye:hover{opacity:1}' +
+      /* Bouton se lever */
       '.cin-stand{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:6;display:flex;gap:8px}' +
       '.cin-stand button{cursor:pointer;background:rgba(8,5,12,.85);color:#fff;border:1.5px solid #ff7a1a;border-radius:12px;font-family:inherit;font-weight:800;font-size:13px;padding:10px 16px}.cin-stand kbd{opacity:.6;font-size:11px;margin-left:6px}' +
-      '.cin-console{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;width:320px;background:rgba(8,5,12,.94);border:1.5px solid rgba(201,162,39,.75);border-radius:16px;padding:18px 16px 16px;display:flex;flex-direction:column;gap:10px;color:#f4e3b0;pointer-events:auto}' +
+      /* Console régie — conteneur principal */
+      '.cin-console{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;width:440px;max-width:96vw;max-height:88vh;background:rgba(6,3,10,.97);border:1.5px solid rgba(201,162,39,.7);border-radius:20px;display:flex;flex-direction:column;color:#f4e3b0;pointer-events:auto;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.75),0 0 0 1px rgba(201,162,39,.12)}' +
       '.cin-console.hid{display:none}' +
-      '.cin-cn-t{font-weight:900;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:#e9c66b;display:flex;align-items:center;gap:8px}' +
-      '.cin-cn-url{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px}' +
-      '.cin-cn-row{display:flex;gap:6px}.cin-cn-row button{flex:1;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:9px 8px;border:1px solid rgba(255,122,26,.6);background:#2a1208;color:#fff}' +
-      '.cin-cn-row button[data-a="load"]{background:#c2410c}' +
-      '.cin-cn-st{font-size:11.5px;color:#d9c88f;word-break:break-all}' +
-      '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.1);padding-top:9px}' +
-      '.cin-cn-x{position:absolute;top:8px;right:10px;background:none;border:none;color:#d9c88f;cursor:pointer;font-size:14px;padding:4px}';
+      /* En-tête */
+      '.cin-cn-head{display:flex;align-items:center;justify-content:space-between;padding:14px 40px 10px 16px;border-bottom:1px solid rgba(201,162,39,.18);flex-shrink:0}' +
+      '.cin-cn-t{font-weight:900;font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#e9c66b;display:flex;align-items:center;gap:8px}' +
+      '.cin-cn-badge{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#b8a05a;letter-spacing:.04em;opacity:.85}' +
+      '.cin-cn-logo{width:18px;height:18px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,122,26,.5)}' +
+      '.cin-cn-x{position:absolute;top:10px;right:12px;background:none;border:none;color:#d9c88f;cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;opacity:.7;transition:opacity .15s}.cin-cn-x:hover{opacity:1}' +
+      /* Bloc lecture */
+      '.cin-cn-playback{padding:10px 14px 8px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}' +
+      '.cin-cn-st{font-size:11.5px;min-height:20px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:8px}' +
+      '.cin-st-badge{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:800;letter-spacing:.03em}' +
+      '.cin-st-badge.playing{background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.3)}' +
+      '.cin-st-badge.paused{background:rgba(250,200,80,.15);color:#facc15;border:1px solid rgba(250,200,80,.3)}' +
+      '.cin-st-badge.ready{background:rgba(99,102,241,.18);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}' +
+      '.cin-st-badge.idle{background:rgba(255,255,255,.06);color:#9d8a53;border:1px solid rgba(255,255,255,.12)}' +
+      '.cin-st-title{color:#e9c66b;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}' +
+      '.cin-st-time{color:#9d8a53;font-size:10.5px;font-variant-numeric:tabular-nums}' +
+      '.cin-st-help{color:#9d8a53;font-size:11px}' +
+      '.cin-cn-row{display:flex;gap:6px}' +
+      '.cin-cn-row button{flex:1;cursor:pointer;font-family:inherit;font-weight:800;font-size:11.5px;border-radius:9px;padding:8px 6px;border:1px solid rgba(255,122,26,.5);background:#2a1208;color:#fff;transition:background .15s}' +
+      '.cin-cn-row button.btn-play{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.4);color:#4ade80}.cin-cn-row button.btn-play:hover{background:rgba(34,197,94,.35)}' +
+      '.cin-cn-row button.btn-pause{background:rgba(250,200,80,.12);border-color:rgba(250,200,80,.3);color:#facc15}.cin-cn-row button.btn-pause:hover{background:rgba(250,200,80,.25)}' +
+      '.cin-cn-row button.btn-stop{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.35);color:#f87171}.cin-cn-row button.btn-stop:hover{background:rgba(239,68,68,.28)}' +
+      /* Tabs */
+      '.cin-cn-tabs{display:flex;gap:0;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.07)}' +
+      '.cin-tab-btn{flex:1;cursor:pointer;font-family:inherit;font-weight:700;font-size:11.5px;border:none;border-bottom:2px solid transparent;background:transparent;color:#9d8a53;padding:9px 8px 8px;transition:color .15s,border-color .15s;letter-spacing:.02em}' +
+      '.cin-tab-btn:hover{color:#e9c66b}.cin-tab-btn.active{color:#e9c66b;border-bottom-color:#c9a227}' +
+      /* Pane partagé */
+      '.cin-pane{display:flex;flex-direction:column;overflow:hidden;min-height:0}' +
+      /* Pane playlist */
+      '.cin-pane-playlist{flex:1;min-height:0}' +
+      '.cin-pl-bar{padding:10px 12px 6px;flex-shrink:0}' +
+      '.cin-pl-search-wrap{position:relative;display:flex;align-items:center}' +
+      '.cin-pl-icon{position:absolute;left:9px;color:#9d8a53;font-size:12px;pointer-events:none}' +
+      '.cin-pl-search{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px 32px 8px 30px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s}' +
+      '.cin-pl-search::placeholder{color:#5a4d38}.cin-pl-search:focus{border-color:rgba(201,162,39,.5)}' +
+      '.cin-pl-clear{position:absolute;right:7px;background:none;border:none;color:#9d8a53;cursor:pointer;font-size:12px;padding:4px;border-radius:4px}.cin-pl-clear:hover{color:#e9c66b}' +
+      '.cin-pl-genres{display:flex;flex-wrap:wrap;gap:4px;padding:0 12px 6px;flex-shrink:0}' +
+      '.cin-genre-pill{cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:700;border-radius:20px;padding:3px 9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#9d8a53;transition:all .15s}' +
+      '.cin-genre-pill:hover{color:#f4e3b0;border-color:rgba(201,162,39,.4)}.cin-genre-pill.active{background:rgba(201,162,39,.2);border-color:rgba(201,162,39,.55);color:#e9c66b}' +
+      '.cin-genre-pill small{opacity:.7;margin-left:2px}' +
+      '.cin-pl-subbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px 6px;flex-shrink:0}' +
+      '.cin-pl-count{font-size:10.5px;color:#7a6a46;font-weight:600}' +
+      '.cin-pl-hint{font-size:10px;color:#5a4d38;display:flex;align-items:center;gap:4px}' +
+      '.cin-pl-list{flex:1;overflow-y:auto;padding:0 8px 8px;min-height:0;display:flex;flex-direction:column;gap:4px}' +
+      '.cin-pl-list::-webkit-scrollbar{width:4px}.cin-pl-list::-webkit-scrollbar-track{background:transparent}.cin-pl-list::-webkit-scrollbar-thumb{background:rgba(201,162,39,.3);border-radius:2px}' +
+      '.cin-pl-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);transition:background .15s,border-color .15s;cursor:default}' +
+      '.cin-pl-item:hover{background:rgba(201,162,39,.07);border-color:rgba(201,162,39,.2)}' +
+      '.cin-pl-thumb{width:36px;height:54px;object-fit:cover;border-radius:5px;flex-shrink:0;background:#1a0a04}' +
+      '.cin-pl-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}' +
+      '.cin-pl-title{font-size:12px;font-weight:700;color:#f4e3b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}' +
+      '.cin-pl-year{font-size:10.5px;color:#9d8a53;font-weight:400}' +
+      '.cin-pl-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px}' +
+      '.cin-pl-badge{font-size:9.5px;font-weight:800;border-radius:4px;padding:1px 5px;letter-spacing:.04em}' +
+      '.cin-pl-badge.fsvid{background:rgba(79,70,229,.25);color:#a5b4fc;border:1px solid rgba(79,70,229,.35)}' +
+      '.cin-pl-badge.vidzy{background:rgba(234,88,12,.2);color:#fb923c;border:1px solid rgba(234,88,12,.3)}' +
+      '.cin-pl-tag{font-size:9.5px;color:#7a6a46;background:rgba(255,255,255,.05);border-radius:4px;padding:1px 5px;border:1px solid rgba(255,255,255,.08)}' +
+      '.cin-pl-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0}' +
+      '.cin-pl-pick{cursor:pointer;font-family:inherit;font-weight:800;font-size:10.5px;border-radius:7px;padding:4px 8px;border:none;transition:all .15s;white-space:nowrap}' +
+      '.cin-pl-pick.vf{background:rgba(79,70,229,.3);color:#a5b4fc;border:1px solid rgba(79,70,229,.45)}.cin-pl-pick.vf:hover{background:rgba(79,70,229,.55)}' +
+      '.cin-pl-pick.vo{background:rgba(234,88,12,.2);color:#fb923c;border:1px solid rgba(234,88,12,.35)}.cin-pl-pick.vo:hover{background:rgba(234,88,12,.4)}' +
+      '.cin-pl-empty{text-align:center;padding:28px 16px;color:#5a4d38;font-size:12px;line-height:1.6}' +
+      '.cin-pl-empty i{font-size:22px;margin-bottom:8px;display:block}' +
+      /* Pane lien direct */
+      '.cin-pane-direct{padding:12px 14px;gap:10px;flex-shrink:0}' +
+      '.cin-direct-desc{font-size:11px;color:#9d8a53;line-height:1.5;margin-bottom:4px}' +
+      '.cin-cn-url{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s}.cin-cn-url:focus{border-color:rgba(201,162,39,.5)}' +
+      '.cin-btn-load{background:#c2410c;border-color:rgba(194,65,12,.7)!important;color:#fff}.cin-btn-load:hover{background:#ea580c!important}' +
+      '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.08);padding-top:9px}';
     document.head.appendChild(st);
   }
 
