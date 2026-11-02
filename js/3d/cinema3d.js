@@ -314,7 +314,7 @@
     }
     [-7, -3.1, 0.8, 4.7, 8.6, 11.3].forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
     // cabine de projection, centrée dans le mur du fond : une vraie fenêtre, et le projecteur derrière la vitre
-    var BX = 0, BY = 7.0;
+    var BX = 0, BY = 7.0 + BACK_H;   // remontée avec le palier du fond (sinon elle retombe au niveau de l'enseigne de la sortie)
     var glass = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb4d8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); glass.position.set(BX, BY, HZ - 0.01); g.add(glass);
     box(g, 2.2, 0.1, 0.12, trimM, BX, BY + 0.45, HZ - 0.05); box(g, 2.2, 0.1, 0.12, trimM, BX, BY - 0.45, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX - 1.05, BY, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX + 1.05, BY, HZ - 0.05);
     var shell = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 1.5), new THREE.MeshBasicMaterial({ color: 0x241c2c, side: THREE.BackSide })); shell.position.set(BX, BY, HZ + 0.75); g.add(shell);
@@ -327,7 +327,7 @@
     [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
     // faisceau du projecteur retiré
     // comptoir à pop-corn
-    var cw = new THREE.Group(); cw.position.set(-6.8, BACK_H, HZ - 1.1); g.add(cw);
+    var cw = new THREE.Group(); cw.position.set(-6.8, BACK_H, HZ - 0.45); g.add(cw);   // collé contre le mur du fond
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
     box(cw, 0.9, 0.9, 0.6, std(0xc41e2a, 0.5, 0.2), -0.9, 1.5, 0); box(cw, 0.8, 0.8, 0.52, new THREE.MeshLambertMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.75 }), -0.9, 2.35, 0);
     for (i = 0; i < 14; i++) sph(cw, 0.07, lam(i % 3 ? 0xfff0c0 : 0xf2d98a), -0.9 + (Math.random() - 0.5) * 0.55, 2.1 + Math.random() * 0.55, (Math.random() - 0.5) * 0.3);
@@ -898,6 +898,7 @@
       clock += dt;
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       var playing = net.status === 'playing';
+      if (w.container) w.container.classList.toggle('cin-video-paused', net.status === 'paused');   // film en pause : on laisse le curseur (sinon impossible de cliquer "Lancer" dans la régie sans bouger)
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
@@ -920,6 +921,7 @@
     st.textContent =
       /* Général & Retrait du curseur en salle */
       '.cin-in-cinema,.cin-in-cinema canvas,.cin-in-cinema .s3d-hud{cursor:none!important}' +
+      '.cin-in-cinema.cin-video-paused,.cin-in-cinema.cin-video-paused canvas,.cin-in-cinema.cin-video-paused .s3d-hud{cursor:auto!important}' +
       '.cin-in-cinema .cin-console,.cin-in-cinema .cin-console *,.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye{cursor:auto!important}' +
       '.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye,.cin-in-cinema .cin-tab-btn,.cin-in-cinema .cin-genre-pill,.cin-in-cinema .cin-pl-item,.cin-in-cinema .cin-pl-pick-btn,.cin-in-cinema .cin-cn-playback button,.cin-in-cinema .cin-btn-load{cursor:pointer!important}' +
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
