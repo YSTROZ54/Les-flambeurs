@@ -282,6 +282,9 @@
   A.playFile = function (src, gain) {                              // petit bruitage à partir d'un fichier (suit le volume du jeu ; muet = rien)
     try { var e = sfxEls[src] || (sfxEls[src] = new Audio(src)); e.volume = Math.min(1, master() * (gain || 1.4)); if (e.volume <= 0) return; e.currentTime = 0; var p = e.play(); if (p && p.catch) p.catch(function () { }); } catch (x) { /* pas de son */ }
   };
+  A.stopFile = function (src) {                                    // coupe un bruitage en cours avec un court fondu
+    try { var e = sfxEls[src]; if (!e || e.paused) return; var v = e.volume, k = 0, t = setInterval(function () { k++; e.volume = Math.max(0, v * (1 - k / 6)); if (k >= 6) { clearInterval(t); e.pause(); e.volume = v; } }, 40); } catch (x) { /* ok */ }
+  };
   A.setRoom = function (id) {
     id = id || '';
     if (id === A.room && (M.song || M.el || !(STYLES[id] || (PL && PL[id])))) return;
