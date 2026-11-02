@@ -502,8 +502,9 @@
     function setHud(hide) {
       hudHidden = !!hide;
       if (world.hud) world.hud.classList.toggle('cin-nohud', hudHidden);
+      if (world.container) world.container.classList.toggle('cin-hud-hidden', hudHidden);   // curseur : visible sauf interface masquée (voir injectCss)
       if (standEl) standEl.classList.toggle('hid', hudHidden);
-      if (eyeEl) eyeEl.innerHTML = hudHidden ? "<i class='fa-solid fa-eye'></i> Afficher l'interface" : "<i class='fa-solid fa-eye-slash'></i> Masquer l'interface";
+      if (eyeEl) eyeEl.innerHTML = hudHidden ? "<i class='fa-solid fa-eye'></i> Afficher l'interface <kbd>L</kbd>" : "<i class='fa-solid fa-eye-slash'></i> Masquer l'interface <kbd>L</kbd>";
     }
     function mountEye() {
       if (eyeEl) return;
@@ -511,7 +512,13 @@
       eyeEl.addEventListener('click', function () { setHud(!hudHidden); });
       world.container.appendChild(eyeEl); setHud(hudHidden);
     }
-    function unmountEye() { if (eyeEl && eyeEl.parentNode) eyeEl.parentNode.removeChild(eyeEl); eyeEl = null; if (world.hud) world.hud.classList.remove('cin-nohud'); hudHidden = false; }
+    function unmountEye() { if (eyeEl && eyeEl.parentNode) eyeEl.parentNode.removeChild(eyeEl); eyeEl = null; if (world.hud) world.hud.classList.remove('cin-nohud'); if (world.container) world.container.classList.remove('cin-hud-hidden'); hudHidden = false; }
+    function onKeyL(e) {
+      if (e.code !== 'KeyL') return;
+      var t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable) || world._keyCapture) return;
+      e.preventDefault(); setHud(!hudHidden);
+    }
 
     /* ===================== CONSOLE RÉGIE (Patron / Co Fondateur) ===================== */
     var consoleEl = null;
@@ -880,6 +887,7 @@
       music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
+      window.addEventListener('keydown', onKeyL, true);
       pollCinema();
     };
     function leave() {
@@ -887,18 +895,18 @@
       music.stop(); unmountEye(); unmountConsole();
       if (world.container) world.container.classList.remove('cin-in-cinema');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
+      window.removeEventListener('keydown', onKeyL, true);
     }
     room.onLeave = leave;
-    room.onPause = function () { video.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); };
+    room.onPause = function () { video.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); window.removeEventListener('keydown', onKeyL, true); };
     room.onPageHide = function () { video.pause(); };
-    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); pollCinema(); } };
+    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
     var clock = 0, netT = 0;
     room.update = function (dt, w) {
       clock += dt;
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       var playing = net.status === 'playing';
-      if (w.container) w.container.classList.toggle('cin-video-paused', net.status === 'paused');   // film en pause : on laisse le curseur (sinon impossible de cliquer "Lancer" dans la régie sans bouger)
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
@@ -919,10 +927,9 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      /* Général & Retrait du curseur en salle */
-      '.cin-in-cinema,.cin-in-cinema canvas,.cin-in-cinema .s3d-hud{cursor:none!important}' +
-      '.cin-in-cinema.cin-video-paused,.cin-in-cinema.cin-video-paused canvas,.cin-in-cinema.cin-video-paused .s3d-hud{cursor:auto!important}' +
-      '.cin-in-cinema.s3d-ui-open,.cin-in-cinema.s3d-ui-open canvas,.cin-in-cinema.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible
+      /* Général & curseur en salle : visible tout le temps, masqué seulement quand l'interface l'est (bouton œil ou touche L) */
+      '.cin-in-cinema.cin-hud-hidden,.cin-in-cinema.cin-hud-hidden canvas,.cin-in-cinema.cin-hud-hidden .s3d-hud{cursor:none!important}' +
+      '.cin-in-cinema.cin-hud-hidden.s3d-ui-open,.cin-in-cinema.cin-hud-hidden.s3d-ui-open canvas,.cin-in-cinema.cin-hud-hidden.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible même interface masquée
       '.cin-in-cinema .cin-console,.cin-in-cinema .cin-console *,.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye{cursor:auto!important}' +
       '.cin-in-cinema .cin-stand button,.cin-in-cinema .cin-eye,.cin-in-cinema .cin-tab-btn,.cin-in-cinema .cin-genre-pill,.cin-in-cinema .cin-pl-item,.cin-in-cinema .cin-pl-pick-btn,.cin-in-cinema .cin-cn-playback button,.cin-in-cinema .cin-btn-load{cursor:pointer!important}' +
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
