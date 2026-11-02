@@ -38,6 +38,10 @@
   function sph(p, r, m, x, y, z) { var o = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), m); o.position.set(x, y, z); p.add(o); return o; }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function fmtT(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  // Fsvid / Uqload / Vidzy : la page du lecteur (embed) n'est pas un flux jouable directement,
+  // il faut le lien direct .mp4/.m3u8 récupéré depuis cette page (onglet Réseau du navigateur).
+  var EMBED_HOST_RE = /fsvid\.(io|lol)|fs\d+\.(io|lol)|uqload\.[a-z0-9.-]+|vidzy\.[a-z0-9.-]+/i;
+  function looksLikeEmbedPage(u) { return EMBED_HOST_RE.test(u) && !/\.(mp4|m3u8)(\?|#|$)/i.test(u); }
 
   /* ===================== LA MUSIQUE DE FOND (WebAudio) ===================== */
   // Petit air de jazz lent à 66 pulsations par minute : piano électrique, basse douce, balai, quelques notes qui se baladent.
@@ -397,13 +401,43 @@
       if (net.status === 'playing') p += (performance.now() - net.recvAt) / 1000;
       return p;
     }
+    // .m3u8 (flux HLS, ce que renvoient en général fsvid / uqload / vidzy une fois le lien direct récupéré) :
+    // Chrome/Firefox ne le lisent pas nativement, on charge hls.js à la demande ; Safari le lit nativement, pas besoin.
+    var isM3u8 = function (u) { return /\.m3u8(\?|#|$)/i.test(u || ''); };
+    var hlsInst = null, hlsLibPromise = null;
+    function loadHlsLib(cb) {
+      if (window.Hls) return cb(window.Hls);
+      if (!hlsLibPromise) {
+        hlsLibPromise = new Promise(function (resolve) {
+          var s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js';
+          s.onload = function () { resolve(window.Hls || null); };
+          s.onerror = function () { resolve(null); };
+          document.head.appendChild(s);
+        });
+      }
+      hlsLibPromise.then(cb);
+    }
+    function setSource(url) {
+      if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; }
+      if (url && isM3u8(url) && !video.canPlayType('application/vnd.apple.mpegurl')) {
+        loadHlsLib(function (Hls) {
+          if (!Hls) { world.flash('🎬 Lecture HLS indisponible.', 'Réessaie dans un instant.'); return; }
+          hlsInst = new Hls();
+          hlsInst.on(Hls.Events.ERROR, function (ev, data) { if (data && data.fatal) world.flash('🎬 Ce flux n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
+          hlsInst.loadSource(url); hlsInst.attachMedia(video);
+        });
+      } else {
+        video.src = url || ''; try { video.load(); } catch (e) { /* ok */ }
+      }
+    }
     video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
     video.addEventListener('ended', function () { if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); });   // le Patron/Co Fondateur coupe la séance pour tout le monde
     function applyNet(st) {
       if (!st) return;
       var wasPlaying = net.status === 'playing';
       net.url = st.url || ''; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
-      if (net.url !== net.lastSrc) { net.lastSrc = net.url; video.src = net.url || ''; try { video.load(); } catch (e) { /* ok */ } }
+      if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url); }
       if (net.status === 'playing') {
         showVideo(true); if (!wasPlaying) setHud(true);
         if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
@@ -459,15 +493,22 @@
       consoleEl.innerHTML =
         '<button class="cin-cn-x" data-a="close"><i class="fa-solid fa-xmark"></i></button>' +
         '<div class="cin-cn-t"><i class="fa-solid fa-sliders"></i> Régie du cinéma</div>' +
-        '<input class="cin-cn-url" type="text" placeholder="Lien de la vidéo (URL .mp4…)" maxlength="500">' +
+        '<input class="cin-cn-url" type="text" placeholder="Lien direct .mp4 ou .m3u8…" maxlength="500">' +
         '<div class="cin-cn-row"><button data-a="load"><i class="fa-solid fa-link"></i> Charger</button></div>' +
         '<div class="cin-cn-row"><button data-a="play"><i class="fa-solid fa-play"></i> Lancer</button><button data-a="pause"><i class="fa-solid fa-pause"></i> Pause</button><button data-a="stop"><i class="fa-solid fa-stop"></i> Couper</button></div>' +
-        '<div class="cin-cn-st" data-a="status"></div>';
+        '<div class="cin-cn-st" data-a="status"></div>' +
+        '<div class="cin-cn-help">Fsvid / Uqload / Vidzy : ouvre le lien, récupère le lien direct .mp4 ou .m3u8 (outils de développement → Réseau), puis colle-le ici — pas la page du lecteur.</div>';
       consoleEl.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null; if (!b) return;
         var a = b.getAttribute('data-a');
         if (a === 'close') { consoleEl.classList.add('hid'); return; }
-        if (a === 'load') { var u = consoleEl.querySelector('.cin-cn-url').value.trim(); if (u) cinemaAction('set', { url: u }); return; }
+        if (a === 'load') {
+          var u = consoleEl.querySelector('.cin-cn-url').value.trim();
+          if (!u) return;
+          if (looksLikeEmbedPage(u)) { world.flash('🔗 Ce lien est la page du lecteur, pas le flux.', 'Récupère le lien direct .mp4 ou .m3u8 (outils de développement → Réseau), puis colle-le ici.'); return; }
+          cinemaAction('set', { url: u });
+          return;
+        }
         if (a === 'play' || a === 'pause' || a === 'stop') cinemaAction(a);
       });
       world.container.appendChild(consoleEl);
@@ -576,7 +617,7 @@
       // son du film : plus fort près de l'écran
       if (playing || net.status === 'paused') video.volume = clamp(1.15 - Math.hypot(w.player.x, w.player.z + HZ) / 26, 0.4, 1);
     };
-    room.dispose = function () { leave(); video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
+    room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;
   }
 
@@ -596,6 +637,7 @@
       '.cin-cn-row{display:flex;gap:6px}.cin-cn-row button{flex:1;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;border-radius:9px;padding:9px 8px;border:1px solid rgba(255,122,26,.6);background:#2a1208;color:#fff}' +
       '.cin-cn-row button[data-a="load"]{background:#c2410c}' +
       '.cin-cn-st{font-size:11.5px;color:#d9c88f;word-break:break-all}' +
+      '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.1);padding-top:9px}' +
       '.cin-cn-x{position:absolute;top:8px;right:10px;background:none;border:none;color:#d9c88f;cursor:pointer;font-size:14px;padding:4px}';
     document.head.appendChild(st);
   }
