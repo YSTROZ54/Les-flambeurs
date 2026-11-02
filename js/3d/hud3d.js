@@ -103,7 +103,7 @@
       { id: 'dance', img: 'assets/icones/applis/dancefloor.png', name: 'DanceFloor', sub: 'Danses en boucle · marche pour arrêter', ic: 'fa-music', c: '232,121,249' },
       { id: 'emote', img: 'assets/icones/applis/reactions.png', name: 'Réactions', sub: 'Emotes instantanées', ic: 'fa-face-smile', c: '251,191,36' },
       { id: 'chat', img: 'assets/icones/applis/chat.png', name: 'Chat', sub: 'Discute avec la salle', ic: 'fa-comments', c: '52,211,153' },
-      { id: 'friends', img: 'assets/icones/services/amis.png', name: 'Amis', sub: 'Chat en DM avec tes amis', ic: 'fa-user-group', c: '244,114,182' },
+      { id: 'friends', img: 'assets/icones/applis/amis.png', name: 'Amis', sub: 'Chat en DM avec tes amis', ic: 'fa-user-group', c: '244,114,182' },
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
       { id: 'bank', img: 'assets/icones/services/tropi-bank.png', name: 'Tropi Bank', sub: 'Virements entre joueurs', ic: 'fa-building-columns', c: '16,185,129' },
       { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' }
