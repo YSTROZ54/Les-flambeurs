@@ -15,9 +15,9 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU, fmtN = F.fmtN;
 
-  var HX = 14, HZ = 10, H = 6.4;
+  var HX = 14, HZ = 10, H = 9;
   var GROWTH = 0.15, MIN_BET = 10, MAX_BET = 100000, CHIPS = [10, 100, 500, 1000, 5000];
-  var SILO = { x: -11.2, z: -8.3, h: 5.6 }, SILO2 = { x: 11.2, z: -8.3 };      // les deux tours encadrent l'écran : plus rien ne le cache
+  var SILO = { x: -11.2, z: -8.3, h: 7.4 }, SILO2 = { x: 11.2, z: -8.3 };      // les deux tours encadrent l'écran : plus rien ne le cache
   var SEATS_X = [-8.4, -5.6, -2.8, 0, 2.8, 5.6, 8.4];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
@@ -119,9 +119,9 @@
     var pl = low ? null : new THREE.PointLight(0xffa850, 0, 10); if (pl) { pl.position.set(SILO.x, 1.5, SILO.z); g.add(pl); }
 
     /* --- grand écran sur le mur du fond --- */
-    var scr = mkCanvas(1920, 640), sctx = scr.getContext('2d'), scrTex = mkTex(scr);
-    var screen = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 3.3, -HZ + 0.16); g.add(screen);
-    box(g, 18.3, 6.3, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 3.3, -HZ + 0.05);
+    var scr = mkCanvas(1920, 800), sctx = scr.getContext('2d'), scrTex = mkTex(scr);
+    var screen = new THREE.Mesh(new THREE.PlaneGeometry(18, 7.5), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, 4.5, -HZ + 0.16); g.add(screen);
+    box(g, 18.3, 7.8, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 4.5, -HZ + 0.05);
 
     /* --- postes de contrôle : un vrai pupitre avec écran, et un fauteuil de bureau --- */
     var deskM = new THREE.MeshStandardMaterial({ color: 0x141b30, roughness: 0.35, metalness: 0.7 }), seatM = new THREE.MeshStandardMaterial({ color: 0x1d3a8a, roughness: 0.55 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
@@ -163,14 +163,14 @@
     });
 
     /* --- état de la partie (lu sur le serveur) --- */
-    var S = { status: 'waiting', launchTime: 0, countdownStartTime: 0, countdownDuration: 7000, crashedAtTime: 0, crashPoint: 0, history: [], bets: {}, off: 0 };
+    var S = { status: 'waiting', launchTime: 0, countdownStartTime: 0, countdownDuration: 7000, crashedAtTime: 0, crashPoint: 0, history: [], bets: {}, top: [], off: 0 };
     var pollT = 0, polling = false, lastStatus = '', histPts = [];
     function nowS() { return Date.now() + S.off; }
     function multNow() { return S.status === 'flying' && S.launchTime ? Math.exp(GROWTH * Math.max(0, nowS() - S.launchTime) / 1000) : (S.status === 'crashed' ? S.crashPoint : 1); }
     function applyState(s) {
       if (!s) return;
       S.status = s.status; S.launchTime = s.launchTime || 0; S.countdownStartTime = s.countdownStartTime || 0; S.countdownDuration = s.countdownDuration || 7000; S.crashedAtTime = s.crashedAtTime || 0;
-      S.crashPoint = s.crashPoint || (s.status === 'crashed' ? S.crashPoint : 0); S.history = s.history || []; S.bets = s.bets || {};
+      S.crashPoint = s.crashPoint || (s.status === 'crashed' ? S.crashPoint : 0); S.history = s.history || []; S.bets = s.bets || {}; S.top = s.top || [];
       if (typeof s.serverNow === 'number') S.off = s.serverNow - Date.now();
     }
     function poll() {
@@ -280,62 +280,101 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 2, tz: -5, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(3.2 - ey, 10) - 0.1 + view.pitch;           // on regarde le grand écran
+      var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(4.0 - ey, 10) - 0.1 + view.pitch;           // on regarde le grand écran
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8 - (s.x * 0.1), ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 62 };
     };
     room.syncHud = function () { refreshUi(); };
 
+    /* --- courbe de vol, commune au grand écran et aux petits : repères x2 x5…, aire, trait, et le véhicule équipé centré sur le bout du trait --- */
+    function plot(c, g) {
+      var live = S.status === 'flying' || S.status === 'crashed', mult = multNow(), now = nowS(), k;
+      var top = live ? Math.max(2, mult * 1.15) : 2, span = g.y1 - g.y0 - g.pad, lastY = 1e9;
+      function yOf(m) { return g.y1 - Math.log(Math.max(1, m)) / Math.log(top) * span; }
+      [1, 1.5, 2, 3, 5, 10, 20, 50, 100].forEach(function (m) {
+        if (m > top) return; var y = yOf(m); if (g.lf && lastY - y < g.lf * 1.3) return; lastY = y;
+        c.strokeStyle = m === 1 ? 'rgba(110,160,255,0.45)' : 'rgba(110,160,255,0.18)'; c.lineWidth = g.lf ? 2 : 1; c.beginPath(); c.moveTo(g.x0, y); c.lineTo(g.x1, y); c.stroke();
+        if (g.lf) { c.fillStyle = 'rgba(159,194,255,0.75)'; c.font = '700 ' + g.lf + 'px ' + MONO; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText('x' + m, g.x0 - 16, y); }
+      });
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = g.fs + 'px ' + F.EMOJI_FONT;
+      if (!live) { c.fillText(vehIcon(), g.x0 + g.fs * 0.55, g.y1 - g.fs * 0.5 + Math.sin(now / 400) * g.fs * 0.05); return; }
+      var T = (S.status === 'crashed' ? Math.log(Math.max(1.01, S.crashPoint)) / GROWTH : Math.max(0.1, (now - S.launchTime) / 1000)), n = 60, tipX = g.x0, tipY = g.y1, p = new Path2D();
+      for (k = 0; k <= n; k++) { var tt = T * k / n, x = g.x0 + (tt / Math.max(T, 6)) * (g.x1 - g.x0 - g.fs), y = yOf(Math.exp(GROWTH * tt)); if (k === 0) p.moveTo(x, y); else p.lineTo(x, y); tipX = x; tipY = y; }
+      var col = S.status === 'crashed' ? '255,90,90' : '77,208,255';
+      c.strokeStyle = 'rgb(' + col + ')'; c.lineWidth = g.lw; c.lineCap = 'round'; c.lineJoin = 'round'; c.stroke(p);
+      p.lineTo(tipX, g.y1); p.lineTo(g.x0, g.y1); p.closePath(); var fg = c.createLinearGradient(0, g.y0, 0, g.y1); fg.addColorStop(0, 'rgba(' + col + ',0.28)'); fg.addColorStop(1, 'rgba(' + col + ',0)'); c.fillStyle = fg; c.fill(p);
+      c.font = g.fs + 'px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+      c.fillText(S.status === 'crashed' ? '💥' : vehIcon(), tipX, tipY);
+    }
+    function histRow(c, x0, yLab, yChip, cw, ch, gap, n, lf, vf, lab) {
+      c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '800 ' + lf + 'px ' + MONO; c.fillStyle = '#9fc2ff'; c.fillText('DERNIERS VOLS', x0, yLab);
+      (S.history || []).slice(0, n).forEach(function (v, j) { var col = v >= 2 ? '#6ef0a8' : v >= 1.5 ? '#ffd24a' : '#ff8a80'; rr(c, x0 + j * (cw + gap), yChip, cw, ch, ch * 0.22); c.fillStyle = 'rgba(255,255,255,0.09)'; c.fill(); c.fillStyle = col; c.font = '800 ' + vf + 'px ' + MONO; c.textAlign = 'center'; c.fillText(v.toFixed(2), x0 + j * (cw + gap) + cw / 2, yChip + ch / 2 + 1); });
+    }
+
     /* --- petits écrans des postes : mêmes données que le grand (multiplicateur, courbe, derniers vols, véhicule équipé) --- */
     function drawMini() {
-      var w = 512, h = 256, c = mctx, mult = multNow(), now = nowS(), k, tipX = 0, tipY = 0, st2 = S.status;
+      var w = 512, h = 256, c = mctx, mult = multNow(), now = nowS(), k, st2 = S.status;
       var gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#060b1c'); gr.addColorStop(1, '#0d1a3d'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-      c.strokeStyle = 'rgba(110,160,255,0.15)'; c.lineWidth = 1; for (k = 0; k < 16; k++) { c.beginPath(); c.moveTo(k * 32, 0); c.lineTo(k * 32, h); c.stroke(); } for (k = 0; k < 8; k++) { c.beginPath(); c.moveTo(0, k * 32); c.lineTo(w, k * 32); c.stroke(); }
-      if (st2 === 'flying' || st2 === 'crashed') {
-        var T = (st2 === 'crashed' ? Math.log(Math.max(1.01, S.crashPoint)) / GROWTH : Math.max(0.1, (now - S.launchTime) / 1000)), top = Math.max(2, mult * 1.15);
-        c.beginPath(); for (k = 0; k <= 50; k++) { var tt = T * k / 50, m2 = Math.exp(GROWTH * tt), x = 24 + (tt / Math.max(T, 6)) * 400, y = 168 - (Math.log(m2) / Math.log(top)) * 100; if (k === 0) c.moveTo(x, y); else c.lineTo(x, y); tipX = x; tipY = y; }
-        c.strokeStyle = st2 === 'crashed' ? '#ff5a5a' : '#4dd0ff'; c.lineWidth = 4; c.stroke();
-        c.font = '44px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st2 === 'crashed' ? '💥' : vehIcon(), tipX + 6, tipY - 8);
-      } else { c.font = '48px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(vehIcon(), 456, 56 + Math.sin(now / 400) * 3); }
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      if (st2 === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 76px ' + MONO; c.fillText('x' + mult.toFixed(2), 290, 96, 330); c.fillStyle = '#9fc2ff'; c.font = '700 20px ' + MONO; c.fillText('EN VOL', 290, 146); }
-      else if (st2 === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 70px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 290, 90, 330); c.font = '900 26px ' + MONO; c.fillText('CRASH !', 290, 146); }
-      else if (st2 === 'countdown') { var left = Math.max(0, Math.ceil((S.launchTime - now) / 1000)); c.fillStyle = '#ffd24a'; c.font = '900 84px ' + MONO; c.fillText(String(left), 290, 92); c.fillStyle = '#d9e6ff'; c.font = '800 20px ' + MONO; c.fillText('DÉCOLLAGE DANS…', 290, 146); }
-      else { c.fillStyle = '#d9e6ff'; c.font = '900 32px ' + MONO; c.fillText('EN ATTENTE DE MISES', 270, 96, 330); c.fillStyle = '#9fc2ff'; c.font = '600 18px ' + MONO; c.fillText('Le vol part tout seul', 270, 134); }
-      c.textAlign = 'left'; c.font = '800 16px ' + MONO; c.fillStyle = '#9fc2ff'; c.fillText('DERNIERS VOLS', 12, 186);
-      (S.history || []).slice(0, 6).forEach(function (v, j) { var col = v >= 2 ? '#6ef0a8' : v >= 1.5 ? '#ffd24a' : '#ff8a80'; rr(c, 10 + j * 82, 198, 76, 44, 10); c.fillStyle = 'rgba(255,255,255,0.09)'; c.fill(); c.fillStyle = col; c.font = '800 22px ' + MONO; c.textAlign = 'center'; c.fillText(v.toFixed(2), 48 + j * 82, 221); });
+      c.strokeStyle = 'rgba(110,160,255,0.1)'; c.lineWidth = 1; for (k = 0; k < 16; k++) { c.beginPath(); c.moveTo(k * 32, 0); c.lineTo(k * 32, h); c.stroke(); } for (k = 0; k < 8; k++) { c.beginPath(); c.moveTo(0, k * 32); c.lineTo(w, k * 32); c.stroke(); }
+      plot(c, { x0: 22, x1: 490, y0: 112, y1: 182, lw: 4, fs: 34, lf: 0, pad: 36 });
+      c.textAlign = 'left'; c.textBaseline = 'middle';
+      if (st2 === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 58px ' + MONO; c.fillText('x' + mult.toFixed(2), 150, 40, 250); c.fillStyle = '#9fc2ff'; c.font = '700 18px ' + MONO; c.fillText('EN VOL', 150, 86); }
+      else if (st2 === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 56px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 150, 40, 250); c.font = '900 20px ' + MONO; c.fillText('CRASH !', 150, 86); }
+      else if (st2 === 'countdown') { var left = Math.max(0, Math.ceil((S.launchTime - now) / 1000)); c.fillStyle = '#ffd24a'; c.font = '900 60px ' + MONO; c.fillText(String(left), 150, 40); c.fillStyle = '#d9e6ff'; c.font = '800 18px ' + MONO; c.fillText('DÉCOLLAGE DANS…', 150, 86); }
+      else { c.fillStyle = '#d9e6ff'; c.font = '900 28px ' + MONO; c.fillText('EN ATTENTE DE MISES', 150, 40, 350); c.fillStyle = '#9fc2ff'; c.font = '600 17px ' + MONO; c.fillText('Le vol part tout seul', 150, 82); }
+      histRow(c, 12, 198, 210, 76, 38, 6, 6, 15, 21);
       miniTex.needsUpdate = true;
     }
 
     /* --- dessin de l'écran --- */
     var drawT = 0;
     function drawScreen() {
-      var w = 1920, h = 640, c = sctx, mult = multNow(), now = nowS(), k, tipX = 0, tipY = 0;
+      var w = 1920, h = 800, c = sctx, mult = multNow(), now = nowS(), k, st2 = S.status;
       var gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#060b1c'); gr.addColorStop(1, '#0d1a3d'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-      c.strokeStyle = 'rgba(110,160,255,0.12)'; c.lineWidth = 1; for (k = 0; k < 30; k++) { c.beginPath(); c.moveTo(k * 64, 0); c.lineTo(k * 64, h); c.stroke(); } for (k = 0; k < 10; k++) { c.beginPath(); c.moveTo(0, k * 64); c.lineTo(w, k * 64); c.stroke(); }
-      // courbe de vol
-      if (S.status === 'flying' || S.status === 'crashed') {
-        var T = (S.status === 'crashed' ? Math.log(Math.max(1.01, S.crashPoint)) / GROWTH : Math.max(0.1, (now - S.launchTime) / 1000)), top = Math.max(2, mult * 1.15);
-        c.beginPath(); for (k = 0; k <= 60; k++) { var tt = T * k / 60, m2 = Math.exp(GROWTH * tt), x = 80 + (tt / Math.max(T, 6)) * 1100, y = h - 90 - (Math.log(m2) / Math.log(top)) * 360; if (k === 0) c.moveTo(x, y); else c.lineTo(x, y); tipX = x; tipY = y; }
-        c.strokeStyle = S.status === 'crashed' ? '#ff5a5a' : '#4dd0ff'; c.lineWidth = 8; c.stroke();
-        c.font = '120px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(S.status === 'crashed' ? '💥' : vehIcon(), tipX + 20, tipY - 20);
-      } else { c.font = '130px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(vehIcon(), 1290, 450 + Math.sin(now / 400) * 6); }
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      if (S.status === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 210px ' + MONO; c.fillText('x' + mult.toFixed(2), 700, 230, 1300); c.fillStyle = '#9fc2ff'; c.font = '700 38px ' + MONO; c.fillText('EN VOL', 700, 380, 1300); }
-      else if (S.status === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 190px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 700, 230, 1300); c.font = '900 56px ' + MONO; c.fillText('CRASH !', 700, 380, 1300); }
-      else if (S.status === 'countdown') { var left = Math.max(0, Math.ceil((S.launchTime - now) / 1000)); c.fillStyle = '#ffd24a'; c.font = '900 200px ' + MONO; c.fillText(String(left), 700, 220, 1300); c.fillStyle = '#d9e6ff'; c.font = '800 48px ' + MONO; c.fillText('DÉCOLLAGE DANS…', 700, 380, 1300); }
-      else { c.fillStyle = '#d9e6ff'; c.font = '900 76px ' + MONO; c.fillText('EN ATTENTE DE MISES', 700, 220, 1300); c.fillStyle = '#9fc2ff'; c.font = '600 38px ' + MONO; c.fillText('Mise : le vol part tout seul', 700, 330, 1300); }
-      // historique
-      c.textAlign = 'left'; c.font = '800 32px ' + MONO; c.fillStyle = '#9fc2ff'; c.fillText('DERNIERS VOLS', 40, 520);
-      (S.history || []).slice(0, 8).forEach(function (v, j) { var col = v >= 2 ? '#6ef0a8' : v >= 1.5 ? '#ffd24a' : '#ff8a80'; rr(c, 40 + j * 100, 545, 92, 54, 12); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fill(); c.fillStyle = col; c.font = '800 26px ' + MONO; c.textAlign = 'center'; c.fillText(v.toFixed(2), 86 + j * 100, 573); });
+      c.strokeStyle = 'rgba(110,160,255,0.1)'; c.lineWidth = 1; for (k = 0; k < 30; k++) { c.beginPath(); c.moveTo(k * 64, 0); c.lineTo(k * 64, h); c.stroke(); } for (k = 0; k < 13; k++) { c.beginPath(); c.moveTo(0, k * 64); c.lineTo(w, k * 64); c.stroke(); }
+      // en haut : le texte (jamais traversé par la courbe) ; au milieu : la courbe ; en bas : les derniers vols
+      c.fillStyle = 'rgba(255,255,255,0.04)'; rr(c, 40, 290, 1370, 300, 20); c.fill();
+      plot(c, { x0: 150, x1: 1380, y0: 310, y1: 570, lw: 8, fs: 96, lf: 26, pad: 96 });
+      c.textAlign = 'left'; c.textBaseline = 'middle';
+      if (st2 === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 190px ' + MONO; c.fillText('x' + mult.toFixed(2), 80, 125, 900); c.fillStyle = '#9fc2ff'; c.font = '800 46px ' + MONO; c.fillText('EN VOL', 960, 150); }
+      else if (st2 === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 190px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 80, 125, 900); c.font = '900 64px ' + MONO; c.fillText('CRASH !', 960, 150); }
+      else if (st2 === 'countdown') { var left = Math.max(0, Math.ceil((S.launchTime - now) / 1000)); c.fillStyle = '#ffd24a'; c.font = '900 190px ' + MONO; c.fillText(String(left), 80, 125); c.fillStyle = '#d9e6ff'; c.font = '800 56px ' + MONO; c.fillText('DÉCOLLAGE DANS…', 360, 150, 1000); }
+      else { c.fillStyle = '#d9e6ff'; c.font = '900 90px ' + MONO; c.fillText('EN ATTENTE DE MISES', 80, 105, 1300); c.fillStyle = '#9fc2ff'; c.font = '600 44px ' + MONO; c.fillText('Mise : le vol part tout seul', 80, 215, 1300); }
+      histRow(c, 40, 630, 665, 104, 64, 10, 8, 32, 30);
       // mises
-      c.fillStyle = 'rgba(255,255,255,0.06)'; rr(c, 1450, 30, 430, 580, 22); c.fill(); c.textAlign = 'left'; c.fillStyle = '#9fc2ff'; c.font = '800 32px ' + MONO; c.fillText('JOUEURS', 1480, 76);
-      Object.keys(S.bets || {}).slice(0, 9).forEach(function (n, j) {
-        var b = S.bets[n], y = 130 + j * 54; c.font = '700 26px ' + MONO; c.fillStyle = '#d9e6ff'; c.fillText(String(b.name || n).slice(0, 14), 1480, y, 250);
-        c.textAlign = 'right'; c.fillStyle = b.cashedOut ? '#6ef0a8' : '#ffd24a'; c.fillText(b.cashedOut ? 'x' + b.cashMult : fmtN(b.bet), 1850, y, 150); c.textAlign = 'left';
+      c.fillStyle = 'rgba(255,255,255,0.06)'; rr(c, 1450, 30, 430, 740, 22); c.fill(); c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#9fc2ff'; c.font = '800 32px ' + MONO; c.fillText('JOUEURS', 1480, 76);
+      Object.keys(S.bets || {}).slice(0, 11).forEach(function (n, j) {
+        var b = S.bets[n], y = 140 + j * 56; c.textAlign = 'left'; c.font = '700 26px ' + MONO; c.fillStyle = '#d9e6ff'; c.fillText(String(b.name || n).slice(0, 14), 1480, y, 250);
+        c.textAlign = 'right'; c.fillStyle = b.cashedOut ? '#6ef0a8' : '#ffd24a'; c.fillText(b.cashedOut ? 'x' + b.cashMult : fmtN(b.bet), 1850, y, 150);
       });
       scrTex.needsUpdate = true;
       drawMini();
+      var key = JSON.stringify(S.top || []); if (key !== boardKey) { boardKey = key; drawBoard(); }
     }
+
+    /* --- classement sur le mur de la porte : les plus grosses mises encaissées (éjectées avant le crash) --- */
+    var board = mkCanvas(2048, 486), bctx = board.getContext('2d'), boardTex = mkTex(board), boardKey = null;
+    function drawBoard() {
+      var c = bctx, w = 2048, h = 486, list = S.top || [], j;
+      var gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0a1230'); gr.addColorStop(1, '#050816'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(110,160,255,0.55)'; c.lineWidth = 6; rr(c, 8, 8, w - 16, h - 16, 24); c.stroke();
+      c.textBaseline = 'middle'; c.textAlign = 'left'; c.fillStyle = '#ffd24a'; c.font = '900 58px ' + MONO; c.fillText('🏆 CLASSEMENT DES ÉJECTIONS', 60, 64, 1200);
+      c.textAlign = 'right'; c.fillStyle = '#9fc2ff'; c.font = '600 30px ' + MONO; c.fillText('Les plus grosses mises encaissées avant le crash', w - 60, 64, 800);
+      var cw = 372, gap = 22, x0 = (w - (5 * cw + 4 * gap)) / 2, cy = 120, ch = 340, rc = ['#ffd24a', '#d4dbe8', '#e0955a', '#6ea0ff', '#6ea0ff'];
+      for (j = 0; j < 5; j++) {
+        var e = list[j], x = x0 + j * (cw + gap), mx = x + cw / 2;
+        rr(c, x, cy, cw, ch, 22); c.fillStyle = e ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)'; c.fill(); c.strokeStyle = rc[j]; c.lineWidth = e ? 5 : 2; c.globalAlpha = e ? 1 : 0.4; c.stroke(); c.globalAlpha = 1;
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        if (j < 3) { c.font = '84px ' + F.EMOJI_FONT; c.fillText(['🥇', '🥈', '🥉'][j], mx, cy + 66); } else { c.fillStyle = rc[j]; c.font = '900 70px ' + MONO; c.fillText('#' + (j + 1), mx, cy + 66); }
+        if (!e) { c.fillStyle = 'rgba(159,194,255,0.5)'; c.font = '700 40px ' + MONO; c.fillText('Place libre', mx, cy + 190); continue; }
+        c.fillStyle = '#ffffff'; c.font = '800 42px ' + MONO; c.fillText(String(e.name).slice(0, 14), mx, cy + 142, cw - 40);
+        c.fillStyle = '#9fc2ff'; c.font = '700 24px ' + MONO; c.fillText('MISE', mx, cy + 198); c.fillStyle = '#ffd24a'; c.font = '900 56px ' + MONO; c.fillText(fmtN(e.bet), mx, cy + 248, cw - 40);
+        c.fillStyle = '#6ef0a8'; c.font = '800 34px ' + MONO; c.fillText('x' + e.mult.toFixed(2) + '  →  +' + fmtN(e.win), mx, cy + 305, cw - 30);
+      }
+      boardTex.needsUpdate = true;
+    }
+    var boardM = new THREE.Mesh(new THREE.PlaneGeometry(16, 16 * 486 / 2048), new THREE.MeshBasicMaterial({ map: boardTex })); boardM.position.set(0, 6.7, HZ - 0.16); boardM.rotation.y = Math.PI; g.add(boardM);
+    box(g, 16.3, 16 * 486 / 2048 + 0.3, 0.12, new THREE.MeshStandardMaterial({ color: 0x10162a, roughness: 0.4, metalness: 0.6 }), 0, 6.7, HZ - 0.05);
+    drawBoard();
 
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0x4d8bff, target: 'hall', theme: 'exitCrash' });
     g.add(new THREE.AmbientLight(0xaec4ff, 0.8));

@@ -21,7 +21,7 @@ const NOOP = Symbol('noop');
 const initialState = () => ({
   id: Date.now(), round: 1, status: 'waiting',
   countdownStartTime: 0, countdownDuration: COUNTDOWN_MS, launchTime: 0,
-  crashPoint: 2.0, crashedAtTime: 0, bets: {}, owed: [],
+  crashPoint: 2.0, crashedAtTime: 0, bets: {}, owed: [], top: [],
   history: [2.45, 1.35, 4.10, 1.15, 3.20, 1.80], updatedAt: Date.now()
 });
 
@@ -66,6 +66,7 @@ export function publicState(st, now) {
   const out = {
     id: st.id, status: st.status, countdownStartTime: st.countdownStartTime, countdownDuration: st.countdownDuration,
     launchTime: st.launchTime, crashedAtTime: st.crashedAtTime, history: st.history, updatedAt: st.updatedAt, serverNow: now,
+    top: (st.top || []).map((e) => ({ name: e.name, bet: e.bet, mult: e.mult, win: e.win })),
     bets: {}
   };
   if (st.status === 'crashed') out.crashPoint = st.crashPoint; // révélé seulement une fois la fusée explosée
@@ -253,6 +254,14 @@ export default async function handler(req, res) {
         const mult = floor2(multAt(st, now));
         const win = Math.floor(b.bet * mult);
         b.cashedOut = true; b.cashMult = mult; b.win = win;
+        // classement : la plus grosse mise encaissée de chaque joueur, les 5 meilleurs sont gardés
+        if (!Array.isArray(st.top)) st.top = [];
+        const entry = { key: actor, name: b.name || actor, bet: b.bet, mult, win, at: now };
+        const j = st.top.findIndex((x) => x.key === actor);
+        if (j < 0) st.top.push(entry);
+        else if (entry.bet > st.top[j].bet || (entry.bet === st.top[j].bet && entry.win > st.top[j].win)) st.top[j] = entry;
+        st.top.sort((p, q) => q.bet - p.bet || q.win - p.win);
+        st.top = st.top.slice(0, 5);
         st.owed.push({ key: `cw:${st.round}:${actor}:${b.at}`, name: actor, amount: win });
         st.updatedAt = now;
         return { mult, win };
