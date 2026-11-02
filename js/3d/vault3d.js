@@ -313,6 +313,7 @@
         '.vt3d .vt-n{padding:6px 12px;border-radius:10px;border:2px solid #3b6b52;background:#0f1d16;color:#d8ffe9;font-weight:900;cursor:pointer}.vt3d .vt-n.on{border-color:#3dff9a;background:#14503a}' +
         '.vt3d .vt-b{padding:10px 22px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#06140c;background:linear-gradient(90deg,#3dff9a,#17c06a);align-self:center}.vt3d .vt-b.cash{background:linear-gradient(90deg,#ffd24a,#f08a00)}.vt3d .vt-b:disabled{opacity:.4;cursor:not-allowed}.vt3d kbd{opacity:.7;font-size:11px;margin-left:4px}' +
         '.vt3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.vt3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(126,224,160,.6);background:rgba(6,12,10,.85);color:#d8ffe9;font-weight:800;cursor:pointer}';
+      s.textContent += '@media (max-height:520px){.vt3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.vt3d .vt-msg{font-size:12px;min-height:14px}.vt3d .vt-top{font-size:11px}.vt3d .vt-chip{padding:3px 8px;font-size:11px}.vt3d .vt-n{padding:3px 9px}.vt3d .vt-b{padding:6px 14px;font-size:12px}.vt3d-stand{bottom:auto;top:64px}}';
       document.head.appendChild(s);
     }
     function onSeatKey(e) {
@@ -369,7 +370,7 @@
     };
     room.syncHud = function () { refreshUi(); };
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
-    room.hint = function (w) { return w.touch ? 'Disponible sur PC pour le moment' : 'ZQSD / flèches : marcher · Maj : courir · avance vers un poste (F ou clic) · assis : mise, bombes, Lancer, puis clique sur les coffres · Entrée : lancer / encaisser · F : se lever · derrière toi : retour aux mini jeux'; };
+    room.hint = function (w) { return w.touch ? "Joystick : marcher · touche un poste pour t'asseoir · touche les coffres pour les ouvrir · derrière toi : retour aux mini jeux" : 'ZQSD / flèches : marcher · Maj : courir · avance vers un poste (F ou clic) · assis : mise, bombes, Lancer, puis clique sur les coffres · Entrée : lancer / encaisser · F : se lever · derrière toi : retour aux mini jeux'; };
     room.onEnter = function () { loadTop(); };
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
