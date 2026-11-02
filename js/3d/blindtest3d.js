@@ -21,7 +21,7 @@
   var ZONES = [-7.5, 7.5];                    // deux salons (1 et 2) de chaque côté du nom du jeu
   var SCR_W = 9.6, SCR_H = 5.4, SCR_Y = 3.9;  // grands écrans
   var SEAT_DX = [-2, 0, 2, -2, 0, 2];         // deux rangées de trois fauteuils
-  var SEAT_Z = [-4.2, -4.2, -4.2, -2.4, -2.4, -2.4];   // avancés vers l'écran
+  var SEAT_Z = [-2.7, -2.7, -2.7, -0.9, -0.9, -0.9];   // un peu reculés : pas collés à l'écran
   var BTN = [['all', '🎲 Tout'], ['film', '🎬 Films'], ['dessin', '🖍️ Dessins'], ['serie', '📺 Séries']];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
@@ -99,7 +99,7 @@
       box(g, SCR_W + 0.2, SCR_H + 0.2, 0.08, goldM, zx, SCR_Y, -HZ + 0.07);
       screens.push({ cv: cv, ctx: cv.getContext('2d'), tex: tex, sig: '' });
       // estrade et fauteuils
-      box(g, 7, 0.1, 5.4, new THREE.MeshStandardMaterial({ color: 0x2a1330, roughness: 0.9 }), zx, 0.05, -3.3);
+      box(g, 7, 0.1, 5.4, new THREE.MeshStandardMaterial({ color: 0x2a1330, roughness: 0.9 }), zx, 0.05, -1.8);
       var chairM = new THREE.MeshStandardMaterial({ color: 0x8c1a26, roughness: 0.7 }), blackM = new THREE.MeshStandardMaterial({ color: 0x15101a, roughness: 0.8 });
       SEAT_DX.forEach(function (dx, k) {
         var sxp = zx + dx, szp = SEAT_Z[k], s = { n: zi * 6 + k, zone: zi, x: sxp, z: szp, yaw: 0, sx: sxp, sz: szp + 1.0 };
