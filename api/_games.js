@@ -2,7 +2,7 @@
 // Le navigateur n'envoie que des demandes (« je mise X », « je retourne la case 4 ») :
 // le serveur tire les résultats, calcule les gains et modifie le solde.
 import { randomInt, randomBytes } from 'node:crypto';
-import { updateAccount, GameError } from './_store.js';
+import { updateAccount, getRowExact, putRow, GameError } from './_store.js';
 import { createShuffledDeck, calcScore } from './blackjack.js';
 
 export const SLOT_SYMS = ['🔥', '👑', '7️⃣', '💎', '🔔', '🍋', '🍒'];
@@ -109,6 +109,25 @@ const pmuIds = (p) => p.cards.map((c) => c.id);
 const pmuHere = (p) => Date.now() - (Number(p.here) || 0) < PMU_HERE_MS;
 
 /* ---------------------------------- Mines ---------------------------------- */
+// classement des plus gros gains encaissés à la Chambre Forte : une ligne partagée, 5 meilleurs joueurs (leur meilleur gain)
+const VAULT_ROW = '__vault_top__';
+async function recordVault(name, bet, mult, win) {
+  try {
+    if (!(win > 0)) return;
+    if (!(await getRowExact(VAULT_ROW))) await putRow({ username: VAULT_ROW, password: 'sys', avatar: '🔐', balance: 0, data: { top: [] } });
+    await updateAccount(VAULT_ROW, (d) => {
+      const top = Array.isArray(d.data.top) ? d.data.top : [];
+      const i = top.findIndex((e) => String(e.name).toLowerCase() === String(name).toLowerCase());
+      const e = { name: String(name).slice(0, 20), bet, mult, win, at: Date.now() };
+      if (i >= 0) { if (top[i].win >= win) return; top[i] = e; } else top.push(e);
+      top.sort((a, b) => b.win - a.win);
+      d.data.top = top.slice(0, 5);
+    });
+  } catch (e) { /* le classement n'est pas vital */ }
+}
+export async function vaultTop() {
+  try { const r = await getRowExact(VAULT_ROW); return ((r && r.data && r.data.top) || []).map((e) => ({ name: e.name, bet: e.bet, mult: e.mult, win: e.win })); } catch (e) { return []; }
+}
 export function minesMult(count, revealedCount) {
   let m = 1;
   for (let i = 0; i < revealedCount; i++) m *= (20 - i) / (20 - count - i);
@@ -280,16 +299,21 @@ export async function runGameAction(action, body, ctx) {
         return { boom: false, game: minesPublic(g) };
       });
 
-    case 'mines_cashout':
-      return wrap((d) => {
+    case 'mines_cashout': {
+      let who = actor;
+      const out = await wrap((d) => {
         const g = srv(d).mines;
         if (!g || !g.active) throw new GameError(400, 'Aucune partie en cours.');
         if (!g.revealed.length) throw new GameError(400, 'Retourne au moins une case avant de retirer.');
         const win = Math.floor(g.bet * minesMult(g.count, g.revealed.length));
         g.active = false;
         d.balance += win;
+        who = String(d.username || actor);
         return { win, bombs: g.bombs, game: minesPublic(g) };
       });
+      await recordVault(who, out.game.bet, out.game.mult, out.win);          // classement de la Chambre Forte (3D)
+      return out;
+    }
 
     case 'cups_start':
       return wrap((d) => {

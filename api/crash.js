@@ -7,6 +7,7 @@
 import { randomInt } from 'node:crypto';
 import { actorOf } from './_auth.js';
 import { getRowExact, putRow, updateAccount, GameError } from './_store.js';
+import { vaultTop } from './_games.js';
 import { walletCharge, walletPay } from './_wallet.js';
 
 const ROW = '__crash_game__';
@@ -147,6 +148,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      if (req.query && req.query.vault) return res.status(200).json({ ok: true, top: await vaultTop() });      // classement de la Chambre Forte (réutilise cette fonction pour ne pas en créer une de plus)
       let st = await ensureRow();
       const now = Date.now();
       const probe = JSON.parse(JSON.stringify(st));

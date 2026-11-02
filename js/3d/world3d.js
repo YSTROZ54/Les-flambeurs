@@ -1004,7 +1004,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'vault', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });

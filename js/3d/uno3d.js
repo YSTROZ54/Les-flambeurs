@@ -74,15 +74,44 @@
     wx.strokeStyle = 'rgba(224,186,92,0.28)'; wx.lineWidth = 2; for (i = -1; i < 5; i++) { wx.beginPath(); wx.moveTo(i * 64, 0); wx.lineTo(i * 64 + 256, 256); wx.moveTo(i * 64 + 256, 0); wx.lineTo(i * 64, 256); wx.stroke(); }
     wx.fillStyle = 'rgba(224,186,92,0.3)'; for (i = 0; i < 4; i++) for (var j = 0; j < 4; j++) { wx.beginPath(); wx.arc(i * 64 + 32, j * 64, 3, 0, TAU); wx.fill(); }
     var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 16;
+    var OG = 1.9, OPH = 3.5;                                       // demi-largeur et hauteur de l'ouverture du fond
     function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.2, H / 2.2); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, metalness: 0.05 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
-    wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
+    wall(HX - OG, -(HX + OG) / 2, -HZ, 0); wall(HX - OG, (HX + OG) / 2, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI);    // le mur du fond est ouvert au milieu (passage vers la Chambre Forte) wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), woodM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.15, side: THREE.DoubleSide });
     var DG = 1.5;                                                  // demi-ouverture laissée libre devant la porte
-    [[HX * 2, 0, -HZ + 0.04, 0], [HX - DG, -(HX + DG) / 2, HZ - 0.04, Math.PI], [HX - DG, (HX + DG) / 2, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
+    [[HX - OG, -(HX + OG) / 2, -HZ + 0.04, 0], [HX - OG, (HX + OG) / 2, -HZ + 0.04, 0], [HX - DG, -(HX + DG) / 2, HZ - 0.04, Math.PI], [HX - DG, (HX + DG) / 2, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
       var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.2), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 })); m.position.set(d[1], 0.6, d[2]); m.rotation.y = d[3]; g.add(m);
     });
-    [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0],
+    [[HX - OG, 0.12, 0.1, -(HX + OG) / 2, 1.2, -HZ + 0.05], [HX - OG, 0.12, 0.1, (HX + OG) / 2, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0],
       [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    /* --- ouverture du fond : un passage (sans porte) vers la salle de la Chambre Forte, avec couloir d'acier, néons verts et grande porte de coffre au bout --- */
+    (function () {
+      var lt = wallTex.clone(); lt.needsUpdate = true; lt.repeat.set(OG * 2 / 2.2, (H - OPH) / 2.2);
+      var lin = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, H - OPH), new THREE.MeshStandardMaterial({ map: lt, roughness: 0.85, metalness: 0.05 })); lin.position.set(0, OPH + (H - OPH) / 2, -HZ); g.add(lin);
+      var steel = new THREE.MeshStandardMaterial({ color: 0x59606e, roughness: 0.4, metalness: 0.85 }), dark = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.6, metalness: 0.6 }), neon = new THREE.MeshBasicMaterial({ color: 0x3dff9a });
+      [-1, 1].forEach(function (sd) { box(g, 0.34, OPH + 0.1, 0.3, steel, sd * (OG + 0.17), (OPH + 0.1) / 2, -HZ + 0.12); box(g, 0.04, OPH, 0.04, neon, sd * (OG - 0.02), OPH / 2, -HZ + 0.3); });
+      box(g, OG * 2 + 0.7, 0.3, 0.34, steel, 0, OPH + 0.1, -HZ + 0.14); box(g, OG * 2, 0.04, 0.04, neon, 0, OPH - 0.02, -HZ + 0.3);
+      // enseigne
+      var sc = mkCanvas(1536, 384), sx2 = sc.getContext('2d'); sx2.scale(2, 2); sx2.fillStyle = '#0c1410'; sx2.fillRect(0, 0, 768, 192); sx2.strokeStyle = '#c9a227'; sx2.lineWidth = 8; sx2.strokeRect(6, 6, 756, 180);
+      sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.shadowColor = '#3dff9a'; sx2.shadowBlur = 16; sx2.fillStyle = '#d8ffe9'; sx2.font = '900 76px ' + SERIF; sx2.fillText('🔐 LA CHAMBRE FORTE', 384, 84, 720); sx2.shadowBlur = 0; sx2.fillStyle = '#f3cf62'; sx2.font = '700 30px ' + F.MONO; sx2.fillText('MINES · ENTRÉE LIBRE', 384, 150, 720);
+      var sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: mkTex(sc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); sign.position.set(0, OPH + 0.72, -HZ + 0.4); g.add(sign);
+      box(g, 3.8, 1.06, 0.1, dark, 0, OPH + 0.72, -HZ + 0.27); box(g, 3.9, 0.05, 0.12, gold, 0, OPH + 1.27, -HZ + 0.28); box(g, 3.9, 0.05, 0.12, gold, 0, OPH + 0.17, -HZ + 0.28);
+      // couloir derrière l'ouverture (décor : on n'y entre pas, on passe par le fondu)
+      var CL = 3.2, floorM = new THREE.MeshStandardMaterial({ color: 0x20242c, roughness: 0.35, metalness: 0.8 });
+      var cf = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), floorM); cf.rotation.x = -Math.PI / 2; cf.position.set(0, 0.01, -HZ - CL / 2); g.add(cf);
+      var cc2 = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), dark); cc2.rotation.x = Math.PI / 2; cc2.position.set(0, OPH, -HZ - CL / 2); g.add(cc2);
+      [-1, 1].forEach(function (sd) { var cw = new THREE.Mesh(new THREE.PlaneGeometry(CL, OPH), steel); cw.rotation.y = -sd * Math.PI / 2; cw.position.set(sd * OG, OPH / 2, -HZ - CL / 2); g.add(cw); box(g, 0.05, 0.05, CL, neon, sd * (OG - 0.03), 0.9, -HZ - CL / 2); box(g, 0.05, 0.05, CL, neon, sd * (OG - 0.03), OPH - 0.2, -HZ - CL / 2); });
+      for (var rb = 0; rb < 3; rb++) { box(g, OG * 2, 0.06, 0.06, neon, 0, OPH - 0.05, -HZ - 0.5 - rb * 1.0); }
+      // la grande porte ronde du coffre, au bout du couloir
+      var dc = mkCanvas(512, 512), dx2 = dc.getContext('2d'), dg = dx2.createRadialGradient(256, 256, 20, 256, 256, 250); dg.addColorStop(0, '#7b8496'); dg.addColorStop(0.7, '#454c5a'); dg.addColorStop(1, '#262b34');
+      dx2.fillStyle = '#0a0d12'; dx2.fillRect(0, 0, 512, 512); dx2.fillStyle = dg; dx2.beginPath(); dx2.arc(256, 256, 244, 0, TAU); dx2.fill();
+      dx2.strokeStyle = '#c9a227'; dx2.lineWidth = 12; dx2.beginPath(); dx2.arc(256, 256, 236, 0, TAU); dx2.stroke(); dx2.lineWidth = 6; dx2.beginPath(); dx2.arc(256, 256, 190, 0, TAU); dx2.stroke();
+      for (var bl = 0; bl < 12; bl++) { var ba = bl / 12 * TAU; dx2.fillStyle = '#c9a227'; dx2.beginPath(); dx2.arc(256 + Math.cos(ba) * 213, 256 + Math.sin(ba) * 213, 9, 0, TAU); dx2.fill(); }
+      dx2.strokeStyle = '#d9dfec'; dx2.lineWidth = 16; dx2.lineCap = 'round'; for (var sp = 0; sp < 3; sp++) { var sa = sp / 3 * TAU - Math.PI / 2; dx2.beginPath(); dx2.moveTo(256, 256); dx2.lineTo(256 + Math.cos(sa) * 140, 256 + Math.sin(sa) * 140); dx2.stroke(); }
+      dx2.fillStyle = '#c9a227'; dx2.beginPath(); dx2.arc(256, 256, 38, 0, TAU); dx2.fill(); dx2.fillStyle = '#3a2c08'; dx2.beginPath(); dx2.arc(256, 256, 20, 0, TAU); dx2.fill();
+      var vd = new THREE.Mesh(new THREE.CircleGeometry(1.7, 40), new THREE.MeshBasicMaterial({ map: mkTex(dc) })); vd.position.set(0, 1.75, -HZ - CL + 0.02); g.add(vd);
+      if (!low) { var vl = new THREE.PointLight(0x3dff9a, 0.9, 7); vl.position.set(0, 2.6, -HZ - 1.2); g.add(vl); }
+    })();
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0608 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
     /* --- fauteuils capitonnés (le même modèle que le blackjack et les gobelets) --- */
@@ -528,13 +557,14 @@
     g.add(new THREE.AmbientLight(0xf0e0e8, 1.2));
     if (!low) [[UNO_X, -2.75], [UNO_X, 2.75], [C4_X, -2.75], [C4_X, 2.75]].forEach(function (p) { var l = new THREE.PointLight(0xffd9a0, 0.8, 11); l.position.set(p[0], 4.2, p[1]); g.add(l); });
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall', theme: 'exitUno' });
-    room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
+    room.spawn = function (from) { return from === 'vault' ? { x: 0, z: -HZ + 2.8, yaw: Math.PI } : { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un fauteuil pour jouer' : 'ZQSD / flèches : marcher · Maj : courir · à gauche : UNO (2 à 4 joueurs), à droite : Puissance 4 (2 joueurs) · avance vers un fauteuil (F ou clic) pour t\'asseoir et jouer avec les autres · F : se lever' + (w.full ? ' · Échap : quitter' : ''); };
     room.onLeave = function () { stand(); };
     room._etat = function () { return G; };
     room._dbg = { adopt: adopt, toast: toast, renderTable: renderTable, seatOf: function () { return seat; } };
     room.dispose = function () { stand(); };
     room.update = function (dt) {
+      if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('vault') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x) < OG - 0.2) world.goRoom('vault', 'uno');     // on franchit l'ouverture : fondu vers la Chambre Forte
       if (errT > 0) { errT -= dt; if (errT <= 0 && ui) refreshUi(); }
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && toastEl) toastEl.classList.remove('in'); }
       var tnow = performance.now() / 1000;
