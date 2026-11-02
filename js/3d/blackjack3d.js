@@ -178,14 +178,6 @@
     poster('assets/bannieres/blackjack-roulette.jpg?v=1', -3.15, 2.6, HZ - 0.08, Math.PI, 1.6, 2.4);  // mur de la porte, à gauche
     poster('assets/bannieres/blackjack-croupiere.jpg?v=1', -HX + 0.08, 2.6, 9, Math.PI / 2, 1.6, 2.4); // mur de gauche, coin du fond
 
-    // plantes en pot (déjà dessinées dans f3d-core.js) : deux à l'entrée, deux dans les coins du fond, pour ne pas laisser la salle trop vide
-    if (F.makePlant) {
-      [[-2.2, 9], [2.2, 9], [-11, -9], [11, -9]].forEach(function (p) {
-        var pl = F.makePlant(1.15); pl.position.set(p[0], 0, p[1]); g.add(pl);
-        room.colliders.push({ x: p[0], z: p[1], r: 0.32 });
-      });
-    }
-
     /* --- tables, croupiers, tabourets, robots --- */
     var felt = std(0x0e6b3f, 0.95, 0), woodM = std(0x2a140c, 0.5, 0.2), feltD = new THREE.MeshStandardMaterial({ color: 0x0e6b3f, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }), woodD = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }), seatM = std(0x8f0f20, 0.6, 0.1), chromeM = std(0xc9ced6, 0.35, 0.8);
     var tables = [], seats = [], people = [], anims = [], timers = [], clockT = 0;
