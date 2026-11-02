@@ -3196,9 +3196,9 @@ body.s3d-full-on #sidebarBackdrop {
 
 /* dessins des icônes (assets/icones) dans le téléphone et la barre du bas */
 .ph-ico-sq.ph-ico-img { background: none; box-shadow: none; padding: 0; overflow: visible; }
-.ph-ico-sq.ph-ico-img img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5)); }
-.ph-ah-img { width: 44px; height: 44px; flex-shrink: 0; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
-.ph-inv-img { width: 36px; height: 36px; object-fit: contain; }
+.ph-ico-sq.ph-ico-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 19px; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5)); }
+.ph-ah-img { width: 44px; height: 44px; flex-shrink: 0; object-fit: cover; border-radius: 12px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+.ph-inv-img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; }
 .ph-hotbar .ph-inv .ph-inv-img { width: 32px; height: 32px; }
 .ts-logo { object-fit: contain; border-radius: 0; }
 
