@@ -21,9 +21,9 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var HX = 8, HZ = 11, H = 9;                       // demi-largeur, demi-profondeur, hauteur (mètres)
+  var HX = 10, HZ = 13, H = 11;                      // demi-largeur, demi-profondeur, hauteur (mètres)
   var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
-  var SCR_W = 10, SCR_H = SCR_W * 9 / 16, SCR_Y = 2.0;   // l'écran : largeur, hauteur, bas de l'écran
+  var SCR_W = 13, SCR_H = SCR_W * 9 / 16, SCR_Y = 2.4;   // l'écran : largeur, hauteur, bas de l'écran
   var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
   var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
   var VELVET = 0x8c1a26;
@@ -189,10 +189,10 @@
     /* --- murs, plafond, panneaux acoustiques --- */
     var wallM = std(0x24090f, 0.9, 0.05), panelM = std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
-    wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection (x = 4, y = 6)
+    wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection, centrée (x = 0, y = 7)
       var bw = new THREE.Shape(), hole = new THREE.Path();
       bw.moveTo(-HX, 0); bw.lineTo(HX, 0); bw.lineTo(HX, H); bw.lineTo(-HX, H); bw.closePath();
-      hole.moveTo(-5.0, 5.6); hole.lineTo(-3.0, 5.6); hole.lineTo(-3.0, 6.4); hole.lineTo(-5.0, 6.4); hole.closePath(); bw.holes.push(hole);
+      hole.moveTo(-1.0, 6.6); hole.lineTo(1.0, 6.6); hole.lineTo(1.0, 7.4); hole.lineTo(-1.0, 7.4); hole.closePath(); bw.holes.push(hole);
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
     })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
@@ -206,7 +206,7 @@
     var stageD = 2.4;
     box(g, HX * 2, 0.3, stageD, std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
-    for (i = -7.5; i <= 7.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
+    for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var frame = box(g, SCR_W + 0.5, SCR_H + 0.5, 0.12, bas(0x050305), 0, SCR_Y + SCR_H / 2, -HZ + 0.09);   // cadre noir
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
     function paintPoster(label) {
@@ -297,9 +297,9 @@
       sph(s, 0.05, bas(0xfff0c0), 0, -0.02, 0.2);
       var gl = new THREE.Sprite(glowM); gl.scale.set(1.6, 1.6, 1); gl.position.set(0, -0.02, 0.27); s.add(gl); lampGlow.push(gl);
     }
-    [-7, -3.1, 0.8, 4.7, 8.6].forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
-    // cabine de projection : une vraie fenêtre dans le mur du fond, et le projecteur dans la cabine, derrière la vitre
-    var BX = 4.0, BY = 6.0;
+    [-7, -3.1, 0.8, 4.7, 8.6, 11.3].forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
+    // cabine de projection, centrée dans le mur du fond : une vraie fenêtre, et le projecteur derrière la vitre
+    var BX = 0, BY = 7.0;
     var glass = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb4d8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); glass.position.set(BX, BY, HZ - 0.01); g.add(glass);
     box(g, 2.2, 0.1, 0.12, trimM, BX, BY + 0.45, HZ - 0.05); box(g, 2.2, 0.1, 0.12, trimM, BX, BY - 0.45, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX - 1.05, BY, HZ - 0.05); box(g, 0.1, 1.0, 0.12, trimM, BX + 1.05, BY, HZ - 0.05);
     var shell = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 1.5), new THREE.MeshBasicMaterial({ color: 0x241c2c, side: THREE.BackSide })); shell.position.set(BX, BY, HZ + 0.75); g.add(shell);
@@ -322,20 +322,20 @@
     beamGrp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bX, bDir, bZ));     // largeur du faisceau à l'horizontale, hauteur à la verticale
     g.add(beamGrp);
     // comptoir à pop-corn
-    var cw = new THREE.Group(); cw.position.set(-5.2, 0, HZ - 1.1); g.add(cw);
+    var cw = new THREE.Group(); cw.position.set(-6.8, 0, HZ - 1.1); g.add(cw);
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
     box(cw, 0.9, 0.9, 0.6, std(0xc41e2a, 0.5, 0.2), -0.9, 1.5, 0); box(cw, 0.8, 0.8, 0.52, new THREE.MeshLambertMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.75 }), -0.9, 2.35, 0);
     for (i = 0; i < 14; i++) sph(cw, 0.07, lam(i % 3 ? 0xfff0c0 : 0xf2d98a), -0.9 + (Math.random() - 0.5) * 0.55, 2.1 + Math.random() * 0.55, (Math.random() - 0.5) * 0.3);
     var sgC = mkCanvas(512, 128), sgx = sgC.getContext('2d');
     sgx.fillStyle = '#12080f'; sgx.fillRect(0, 0, 512, 128); sgx.strokeStyle = '#ff7a1a'; sgx.lineWidth = 6; sgx.strokeRect(5, 5, 502, 118);
     sgx.textAlign = 'center'; sgx.textBaseline = 'middle'; sgx.fillStyle = '#ffb066'; sgx.font = '800 62px ' + SERIF; sgx.fillText('POP-CORN', 256, 66, 470);
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 2.6, 0.05); cw.add(sign);
+    var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 2.6, 0.05); sign.rotation.y = Math.PI; cw.add(sign);   // tourné vers la salle (sinon lu de dos, inversé)
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
-    room.colliders.push({ x: -5.2 - 1.0, z: HZ - 1.1, r: 0.8 }, { x: -5.2, z: HZ - 1.1, r: 0.8 }, { x: -5.2 + 1.0, z: HZ - 1.1, r: 0.8 });
-    // --- régie : la console du Patron / Co Fondateur, au fond à droite (symétrique du comptoir à pop-corn) ---
-    var RX = 5.2, RZ = HZ - 1.1;
-    var regie = new THREE.Group(); regie.position.set(RX, 0, RZ); regie.rotation.y = Math.atan2(-(5 - RZ), -RX); g.add(regie);
+    room.colliders.push({ x: -6.8 - 1.0, z: HZ - 1.1, r: 0.8 }, { x: -6.8, z: HZ - 1.1, r: 0.8 }, { x: -6.8 + 1.0, z: HZ - 1.1, r: 0.8 });
+    // --- régie : la console du Patron / Co Fondateur, collée contre le mur du fond, à droite ---
+    var RX = 6.8, RZ = HZ - 0.5;
+    var regie = new THREE.Group(); regie.position.set(RX, 0, RZ); regie.rotation.y = Math.PI; g.add(regie);   // dos au mur, face tournée vers la salle
     box(regie, 1.1, 0.95, 0.65, lam(0x1b1016), 0, 0.475, 0);                             // socle sombre
     box(regie, 1.16, 0.05, 0.7, trimM, 0, 0.975, 0);                                     // plateau doré
     var regieScreen = box(regie, 0.62, 0.4, 0.04, std(0x0a0e18, 0.35, 0.1, 0x122240), 0, 1.33, -0.1); regieScreen.rotation.x = -0.35;  // petit écran incliné
@@ -379,7 +379,7 @@
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     var lights = [];
-    if (!low) [[-4, 5.8, -2], [4, 5.8, -2], [0, 5.8, 5]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a8, 0.55, 14); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
+    if (!low) [[-6, 6.8, -3], [6, 6.8, -3], [0, 6.8, 6]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a8, 0.55, 16); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
     var wash = new THREE.PointLight(0xaec8ff, 0, 18); wash.position.set(0, SCR_Y + SCR_H / 2, -HZ + 3.2); g.add(wash);    // reflet bleuté de l'écran sur les premières rangées
     var dim = 1;                                       // 1 = salle allumée, 0,22 = séance en cours
 
