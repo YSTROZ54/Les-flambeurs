@@ -15,6 +15,15 @@
   var EMOJI_FONT = F.EMOJI_FONT, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
   var fmtN = F.fmtN, isMobile = F.isMobile, mkCanvas = F.mkCanvas, mkTex = F.mkTex, roundRectPath = F.roundRectPath;
   var SYMS = ['🔥', '👑', '7️⃣', '💎', '🔔', '🍋', '🍒'];
+  // logos générés (sans fond en damier) pour certains symboles, affichés sur les rouleaux à la place de l'emoji ; chargés une seule fois pour toutes les bornes
+  var SYM_IMAGES = { '7️⃣': 'assets/icones/symboles/sept.png' };
+  var symImgCache = {};
+  function symImage(sym) {
+    var src = SYM_IMAGES[sym]; if (!src) return null;
+    var c = symImgCache[sym];
+    if (!c) { c = symImgCache[sym] = { img: new Image(), ready: false }; c.img.onload = function () { c.ready = true; }; c.img.src = src; }
+    return c.ready ? c.img : null;
+  }
   var BET_STEPS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
   // Habillages de la boutique -> couleur des garnitures de la borne 3D
   var SKINS = { '': 0xc9a227, 'cab-neon': 0x35d4ff, 'cab-emerald': 0x20c585, 'cab-gold': 0xffd24a };
@@ -301,13 +310,18 @@
         bg.addColorStop(0, '#0b0710'); bg.addColorStop(0.5, '#1d1328'); bg.addColorStop(1, '#0b0710');
         c.fillStyle = bg; c.fillRect(rx, ay, rw, ah);
         c.font = Math.round(Math.min(rw, ch) * 0.66) + 'px ' + EMOJI_FONT;
+        var symSize = Math.min(rw, ch) * 0.62;   // taille du logo image (quand il y en a un), à peu près celle de l'emoji
         var f0 = Math.floor(r.pos);
         for (k = f0 - 2; k <= f0 + 2; k++) {
-          var y = ay + ah / 2 + (r.pos - k) * ch, sym = symAt(i, k);
+          var y = ay + ah / 2 + (r.pos - k) * ch, sym = symAt(i, k), im = symImage(sym);
           if (r.speed > 6) {
-            c.globalAlpha = 0.35; c.fillText(sym, rx + rw / 2, y - ch * 0.13); c.fillText(sym, rx + rw / 2, y + ch * 0.13); c.globalAlpha = 1;
+            c.globalAlpha = 0.35;
+            if (im) { c.drawImage(im, rx + rw / 2 - symSize / 2, y - ch * 0.13 - symSize / 2, symSize, symSize); c.drawImage(im, rx + rw / 2 - symSize / 2, y + ch * 0.13 - symSize / 2, symSize, symSize); }
+            else { c.fillText(sym, rx + rw / 2, y - ch * 0.13); c.fillText(sym, rx + rw / 2, y + ch * 0.13); }
+            c.globalAlpha = 1;
           }
-          c.fillText(sym, rx + rw / 2, y);
+          if (im) c.drawImage(im, rx + rw / 2 - symSize / 2, y - symSize / 2, symSize, symSize);
+          else c.fillText(sym, rx + rw / 2, y);
         }
         var sh = c.createLinearGradient(0, ay, 0, ay + ah);
         sh.addColorStop(0, 'rgba(0,0,0,0.75)'); sh.addColorStop(0.33, 'rgba(0,0,0,0)'); sh.addColorStop(0.67, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.75)');
@@ -768,12 +782,15 @@
       var pg = pc2.createLinearGradient(0, 0, 0, PHt); pg.addColorStop(0, '#2b1038'); pg.addColorStop(1, '#0d0612'); pc2.fillStyle = pg; pc2.fillRect(0, 0, PWd, PHt);
       pc2.strokeStyle = '#c9a227'; pc2.lineWidth = 8; pc2.strokeRect(10, 10, PWd - 20, PHt - 20); pc2.strokeStyle = 'rgba(201,162,39,0.45)'; pc2.lineWidth = 2; pc2.strokeRect(24, 24, PWd - 48, PHt - 48);
       var tex = mkTex(pc);
+      function clipSymbole() { pc2.save(); pc2.beginPath(); pc2.rect(26, 26, PWd - 52, PHt * 0.66); pc2.clip(); }   // le symbole (emoji ou logo) ne doit jamais déborder du cadre, même mal centré
       if (imgSrc) {   // logo généré (sans fond en damier) plutôt que l'emoji du symbole
         var img = new Image();
-        img.onload = function () { var s = PWd * 0.6, ix = (PWd - s) / 2, iy = PHt * 0.42 - s / 2; pc2.drawImage(img, ix, iy, s, s); tex.needsUpdate = true; };
+        img.onload = function () { clipSymbole(); var s = PWd * 0.6, ix = (PWd - s) / 2, iy = PHt * 0.42 - s / 2; pc2.drawImage(img, ix, iy, s, s); pc2.restore(); tex.needsUpdate = true; };
         img.src = imgSrc;
       } else {
-        pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.46) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+        clipSymbole();
+        pc2.textAlign = 'center'; pc2.textBaseline = 'middle'; pc2.font = Math.round(PWd * 0.42) + 'px ' + EMOJI_FONT; pc2.fillText(sym, PWd / 2, PHt * 0.42);
+        pc2.restore();
       }
       pc2.fillStyle = '#f3cf62'; pc2.shadowColor = '#ffb300'; pc2.shadowBlur = 12; pc2.font = '800 ' + Math.round(PWd * 0.115) + 'px ' + SERIF; pc2.fillText(title, PWd / 2, PHt * 0.82, PWd - 70);
       var gp = new THREE.Group(); gp.position.set(x, y, z); gp.rotation.y = ry; scene.add(gp);
@@ -804,6 +821,12 @@
   }
 
   // Meilleur gain de chaque joueur (comptes connus du navigateur), du plus gros au plus petit
+  // emoji abîmé par un mauvais encodage (« ?? », vide…) : l'initiale du pseudo à la place, comme dans le reste du jeu
+  function cleanEmoji(av, name) {
+    av = String(av == null ? '' : av).trim();
+    if (!av || /^[?\s]*$|^(null|undefined)$/.test(av)) return String(name || '?').charAt(0).toUpperCase();
+    return av;
+  }
   function topSlotWins() {
     var out = [];
     try {
@@ -817,9 +840,9 @@
         var isMe = !!meKey && a.username.toLowerCase().trim() === meKey;
         var best = Math.max(a.slotBestWin || 0, (a.data && a.data.slotBestWin) || 0, isMe && state ? state.slotBestWin || 0 : 0);
         if (isMe) seenMe = true;
-        if (best > 0) out.push({ name: a.username, emoji: a.avatarEmoji || '', win: best, me: isMe });
+        if (best > 0) out.push({ name: a.username, emoji: cleanEmoji(a.avatarEmoji, a.username), win: best, me: isMe });
       });
-      if (!seenMe && meKey && state.slotBestWin > 0) out.push({ name: state.username, emoji: state.avatarEmoji || '', win: state.slotBestWin, me: true });
+      if (!seenMe && meKey && state.slotBestWin > 0) out.push({ name: state.username, emoji: cleanEmoji(state.avatarEmoji, state.username), win: state.slotBestWin, me: true });
     } catch (e) { /* données pas encore chargées */ }
     out.sort(function (x, y) { return y.win - x.win; });
     return out.slice(0, 5);
