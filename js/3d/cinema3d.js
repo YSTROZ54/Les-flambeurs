@@ -394,16 +394,15 @@
     var video = document.createElement('video');
     video.crossOrigin = 'anonymous'; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-    var net = { url: '', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '' };
+    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '' };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
     function netPosNow() {
       var p = net.position;
       if (net.status === 'playing') p += (performance.now() - net.recvAt) / 1000;
       return p;
     }
-    // .m3u8 (flux HLS, ce que renvoient en général fsvid / uqload / vidzy une fois le lien direct récupéré) :
+    // type: 'hls' (flux .m3u8, ce que renvoie en général l'extraction fsvid / uqload / vidzy côté serveur) :
     // Chrome/Firefox ne le lisent pas nativement, on charge hls.js à la demande ; Safari le lit nativement, pas besoin.
-    var isM3u8 = function (u) { return /\.m3u8(\?|#|$)/i.test(u || ''); };
     var hlsInst = null, hlsLibPromise = null;
     function loadHlsLib(cb) {
       if (window.Hls) return cb(window.Hls);
@@ -418,9 +417,9 @@
       }
       hlsLibPromise.then(cb);
     }
-    function setSource(url) {
+    function setSource(url, type) {
       if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; }
-      if (url && isM3u8(url) && !video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (url && type === 'hls' && !video.canPlayType('application/vnd.apple.mpegurl')) {
         loadHlsLib(function (Hls) {
           if (!Hls) { world.flash('🎬 Lecture HLS indisponible.', 'Réessaie dans un instant.'); return; }
           hlsInst = new Hls();
@@ -436,8 +435,8 @@
     function applyNet(st) {
       if (!st) return;
       var wasPlaying = net.status === 'playing';
-      net.url = st.url || ''; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
-      if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url); }
+      net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
+      if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
       if (net.status === 'playing') {
         showVideo(true); if (!wasPlaying) setHud(true);
         if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
@@ -493,11 +492,11 @@
       consoleEl.innerHTML =
         '<button class="cin-cn-x" data-a="close"><i class="fa-solid fa-xmark"></i></button>' +
         '<div class="cin-cn-t"><i class="fa-solid fa-sliders"></i> Régie du cinéma</div>' +
-        '<input class="cin-cn-url" type="text" placeholder="Lien direct .mp4 ou .m3u8…" maxlength="500">' +
+        '<input class="cin-cn-url" type="text" placeholder="Lien .mp4 / .m3u8, ou page fsvid, uqload, vidzy…" maxlength="500">' +
         '<div class="cin-cn-row"><button data-a="load"><i class="fa-solid fa-link"></i> Charger</button></div>' +
         '<div class="cin-cn-row"><button data-a="play"><i class="fa-solid fa-play"></i> Lancer</button><button data-a="pause"><i class="fa-solid fa-pause"></i> Pause</button><button data-a="stop"><i class="fa-solid fa-stop"></i> Couper</button></div>' +
         '<div class="cin-cn-st" data-a="status"></div>' +
-        '<div class="cin-cn-help">Fsvid / Uqload / Vidzy : ouvre le lien, récupère le lien direct .mp4 ou .m3u8 (outils de développement → Réseau), puis colle-le ici — pas la page du lecteur.</div>';
+        '<div class="cin-cn-help">Fsvid / Uqload / Vidzy : colle directement le lien de la page du lecteur, le flux est extrait automatiquement (peut prendre quelques secondes).</div>';
       consoleEl.addEventListener('click', function (e) {
         var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null; if (!b) return;
         var a = b.getAttribute('data-a');
@@ -505,7 +504,7 @@
         if (a === 'load') {
           var u = consoleEl.querySelector('.cin-cn-url').value.trim();
           if (!u) return;
-          if (looksLikeEmbedPage(u)) { world.flash('🔗 Ce lien est la page du lecteur, pas le flux.', 'Récupère le lien direct .mp4 ou .m3u8 (outils de développement → Réseau), puis colle-le ici.'); return; }
+          if (looksLikeEmbedPage(u)) world.flash('🎬 Extraction du flux…', 'Ça peut prendre quelques secondes.');
           cinemaAction('set', { url: u });
           return;
         }

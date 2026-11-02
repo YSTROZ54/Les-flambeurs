@@ -4,13 +4,18 @@
 import { actorOf } from './_auth.js';
 import { getRowExact, putRow, updateAccount, GameError } from './_store.js';
 
+// Vercel : l'extraction (appel à tropistream.fr, parfois lente côté Puppeteer la première fois) peut dépasser
+// la limite par défaut ; sans effet sur un plan qui ne l'autorise pas.
+export const config = { maxDuration: 60 };
+
 const ROW = '__cinema_state__';
 const PATRONS = ['ystroz', 'alex'];
 const CO_FONDATEURS = ['yohan81'];
 const CAN_CONTROL = PATRONS.concat(CO_FONDATEURS);
 const DEFAULT_URL = 'video/tropistream-presentation.mp4';
+const TROPISTREAM = 'https://tropistream.fr';
 
-const initialState = () => ({ url: DEFAULT_URL, status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '' });
+const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '' });
 
 function positionAt(st, now) {
   if (st.status === 'playing') return Math.max(0, st.position + (now - st.updatedAt) / 1000);
@@ -19,7 +24,31 @@ function positionAt(st, now) {
 
 // ce que les navigateurs ont le droit de voir
 export function publicState(st, now) {
-  return { url: st.url || '', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '' };
+  return { url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '' };
+}
+
+// Fsvid / Uqload / Vidzy : la page collée est l'embed du lecteur (pas un flux jouable tel quel).
+const EMBED_HOST_RE = /fsvid\.(io|lol)|fs\d+\.(io|lol)|uqload\.[a-z0-9.-]+|vidzy\.[a-z0-9.-]+/i;
+function looksLikeEmbedPage(u) { return EMBED_HOST_RE.test(u) && !/\.(mp4|m3u8)(\?|#|$)/i.test(u); }
+
+// Demande à tropistream.fr d'extraire le flux réel de ce lien embed (mode « Watch Party » du site :
+// &wp=1 force l'extraction même sans compte premium). Un appel navigateur direct est refusé par leur
+// liste blanche CORS ; un appel serveur à serveur (sans en-tête Origin) passe — vérifié en direct.
+async function extractFromTropistream(embedUrl) {
+  const api = `${TROPISTREAM}/api/proxy?url=${encodeURIComponent(embedUrl)}&wp=1&json=1`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45000);
+  try {
+    const r = await fetch(api, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!r.ok) return null;
+    const data = await r.json().catch(() => null);
+    if (!data || !data.success || !data.src) return null;
+    return { url: `/api/cinema-video?u=${encodeURIComponent(TROPISTREAM + data.src)}`, type: data.type === 'hls' ? 'hls' : 'mp4' };
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function ensureRow() {
@@ -74,9 +103,17 @@ export default async function handler(req, res) {
 
     // ---- CHARGER UN LIEN ----
     if (action === 'set') {
-      const url = String(body.url || '').trim().slice(0, 500);
-      if (!url) return fail(res, 400, 'Donne un lien valide.');
-      await mutateState((s, now) => { s.url = url; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
+      const raw = String(body.url || '').trim().slice(0, 500);
+      if (!raw) return fail(res, 400, 'Donne un lien valide.');
+
+      let finalUrl = raw, finalType = /\.m3u8(\?|#|$)/i.test(raw) ? 'hls' : 'mp4';
+      if (looksLikeEmbedPage(raw)) {
+        const extracted = await extractFromTropistream(raw);
+        if (!extracted) return fail(res, 422, "Impossible d'extraire ce lien pour l'instant. Réessaie dans un instant, ou utilise un lien direct.");
+        finalUrl = extracted.url; finalType = extracted.type;
+      }
+
+      await mutateState((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
