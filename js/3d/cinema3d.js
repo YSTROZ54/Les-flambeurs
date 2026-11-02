@@ -288,17 +288,7 @@
     cyl(proj, 0.1, 0.13, 0.22, std(0x24242a, 0.4, 0.7), 0, 0.08, -0.4, 16).rotation.x = Math.PI / 2;   // objectif
     cyl(proj, 0.085, 0.085, 0.02, new THREE.MeshBasicMaterial({ color: 0xdfeaff }), 0, 0.08, -0.51, 16).rotation.x = Math.PI / 2;   // lentille
     [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
-    if (!low) { var bl = new THREE.PointLight(0xdfeaff, 0.8, 4); bl.position.set(BX, BY + 0.3, HZ + 0.2); g.add(bl); }       // un peu de lumière dans la cabine pour voir le projecteur
-    // faisceau du projecteur : une pyramide à peine visible, de la lentille jusqu'à l'écran, allumée pendant la séance
-    var pTop = new THREE.Vector3(BX, BY - 0.02, HZ + 0.1), pBot = new THREE.Vector3(0, SCR_Y + SCR_H / 2, -HZ + 0.2);
-    var beamLen = pTop.distanceTo(pBot);
-    var beamGrp = new THREE.Group(), beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, SCR_W / 2 * Math.SQRT2, beamLen, 4, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xcfe0ff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
-    beamMesh.rotation.y = Math.PI / 4; beamGrp.add(beamMesh); beamGrp.scale.set(1, 1, SCR_H / SCR_W);
-    beamGrp.position.copy(pTop).add(pBot).multiplyScalar(0.5);
-    var bDir = pTop.clone().sub(pBot).normalize(), bX = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), bDir).normalize(), bZ = new THREE.Vector3().crossVectors(bX, bDir).normalize();
-    beamGrp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bX, bDir, bZ));     // largeur du faisceau à l'horizontale, hauteur à la verticale
-    g.add(beamGrp);
+    // faisceau du projecteur retiré
     // comptoir à pop-corn
     var cw = new THREE.Group(); cw.position.set(-6.8, 0, HZ - 1.1); g.add(cw);
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
@@ -860,7 +850,6 @@
       amb.intensity = 0.95 * dim; key.intensity = 0.3 * dim;
       lights.forEach(function (l) { l.intensity = 0.55 * dim; });
       wash.intensity = playing ? 0.5 : 0;
-      beamMesh.material.opacity += ((playing ? 0.03 : 0) - beamMesh.material.opacity) * Math.min(1, dt * 2);
       lampGlow.forEach(function (s, i) { s.scale.setScalar(1.8 + Math.sin(clock * 3 + i) * 0.06); });
       // musique : elle se tait pendant le film (qui a son propre son)
       music.setLevel(playing ? 0 : 1);
