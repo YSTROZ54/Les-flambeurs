@@ -43,7 +43,7 @@
   <script src="js/3d/blackjack3d.js?v=3.5"></script>
   <script src="js/3d/loupgarou3d.js?v=1.0"></script>
   <script src="js/3d/cups3d.js?v=2.4"></script>
-  <script src="js/3d/crash3d.js?v=2.1"></script>
+  <script src="js/3d/crash3d.js?v=2.2"></script>
   <script src="js/3d/blindtest3d.js?v=1.6"></script>
   <script src="js/3d/minijeux-regles.js?v=1.0"></script>
   <script src="js/3d/uno3d.js?v=3.4"></script>
@@ -8828,6 +8828,18 @@
       renderNotificationsModal();
     }
 
+    // son de notification : joué quand une nouvelle demande d'ami, invitation de jeu, virement ou mise à jour arrive (volume = volume général du site)
+    function playNotificationSound() {
+      try {
+        const a = window.__notifAudio || (window.__notifAudio = new Audio('assets/sons/notification.mp3'));
+        a.volume = Math.min(1, getMasterVolume() * 1.6);
+        if (a.volume <= 0) return;
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => { });
+      } catch (e) { }
+    }
+
     function updateNotificationsBadge() {
       const nowTs = Date.now();
       const validGInvs = (Array.isArray(state.pendingGameInvites) ? state.pendingGameInvites : [])
@@ -8837,6 +8849,8 @@
       const tReq = Array.isArray(state.pendingTransfers) ? state.pendingTransfers.length : 0;
       const maj = majNonLues();
       const total = gInv + fReq + tReq + maj;
+      if (typeof window.__notifPrev === 'number' && total > window.__notifPrev) playNotificationSound();      // seulement quand le nombre augmente (pas au chargement)
+      window.__notifPrev = total;
 
       // Compteurs des onglets de la fenêtre Notifications
       const compteurs = { notifCountAll: total, notifCountGames: gInv, notifCountFriends: fReq, notifCountBank: tReq, notifCountMaj: maj };

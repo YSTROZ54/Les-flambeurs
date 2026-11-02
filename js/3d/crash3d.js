@@ -17,7 +17,7 @@
 
   var HX = 14, HZ = 10, H = 6.4;
   var GROWTH = 0.15, MIN_BET = 10, MAX_BET = 100000, CHIPS = [10, 100, 500, 1000, 5000];
-  var SILO = { x: -11.2, z: -5.2, h: 5.6 }, SILO2 = { x: 11.2, z: -5.2 };      // les deux tours encadrent l'écran : plus rien ne le cache
+  var SILO = { x: -11.2, z: -8.3, h: 5.6 }, SILO2 = { x: 11.2, z: -8.3 };      // les deux tours encadrent l'écran : plus rien ne le cache
   var SEATS_X = [-8.4, -5.6, -2.8, 0, 2.8, 5.6, 8.4];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
@@ -28,6 +28,7 @@
     if (typeof b !== 'number') return;
     try { var s = st(); s.balance = b; s.lastBalanceChange = Date.now(); if (typeof saveState === 'function') saveState(); if (typeof updateGlobalUI === 'function') updateGlobalUI(); } catch (e) { /* ok */ }
   }
+  function vehIcon() { try { var s = st(), it = typeof SHOP_CATALOG !== 'undefined' && s && s.equipped ? SHOP_CATALOG.find(function (v) { return v.id === s.equipped.crashVehicle; }) : null; return (it && it.icon) || '🚀'; } catch (e) { return '🚀'; } }
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
@@ -107,6 +108,14 @@
     var boom2 = new THREE.Sprite(boom.material.clone()); boom2.visible = false; g.add(boom2);
     var debMat = new THREE.MeshBasicMaterial({ color: 0xff8a3a });
     for (i = 0; i < 16; i++) { var d = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), debMat); d.visible = false; g.add(d); debris.push({ m: d, v: new THREE.Vector3() }); }
+    /* --- fumée du décollage : un gros nuage au sol, puis une traînée derrière la fusée (les deux tours en même temps) --- */
+    var smkC = mkCanvas(128, 128), smx = smkC.getContext('2d'), smg = smx.createRadialGradient(64, 64, 4, 64, 64, 62); smg.addColorStop(0, 'rgba(240,243,250,0.95)'); smg.addColorStop(0.5, 'rgba(195,203,220,0.5)'); smg.addColorStop(1, 'rgba(165,175,195,0)'); smx.fillStyle = smg; smx.fillRect(0, 0, 128, 128);
+    var smkTex = mkTex(smkC), puffs = [], PUFFN = low ? 90 : 180, puffI = 0, TOWER_DX = SILO2.x - SILO.x, smkT = 0;
+    for (i = 0; i < PUFFN; i++) { var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smkTex, transparent: true, depthWrite: false, opacity: 0, color: 0xdfe5f2 })); sp.visible = false; g.add(sp); puffs.push({ s: sp, age: 9, life: 1, v: new THREE.Vector3(), r0: 0.4, r1: 1.2, op: 0.5 }); }
+    function puff(x, y, z, vx, vy, vz, r0, r1, life, op) { var p = puffs[puffI]; puffI = (puffI + 1) % PUFFN; p.age = 0; p.life = life; p.v.set(vx, vy, vz); p.r0 = r0; p.r1 = r1; p.op = op; p.s.position.set(x, y, z); p.s.visible = true; }
+    function puff2(x, y, z, vx, vy, vz, r0, r1, life, op) { puff(x, y, z, vx, vy, vz, r0, r1, life, op); puff(x + TOWER_DX, y, z, -vx, vy, vz, r0, r1, life, op); }
+    function smokeBurst() { for (var q = 0; q < 16; q++) { var an = Math.random() * TAU, sp2 = 0.5 + Math.random() * 0.8; puff2(SILO.x + Math.cos(an) * 0.4, 0.35 + Math.random() * 0.2, SILO.z + Math.sin(an) * 0.4, Math.cos(an) * sp2, 0.3 + Math.random() * 0.5, Math.sin(an) * sp2, 0.6, 2.1 + Math.random() * 0.6, 2.6, 0.75); } }
+    function smokeStep(dt) { puffs.forEach(function (p) { if (!p.s.visible) return; p.age += dt; var u = p.age / p.life; if (u >= 1) { p.s.visible = false; return; } p.s.position.addScaledVector(p.v, dt); p.v.multiplyScalar(1 - dt * 0.8); var r = p.r0 + (p.r1 - p.r0) * u; p.s.scale.set(r, r, 1); p.s.material.opacity = p.op * (1 - u) * (u < 0.1 ? u / 0.1 : 1); }); }
     var pl = low ? null : new THREE.PointLight(0xffa850, 0, 10); if (pl) { pl.position.set(SILO.x, 1.5, SILO.z); g.add(pl); }
 
     /* --- grand écran sur le mur du fond --- */
@@ -117,11 +126,10 @@
     /* --- postes de contrôle : un vrai pupitre avec écran, et un fauteuil de bureau --- */
     var deskM = new THREE.MeshStandardMaterial({ color: 0x141b30, roughness: 0.35, metalness: 0.7 }), seatM = new THREE.MeshStandardMaterial({ color: 0x1d3a8a, roughness: 0.55 }), chromeM = new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.35, metalness: 0.8 });
     var glowM = new THREE.MeshBasicMaterial({ color: 0x3aa0ff }), topM = new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.15, metalness: 0.9 }), blackM = new THREE.MeshStandardMaterial({ color: 0x0d0f16, roughness: 0.7 });
-    function consoleTex(n) {
-      var cv = mkCanvas(256, 128), c = cv.getContext('2d'); c.fillStyle = '#06122c'; c.fillRect(0, 0, 256, 128); c.strokeStyle = '#1f4fb8'; c.lineWidth = 1;
-      for (var y = 16; y < 128; y += 24) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); }
-      c.strokeStyle = '#4de0a0'; c.lineWidth = 3; c.beginPath(); c.moveTo(8, 108); c.bezierCurveTo(80, 100, 120, 70, 160, 62); c.bezierCurveTo(200, 54, 230, 30, 248, 14); c.stroke();
-      c.fillStyle = '#9fd0ff'; c.font = '800 20px ' + SERIF; c.textAlign = 'left'; c.fillText('POSTE ' + n, 10, 24); c.textAlign = 'right'; c.fillStyle = '#4de0a0'; c.fillText('x1.00', 246, 24);
+    var mini = mkCanvas(512, 256), mctx = mini.getContext('2d'), miniTex = mkTex(mini);        // le même contenu que le grand écran, sur tous les postes
+    function tagTex(n) {
+      var cv = mkCanvas(256, 48), c2 = cv.getContext('2d'); c2.fillStyle = 'rgba(6,18,44,0.85)'; rr(c2, 0, 0, 256, 48, 10); c2.fill();
+      c2.fillStyle = '#9fd0ff'; c2.font = '800 30px ' + SERIF; c2.textAlign = 'left'; c2.textBaseline = 'middle'; c2.fillText('POSTE ' + n, 12, 26);
       return mkTex(cv);
     }
     var seats = [], timers = [];
@@ -136,7 +144,8 @@
       for (var kx = -3; kx <= 3; kx++) box(dsk, 0.16, 0.012, 0.18, new THREE.MeshBasicMaterial({ color: 0x4aa0ff }), kx * 0.2, 0.882, 0.1);
       var mon = new THREE.Group(); mon.position.set(0, 0.87, -0.22); mon.rotation.x = -0.25; dsk.add(mon);           // écran bas, penché vers le joueur ; petit, pour ne pas cacher le grand écran et ses « Derniers vols »
       box(mon, 0.8, 0.35, 0.03, blackM, 0, 0.21, 0);
-      var ms = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.29), new THREE.MeshBasicMaterial({ map: consoleTex(k + 1) })); ms.position.set(0, 0.21, 0.017); mon.add(ms);
+      var ms = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.29), new THREE.MeshBasicMaterial({ map: miniTex })); ms.position.set(0, 0.21, 0.017); mon.add(ms);
+      var tg = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.0375), new THREE.MeshBasicMaterial({ map: tagTex(k + 1), transparent: true })); tg.position.set(-0.26, 0.328, 0.019); mon.add(tg);
       box(mon, 0.12, 0.1, 0.1, chromeM, 0, 0.03, -0.02);
       room.colliders.push({ x: sx0, z: dz, r: 0.95 });
       var seatZ = dz + 1.25, s = { n: k, x: sx0, z: seatZ, yaw: 0, tx: sx0, tz: dz, sx: sx0, sz: seatZ + 1.1 };
@@ -276,18 +285,40 @@
     };
     room.syncHud = function () { refreshUi(); };
 
+    /* --- petits écrans des postes : mêmes données que le grand (multiplicateur, courbe, derniers vols, véhicule équipé) --- */
+    function drawMini() {
+      var w = 512, h = 256, c = mctx, mult = multNow(), now = nowS(), k, tipX = 0, tipY = 0, st2 = S.status;
+      var gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#060b1c'); gr.addColorStop(1, '#0d1a3d'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(110,160,255,0.15)'; c.lineWidth = 1; for (k = 0; k < 16; k++) { c.beginPath(); c.moveTo(k * 32, 0); c.lineTo(k * 32, h); c.stroke(); } for (k = 0; k < 8; k++) { c.beginPath(); c.moveTo(0, k * 32); c.lineTo(w, k * 32); c.stroke(); }
+      if (st2 === 'flying' || st2 === 'crashed') {
+        var T = (st2 === 'crashed' ? Math.log(Math.max(1.01, S.crashPoint)) / GROWTH : Math.max(0.1, (now - S.launchTime) / 1000)), top = Math.max(2, mult * 1.15);
+        c.beginPath(); for (k = 0; k <= 50; k++) { var tt = T * k / 50, m2 = Math.exp(GROWTH * tt), x = 24 + (tt / Math.max(T, 6)) * 400, y = 168 - (Math.log(m2) / Math.log(top)) * 100; if (k === 0) c.moveTo(x, y); else c.lineTo(x, y); tipX = x; tipY = y; }
+        c.strokeStyle = st2 === 'crashed' ? '#ff5a5a' : '#4dd0ff'; c.lineWidth = 4; c.stroke();
+        c.font = '44px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(st2 === 'crashed' ? '💥' : vehIcon(), tipX + 6, tipY - 8);
+      } else { c.font = '48px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(vehIcon(), 456, 56 + Math.sin(now / 400) * 3); }
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      if (st2 === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 76px ' + MONO; c.fillText('x' + mult.toFixed(2), 290, 96, 330); c.fillStyle = '#9fc2ff'; c.font = '700 20px ' + MONO; c.fillText('EN VOL', 290, 146); }
+      else if (st2 === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 70px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 290, 90, 330); c.font = '900 26px ' + MONO; c.fillText('CRASH !', 290, 146); }
+      else if (st2 === 'countdown') { var left = Math.max(0, Math.ceil((S.launchTime - now) / 1000)); c.fillStyle = '#ffd24a'; c.font = '900 84px ' + MONO; c.fillText(String(left), 290, 92); c.fillStyle = '#d9e6ff'; c.font = '800 20px ' + MONO; c.fillText('DÉCOLLAGE DANS…', 290, 146); }
+      else { c.fillStyle = '#d9e6ff'; c.font = '900 32px ' + MONO; c.fillText('EN ATTENTE DE MISES', 270, 96, 330); c.fillStyle = '#9fc2ff'; c.font = '600 18px ' + MONO; c.fillText('Le vol part tout seul', 270, 134); }
+      c.textAlign = 'left'; c.font = '800 16px ' + MONO; c.fillStyle = '#9fc2ff'; c.fillText('DERNIERS VOLS', 12, 186);
+      (S.history || []).slice(0, 6).forEach(function (v, j) { var col = v >= 2 ? '#6ef0a8' : v >= 1.5 ? '#ffd24a' : '#ff8a80'; rr(c, 10 + j * 82, 198, 76, 44, 10); c.fillStyle = 'rgba(255,255,255,0.09)'; c.fill(); c.fillStyle = col; c.font = '800 22px ' + MONO; c.textAlign = 'center'; c.fillText(v.toFixed(2), 48 + j * 82, 221); });
+      miniTex.needsUpdate = true;
+    }
+
     /* --- dessin de l'écran --- */
     var drawT = 0;
     function drawScreen() {
-      var w = 1920, h = 640, c = sctx, mult = multNow(), now = nowS(), k;
+      var w = 1920, h = 640, c = sctx, mult = multNow(), now = nowS(), k, tipX = 0, tipY = 0;
       var gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#060b1c'); gr.addColorStop(1, '#0d1a3d'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
       c.strokeStyle = 'rgba(110,160,255,0.12)'; c.lineWidth = 1; for (k = 0; k < 30; k++) { c.beginPath(); c.moveTo(k * 64, 0); c.lineTo(k * 64, h); c.stroke(); } for (k = 0; k < 10; k++) { c.beginPath(); c.moveTo(0, k * 64); c.lineTo(w, k * 64); c.stroke(); }
       // courbe de vol
       if (S.status === 'flying' || S.status === 'crashed') {
         var T = (S.status === 'crashed' ? Math.log(Math.max(1.01, S.crashPoint)) / GROWTH : Math.max(0.1, (now - S.launchTime) / 1000)), top = Math.max(2, mult * 1.15);
-        c.beginPath(); for (k = 0; k <= 60; k++) { var tt = T * k / 60, m2 = Math.exp(GROWTH * tt), x = 80 + (tt / Math.max(T, 6)) * 1100, y = h - 90 - (Math.log(m2) / Math.log(top)) * 360; if (k === 0) c.moveTo(x, y); else c.lineTo(x, y); }
+        c.beginPath(); for (k = 0; k <= 60; k++) { var tt = T * k / 60, m2 = Math.exp(GROWTH * tt), x = 80 + (tt / Math.max(T, 6)) * 1100, y = h - 90 - (Math.log(m2) / Math.log(top)) * 360; if (k === 0) c.moveTo(x, y); else c.lineTo(x, y); tipX = x; tipY = y; }
         c.strokeStyle = S.status === 'crashed' ? '#ff5a5a' : '#4dd0ff'; c.lineWidth = 8; c.stroke();
-      }
+        c.font = '120px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(S.status === 'crashed' ? '💥' : vehIcon(), tipX + 20, tipY - 20);
+      } else { c.font = '130px ' + F.EMOJI_FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(vehIcon(), 1290, 450 + Math.sin(now / 400) * 6); }
       c.textAlign = 'center'; c.textBaseline = 'middle';
       if (S.status === 'flying') { c.fillStyle = '#6ef0a8'; c.font = '900 210px ' + MONO; c.fillText('x' + mult.toFixed(2), 700, 230, 1300); c.fillStyle = '#9fc2ff'; c.font = '700 38px ' + MONO; c.fillText('EN VOL', 700, 380, 1300); }
       else if (S.status === 'crashed') { c.fillStyle = '#ff5a5a'; c.font = '900 190px ' + MONO; c.fillText('x' + S.crashPoint.toFixed(2), 700, 230, 1300); c.font = '900 56px ' + MONO; c.fillText('CRASH !', 700, 380, 1300); }
@@ -303,6 +334,7 @@
         c.textAlign = 'right'; c.fillStyle = b.cashedOut ? '#6ef0a8' : '#ffd24a'; c.fillText(b.cashedOut ? 'x' + b.cashMult : fmtN(b.bet), 1850, y, 150); c.textAlign = 'left';
       });
       scrTex.needsUpdate = true;
+      drawMini();
     }
 
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0x4d8bff, target: 'hall', theme: 'exitCrash' });
@@ -337,6 +369,13 @@
       rocket2.visible = rocket.visible; rocket2.position.set(SILO2.x + (rocket.position.x - SILO.x), rocket.position.y, SILO2.z + (rocket.position.z - SILO.z));
       rocket2.userData.flame.visible = rocket.userData.flame.visible; rocket2.userData.flame.scale.copy(rocket.userData.flame.scale);
       boom2.visible = boom.visible; boom2.position.set(boom.position.x - SILO.x + SILO2.x, boom.position.y, boom.position.z - SILO.z + SILO2.z); boom2.scale.copy(boom.scale); boom2.material.opacity = boom.material.opacity;
+      smokeStep(dt); smkT += dt;
+      if (S.status === 'flying' && lastStatus !== 'flying' && nowS() - S.launchTime < 1500) smokeBurst();
+      else if (smkT > 0.07) {
+        smkT = 0;
+        if (S.status === 'flying' && rocket.visible) puff2(rocket.position.x + (Math.random() - 0.5) * 0.2, rocket.position.y - 0.1, rocket.position.z + (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.5, -0.15, (Math.random() - 0.5) * 0.5, 0.35, 1.1 + Math.random() * 0.3, 1.7, 0.75);
+        else if (S.status === 'countdown' && (S.launchTime - nowS()) < 1500) puff2(SILO.x + (Math.random() - 0.5) * 0.5, 0.35, SILO.z + (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.9, 0.25, (Math.random() - 0.5) * 0.9, 0.4, 1.3, 1.8, 0.45);
+      }
       if (S.status !== lastStatus) {
         if (S.status === 'crashed' && seat) { var mb = myBet(); if (mb && !mb.cashedOut) setMsg('💥 Crash à x' + (S.crashPoint || 0).toFixed(2) + ' : mise perdue.', '#ff8a80'); else if (!mb) setMsg('Crash à x' + (S.crashPoint || 0).toFixed(2), ''); }
         if (S.status === 'waiting' && seat && lastStatus === 'crashed') setMsg('Place ta mise : le vol décolle tout seul.');
