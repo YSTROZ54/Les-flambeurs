@@ -2615,6 +2615,7 @@ body.s3d-full-on #sidebarBackdrop {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .ph-ico-sq {
+  position: relative;
   width: 64px;
   height: 64px;
   border-radius: 19px;
@@ -2681,6 +2682,42 @@ body.s3d-full-on #sidebarBackdrop {
   font-weight: 800;
 }
 .ph-crow.me .ph-cav { border-color: rgba(254, 243, 199, 0.7); }
+
+/* ── Appli Amis : liste des amis, puis le fil de DM avec celui qu'on a choisi ── */
+.ph-dmlist { display: flex; flex-direction: column; gap: 6px; }
+.ph-dmrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+  cursor: pointer;
+  text-align: left;
+}
+.ph-dmrow:hover { background: rgba(255, 255, 255, 0.09); }
+.ph-dmrow .ph-cav { width: 36px; height: 36px; font-size: 16px; }
+.ph-dmname { flex: 1; font-size: 12.5px; font-weight: 800; }
+.ph-dmrow i.fa-chevron-right { color: #6b7280; font-size: 11px; }
+.ph-dmdot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.8); flex-shrink: 0; }
+.ph-dm-head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.ph-dm-head .ph-cav { width: 34px; height: 34px; font-size: 15px; }
+.ph-dm-head b { font-size: 13px; font-weight: 800; color: #fbbf24; }
+
+/* pastille rouge sur l'icône Amis, tant qu'un ami a un message non lu */
+.ph-ico-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #1a1000;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.9);
+}
 
 /* ── CO FONDATEUR : violet royal, balayage lumineux continu et gemme qui bascule ── */
 .role-cofondateur,

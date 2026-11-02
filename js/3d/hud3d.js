@@ -6,12 +6,14 @@
      Case du téléphone choisie : un clic gauche ou droit dans le monde ouvre le téléphone. Plus de touche dédiée à chacun (E/A/T/Entrée) : seulement le clic ou la case.
    - Menu pause : Échap (ou la souris libérée par le navigateur en grand écran) ; Échap ou « Reprendre » pour revenir.
    - Roue des danses / emotes : s'ouvre au clic (hotbar ou logos), 1 à 8 pour choisir une fois ouverte, Tab pour passer des danses aux emotes.
-   - Téléphone : s'ouvre au clic. Écran d'accueil avec fond d'écran et applis (DanceFloor, Réactions, Chat, Mon Profil, Tropi Bank, Réglages) ; en bas, la barre de navigation : « retour » (revient d'un cran, puis ferme)
-     et le bouton rouge (accueil, puis ferme). Chaque clic sur un bouton du téléphone fait un petit « tic ». On le déplace en attrapant l'encoche en haut au milieu.
+   - Téléphone : s'ouvre au clic. Écran d'accueil avec fond d'écran et applis (DanceFloor, Réactions, Chat, Amis, Mon Profil, Tropi Bank, Réglages) ; en bas, la barre de navigation : « retour » (revient d'un cran, puis ferme)
+     et le bouton rouge (ferme direct, depuis n'importe quel écran). Chaque clic sur un bouton du téléphone fait un petit « tic ». On le déplace en attrapant l'encoche en haut au milieu.
    - Chat : s'ouvre au clic, Entrée pour envoyer, Échap pour fermer. Rien ne s'affiche à l'écran : le message sort en bulle au-dessus de la tête
-     de celui qui parle (trois points pendant qu'il écrit), et l'historique est dans l'onglet Chat du téléphone. Canal temps réel de la salle (« chat », « typing »).
+     de celui qui parle (trois points pendant qu'il écrit), et l'historique est dans l'onglet Chat du téléphone. Canal commun à tout le casino (« chat », « typing »).
      * Onglet Danses : déclencher danses et emotes depuis le téléphone avec les logos colorés.
      * Onglet Paramètres : gérer la sensibilité souris, le volume du son, la qualité 3D / FPS, plein écran, accueil casino.
+     * Appli Amis : liste des amis (state.friends), DM avec chacun sur le même canal que le Chat mais adressé (« to » filtré côté client, jamais stocké) ;
+       pastille rouge sur l'icône et sur l'ami tant que son dernier message n'a pas été lu.
      * Appli Mon Profil : pseudo, mot de passe, état civil, avatar (boutique), déconnexion (remplace l'ancienne fenêtre du profil).
      * Appli Tropi Bank : la banque du club en appli (solde, envoyer, virements reçus, historique) ; mêmes fonctions et même serveur que la salle Banque.
    Le monde (world3d.js) l'appelle par F.initPlayerHud(world) et lui passe la main via ph.sync() / ph.close() / ph.dispose().
@@ -74,7 +76,7 @@
           '<div class="ph-screen" data-ph="screen"></div>' +
           '<div class="ph-homebar">' +
             '<button class="ph-back" data-act="phone-back" title="Retour"><i class="fa-solid fa-chevron-left"></i></button>' +
-            '<button class="ph-home" data-act="phone-home" title="Accueil · puis fermer le téléphone"></button>' +
+            '<button class="ph-home" data-act="phone-home" title="Fermer le téléphone"></button>' +
             '<span class="ph-nav-gap"></span>' +
           '</div>' +
         '</div>' +
@@ -101,6 +103,7 @@
       { id: 'dance', img: 'assets/icones/applis/dancefloor.png', name: 'DanceFloor', sub: 'Danses en boucle · marche pour arrêter', ic: 'fa-music', c: '232,121,249' },
       { id: 'emote', img: 'assets/icones/applis/reactions.png', name: 'Réactions', sub: 'Emotes instantanées', ic: 'fa-face-smile', c: '251,191,36' },
       { id: 'chat', img: 'assets/icones/applis/chat.png', name: 'Chat', sub: 'Discute avec la salle', ic: 'fa-comments', c: '52,211,153' },
+      { id: 'friends', img: 'assets/icones/services/amis.png', name: 'Amis', sub: 'Chat en DM avec tes amis', ic: 'fa-user-group', c: '244,114,182' },
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
       { id: 'bank', img: 'assets/icones/services/tropi-bank.png', name: 'Tropi Bank', sub: 'Virements entre joueurs', ic: 'fa-building-columns', c: '16,185,129' },
       { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' }
@@ -247,6 +250,24 @@
       return '<div class="ph-bk-row"><div><b>' + esc(out ? t.to : t.from) + '</b> ' + badge + '<small>« ' + esc(t.note || 'Bon jeu !') + ' »</small></div>' +
         '<span class="' + (out ? 'out' : 'in') + '">' + (out ? '−' : '+') + F.fmtN(t.amount || 0) + '</span></div>';
     }
+    // appli Amis : la liste (clic sur un ami -> sub='thread'), ou le fil de discussion avec l'ami choisi (dmWith)
+    function friendsHtml() {
+      var s = st(), friends = (s && Array.isArray(s.friends)) ? s.friends : [];
+      if (!s || !s.username) return '<div class="ph-cp-empty">Connecte-toi pour discuter avec tes amis.</div>';
+      if (sub === 'thread' && dmWith) {
+        return '<div class="ph-dm-head"><span class="ph-cav" style="background:' + avBg(dmWith) + '">' + cleanAv(F.presence && F.presence.avatarOf(dmKey(dmWith)), dmWith) + '</span><b>' + esc(dmWith) + '</b></div>' +
+          '<div class="ph-cp"><div class="ph-cp-list" data-ph="dmlist"></div>' +
+          '<form class="ph-cp-form" data-ph="dmform"><input data-ph="dmin" maxlength="200" placeholder="Écrire à ' + esc(dmWith) + '…" autocomplete="off" spellcheck="false"><button type="submit" title="Envoyer">' + fa('fa-paper-plane') + '</button></form></div>';
+      }
+      if (!friends.length) return '<div class="ph-cp-empty">Tu n\'as pas encore d\'amis. Ajoute-en depuis le profil d\'un joueur, dans le monde.</div>';
+      return '<div class="ph-dmlist">' + friends.map(function (fn) {
+        var k = dmKey(fn), unread = !!dmUnread[k];
+        return '<button class="ph-dmrow' + (unread ? ' unread' : '') + '" data-dm="' + esc(fn) + '">' +
+          '<span class="ph-cav" style="background:' + avBg(fn) + '">' + cleanAv(F.presence && F.presence.avatarOf(k), fn) + '</span>' +
+          '<span class="ph-dmname">' + esc(fn) + '</span>' + (unread ? '<span class="ph-dmdot"></span>' : '') +
+          '<i class="fa-solid fa-chevron-right"></i></button>';
+      }).join('') + '</div>';
+    }
     function bankHtml() {
       var s = st(), me = s && s.username || '', bal = s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0';
       var inbox = bankInbox(), hist = bankHist();
@@ -329,7 +350,7 @@
       if (keyListening) stopKeyCapture();
       if (page === 'profile' && (refuse || pfEdit)) { refuse = null; pfEdit = ''; renderPhone(); }
       else if (page === 'profile' && sub === 'avpreview') { sub = 'avatars'; renderPhone(); }
-      else if ((page === 'bank' || page === 'profile') && sub !== 'home') { sub = 'home'; renderPhone(); }
+      else if ((page === 'bank' || page === 'profile' || page === 'friends') && sub !== 'home') { sub = 'home'; renderPhone(); }
       else if (page !== 'menu') { page = 'menu'; sub = 'home'; renderPhone(); }
       else closePhone(true);
     }
@@ -541,6 +562,8 @@
         h = profileHtml();
       } else if (page === 'bank') {
         h = bankHtml();
+      } else if (page === 'friends') {
+        h = friendsHtml();
       } else if (page === 'chat') {
         h = '<div class="ph-cp"><div class="ph-cp-list" data-ph="cplist"></div>' +
           '<form class="ph-cp-form" data-ph="cpform"><input data-ph="cpin" maxlength="120" placeholder="Écrire à la salle…" autocomplete="off" spellcheck="false"><button type="submit" title="Envoyer">' + fa('fa-paper-plane') + '</button></form></div>';
@@ -552,7 +575,8 @@
         var dn = new Date();
         h = '<div class="ph-hclock"><b data-ph="hclock">' + ('0' + dn.getHours()).slice(-2) + ':' + ('0' + dn.getMinutes()).slice(-2) + '</b><span>' + dateFr() + '</span></div>' +
           '<div class="ph-icons">' + APPS.map(function (a) {
-            return '<button class="ph-ico" data-page="' + a.id + '">' + (a.img ? '<span class="ph-ico-sq ph-ico-img"><img src="' + a.img + '" alt=""></span>' : '<span class="ph-ico-sq" style="--c:' + a.c + '"><i class="fa-solid ' + a.ic + '"></i></span>') + '<span class="ph-ico-nm">' + a.name + '</span></button>';
+            var badge = a.id === 'friends' && hasUnreadDm() ? '<i class="ph-ico-badge"></i>' : '';
+            return '<button class="ph-ico" data-page="' + a.id + '">' + (a.img ? '<span class="ph-ico-sq ph-ico-img"><img src="' + a.img + '" alt="">' + badge + '</span>' : '<span class="ph-ico-sq" style="--c:' + a.c + '"><i class="fa-solid ' + a.ic + '"></i>' + badge + '</span>') + '<span class="ph-ico-nm">' + a.name + '</span></button>';
           }).join('') + '</div>';
       }
       var ap = appById(page);
@@ -562,6 +586,7 @@
       elScreen.classList.toggle('menu', page === 'menu');
       elPhone.querySelector('.ph-body').classList.toggle('home', page === 'menu');          // fond d'écran seulement sur l'accueil
       if (page === 'chat') paintChatPage();
+      if (page === 'friends' && sub === 'thread') paintDmThread();
     }
 
     function openPhone(p) {
@@ -758,6 +783,7 @@
     /* ---------- chat de la salle ---------- */
     // Rien à l'écran : bulle au-dessus de la tête de celui qui parle, historique dans l'onglet Chat du téléphone.
     var chatOpen = false, chatLast = 0, chatHist = [], typingOn = false, typingSent = 0;
+    var dmThreads = {}, dmUnread = {}, dmWith = '', dmLast = 0;   // messages privés : comme le Chat, mais adressés à un seul ami (canal commun, filtré)
     // photo de profil : l'emoji de l'avatar, ou à défaut l'initiale du pseudo (« ?? » venu d'un mauvais encodage compris)
     function cleanAv(av, name) {
       av = String(av == null ? '' : av).trim();
@@ -848,18 +874,16 @@
     elChatIn.addEventListener('blur', closeChat);
     // champ de l'onglet Chat du téléphone
     root.addEventListener('submit', function (ev) {
-      var f = ev.target;
-      if (!f || f.getAttribute('data-ph') !== 'cpform') return;
-      ev.preventDefault();
-      var inp = f.querySelector('input');
-      if (inp && sendText(inp.value)) inp.value = '';
+      var f = ev.target, ph = f && f.getAttribute('data-ph');
+      if (ph === 'cpform') { ev.preventDefault(); var inp = f.querySelector('input'); if (inp && sendText(inp.value)) inp.value = ''; }
+      else if (ph === 'dmform') { ev.preventDefault(); var inp2 = f.querySelector('input'); if (inp2 && dmWith && sendDm(dmWith, inp2.value)) inp2.value = ''; }
     });
     root.addEventListener('input', function (ev) {
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'cpin') typingNotify(ev.target.value.trim().length > 0);
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'bkto') bankSuggest(ev.target.value);
     });
     root.addEventListener('keydown', function (ev) {
-      if (!ev.target || !ev.target.classList || !(ev.target.getAttribute('data-ph') === 'cpin' || ev.target.classList.contains('ph-in'))) return;   // champs du téléphone : ni déplacement ni raccourcis
+      if (!ev.target || !ev.target.classList || !(ev.target.getAttribute('data-ph') === 'cpin' || ev.target.getAttribute('data-ph') === 'dmin' || ev.target.classList.contains('ph-in'))) return;   // champs du téléphone : ni déplacement ni raccourcis
       ev.stopPropagation();
       if (ev.code === 'Escape') { ev.preventDefault(); ev.target.blur(); closePhone(true); }
     });
@@ -879,6 +903,55 @@
       var r = m && w.remote && w.remote[m.k];
       if (r && r.person && r.person.typing) r.person.typing(!!m.on);
     }
+
+    /* ---------- Amis : DM avec un ami, sur le même canal que le Chat mais adressé (« to ») et ignoré par tous les autres ---------- */
+    function dmKey(name) { return String(name || '').toLowerCase().trim(); }
+    function dmNode(name, text, cls, av) { return chatNode({ name: name, text: text, cls: cls, av: av }); }
+    function dmAdd(key, name, text, cls, av) {
+      var arr = dmThreads[key] = dmThreads[key] || [];
+      arr.push({ name: name, text: text, cls: cls || '', av: av || '' });
+      if (arr.length > 100) arr.shift();
+      if (phoneOpen && page === 'friends' && sub === 'thread' && dmKey(dmWith) === key) {
+        var list = q('dmlist');
+        if (list) {
+          if (arr.length === 1) list.innerHTML = '';
+          list.appendChild(dmNode(name, text, cls, av));
+          while (list.children.length > 100) list.removeChild(list.firstChild);
+          list.scrollTop = list.scrollHeight;
+        }
+      }
+    }
+    function paintDmThread() {
+      var list = q('dmlist'); if (!list) return;
+      var arr = dmThreads[dmKey(dmWith)] || [];
+      list.innerHTML = '';
+      if (!arr.length) { var em = document.createElement('div'); em.className = 'ph-cp-empty'; em.textContent = 'Aucun message pour l\'instant. Écris le premier à ' + dmWith + ' !'; list.appendChild(em); }
+      arr.forEach(function (m) { list.appendChild(dmNode(m.name, m.text, m.cls, m.av)); });
+      list.scrollTop = list.scrollHeight;
+    }
+    function sendDm(toName, raw) {
+      var text = String(raw).replace(/\s+/g, ' ').trim().slice(0, 200);
+      var now = Date.now();
+      if (!text || now - dmLast < 800) return false;                  // un message par seconde au plus, comme le Chat
+      dmLast = now;
+      var k = dmKey(toName), s = st(), name = String((s && s.username) || 'Invité').slice(0, 20);
+      var msg = { k: w._me(), name: name, av: myAv(), to: k, text: text };
+      var sent = !!(F.presence && F.presence.send('dm', msg));
+      dmAdd(k, name, text, 'me', myAv());
+      if (!sent) dmAdd(k, '', 'Hors ligne : ton ami n\'est peut-être pas connecté, le message n\'a pas pu partir.', 'sys', '');
+      return true;
+    }
+    function dmIn(m) {
+      if (!m || typeof m.text !== 'string') return;
+      var meK = dmKey(w._me ? w._me() : (st() && st().username));
+      if (!meK || dmKey(m.to) !== meK) return;                        // pas pour moi : tout le monde reçoit, seul le destinataire garde
+      var text = m.text.replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (!text) return;
+      var fromName = String(m.name || m.k || '?').slice(0, 20), fromKey = dmKey(m.k || fromName);
+      dmAdd(fromKey, fromName, text, '', cleanAv(m.av || (F.presence && F.presence.avatarOf(m.k)), fromName));
+      if (!(phoneOpen && page === 'friends' && sub === 'thread' && dmKey(dmWith) === fromKey)) { dmUnread[fromKey] = true; if (page === 'menu') renderPhone(); }
+    }
+    function hasUnreadDm() { for (var k in dmUnread) if (dmUnread[k]) return true; return false; }
     renderHotbar();
 
     /* ---------- inputs (sliders sensi & son) ---------- */
@@ -924,7 +997,7 @@
       else if (a === 'wheel-emote') { if (wheelOpen && tab === 'emote') closeWheel(); else openWheel('emote'); }
       else if (a === 'phone') { if (phoneOpen) closePhone(true); else openPhone(); }
       else if (a === 'phone-back') goBack();
-      else if (a === 'phone-home') { if (page !== 'menu') { page = 'menu'; sub = 'home'; renderPhone(); } else closePhone(true); }   // bouton rouge : accueil, puis ferme et la souris est reprise
+      else if (a === 'phone-home') closePhone(true);   // bouton rouge : ferme le téléphone directement, depuis n'importe quel écran
       else if (a === 'pause') openPause();
       else if (a === 'resume') closePause(true);
       else if (a === 'pause-settings') { closePause(); openPhone('settings'); }
@@ -948,6 +1021,7 @@
       else if (a === 'bk-decline') bankAct(typeof declineTransferById === 'function' ? declineTransferById : null, t.getAttribute('data-id'));
       else if (t.hasAttribute('data-av')) { avSel = t.getAttribute('data-av'); sub = 'avpreview'; renderPhone(); }
       else if (t.hasAttribute('data-bk')) { sub = t.getAttribute('data-bk'); renderPhone(); }
+      else if (t.hasAttribute('data-dm')) { dmWith = t.getAttribute('data-dm'); sub = 'thread'; delete dmUnread[dmKey(dmWith)]; renderPhone(); var dmi = q('dmin'); if (dmi) dmi.focus(); }
       else if (t.hasAttribute('data-amt')) { var am = q('bkamt'); if (am) am.value = t.getAttribute('data-amt'); }
       else if (t.hasAttribute('data-pick')) { var to = q('bkto'); if (to) to.value = t.getAttribute('data-pick'); bankSuggest(''); var am2 = q('bkamt'); if (am2) am2.focus(); }
       else if (a === 'key-bind') startKeyCapture(t.getAttribute('data-key'));
@@ -1042,7 +1116,7 @@
     }
     window.addEventListener('keydown', kd, true);
 
-    if (F.presence && F.presence.on) F.presence.on('chat', chatIn);          // les messages des autres salles arrivent par le canal commun
+    if (F.presence && F.presence.on) { F.presence.on('chat', chatIn); F.presence.on('dm', dmIn); }          // les messages des autres salles arrivent par le canal commun
     sync();
     var api = {
       sync: sync,
@@ -1053,7 +1127,7 @@
       typingIn: typingIn,
       dispose: function () {
         window.removeEventListener('keydown', kd, true);
-        if (F.presence && F.presence.on) F.presence.on('chat', null);
+        if (F.presence && F.presence.on) { F.presence.on('chat', null); F.presence.on('dm', null); }
         window.removeEventListener('wheel', onWheel);
         w.container.removeEventListener('pointerdown', onWorldDown, true);
         w.container.removeEventListener('contextmenu', onWorldMenu, true);
