@@ -653,7 +653,8 @@
 
     // pose « marche »
     var p = this.player, cpp = Math.cos(p.pitch), aspect = this.w / Math.max(1, this.h);
-    var rx = p.x, ry = 1.65 + (p.jy || 0), rz = p.z;
+    var groundH = room.groundY ? room.groundY(p.x, p.z) : 0;   // hauteur du sol sous les pieds (gradins, estrade…) ; 0 par défaut pour toutes les autres salles
+    var rx = p.x, ry = 1.65 + groundH + (p.jy || 0), rz = p.z;
     var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
     var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = aspect < 0.9 ? 70 : 62;
 
@@ -913,8 +914,9 @@
       // Si le joueur ne bouge plus et qu'on n'a pas reçu de paquet récent, on coupe net l'animation de marche
       if (silence > 380 && actualSp < 0.12) sp = 0;
 
-      if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = 4 * 0.6 * u * (1 - u); }
-      else if (!r.person.seated) g.position.y = 0;
+      var groundH = room.groundY ? room.groundY(g.position.x, g.position.z) : 0;   // gradins, estrade… : même fonction que pour soi-même
+      if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = groundH + 4 * 0.6 * u * (1 - u); }
+      else g.position.y = groundH;
 
       var ty = Math.PI - yaw, ey = r.person.emoYaw, base = g.rotation.y - ey, dy = ((ty - base + Math.PI * 3) % TAU) - Math.PI;
       g.rotation.y = base + dy * Math.min(1, dt * 6) + ey;

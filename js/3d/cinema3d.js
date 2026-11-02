@@ -30,6 +30,20 @@
   var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
   var VELVET = 0x8c1a26;
 
+  /* ---------- gradins : chaque rangée est un peu plus haute que la précédente (vrai sol praticable, voir world3d.js: room.groundY) ---------- */
+  var ROW_H = 0.4;                                    // une marche par rangée
+  var ROW_GAP = ROWS[1] - ROWS[0];                     // 1,9 m : les rangées se touchent, pas de bande plate entre elles
+  var ROW_BND = [];                                    // frontière (milieu) entre chaque rangée et la suivante
+  for (var _ri = 0; _ri < ROWS.length - 1; _ri++) ROW_BND.push((ROWS[_ri] + ROWS[_ri + 1]) / 2);
+  var BACK_H = (ROWS.length - 1) * ROW_H;              // palier du fond (régie, pop-corn, sortie) : hauteur de la dernière rangée
+  function smoothT(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
+  function inAisleX(x) { var ax = Math.abs(x); return ax < 1.4 || ax > 5.7; }   // allée centrale et allées latérales (hors blocs de fauteuils)
+  function cinemaGroundY(x, z) {                        // hauteur du sol à (x,z) : marche nette sous les fauteuils, rampe d'escalier dans les allées
+    var width = inAisleX(x) ? ROW_GAP : 0.35, h = 0;
+    for (var i = 0; i < ROW_BND.length; i++) { var b = ROW_BND[i]; h += ROW_H * smoothT((z - (b - width / 2)) / width); }
+    return h;
+  }
+
   /* ---------- petits outils ---------- */
   var cache = {};
   function lam(c) { var k = 'l' + c; return cache[k] || (cache[k] = new THREE.MeshLambertMaterial({ color: c })); }
@@ -177,6 +191,7 @@
     var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">CINÉMA', subtitle: 'TROPI STREAM · PRÉSENTATION', topic: 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, low = !!world.low;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 3.0, zMax: HZ - 0.7 };   // la scène (les 2,3 premiers mètres) reste hors d'atteinte
+    room.groundY = cinemaGroundY;   // vrai sol en gradins : on marche réellement dessus (world3d.js lit cette fonction à chaque image)
     injectCss();
 
     /* --- sol : moquette rouge sombre à losanges --- */
@@ -230,7 +245,7 @@
     img.src = POSTER_SRC;
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
-    room.interactables.push({ hit: screen, x: 0, z: -HZ, use: function () { togglePlay(); } });   // clic sur l'écran : lecture / pause (Patron / Co Fondateur)
+    // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P
 
     /* --- pas de bords gauche/droite ni en haut (ni cadre, ni rideaux, ni lambrequin) : écran géant plein mur --- */
     function layoutScreen() {}
@@ -241,13 +256,13 @@
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9)
     };
     var velM = lam(VELVET), darkM = lam(0x180a0e), hitM = new THREE.MeshBasicMaterial({ visible: false });
-    function seat(x, z) {
-      var s = new THREE.Group(); s.position.set(x, 0, z); g.add(s);
+    function seat(x, z, elev) {
+      var s = new THREE.Group(); s.position.set(x, elev, z); g.add(s);
       function put(geo, mat, px, py, pz, rx) { var m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); if (rx) m.rotation.x = rx; s.add(m); return m; }
       put(seatGeo.cush, velM, 0, 0.5, -0.02); put(seatGeo.back, velM, 0, 0.86, 0.3, 0.14); put(seatGeo.roll, velM, 0, 1.23, 0.36).rotation.z = Math.PI / 2;
       [-1, 1].forEach(function (sd) { put(seatGeo.side, darkM, sd * 0.415, 0.25, 0.0); put(seatGeo.arm, velM, sd * 0.415, 0.58, -0.02); });
       var hit = put(seatGeo.hit, hitM, 0, 0.65, 0.05);
-      var n = seats.length, st = { n: n, x: x, z: z, yaw: 0, sx: x, sz: z - 0.95, hit: hit };
+      var n = seats.length, st = { n: n, x: x, z: z, y: elev, yaw: 0, sx: x, sz: z - 0.95, hit: hit };
       seats.push(st);
       room.interactables.push({
         hit: hit, x: x, z: z, radius: 0.95,
@@ -257,10 +272,32 @@
       });
     }
     var seat_ = { cur: null };
-    ROWS.forEach(function (rz) { COLS.forEach(function (cx2) { seat(cx2, rz); }); });
+    ROWS.forEach(function (rz, ri) { var elev = ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
 
-    /* --- feux d'allée au sol, à chaque bout de rangée --- */
-    ROWS.forEach(function (rz) { [-6.0, -1.3, 1.3, 6.0].forEach(function (ax) { box(g, 0.06, 0.04, 0.2, bas(0xffa040), ax, 0.03, rz + 0.1); }); });
+    /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
+    var deckM = std(0x34101b, 0.85, 0.05);
+    function deckBlock(xC, xW, zC, topY) { if (topY < 0.01) return; box(g, xW, topY, ROW_GAP, deckM, xC, topY / 2, zC); box(g, xW, 0.03, 0.05, trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
+    ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = ri * ROW_H; deckBlock(-3.55, 4.3, rz, topY); deckBlock(3.55, 4.3, rz, topY); });
+
+    /* --- allées (centrale + deux latérales) : un escalier continu, construit en échantillonnant cinemaGroundY --- */
+    (function buildStairs() {
+      var sideW = (HX - 0.7) - 5.7, sideX = 5.7 + sideW / 2;   // allée latérale : de x=5,7 jusqu'au bord de la salle
+      var lanes = [[0, 2.8], [-sideX, sideW], [sideX, sideW]], step = 0.38;
+      lanes.forEach(function (ln) {
+        var xC = ln[0], xW = ln[1];
+        for (var z = ROWS[0]; z < ROWS[ROWS.length - 1]; z += step) {
+          var zc = z + step / 2, topY = cinemaGroundY(xC, zc);
+          if (topY > 0.01) box(g, xW, topY, step + 0.02, deckM, xC, topY / 2, zc);
+        }
+      });
+    })();
+    /* --- palier du fond : régie, pop-corn et sortie sont de plain-pied avec la dernière rangée --- */
+    var backZ0 = ROWS[ROWS.length - 1], backZC = (backZ0 + (HZ - 0.7)) / 2;
+    box(g, HX * 2 - 1.4, BACK_H, (HZ - 0.7) - backZ0, deckM, 0, BACK_H / 2, backZC);
+    box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
+
+    /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
+    ROWS.forEach(function (rz) { [-6.0, -1.3, 1.3, 6.0].forEach(function (ax) { box(g, 0.06, 0.04, 0.2, bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
 
     /* --- fond de salle : appliques, cabine de projection, comptoir à pop-corn, porte de sortie --- */
     var glowC = mkCanvas(64, 64), gx = glowC.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -268,7 +305,7 @@
     var glowM = new THREE.SpriteMaterial({ map: mkTex(glowC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     var lampGlow = [], shadeM = new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide });
     function sconce(x, z, ry) {                         // ry : le mur regarde vers (sin ry, cos ry) ; posée sur la face du panneau de bois, pas dedans
-      var s = new THREE.Group(); s.position.set(x, 3.0, z); s.rotation.y = ry; g.add(s);
+      var s = new THREE.Group(); s.position.set(x, 3.0 + cinemaGroundY(x, z), z); s.rotation.y = ry; g.add(s);
       box(s, 0.16, 0.46, 0.03, trimM, 0, 0, 0.015);                              // platine dorée plaquée sur le panneau
       cyl(s, 0.022, 0.022, 0.17, trimM, 0, -0.02, 0.1, 8).rotation.x = Math.PI / 2;   // bras
       var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.15, 0.3, 16, 1, true), shadeM); sh.position.set(0, -0.02, 0.2); s.add(sh);
@@ -290,32 +327,47 @@
     [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
     // faisceau du projecteur retiré
     // comptoir à pop-corn
-    var cw = new THREE.Group(); cw.position.set(-6.8, 0, HZ - 1.1); g.add(cw);
+    var cw = new THREE.Group(); cw.position.set(-6.8, BACK_H, HZ - 1.1); g.add(cw);
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
     box(cw, 0.9, 0.9, 0.6, std(0xc41e2a, 0.5, 0.2), -0.9, 1.5, 0); box(cw, 0.8, 0.8, 0.52, new THREE.MeshLambertMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.75 }), -0.9, 2.35, 0);
     for (i = 0; i < 14; i++) sph(cw, 0.07, lam(i % 3 ? 0xfff0c0 : 0xf2d98a), -0.9 + (Math.random() - 0.5) * 0.55, 2.1 + Math.random() * 0.55, (Math.random() - 0.5) * 0.3);
     var sgC = mkCanvas(512, 128), sgx = sgC.getContext('2d');
     sgx.fillStyle = '#12080f'; sgx.fillRect(0, 0, 512, 128); sgx.strokeStyle = '#ff7a1a'; sgx.lineWidth = 6; sgx.strokeRect(5, 5, 502, 118);
     sgx.textAlign = 'center'; sgx.textBaseline = 'middle'; sgx.fillStyle = '#ffb066'; sgx.font = '800 62px ' + SERIF; sgx.fillText('POP-CORN', 256, 66, 470);
-    var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 2.6, 0.05); sign.rotation.y = Math.PI; cw.add(sign);   // tourné vers la salle (sinon lu de dos, inversé)
+    var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 3.1, 0.05); sign.rotation.y = Math.PI; cw.add(sign);   // tourné vers la salle (sinon lu de dos, inversé) — remontée au-dessus du pop-corn
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
     room.colliders.push({ x: -6.8 - 1.0, z: HZ - 1.1, r: 0.8 }, { x: -6.8, z: HZ - 1.1, r: 0.8 }, { x: -6.8 + 1.0, z: HZ - 1.1, r: 0.8 });
     // --- régie : la console du Patron / Co Fondateur, collée contre le mur du fond, à droite ---
     var RX = 6.8, RZ = HZ - 0.5;
-    var regie = new THREE.Group(); regie.position.set(RX, 0, RZ); regie.rotation.y = Math.PI; g.add(regie);   // dos au mur, face tournée vers la salle
-    box(regie, 1.1, 0.95, 0.65, lam(0x1b1016), 0, 0.475, 0);                             // socle sombre
-    box(regie, 1.16, 0.05, 0.7, trimM, 0, 0.975, 0);                                     // plateau doré
-    var regieScreen = box(regie, 0.62, 0.4, 0.04, std(0x0a0e18, 0.35, 0.1, 0x122240), 0, 1.33, -0.1); regieScreen.rotation.x = -0.35;  // petit écran incliné
-    box(regie, 0.7, 0.07, 0.18, trimM, 0, 1.0, 0.22);                                     // rebord clavier
-    for (i = 0; i < 3; i++) sph(regie, 0.028, bas(i === 1 ? 0xff5050 : 0xffd24a), -0.18 + i * 0.18, 1.04, 0.24);   // petits voyants
+    var regie = new THREE.Group(); regie.position.set(RX, BACK_H, RZ); regie.rotation.y = Math.PI; g.add(regie);   // dos au mur, face tournée vers la salle
+    box(regie, 1.4, 0.04, 0.78, std(0x8a8a92, 0.5, 0.2), 0, 0.75, 0.02);                   // bureau : plateau clair sur quatre pieds
+    [[-0.63, -0.33], [0.63, -0.33], [-0.63, 0.33], [0.63, 0.33]].forEach(function (lp) { box(regie, 0.05, 0.73, 0.05, std(0x2a2a30, 0.5, 0.3), lp[0], 0.365, lp[1]); });
+    box(regie, 1.44, 0.03, 0.06, trimM, 0, 0.75, -0.36);                                   // filet doré sur le bord avant du bureau
+    // tour du PC, posée au sol à côté du bureau
+    var towerM = std(0x202024, 0.4, 0.5);
+    box(regie, 0.36, 0.86, 0.68, towerM, -0.85, 0.43, 0.02);
+    box(regie, 0.012, 0.86, 0.68, std(0x1a1a1e, 0.3, 0.6), -0.67, 0.43, 0.02);              // flanc vitré sombre
+    sph(regie, 0.022, bas(0x3ad0ff), -0.85, 0.66, 0.37); box(regie, 0.1, 0.1, 0.012, std(0x151518, 0.4, 0.3), -0.85, 0.5, 0.37);   // led bleue + bouton power
+    for (i = 0; i < 3; i++) box(regie, 0.012, 0.012, 0.56, std(0x151518, 0.5, 0.3), -0.85 - 0.06 + i * 0.06, 0.2, 0.02);            // grille d'aération
+    // écran, bien droit sur son pied — un vrai moniteur de PC
+    box(regie, 0.3, 0.02, 0.18, std(0x1c1c20, 0.4, 0.5), 0, 0.775, -0.22);                  // socle
+    box(regie, 0.04, 0.26, 0.04, std(0x1c1c20, 0.4, 0.5), 0, 0.9, -0.2);                    // pied
+    var regieScreen = box(regie, 0.72, 0.42, 0.03, std(0x0a0e18, 0.3, 0.1, 0x16284a), 0, 1.11, -0.2); regieScreen.rotation.x = -0.05;  // écran bien vertical (léger recul)
+    box(regie, 0.76, 0.46, 0.015, std(0x16161a, 0.4, 0.3), 0, 1.11, -0.188);                // fine lisière de bezel noire autour de la dalle
+    // clavier + souris, sur le bureau devant l'écran
+    box(regie, 0.46, 0.02, 0.17, std(0x242428, 0.5, 0.2), 0, 0.775, 0.1);
+    for (i = 0; i < 10; i++) box(regie, 0.032, 0.012, 0.032, std(0x34343a, 0.5, 0.2), -0.2 + (i % 5) * 0.1, 0.792, 0.05 + Math.floor(i / 5) * 0.09);
+    box(regie, 0.07, 0.03, 0.11, std(0x2c2c32, 0.4, 0.3), 0.33, 0.78, 0.14);                 // souris
+    sph(regie, 0.012, bas(0x3ad0ff), 0.33, 0.805, 0.1);                                      // petite molette qui dépasse
+    for (i = 0; i < 3; i++) sph(regie, 0.028, bas(i === 1 ? 0xff5050 : 0xffd24a), -0.18 + i * 0.18, 0.8, 0.33);   // petits voyants sur le bord du bureau
     var rgC = mkCanvas(512, 128), rgx = rgC.getContext('2d');
     rgx.fillStyle = '#120a16'; rgx.fillRect(0, 0, 512, 128); rgx.strokeStyle = '#c9a227'; rgx.lineWidth = 6; rgx.strokeRect(5, 5, 502, 118);
     rgx.textAlign = 'center'; rgx.textBaseline = 'middle'; rgx.fillStyle = '#e9c66b'; rgx.font = '800 50px ' + SERIF; rgx.fillText('RÉGIE', 256, 46, 470);
     rgx.fillStyle = '#9d8a53'; rgx.font = '700 24px ' + MONO; rgx.fillText('Patron · Co Fondateur', 256, 92, 470);
     var regieSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(rgC) })); regieSign.position.set(0, 2.0, 0); regie.add(regieSign);
-    var regieGlow = new THREE.Sprite(glowM); regieGlow.scale.set(1.1, 1.1, 1); regieGlow.position.set(0, 1.33, 0.05); regie.add(regieGlow); lampGlow.push(regieGlow);
-    var regieHit = box(regie, 1.3, 1.7, 1.2, hitM, 0, 0.85, 0.15);
+    var regieGlow = new THREE.Sprite(glowM); regieGlow.scale.set(1.1, 1.1, 1); regieGlow.position.set(0, 1.11, -0.05); regie.add(regieGlow); lampGlow.push(regieGlow);
+    var regieHit = box(regie, 1.5, 1.7, 1.2, hitM, 0, 0.85, 0.15);
     room.interactables.push({
       hit: regieHit, x: RX, z: RZ, radius: 1.15,
       enabled: function () { return isCinemaCtrl(); },
@@ -323,11 +375,21 @@
       use: function (w) { if (!isCinemaCtrl()) return; toggleConsole(); }
     });
     room.colliders.push({ x: RX, z: RZ, r: 0.85 });
-    // pancarte « SORTIE » verte au-dessus de la porte
+    // pancarte « SORTIE » verte au-dessus de la porte, avec un petit logo bonhomme qui sort par une porte (pictogramme classique)
     var exC = mkCanvas(256, 80), ex = exC.getContext('2d'); ex.fillStyle = '#063a1a'; ex.fillRect(0, 0, 256, 80); ex.strokeStyle = '#3ddc7a'; ex.lineWidth = 5; ex.strokeRect(4, 4, 248, 72);
-    ex.fillStyle = '#7dffae'; ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 128, 42, 230);
-    var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, 4.55, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinema' });
+    ex.fillStyle = '#7dffae';                                                                      // pictogramme : cadre de porte + bonhomme qui marche vers la sortie
+    ex.fillRect(20, 16, 4, 48); ex.fillRect(20, 60, 22, 4);                                         // montant + seuil de la porte
+    ex.beginPath(); ex.arc(40, 24, 5, 0, TAU); ex.fill();                                           // tête
+    ex.lineWidth = 4; ex.strokeStyle = '#7dffae'; ex.lineCap = 'round';
+    ex.beginPath(); ex.moveTo(40, 30); ex.lineTo(40, 46); ex.stroke();                              // torse
+    ex.beginPath(); ex.moveTo(40, 34); ex.lineTo(50, 30); ex.stroke();                              // bras tendu vers la flèche
+    ex.beginPath(); ex.moveTo(40, 46); ex.lineTo(34, 60); ex.stroke();                              // jambe arrière
+    ex.beginPath(); ex.moveTo(40, 46); ex.lineTo(48, 62); ex.stroke();                              // jambe avant
+    ex.beginPath(); ex.moveTo(50, 36); ex.lineTo(66, 36); ex.moveTo(60, 30); ex.lineTo(66, 36); ex.lineTo(60, 42); ex.stroke();   // flèche vers la sortie
+    ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 160, 42, 180);
+    var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
+    var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinema' });
+    exitDoor.g.position.y = BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
 
     /* --- citrouilles d'Halloween de chaque côté de la scène --- */
     var pc = mkCanvas(256, 256), px = pc.getContext('2d');
@@ -435,12 +497,6 @@
         return r;
       });
     }
-    function togglePlay() {
-      if (!isCinemaCtrl()) { world.flash('🔒 Réservé au Patron et au Co Fondateur.'); return; }
-      cinemaAction(net.status === 'playing' ? 'pause' : 'play');
-    }
-    room.togglePlay = togglePlay;
-
     /* ===================== MASQUER / MONTRER L'INTERFACE ===================== */
     var hudHidden = false, eyeEl = null;
     function setHud(hide) {
@@ -773,18 +829,17 @@
     function onSeatKey(e) {
       if (!cur) return;
       if (e.code === 'Escape' || e.code === 'Space' || e.code === 'KeyF' || e.code === 'KeyS') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
-      else if (e.code === 'KeyP') { e.stopImmediatePropagation(); e.preventDefault(); togglePlay(); }
     }
     function sit(w, s) {
       if (cur || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (taken(s)) { w.flash('Ce fauteuil est occupé.'); return; }
       w.sitDown(room); cur = seat_.cur = s; view.yaw = view.pitch = 0;
       standEl = document.createElement('div'); standEl.className = 'cin-stand';
-      standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button>' + (isCinemaCtrl() ? '<button data-a="play">⏯ Lecture / pause <kbd>P</kbd></button>' : '');
-      standEl.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('button') : null; if (!a) return; if (a.getAttribute('data-a') === 'stand') stand(); else togglePlay(); });
+      standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button>';
+      standEl.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('button') : null; if (!a) return; if (a.getAttribute('data-a') === 'stand') stand(); });
       w.container.appendChild(standEl); standEl.classList.toggle('hid', hudHidden);
       window.addEventListener('keydown', onSeatKey, true);
-      if (net.status === 'idle' && isCinemaCtrl()) w.flash('🎬 Bonne séance !', 'Appuie sur P ou clique sur l\'écran pour lancer le film.');
+      if (net.status === 'idle' && isCinemaCtrl()) w.flash('🎬 Bonne séance !', 'Lance le film depuis la régie.');
     }
     function stand() {
       if (!cur) return;
@@ -804,12 +859,11 @@
       view.yaw = clamp(drag.seat.yaw - dx * 0.006, -1.5, 1.5);
       if (drag.mouse) view.pitch = clamp(drag.seat.pitch - dy * 0.004, -0.5, 0.5);
     };
-    room.seatClick = function (ray) { if (ray.intersectObject(screen, false)[0]) togglePlay(); };
     // caméra : à hauteur des yeux d'une personne assise, tournée vers le milieu de l'écran ; on regarde autour à la souris
     room.seatPose = function (dt, ctx) {
       if (!cur) return null;
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.9; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.3; }
-      var ex = cur.x, ey = 1.34, ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
+      var ex = cur.x, ey = 1.34 + (cur.y || 0), ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
       var a = Math.atan2(0 - ex, -(tz0 - ez)) + view.yaw, p = Math.atan2(ty0 - ey, Math.hypot(ex, tz0 - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 66 };
     };
