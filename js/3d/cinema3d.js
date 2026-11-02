@@ -291,9 +291,9 @@
         }
       });
     })();
-    /* --- palier du fond : régie, pop-corn et sortie sont de plain-pied avec la dernière rangée --- */
-    var backZ0 = ROWS[ROWS.length - 1], backZC = (backZ0 + (HZ - 0.7)) / 2;
-    box(g, HX * 2 - 1.4, BACK_H, (HZ - 0.7) - backZ0, deckM, 0, BACK_H / 2, backZC);
+    /* --- palier du fond : régie, pop-corn et sortie sont de plain-pied avec la dernière rangée (jusqu'au mur du fond, sinon la régie flotte au-dessus du vide) --- */
+    var backZ0 = ROWS[ROWS.length - 1], backZC = (backZ0 + HZ) / 2;
+    box(g, HX * 2, BACK_H, HZ - backZ0 + 0.1, deckM, 0, BACK_H / 2, backZC);
     box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
@@ -366,7 +366,7 @@
     rgx.textAlign = 'center'; rgx.textBaseline = 'middle'; rgx.fillStyle = '#e9c66b'; rgx.font = '800 50px ' + SERIF; rgx.fillText('RÉGIE', 256, 46, 470);
     rgx.fillStyle = '#9d8a53'; rgx.font = '700 24px ' + MONO; rgx.fillText('Patron · Co Fondateur', 256, 92, 470);
     var regieSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(rgC) })); regieSign.position.set(0, 2.0, 0); regie.add(regieSign);
-    var regieGlow = new THREE.Sprite(glowM); regieGlow.scale.set(1.1, 1.1, 1); regieGlow.position.set(0, 1.11, -0.05); regie.add(regieGlow); lampGlow.push(regieGlow);
+    var regieGlow = new THREE.Sprite(glowM); regieGlow.scale.set(0.3, 0.3, 1); regieGlow.position.set(0, 1.11, -0.3); regie.add(regieGlow);   // pas dans lampGlow : ce halo ne doit pas grossir avec les appliques (sinon il déborde largement de l'écran)
     var regieHit = box(regie, 1.5, 1.7, 1.2, hitM, 0, 0.85, 0.15);
     room.interactables.push({
       hit: regieHit, x: RX, z: RZ, radius: 1.15,
