@@ -539,6 +539,7 @@
     room.netStop = function () { room.netOn = false; clearTimeout(room.pollT); };
 
     room.hint = function (w) {
+      if (w.touch) return 'Joystick : marcher · glisse : regarder · touche une chaise ou un canapé pour t’asseoir · les grandes portes dorées mènent aux autres salons';
       return 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · clique-glisse : regarder · les grandes portes dorées mènent aux autres salons · approche-toi d\'une chaise ou d\'un canapé pour t\'asseoir (E ou clic)' + (w.full ? ' · Échap : quitter' : '');
     };
     /* ----- s'asseoir sur les canapés : on garde la vue d'une personne assise, on regarde autour à la souris, on se lève en marchant ----- */
@@ -618,6 +619,7 @@
       '.prm-r.on{border-color:#fbbf24;background:rgba(245,158,11,.22);color:#fcd34d}' +
       '.prm-info{font-size:11px;line-height:1.35;color:#d9c88f}.prm-info b{color:#fcd34d}' +
       '.prm-solo{padding:7px;font-size:11px;font-weight:800;border-radius:9px;border:1px solid rgba(56,189,248,.5);background:rgba(14,60,90,.5);color:#bae6fd}';
+    st.textContent += '@media (max-height:520px){.prm{right:96px;bottom:70px;width:190px;padding:6px 8px;gap:4px;font-size:11px}.prm .prm-info{display:none}.prm-solo{padding:5px 8px;font-size:11px}}';
     document.head.appendChild(st);
   }
 

@@ -33,11 +33,11 @@
   <script src="js/3d/audio3d.js?v=1.9"></script>
   <script src="js/3d/hud3d.js?v=5.1"></script>
   <script src="js/3d/portes3d.js?v=2.7"></script>
-  <script src="js/3d/world3d.js?v=5.0"></script>
+  <script src="js/3d/world3d.js?v=5.1"></script>
   <script src="js/3d/hall3d.js?v=4.6"></script>
   <script src="js/3d/slots3d.js?v=7.7"></script>
   <script src="js/3d/horses3d.js?v=4.2"></script>
-  <script src="js/3d/pokerroom3d.js?v=3.1"></script>
+  <script src="js/3d/pokerroom3d.js?v=3.2"></script>
   <script src="js/3d/shop3d.js?v=2.3"></script>
   <script src="js/3d/pmu3d.js?v=2.2"></script>
   <script src="js/3d/blackjack3d.js?v=3.6"></script>
@@ -50,6 +50,10 @@
   <script src="js/3d/vault3d.js?v=2.2"></script>
   <script src="js/3d/cinema3d.js?v=3.2"></script>
   <script src="js/utils/mises-a-jour.js?v=1.5"></script>
+  <style>
+    /* poker assis sur téléphone en paysage : la barre d'actions passe sur une ligne pour laisser voir la table */
+    @media (max-height:520px){#bottomHudContainer{max-width:100%!important;display:grid!important;grid-template-columns:1fr 1.3fr 0.9fr;gap:6px;align-items:end;padding:0 6px 4px;margin:0!important}#bottomHudContainer>*{margin:0!important}#actionButtonsRow{display:flex!important;flex-direction:column;gap:4px}#actionButtonsRow button{padding:5px 0!important;font-size:11px!important;line-height:1.1}#raiseControlPanel{padding:4px 8px!important}#heroPlayerEncart{padding:4px 8px!important}}
+  </style>
 </head>
 
 <body class="selection:bg-amber-500 selection:text-black pl-0 md:pl-[60px]">

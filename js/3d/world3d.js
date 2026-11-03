@@ -318,7 +318,6 @@
   World.prototype._useDoor = function (d) {
     if (d.spec.go) { d.spec.go(this); return; }
     var t = d.spec.target;
-    if (this.touch && t === 'loupgarou') { this.flash('🔒 Bientôt sur téléphone', 'Ce jeu arrive plus tard'); return; }
     if (typeof t === 'string' && this.hasRoom(t)) this.goRoom(t, this.room.id);
     else this.exitGame(typeof t === 'string' ? t : (t && t.game), d);
   };
@@ -1029,7 +1028,7 @@
   }
   // le monde complet n'est proposé que sur ordinateur
   // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, gobelets, poker, uno, loup-garou) garde le menu classique
-  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno', 'cups', 'vault'];
+  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno', 'cups', 'vault', 'pokerroom', 'loupgarou'];
   F.isPhone = function () { return F.isMobile() || F.isTouch(); };
   F.canWorld = function (room) { return webgl() && !mainFailed && !!document.getElementById('world3dStage') && (!F.isPhone() || !room || PHONE_ROOMS.indexOf(room) >= 0); };
   F.wantsWorldForSlots = function () { return F.canWorld('slots'); };
@@ -1062,7 +1061,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno', 'cups', 'vault'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'vault', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'crash', 'blindtest', 'blackjack', 'uno', 'cups', 'vault', 'pokerroom', 'loupgarou'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'loupgarou', 'uno', 'vault', 'blackjack', 'cups', 'crash', 'blindtest'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });
