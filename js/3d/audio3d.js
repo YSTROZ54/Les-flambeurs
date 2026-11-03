@@ -202,6 +202,15 @@
         if (s % 8 === 0) tone(d, mtof(ch[0] - 12), t, 0.28, { type: 'triangle', v: 0.15, a: 0.01 });
         if (s === 4 || s === 12) noise(d, t, 0.04, { type: 'bandpass', f: 2200, q: 2, v: 0.07 });
         if (s % 2 === 1) noise(d, t, 0.03, { f: 8500, v: 0.025 });
+      } },
+    // blind test : jeu-concours espiègle, pizzicato marqué et petit « ding » de bonne réponse qui traîne
+    blindtest: { bpm: 104, chords: [[57, 60, 64, 69], [50, 57, 60, 65], [53, 57, 60, 65], [55, 59, 62, 69]],
+      step: function (i, t, d) {
+        var bar = (i >> 4) & 3, ch = this.chords[bar], s = i & 15;
+        if (s % 4 === 0) tone(d, mtof(ch[(s >> 2) % ch.length] - 12), t, 0.22, { type: 'triangle', v: 0.16, a: 0.006 });
+        if (s % 2 === 0) tone(d, mtof(ch[(s >> 1) % ch.length]), t, 0.14, { type: 'square', v: 0.045, a: 0.003, lp: 2600 });
+        if (s === 6 || s === 14) noise(d, t, 0.03, { type: 'bandpass', f: 7200, q: 1.1, v: 0.03 });
+        if (s === 0 && Math.random() < 0.4) tone(d, mtof(ch[3] + 24), t, 0.9, { type: 'sine', v: 0.05, a: 0.005 });   // petit ding occasionnel
       } }
   };
 

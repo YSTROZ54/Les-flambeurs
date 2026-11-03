@@ -137,6 +137,6 @@ export default defineConfig({
     port: 8080,
     strictPort: true,
     // Le dossier est dans OneDrive : comme pour Tropi Site, on surveille les fichiers par sondage, sinon des modifs passent inaperçues.
-    watch: { usePolling: true, interval: 100, ignored: ['**/blindtest/img/**'] }
+    watch: { usePolling: true, interval: 100 }
   }
 });

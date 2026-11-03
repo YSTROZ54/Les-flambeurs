@@ -78,6 +78,5 @@ export function availableTitles(bank, cat, diff) {
 
 export function pickRounds(bank, { cat = 'all', diff = 'all', rounds = 15 } = {}) {
   const byKey = availableTitles(bank, cat, diff);
-  const keys = shuffle([...byKey.keys()]).slice(0, rounds);
-  return keys.map((k) => { const list = byKey.get(k); return list[randomInt(0, list.length)].id; });
+  return shuffle([...byKey.keys()]).slice(0, rounds);
 }

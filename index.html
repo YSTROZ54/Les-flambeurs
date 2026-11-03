@@ -25,12 +25,12 @@
   <script src="js/poker/poker3d-scene.js?v=2.2"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=2.2"></script>
+  <script src="js/3d/f3d-core.js?v=2.3"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
   <script src="js/3d/persona3d.js?v=3.1"></script>
   <script src="js/3d/creation3d.js?v=1.0"></script>
   <script src="js/3d/hand3d.js?v=1.8"></script>
-  <script src="js/3d/audio3d.js?v=1.9"></script>
+  <script src="js/3d/audio3d.js?v=2.0"></script>
   <script src="js/3d/hud3d.js?v=5.1"></script>
   <script src="js/3d/portes3d.js?v=2.7"></script>
   <script src="js/3d/world3d.js?v=5.2"></script>
@@ -41,13 +41,13 @@
   <script src="js/3d/shop3d.js?v=2.3"></script>
   <script src="js/3d/pmu3d.js?v=2.2"></script>
   <script src="js/3d/blackjack3d.js?v=3.6"></script>
-  <script src="js/3d/loupgarou3d.js?v=2.5"></script>
+  <script src="js/3d/loupgarou3d.js?v=2.6"></script>
   <script src="js/3d/cups3d.js?v=2.5"></script>
   <script src="js/3d/crash3d.js?v=2.6"></script>
-  <script src="js/3d/blindtest3d.js?v=1.9"></script>
+  <script src="js/3d/blindtest3d.js?v=2.0"></script>
   <script src="js/3d/minijeux-regles.js?v=1.2"></script>
   <script src="js/3d/uno3d.js?v=4.3"></script>
-  <script src="js/3d/ludo3d.js?v=1.3"></script>
+  <script src="js/3d/ludo3d.js?v=1.4"></script>
   <script src="js/3d/vault3d.js?v=2.2"></script>
   <script src="js/3d/cinema3d.js?v=3.2"></script>
   <script src="js/utils/mises-a-jour.js?v=1.5"></script>
@@ -1967,8 +1967,8 @@
         <div class="grid lg:grid-cols-3 gap-3">
           <div class="lg:col-span-2 space-y-3">
             <div
-              class="relative rounded-2xl overflow-hidden bg-black border border-white/10 aspect-video flex items-center justify-center select-none">
-              <img id="btImage" class="w-full h-full object-contain hidden" alt="Scène à deviner" draggable="false"
+              class="relative rounded-2xl overflow-hidden bg-black border border-white/10 aspect-[2/3] max-h-[70vh] w-full max-w-[420px] mx-auto flex items-center justify-center select-none">
+              <img id="btImage" class="w-full h-full object-contain hidden" alt="Affiche à deviner" draggable="false"
                 oncontextmenu="return false">
               <div id="btCountdown"
                 class="absolute inset-0 hidden flex items-center justify-center bg-black/85 text-center">
@@ -5325,6 +5325,16 @@
       if (state.role === 'patron' || state.role === 'flambeur') return false;
       return CO_FONDATEURS.includes((state.username || '').toLowerCase().trim());
     }
+    // Même rôle que isCurrentUserAdmin()/isCurrentUserCoFounder(), mais pour n'importe quel compte (classement,
+    // liste de joueurs…), pas seulement le joueur connecté. Renvoie [icône FA, libellé, classe CSS du dégradé].
+    function roleOf(acc) {
+      const uname = ((acc && acc.username) || '').toLowerCase().trim();
+      const role = acc && acc.role;
+      const isPatron = role === 'patron' || uname === 'ystroz' || uname === 'alex';
+      const isCo = !isPatron && (role === 'co_fondateur' || (role !== 'flambeur' && CO_FONDATEURS.includes(uname)));
+      return isPatron ? ['fa-crown', 'Patron', 'role-patron']
+        : isCo ? ['fa-gem', 'Co Fondateur', 'role-cofondateur'] : ['fa-fire', 'Flambeur', 'role-flambeur'];
+    }
 
     async function verifyAdminPassword() {
       const inp = document.getElementById('adminPasswordInput');
@@ -5879,7 +5889,8 @@
             name: acc.username,
             avatarEmoji: getAvatarDisplay(acc),
             balance: typeof acc.balance === 'number' ? acc.balance : parseInt(acc.balance) || 0,
-            isMe: isUserLoggedIn() && uKey === meKey
+            isMe: isUserLoggedIn() && uKey === meKey,
+            role: roleOf(acc)
           };
         }
       });
@@ -5890,6 +5901,7 @@
           name: state.username,
           avatarEmoji: getAvatarDisplay(state),
           balance: state.balance ?? 0,
+          role: roleOf(state),
           isMe: true
         };
       }
@@ -5908,6 +5920,7 @@
 
       container.innerHTML = list.map((p, idx) => {
         const rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+        const [roleIcon, roleName, roleClass] = p.role || ['fa-fire', 'Flambeur', 'role-flambeur'];
         return `
           <div class="py-2.5 px-3 flex items-center justify-between rounded-xl transition ${p.isMe ? 'bg-amber-500/15 border border-amber-400/40 shadow-sm' : 'border-b border-white/5 hover:bg-white/5'}">
             <div class="flex items-center gap-3">
@@ -5915,9 +5928,12 @@
               <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-base">
                 ${p.avatarEmoji || '🎭'}
               </div>
-              <div class="flex items-center gap-2">
-                <span class="font-extrabold ${p.isMe ? 'text-amber-300' : 'text-stone-200'} text-xs sm:text-sm">${p.name}</span>
-                ${p.isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-400/30">Moi</span>' : ''}
+              <div class="flex flex-col gap-0.5 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-extrabold ${p.isMe ? 'text-amber-300' : 'text-stone-200'} text-xs sm:text-sm">${p.name}</span>
+                  ${p.isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-400/30">Moi</span>' : ''}
+                </div>
+                <span class="flex items-center gap-1 text-[9px] role-tag ${roleClass}"><i class="fa-solid ${roleIcon} role-crown"></i> <span class="role-label">${roleName}</span></span>
               </div>
             </div>
             <div class="font-mono-num text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1">
@@ -10402,9 +10418,12 @@
           : '😅 Personne n\'a trouvé.';
       }
       // saisie : active seulement pendant la question, tant qu'on n'a pas trouvé
+      // (on ne réaffecte .disabled que si la valeur change : le refaire à chaque sondage, même sans changement,
+      // referme le clavier virtuel sur mobile — Safari/Chrome y défocalisent l'input dès qu'on y touche)
       const inp = btEl('btInput'), send = btEl('btSend');
       const can = st.phase === 'question' && !(st.you && st.you.found);
-      inp.disabled = !can; send.disabled = !can;
+      if (inp.disabled !== !can) inp.disabled = !can;
+      if (send.disabled !== !can) send.disabled = !can;
       if (st.round !== BT.shownRound || st.phase !== BT.shownPhase) {
         if (st.phase === 'question') { inp.value = ''; btHint('', 'info'); btSound('start'); setTimeout(() => { try { inp.focus(); } catch (e) { } }, 50); }
         if (reveal && st.you && st.you.found) btHint('✅ Tu as trouvé !', 'ok');

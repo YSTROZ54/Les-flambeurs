@@ -32,9 +32,18 @@
     c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h); c.lineTo(x + r, y + h);
     c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath();
   }
+  // emoji d'avatar abîmé par un mauvais encodage (« ?? », vide…) : l'initiale du pseudo à la place, comme ailleurs dans le jeu
+  // (même garde que getAvatarDisplay() dans la page et cleanEmoji() de slots3d.js — à utiliser avant d'envoyer l'avatar au serveur
+  // d'un salon multijoueur, sinon un avatar abîmé une fois s'affiche abîmé chez tous les autres joueurs, pas que chez soi)
+  function cleanAvatar(av, name, fallback) {
+    av = String(av == null ? '' : av).trim();
+    if (av && !/^[?\s]*$|^(null|undefined)$/.test(av)) return av;
+    var n = String(name == null ? '' : name).trim();
+    return n ? n.charAt(0).toUpperCase() : (fallback || '🎭');
+  }
 
   F.EMOJI_FONT = EMOJI_FONT; F.SERIF = SERIF; F.MONO = MONO; F.TAU = TAU;
-  F.fmtN = fmtN; F.isMobile = isMobile; F.isTouch = isTouch; F.mkCanvas = mkCanvas; F.mkTex = mkTex; F.roundRectPath = roundRectPath;
+  F.fmtN = fmtN; F.isMobile = isMobile; F.isTouch = isTouch; F.mkCanvas = mkCanvas; F.mkTex = mkTex; F.roundRectPath = roundRectPath; F.cleanAvatar = cleanAvatar;
 
   /* ---------- décor partagé par plusieurs salles : plante en pot et tabouret de bar ---------- */
   // plante d'intérieur touffue (feuilles qui retombent en arc dans un pot en céramique crème à bande dorée) ; ~1,9 m de haut à l'échelle 1

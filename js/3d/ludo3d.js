@@ -337,7 +337,7 @@
       w.container.appendChild(el); ui = { el: el }; el.addEventListener('click', onClick);
       standEl = document.createElement('div'); standEl.className = 'ld3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl); window.addEventListener('keydown', onSeatKey, true);
-      api({ action: 'join', seat: s.c, avatar: (st() && st().avatarEmoji) || '🧑‍🎤' }).then(function (r) {
+      api({ action: 'join', seat: s.c, avatar: F.cleanAvatar(st() && st().avatarEmoji, st() && st().username, '🧑‍🎤') }).then(function (r) {
         if (!seat || seat !== s) return;
         if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible de rejoindre cette table.'); stand(); return; }
         joined = true; joinedAt = Date.now();

@@ -270,7 +270,7 @@
       standEl = document.createElement('div'); standEl.className = 'bt3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl); window.addEventListener('keydown', onSeatKey, true);
       setMsg('Entrée dans le salon…');
-      api({ action: 'join', avatar: (st() && st().avatarEmoji) || '🧑‍🎤' }).then(function (r) {
+      api({ action: 'join', avatar: F.cleanAvatar(st() && st().avatarEmoji, st() && st().username, '🧑‍🎤') }).then(function (r) {
         if (!seat || seat !== s) return;
         if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible d\'entrer dans ce salon.'); stand(); return; }
         joined = true; joinedAt = Date.now(); setMsg('');
@@ -289,12 +289,16 @@
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
     room.sitSpec = { y: 0.2, z: 0.1 };
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
+    // pendant la question (chrono en cours), la caméra reste figée droit sur l'écran : impossible de regarder ailleurs
+    // tant qu'on n'a pas trouvé ou que le temps n'est pas écoulé (le lobby et la révélation restent libres).
+    function questionLocked() { return !!(seat && S && S.status === 'playing' && S.phase === 'question'); }
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
-    room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-0.7, Math.min(0.7, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.3, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };
+    room.seatDrag = function (drag, dx, dy) { if (!seat || questionLocked()) return; view.yaw = Math.max(-0.7, Math.min(0.7, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.3, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
-      if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.6; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.45, ez = s.z - 0.1, a = view.yaw, p = 0.1 + view.pitch;
+      var locked = questionLocked();
+      if (!locked && ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.6; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
+      var ex = s.x, ey = 1.45, ez = s.z - 0.1, a = locked ? 0 : view.yaw, p = locked ? 0.1 : (0.1 + view.pitch);
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8, ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 58 };
     };
     room.syncHud = function () { refreshUi(); };

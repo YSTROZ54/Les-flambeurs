@@ -12,8 +12,12 @@ import { randomInt, randomBytes } from 'node:crypto';
 import { actorOf } from './_auth.js';
 import { getRow, getRowExact, putRow, updateAccount, GameError } from './_store.js';
 import { walletPay } from './_wallet.js';
-import { BANK, ANSWERS, IMG_DIR } from './_blindtestData.js';
+import { TITLES, ANSWERS } from './_blindtestData.js';
 import { judge, pickRounds, availableTitles, CATS, DIFFS } from './_blindtestEngine.js';
+
+// affiche TMDB de chaque titre (image.tmdb.org n'envoie aucun en-tête CORS : on la relaie depuis notre propre
+// domaine via api/poster.js, même origine, donc pas de souci de CORS côté canvas — voir js/3d/hall3d.js)
+const TMDB_IMG = 'https://image.tmdb.org/t/p/w780';
 
 const PREFIX = '__bt_salon_';
 const NOOP = Symbol('noop');
@@ -30,12 +34,12 @@ export const MAX_ATTEMPTS = 15;
 export const SEEN_REFRESH_MS = 20000;  // un joueur connecté « donne signe de vie » au moins toutes les 20 s
 export const GONE_MS = 45000;          // sans signe de vie depuis 45 s : il a quitté
 
-const bankById = new Map(BANK.map((b) => [b.id, b]));
+const bankById = new Map(TITLES.map((b) => [b.key, b]));
 const rowName = (code) => PREFIX + code;
 const cleanCode = (c) => { const s = String(c == null ? '' : c).trim(); return ROOM_IDS.includes(s) ? s : ''; };
 const cleanAvatar = (a) => (typeof a === 'string' && a.length > 0 && a.length <= 12 ? a : '🧑‍🎤');
 const fail = (res, code, error, extra) => res.status(code).json({ ok: false, error, ...(extra || {}) });
-const imgOf = (id) => (id ? IMG_DIR + id + '.jpg' : null);
+const imgOf = (b) => (b && b.poster ? '/api/poster?u=' + encodeURIComponent(TMDB_IMG + b.poster) : null);
 
 export function sanitizeCfg(c) {
   c = c || {};
@@ -48,7 +52,7 @@ export function sanitizeCfg(c) {
   };
 }
 
-export const availableCount = (cfg) => availableTitles(BANK, cfg.cat, cfg.diff).size;
+export const availableCount = (cfg) => availableTitles(TITLES, cfg.cat, cfg.diff).size;
 
 // salon vide, réglages par défaut (les trois salons démarrent et redeviennent exactement pareils)
 function freshState(code, now, owed) {
@@ -118,14 +122,14 @@ const ranking = (st) => Object.keys(st.players).map((k) => ({ k, ...st.players[k
 // ce que les navigateurs ont le droit de voir : jamais la bonne réponse avant la fin de la manche
 export function publicState(st, now, actor) {
   const cur = st.round >= 1 ? bankById.get(st.order[st.round - 1]) : null;
-  const nextId = st.status === 'playing' ? (st.phase === 'countdown' ? st.order[0] : st.order[st.round]) : null;
+  const nextKey = st.status === 'playing' ? (st.phase === 'countdown' ? st.order[0] : st.order[st.round]) : null;
   const inRound = st.status === 'playing' && (st.phase === 'question' || st.phase === 'reveal');
   const out = {
     code: st.code, name: 'Salon ' + st.code, id: st.id, status: st.status, serverNow: now, cfg: st.cfg, available: availableCount(st.cfg),
     host: st.host, hostName: st.players[st.host] ? st.players[st.host].name : '', max: MAX_PLAYERS,
     round: st.round, total: st.order.length, phase: st.phase, phaseStart: st.phaseStart, phaseEnd: st.phaseEnd,
     questionMs: QUESTION_MS, reward: st.reward ? REWARD : 0, rewardMinPlayers: MIN_REWARD_PLAYERS,
-    img: inRound && cur ? imgOf(cur.id) : null, nextImg: imgOf(nextId),
+    img: inRound && cur ? imgOf(cur) : null, nextImg: imgOf(bankById.get(nextKey)),
     players: ranking(st).map((p, i) => ({
       name: p.name, avatar: p.avatar, score: p.score, earned: p.earned, left: !!p.left, rank: i + 1,
       found: inRound && !!st.solved[p.k], me: p.k === actor, host: p.k === st.host
@@ -206,7 +210,7 @@ async function currentState(code, actor) {
 
 const counts = () => {
   const out = {};
-  for (const c of ['all', ...CATS]) { out[c] = {}; for (const d of ['all', ...DIFFS]) out[c][d] = availableTitles(BANK, c, d).size; }
+  for (const c of ['all', ...CATS]) { out[c] = {}; for (const d of ['all', ...DIFFS]) out[c][d] = availableTitles(TITLES, c, d).size; }
   return out;
 };
 
@@ -292,7 +296,7 @@ export default async function handler(req, res) {
         if (st.status !== 'lobby') throw new GameError(409, 'La partie a déjà commencé.');
         Object.keys(st.players).forEach((k) => { if (!present(st.players[k], now) && k !== actor) delete st.players[k]; });
         if (availableCount(st.cfg) < MIN_ROUNDS) throw new GameError(400, 'Pas assez d\'images pour ces réglages.');
-        st.order = pickRounds(BANK, st.cfg);
+        st.order = pickRounds(TITLES, st.cfg);
         st.reward = Object.keys(st.players).length >= MIN_REWARD_PLAYERS;
         st.id = randomBytes(6).toString('hex');
         Object.values(st.players).forEach((p) => { p.score = 0; p.earned = 0; p.totalMs = 0; });
