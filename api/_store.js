@@ -108,13 +108,13 @@ async function casWrite(oldRow, newRow, oldVer) {
   const res = await sb(`accounts?username=eq.${encodeURIComponent(oldRow.username)}&data->>_ver=${cond}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ avatar: clean.avatar, balance: clean.balance, role: clean.role, data: clean.data, updated_at: clean.updated_at })
+    body: JSON.stringify({ password: clean.password, avatar: clean.avatar, balance: clean.balance, role: clean.role, data: clean.data, updated_at: clean.updated_at })
   });
   if (res.status === 400) {
     // filtre de version refusé par la base : on écrit sans contrôle plutôt que de bloquer les jeux
     console.warn('casWrite: filtre de version refusé, écriture sans contrôle');
     const r2 = await sb(`accounts?username=eq.${encodeURIComponent(oldRow.username)}`, {
-      method: 'PATCH', body: JSON.stringify({ avatar: clean.avatar, balance: clean.balance, role: clean.role, data: clean.data, updated_at: clean.updated_at })
+      method: 'PATCH', body: JSON.stringify({ password: clean.password, avatar: clean.avatar, balance: clean.balance, role: clean.role, data: clean.data, updated_at: clean.updated_at })
     });
     if (!r2.ok) throw new Error('Supabase ' + r2.status);
     return true;
