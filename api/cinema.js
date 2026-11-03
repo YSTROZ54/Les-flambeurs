@@ -15,16 +15,25 @@ const CAN_CONTROL = PATRONS.concat(CO_FONDATEURS);
 const DEFAULT_URL = 'video/tropistream-presentation.mp4';
 const TROPISTREAM = 'https://tropistream.fr';
 
-const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '' });
+const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '', schedule: [] });
+const MAX_SCHEDULE = 20;
 
 function positionAt(st, now) {
   if (st.status === 'playing') return Math.max(0, st.position + (now - st.updatedAt) / 1000);
   return Math.max(0, st.position || 0);
 }
 
+// séances programmées : on garde les futures, et celles de moins de 3h (encore utile à afficher comme « en cours » / tout juste passées)
+function visibleSchedule(st, now) {
+  return (st.schedule || []).filter((it) => it.at > now - 3 * 3600 * 1000).sort((a, b) => a.at - b.at).slice(0, MAX_SCHEDULE);
+}
+
 // ce que les navigateurs ont le droit de voir
 export function publicState(st, now) {
-  return { url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '' };
+  return {
+    url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '',
+    schedule: visibleSchedule(st, now).map((it) => ({ id: it.id, title: it.title, poster: it.poster || '', at: it.at }))
+  };
 }
 
 // Fsvid / Uqload / Vidzy : la page collée est l'embed du lecteur (pas un flux jouable tel quel).
@@ -142,6 +151,35 @@ export default async function handler(req, res) {
     // ---- COUPER LA SÉANCE ----
     if (action === 'stop') {
       await mutateState((s, now) => { s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
+      const st = (await getRowExact(ROW)).data.cinema;
+      return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
+    }
+
+    // ---- PROGRAMMER UNE SÉANCE (panneau « à l'affiche » du hall) ----
+    if (action === 'schedule-add') {
+      const title = String(body.title || '').trim().slice(0, 200);
+      const url = String(body.url || '').trim().slice(0, 500);
+      const poster = String(body.poster || '').trim().slice(0, 300);
+      const type = body.type === 'hls' ? 'hls' : 'mp4';
+      const at = Number(body.at);
+      if (!title || !url) return fail(res, 400, 'Choisis un film.');
+      if (!isFinite(at) || at <= Date.now()) return fail(res, 400, 'Choisis une date dans le futur.');
+
+      await mutateState((s) => {
+        if (!Array.isArray(s.schedule)) s.schedule = [];
+        s.schedule.push({ id: String(Date.now()) + Math.random().toString(36).slice(2, 7), title, url, type, poster, at, addedBy: actor });
+        s.schedule.sort((a, b) => a.at - b.at);
+        if (s.schedule.length > MAX_SCHEDULE) s.schedule.length = MAX_SCHEDULE;
+      });
+      const st = (await getRowExact(ROW)).data.cinema;
+      return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
+    }
+
+    // ---- RETIRER UNE SÉANCE PROGRAMMÉE ----
+    if (action === 'schedule-remove') {
+      const id = String(body.id || '');
+      if (!id) return fail(res, 400, 'Séance introuvable.');
+      await mutateState((s) => { s.schedule = (s.schedule || []).filter((it) => it.id !== id); });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }

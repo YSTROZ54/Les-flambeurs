@@ -113,6 +113,7 @@
         t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
         mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
       }, undefined, function () { /* pas d'image : on garde le dessin provisoire */ });
+      return mat;
     }
 
     // bannière du casino, en haut des trois murs qui ont des portes de jeu (au-dessus des enseignes de portes) : chacune annonce les jeux de son mur
@@ -127,8 +128,47 @@
     sn.font = '900 130px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 270, 1200);
     sn.shadowBlur = 0; sn.fillStyle = '#f8e7d0'; sn.font = '700 52px ' + MONO; sn.fillText('CINÉMA TROPI STREAM', 640, 440);
     sn.fillStyle = '#c98a55'; sn.font = '600 30px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 520);
-    neon(WALL.entree, 4.5, 4.2, '', 4.4, 2.475, 0xff7a1a, soon);
+    var cinPosterMat = neon(WALL.entree, 4.5, 4.2, '', 4.4, 2.475, 0xff7a1a, soon);
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
+
+    // panneau « à l'affiche » tenu à jour : séance en cours (avec l'heure de début) et prochaines séances programmées depuis la régie (cinema3d.js)
+    function fmtHeureBoard(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+    function fmtJourBoard(d) { var n = new Date(); return d.toDateString() === n.toDateString() ? 'Aujourd\'hui' : (('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2)); }
+    function paintCinemaBoard(st) {
+      sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
+      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 24; sn.fillStyle = '#ffb066';
+      sn.font = '900 92px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 110, 1200);
+      sn.shadowBlur = 0;
+      var playing = st && st.status === 'playing' && st.title;
+      if (playing) {
+        var titre = String(st.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), startD = new Date(Date.now() - st.position * 1000);
+        sn.fillStyle = '#4ade80'; sn.font = '800 28px ' + MONO; sn.fillText('● SÉANCE EN COURS', 640, 195);
+        sn.fillStyle = '#f8e7d0'; sn.font = '700 44px ' + MONO; sn.fillText(titre, 640, 250, 1180);
+        sn.fillStyle = '#c98a55'; sn.font = '600 26px ' + MONO; sn.fillText('Depuis ' + fmtHeureBoard(startD), 640, 300);
+      } else {
+        sn.fillStyle = '#f8e7d0'; sn.font = '700 44px ' + MONO; sn.fillText('CINÉMA TROPI STREAM', 640, 230);
+        sn.fillStyle = '#c98a55'; sn.font = '600 26px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 280);
+      }
+      sn.fillStyle = 'rgba(255,122,26,0.35)'; sn.fillRect(220, 335, 840, 2);
+      var sched = (st && st.schedule) || [];
+      sn.fillStyle = '#ffb066'; sn.font = '800 30px ' + MONO; sn.fillText('PROCHAINES SÉANCES', 640, 385);
+      if (!sched.length) {
+        sn.fillStyle = '#8a7050'; sn.font = '600 24px ' + MONO; sn.fillText('Aucune séance programmée pour l\'instant', 640, 440);
+      } else {
+        sched.slice(0, 3).forEach(function (it, i) {
+          var d = new Date(it.at), y0 = 445 + i * 82, label = String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, '');
+          sn.fillStyle = '#f4e3b0'; sn.font = '700 30px ' + MONO; sn.fillText(label, 640, y0, 1100);
+          sn.fillStyle = '#c98a55'; sn.font = '600 24px ' + MONO; sn.fillText(fmtJourBoard(d) + ' à ' + fmtHeureBoard(d), 640, y0 + 32);
+        });
+      }
+      if (cinPosterMat.map) cinPosterMat.map.needsUpdate = true;
+    }
+    var cinBoardBusy = false;
+    function pollCinemaBoard() {
+      if (cinBoardBusy) return;
+      cinBoardBusy = true;
+      fetch('/api/cinema', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinBoardBusy = false; paintCinemaBoard(st); }).catch(function () { cinBoardBusy = false; });
+    }
 
     // guirlandes de néons qui s'enroulent autour des colonnes (même LED lumineuses que la table des chevaux)
     var ledTex = (function () {
@@ -371,8 +411,9 @@
       return w.touch ? 'Joystick : marcher · approche-toi d\'une porte pour la pousser'
         : 'ZQSD / flèches : marcher · Maj : courir · Espace : sauter · avance vers une porte pour la pousser' + (w.full ? ' · la souris tourne la vue · Échap : quitter' : ' · clique-glisse : regarder');
     };
-    var hallT = 0;
+    var hallT = 0, cinBoardT = 999;   // 999 : on interroge /api/cinema dès l'entrée dans le hall, pas seulement 20 s après
     room.update = function (dt) {
+      cinBoardT += dt; if (cinBoardT > 20) { cinBoardT = 0; pollCinemaBoard(); }
       garlandsUpdate(dt);
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
       hallT += dt; waterT.value = hallT; simStep(dt);

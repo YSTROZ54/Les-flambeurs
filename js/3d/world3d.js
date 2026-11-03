@@ -148,7 +148,7 @@
     if (room.onEnter) room.onEnter(this);
     if (F.audio) F.audio.setRoom(room.id);                          // musique de la salle (audio3d.js)
     this._netStart();
-    this._setHint();
+    if (o.instant) this._setHint();   // le tuto des touches ne s'affiche qu'à l'arrivée sur le site, pas à chaque salle
     this.w = 0; Q.resetGrace();
     this._showTitle(room.title, room.subtitle);
     return true;

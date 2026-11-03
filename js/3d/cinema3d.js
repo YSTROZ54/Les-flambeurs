@@ -441,7 +441,7 @@
     var video = document.createElement('video');
     video.crossOrigin = 'anonymous'; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '' };
+    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '', schedule: [] };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
     function netPosNow() {
       var p = net.position;
@@ -523,7 +523,7 @@
     function applyNet(st) {
       if (!st) return;
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
-      net.title = st.title || '';
+      net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
@@ -540,7 +540,7 @@
           if (lbl !== posterLabel) { posterLabel = lbl; paintPoster(lbl); }
         }
       }
-      refreshConsole();
+      refreshConsole(); renderSchedule();
     }
     function pollCinema() {
       if (net.busy) return;
@@ -599,6 +599,7 @@
           filterPlaylist();
           renderPlaylistGenres();
           renderPlaylistItems(false);
+          populateScheduleSelect();
           if (cb) cb(playlist);
         })
         .catch(function (e) {
@@ -715,6 +716,54 @@
       cinemaAction('set', { url: targetUrl, title: fullTitle });
     }
 
+    /* ===================== PROGRAMMATION DES SÉANCES ===================== */
+    function populateScheduleSelect() {
+      if (!consoleEl || !playlist) return;
+      var sel = consoleEl.querySelector('.cin-sch-film');
+      if (!sel) return;
+      var cur = sel.value;
+      var html = '<option value="">Choisis un film de la playlist…</option>';
+      playlist.forEach(function (f) {
+        if (f.vf) html += '<option value="' + f.id + ':VF">' + escapeHtml(f.titre) + (f.annee ? ' (' + f.annee + ')' : '') + ' · VF</option>';
+        if (f.vo) html += '<option value="' + f.id + ':VO">' + escapeHtml(f.titre) + (f.annee ? ' (' + f.annee + ')' : '') + ' · VO</option>';
+      });
+      sel.innerHTML = html;
+      sel.value = cur;
+    }
+    function fmtSchedDate(ts) {
+      var d = new Date(ts), now = new Date(), sameDay = d.toDateString() === now.toDateString();
+      var h = fmtHeure(d), jr = ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
+      return (sameDay ? 'Aujourd\'hui' : jr) + ' à ' + h;
+    }
+    function renderSchedule() {
+      if (!consoleEl) return;
+      var listEl = consoleEl.querySelector('.cin-sch-list');
+      if (!listEl) return;
+      var items = (net.schedule || []).slice().sort(function (a, b) { return a.at - b.at; });
+      if (!items.length) { listEl.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-calendar"></i> Aucune séance programmée.</div>'; return; }
+      listEl.innerHTML = items.map(function (it) {
+        return '<div class="cin-sch-item">' +
+          '<div class="cin-sch-info"><div class="cin-sch-title">' + escapeHtml(it.title) + '</div><div class="cin-sch-when"><i class="fa-regular fa-clock"></i> ' + fmtSchedDate(it.at) + '</div></div>' +
+          '<button class="cin-sch-del" data-a="sched-remove" data-id="' + escapeHtml(it.id) + '" title="Retirer"><i class="fa-solid fa-trash"></i></button>' +
+        '</div>';
+      }).join('');
+    }
+    function addSchedule() {
+      if (!consoleEl) return;
+      var sel = consoleEl.querySelector('.cin-sch-film'), atInput = consoleEl.querySelector('.cin-sch-at');
+      var val = sel && sel.value, atLocal = atInput && atInput.value;
+      if (!val || !atLocal) { world.flash('🗓️ Choisis un film et une date.'); return; }
+      var at = new Date(atLocal).getTime();
+      if (!isFinite(at) || at <= Date.now()) { world.flash('🗓️ Choisis une date dans le futur.'); return; }
+      var parts = val.split(':'), id = parts[0], ver = parts[1];
+      var f = playlist && playlist.find(function (x) { return String(x.id) === String(id); });
+      if (!f) return;
+      var targetUrl = (ver === 'VO' && f.vo) ? f.vo : (f.vf || f.url);
+      cinemaAction('schedule-add', { title: f.nom + ' [' + ver + ']', url: targetUrl, type: /\.m3u8(\?|#|$)/i.test(targetUrl) ? 'hls' : 'mp4', poster: f.poster || '', at: at }).then(function (r) {
+        if (r && r.ok) { world.flash('🗓️ Séance programmée', f.titre + ' · ' + fmtSchedDate(at)); if (atInput) atInput.value = ''; if (sel) sel.value = ''; }
+      });
+    }
+
     function setTab(tab) {
       if (!consoleEl) return;
       consoleEl.querySelectorAll('.cin-tab-btn').forEach(function (b) {
@@ -722,8 +771,10 @@
       });
       var panePl = consoleEl.querySelector('.cin-pane-playlist');
       var paneDir = consoleEl.querySelector('.cin-pane-direct');
+      var paneSch = consoleEl.querySelector('.cin-pane-schedule');
       if (panePl) panePl.classList.toggle('hid', tab !== 'playlist');
       if (paneDir) paneDir.classList.toggle('hid', tab !== 'direct');
+      if (paneSch) { paneSch.classList.toggle('hid', tab !== 'schedule'); if (tab === 'schedule') renderSchedule(); }
     }
 
     function mountConsole() {
@@ -746,6 +797,7 @@
         '<div class="cin-cn-tabs">' +
           '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist Tropi Stream</button>' +
           '<button class="cin-tab-btn" data-tab="direct"><i class="fa-solid fa-link"></i> Lien direct</button>' +
+          '<button class="cin-tab-btn" data-tab="schedule"><i class="fa-solid fa-calendar-days"></i> Séances</button>' +
         '</div>' +
         '<div class="cin-pane cin-pane-playlist">' +
           '<div class="cin-pl-bar">' +
@@ -767,6 +819,15 @@
           '<input class="cin-cn-url" type="text" placeholder="https://fsvid.lol/embed-... ou https://vidzy.cc/..." maxlength="500">' +
           '<div class="cin-cn-row"><button class="cin-btn-load" data-a="load"><i class="fa-solid fa-link"></i> Charger ce lien</button></div>' +
           '<div class="cin-cn-help">L\'extraction du flux depuis Fsvid, Vidzy ou Uqload est automatique via Tropi Stream.</div>' +
+        '</div>' +
+        '<div class="cin-pane cin-pane-schedule hid">' +
+          '<div class="cin-direct-desc">Programme une prochaine séance : elle s\'affichera sur le panneau « À l\'affiche » à l\'entrée du cinéma.</div>' +
+          '<select class="cin-sch-film"><option value="">Choisis un film de la playlist…</option></select>' +
+          '<div class="cin-cn-row">' +
+            '<input class="cin-sch-at" type="datetime-local">' +
+            '<button class="cin-btn-load" data-a="sched-add"><i class="fa-solid fa-calendar-plus"></i> Programmer</button>' +
+          '</div>' +
+          '<div class="cin-sch-list"></div>' +
         '</div>';
 
       consoleEl.addEventListener('click', function (e) {
@@ -790,7 +851,7 @@
         var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null;
         if (!b) return;
         var a = b.getAttribute('data-a');
-        if (a === 'close') { consoleEl.classList.add('hid'); return; }
+        if (a === 'close') { closeConsole(); return; }
         if (a === 'clear-search') {
           var input = consoleEl.querySelector('.cin-pl-search');
           if (input) { input.value = ''; input.focus(); }
@@ -814,6 +875,11 @@
           return;
         }
         if (a === 'play' || a === 'pause' || a === 'stop') cinemaAction(a);
+        if (a === 'sched-add') addSchedule();
+        if (a === 'sched-remove') {
+          var sid = b.getAttribute('data-id');
+          cinemaAction('schedule-remove', { id: sid }).then(function (r) { if (r && r.ok) renderSchedule(); });
+        }
       });
 
       var searchTimeout = null;
@@ -853,15 +919,27 @@
       consoleEl = null;
     }
 
+    // à la fermeture de la régie, la souris redisparaît et reprend la vue (comme un clic l'aurait fait) ; refusé sans
+    // geste de l'utilisateur, un clic sur la salle la reprendra alors
+    function relockMouse() {
+      if (!world.full || !world.dom || !world.dom.requestPointerLock || document.pointerLockElement === world.dom) return;
+      try { var lock = world.dom.requestPointerLock(); if (lock && lock.catch) lock.catch(function () { /* refusé */ }); } catch (e) { /* ok */ }
+    }
+    function closeConsole() {
+      if (!consoleEl || consoleEl.classList.contains('hid')) return;
+      consoleEl.classList.add('hid'); relockMouse();
+    }
+
     function toggleConsole() {
       mountConsole();
       if (!consoleEl) return;
-      consoleEl.classList.toggle('hid');
-      if (!consoleEl.classList.contains('hid')) {
-        consoleEl.querySelector('.cin-cn-url').value = net.url || '';
-        refreshConsole();
-        loadPlaylist();
-      }
+      if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
+      consoleEl.classList.remove('hid');
+      consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+      refreshConsole();
+      loadPlaylist();
+      populateScheduleSelect();
+      renderSchedule();
     }
 
     function refreshConsole() {
@@ -1082,7 +1160,17 @@
       '.cin-direct-desc{font-size:11px;color:#9d8a53;line-height:1.5;margin-bottom:4px}' +
       '.cin-cn-url{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s}.cin-cn-url:focus{border-color:rgba(201,162,39,.5)}' +
       '.cin-btn-load{background:#c2410c;border-color:rgba(194,65,12,.7)!important;color:#fff}.cin-btn-load:hover{background:#ea580c!important}' +
-      '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.08);padding-top:9px}';
+      '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.08);padding-top:9px}' +
+      /* Pane programmation des séances */
+      '.cin-pane-schedule{padding:12px 14px;gap:10px;flex-shrink:0;overflow-y:auto;max-height:52vh}' +
+      '.cin-sch-film{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;margin-bottom:8px}' +
+      '.cin-sch-at{flex:1;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 10px;color:#fff3e0;font-family:inherit;font-size:12px;outline:none;color-scheme:dark}' +
+      '.cin-sch-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}' +
+      '.cin-sch-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}' +
+      '.cin-sch-info{flex:1;min-width:0}' +
+      '.cin-sch-title{font-size:12px;font-weight:700;color:#f4e3b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.cin-sch-when{font-size:11px;color:#9d8a53;margin-top:2px}' +
+      '.cin-sch-del{flex-shrink:0;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:7px;padding:6px 9px;font-size:11px}.cin-sch-del:hover{background:rgba(239,68,68,.3)}';
     document.head.appendChild(st);
   }
 
