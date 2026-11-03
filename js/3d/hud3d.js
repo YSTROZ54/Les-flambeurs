@@ -384,6 +384,7 @@
       var r = null;
       try { r = typeof gatewayAction === 'function' ? await gatewayAction(payload) : null; } catch (e) { r = null; }
       adminMsg = (r && r.ok) ? okMsg : '❌ ' + ((r && r.error) || 'Action refusée.');
+      try { w.flash(adminMsg, (r && r.ok) ? '« ' + (payload.username || '') + ' »' : ''); } catch (e) { /* ok */ }
       if (r && r.ok) {
         try {
           var db = typeof getAccountsDB === 'function' ? getAccountsDB() : {}, key = payload.username.toLowerCase();
