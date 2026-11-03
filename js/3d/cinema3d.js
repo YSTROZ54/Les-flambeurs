@@ -251,18 +251,18 @@
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
     // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P
 
-    /* --- haut-parleurs de chaque côté, sur les murs latéraux près de la scène (comme dans les vrais cinémas) --- */
+    /* --- petits haut-parleurs sur les murs latéraux, comme dans les vrais cinémas --- */
     var spkM = std(0x15090d, 0.7, 0.1), coneM = std(0x1c1c20, 0.5, 0.4), ringM = trimM;
     function speaker(x, z, ry) {
-      var s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s);
-      box(s, 0.9, 3.2, 0.7, spkM, 0, 1.6, 0);                                           // caisson
-      box(s, 0.96, 0.08, 0.76, ringM, 0, 3.22, 0); box(s, 0.96, 0.08, 0.76, ringM, 0, -0.02, 0);   // chants dorés haut/bas
-      [[2.55, 0.3], [1.55, 0.22], [0.7, 0.14]].forEach(function (c) {                   // caisson de basses (gros), médium, tweeter (petit), de bas en haut
-        cyl(s, c[1], c[1], 0.08, coneM, 0, c[0], 0.36, 20).rotation.x = Math.PI / 2;
-        cyl(s, c[1] * 0.94, c[1] * 0.94, 0.02, ringM, 0, c[0], 0.4, 20).rotation.x = Math.PI / 2;
-      });
+      var s = new THREE.Group(); s.position.set(x, 3.7 + cinemaGroundY(x, z), z); s.rotation.y = ry; s.rotation.x = -0.12; g.add(s);   // penché vers la salle, suit le relief des gradins
+      box(s, 0.34, 0.5, 0.24, spkM, 0, 0, 0.12);                                                 // petit caisson mural
+      box(s, 0.38, 0.05, 0.28, ringM, 0, 0.26, 0.12); box(s, 0.38, 0.05, 0.28, ringM, 0, -0.26, 0.12);   // chants dorés haut/bas
+      cyl(s, 0.1, 0.1, 0.05, coneM, 0, 0.1, 0.25, 16).rotation.x = Math.PI / 2;                  // médium/basse
+      cyl(s, 0.095, 0.095, 0.015, ringM, 0, 0.1, 0.275, 16).rotation.x = Math.PI / 2;
+      cyl(s, 0.045, 0.045, 0.05, coneM, 0, -0.11, 0.25, 14).rotation.x = Math.PI / 2;             // tweeter
+      cyl(s, 0.042, 0.042, 0.015, ringM, 0, -0.11, 0.275, 14).rotation.x = Math.PI / 2;
     }
-    speaker(-HX + 0.47, -HZ + 2.4, Math.PI / 2); speaker(HX - 0.47, -HZ + 2.4, -Math.PI / 2);
+    [-7, -0.8, 4.7, 11.3].forEach(function (z) { speaker(-(HX - 0.2), z, Math.PI / 2); speaker(HX - 0.2, z, -Math.PI / 2); });
 
     /* --- pas de bords gauche/droite ni en haut (ni cadre, ni rideaux, ni lambrequin) : écran géant plein mur --- */
     function layoutScreen() {}
@@ -494,12 +494,39 @@
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
     }
+    /* --- annonce « séance en cours » à l'entrée : titre, affiche, début et fin (heure réelle) --- */
+    var seanceAsked = false;
+    function announceSeance() {
+      var raw = net.title || '', base = raw.replace(/\s*\[(VF|VO)\]\s*$/, '');
+      loadPlaylist(function (pl) {
+        var f = pl && pl.find(function (x) { return x.nom === base; });
+        var poster = f && f.poster ? f.poster : 'assets/cinema/tropistream-serveur.png';
+        var startD = new Date(Date.now() - netPosNow() * 1000);
+        function go() {
+          var dur = video.duration, endD = (isFinite(dur) && dur > 0) ? new Date(startD.getTime() + dur * 1000) : null;
+          showSeanceCard(poster, raw || 'Film', startD, endD);
+        }
+        if (video.readyState >= 1 && isFinite(video.duration)) go(); else video.addEventListener('loadedmetadata', go, { once: true });
+      });
+    }
+    var seanceCardEl = null, seanceCardT = 0;
+    function fmtHeure(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+    function showSeanceCard(poster, title, startD, endD) {
+      if (!seanceCardEl) { seanceCardEl = document.createElement('div'); seanceCardEl.className = 'cin-seance'; world.container.appendChild(seanceCardEl); }
+      seanceCardEl.innerHTML = '<img src="' + poster.replace(/"/g, '&quot;') + '" alt="" onerror="this.style.display=\'none\'">' +
+        '<div class="cin-seance-tx"><div class="cin-seance-badge">🎬 Séance en cours</div>' +
+        '<div class="cin-seance-title">' + title.replace(/</g, '&lt;') + '</div>' +
+        '<div class="cin-seance-h">Début ' + fmtHeure(startD) + (endD ? ' · Fin prévue ' + fmtHeure(endD) : '') + '</div></div>';
+      seanceCardEl.classList.remove('out'); void seanceCardEl.offsetWidth; seanceCardEl.classList.add('on');
+      clearTimeout(seanceCardT); seanceCardT = setTimeout(function () { if (seanceCardEl) seanceCardEl.classList.add('out'); }, 7000);
+    }
     function applyNet(st) {
       if (!st) return;
       var wasPlaying = net.status === 'playing';
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
       net.title = st.title || '';
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
+      if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
         showVideo(true); if (!wasPlaying) setHud(true);
         ensureVideoAudio();
@@ -546,16 +573,6 @@
       world.container.appendChild(eyeEl); setHud(hudHidden);
     }
     function unmountEye() { if (eyeEl && eyeEl.parentNode) eyeEl.parentNode.removeChild(eyeEl); eyeEl = null; if (world.hud) world.hud.classList.remove('cin-nohud'); if (world.container) world.container.classList.remove('cin-hud-hidden'); hudHidden = false; }
-    /* --- « curseur du jeu » : remplace la souris système (toujours cachée dans la salle, voir injectCss) par un viseur stylisé --- */
-    var cursorEl = null;
-    function onCursorMove(e) { if (cursorEl) { cursorEl.style.left = e.clientX + 'px'; cursorEl.style.top = e.clientY + 'px'; } }
-    function mountCursor() {
-      if (cursorEl) return;
-      cursorEl = document.createElement('div'); cursorEl.className = 'cin-gamecursor';
-      world.container.appendChild(cursorEl);
-      window.addEventListener('pointermove', onCursorMove);
-    }
-    function unmountCursor() { window.removeEventListener('pointermove', onCursorMove); if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl); cursorEl = null; }
     function onKeyL(e) {
       if (e.code !== 'KeyL') return;
       var t = e.target, tag = t && t.tagName;
@@ -927,7 +944,8 @@
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
-      music.start(); mountEye(); mountCursor();
+      seanceAsked = false;
+      music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
       window.addEventListener('keydown', onKeyL, true);
@@ -935,15 +953,16 @@
     };
     function leave() {
       stand(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
-      music.stop(); unmountEye(); unmountCursor(); unmountConsole();
+      music.stop(); unmountEye(); unmountConsole();
       if (world.container) world.container.classList.remove('cin-in-cinema');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
       window.removeEventListener('keydown', onKeyL, true);
+      clearTimeout(seanceCardT); if (seanceCardEl && seanceCardEl.parentNode) seanceCardEl.parentNode.removeChild(seanceCardEl); seanceCardEl = null;
     }
     room.onLeave = leave;
-    room.onPause = function () { video.pause(); music.stop(); unmountEye(); unmountCursor(); if (world.container) world.container.classList.remove('cin-in-cinema'); window.removeEventListener('keydown', onKeyL, true); };
+    room.onPause = function () { video.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); window.removeEventListener('keydown', onKeyL, true); };
     room.onPageHide = function () { video.pause(); };
-    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); mountCursor(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
+    room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
     var clock = 0, netT = 0;
     room.update = function (dt, w) {
@@ -978,12 +997,17 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      /* Général : jamais la souris du système dans la salle, un viseur « curseur du jeu » la remplace (visible sauf interface masquée — bouton œil ou touche L) */
-      '.cin-in-cinema,.cin-in-cinema *{cursor:none!important}' +
-      '.cin-gamecursor{position:fixed;left:0;top:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid #ffb066;box-shadow:0 0 6px rgba(0,0,0,.65),inset 0 0 4px rgba(255,176,102,.5);pointer-events:none;z-index:9999;display:none}' +
-      '.cin-gamecursor::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:#ffb066}' +
-      '.cin-in-cinema:not(.cin-hud-hidden) .cin-gamecursor,.cin-in-cinema.cin-hud-hidden.s3d-ui-open .cin-gamecursor{display:block}' +
+      /* Général : le curseur normal du site (pas de viseur maison), visible sauf interface masquée (bouton œil ou touche L) */
+      '.cin-in-cinema.cin-hud-hidden,.cin-in-cinema.cin-hud-hidden canvas,.cin-in-cinema.cin-hud-hidden .s3d-hud{cursor:none!important}' +
+      '.cin-in-cinema.cin-hud-hidden.s3d-ui-open,.cin-in-cinema.cin-hud-hidden.s3d-ui-open canvas,.cin-in-cinema.cin-hud-hidden.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible même interface masquée
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
+      /* Séance en cours (à l'entrée) */
+      '.cin-seance{position:fixed;left:50%;top:70px;transform:translateX(-50%) translateY(-10px);z-index:8;display:flex;gap:12px;align-items:center;background:rgba(8,5,12,.92);border:1.5px solid rgba(201,162,39,.65);border-radius:16px;padding:10px 18px 10px 10px;box-shadow:0 8px 30px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}' +
+      '.cin-seance.on{opacity:1;transform:translateX(-50%) translateY(0)}.cin-seance.out{opacity:0;transform:translateX(-50%) translateY(-10px)}' +
+      '.cin-seance img{width:64px;height:90px;object-fit:cover;border-radius:9px;border:1px solid rgba(201,162,39,.5);flex:none}' +
+      '.cin-seance-badge{font-size:10.5px;font-weight:800;letter-spacing:.04em;color:#ff9a4a;text-transform:uppercase}' +
+      '.cin-seance-title{font-family:' + SERIF + ';font-weight:800;font-size:16px;color:#f4e3b0;max-width:320px}' +
+      '.cin-seance-h{font-family:' + MONO + ';font-size:11.5px;color:#9d8a53;margin-top:2px}' +
       '.s3d-hud.cin-nohud>*:not(.s3d-fade){display:none!important}.cin-stand.hid{display:none}.hid{display:none!important}' +
       /* Bouton œil */
       '.cin-eye{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:7;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;color:#fff;background:rgba(8,5,12,.7);border:1px solid rgba(255,122,26,.6);border-radius:999px;padding:7px 14px;opacity:.55;transition:opacity .2s}.cin-eye:hover{opacity:1}.cin-eye kbd{opacity:.65;font-size:10px;margin-left:5px}' +

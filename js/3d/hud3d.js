@@ -676,8 +676,12 @@
       put(q('invbal'), 'ibal', s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0');
       if (!elInvSlots.firstChild) elInvSlots.innerHTML = '<div class="ph-inv empty"></div><div class="ph-inv empty"></div><div class="ph-inv empty"></div>';
     }
+    // l'inventaire doit pouvoir s'ouvrir assis (ex. pendant un film au cinéma) : canEmote() l'interdit (danser assis n'a pas de sens), donc check à part
+    function canOpenInv() {
+      return w.running && !w.dead && !!w.room && !w.trans && w.container.clientWidth > 0 && (w.mode === 'room' ? w.blend === 0 : (w.mode === 'seat' && w.blend > 0.95));
+    }
     function openInv() {
-      if (!w.canEmote()) return;
+      if (!canOpenInv()) return;
       closeWheel(); closePhone(); closeChat();
       w._libererSouris();
       invOpen = true; syncCursor(); paintInv(); elInv.hidden = false;
