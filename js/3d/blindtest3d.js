@@ -116,7 +116,7 @@
     g.add(new THREE.AmbientLight(0xc8b4e8, 0.85));
 
     /* --- l'état du jeu (serveur) --- */
-    var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null, S = null, off = 0, rooms = null, polling = false, listPolling = false, pollT = 0, listT = 0, busy = false, shownKey = '', hintTxt = '', hintCol = '', code = '';
+    var epoch = 0, joined = false, joinedAt = 0, seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null, S = null, off = 0, rooms = null, polling = false, listPolling = false, pollT = 0, listT = 0, busy = false, shownKey = '', hintTxt = '', hintCol = '', code = '';
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
     function roomInfo(zi) { return rooms && rooms[zi] ? rooms[zi] : null; }
     function api(body) {
@@ -131,7 +131,12 @@
     function nowS() { return Date.now() + off; }
     function poll() {
       if (polling || !code) return; polling = true;
-      fetch('/api/blindtest?code=' + encodeURIComponent(code), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok && d.state && seat) { if (d.state.you == null) { world.flash('Tu n\'es plus dans ce salon.'); stand(); } else applyState(d.state); } }).catch(function () { polling = false; });
+      var ep = epoch;                                                    // une réponse qui arrive après qu'on s'est levé ou rassis ailleurs est ignorée
+      fetch('/api/blindtest?code=' + encodeURIComponent(code), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+        polling = false;
+        if (ep !== epoch || !seat) return;
+        if (d && d.ok && d.state) { if (d.state.you == null) { if (joined && Date.now() - joinedAt > 2500) { world.flash("Tu n'es plus dans ce salon."); stand(); } } else applyState(d.state); }
+      }).catch(function () { polling = false; });
     }
     function pollList() {
       if (listPolling) return; listPolling = true;
@@ -240,7 +245,7 @@
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (!loggedIn()) { w.flash('Connecte-toi pour jouer au Blind Test.'); return; }
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      w.sitDown(room); seat = s; code = String(s.zone + 1); view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false;
+      epoch++; joined = false; w.sitDown(room); seat = s; code = String(s.zone + 1); view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false;
       injectCss();
       var el = document.createElement('div'); el.className = 'bt3d';
       el.innerHTML = '<div class="bt-row" style="justify-content:space-between"><b>🎬 Salon ' + code + '</b><span>Solde : <b class="bt-bal"></b> 🪙</span></div><div class="bt-msg"></div><div class="bt-body"></div>';
@@ -268,12 +273,12 @@
       api({ action: 'join', avatar: (st() && st().avatarEmoji) || '🧑‍🎤' }).then(function (r) {
         if (!seat || seat !== s) return;
         if (!r || r.ok === false) { w.flash((r && r.error) || 'Impossible d\'entrer dans ce salon.'); stand(); return; }
-        setMsg('');
+        joined = true; joinedAt = Date.now(); setMsg('');
       });
     }
     function stand() {
       if (!seat) return;
-      var s = seat, c = code; seat = null; S = null; code = '';
+      var s = seat, c = code; seat = null; S = null; code = ''; epoch++; joined = false; polling = false;
       try { world.post('/api/blindtest', { action: 'leave', code: c }); } catch (e) { /* ok */ }
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
