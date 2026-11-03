@@ -352,7 +352,8 @@
     }
 
     /* ---------- appli « Direction » (Patron / Co Fondateur) : rôles et soldes, voir api/accounts.js (set_role, admin_credit, admin_set_balance, admin_reset) ---------- */
-    var adminTarget = null, adminMsg = '', adminPwVisible = false;
+    var adminTarget = null, adminMsg = '', adminPwVisible = false, adminRolePick = null;
+    var ROLE_ICONS = { flambeur: 'assets/icones/roles/flambeur.png', co_fondateur: 'assets/icones/roles/co_fondateur.png', patron: 'assets/icones/roles/patron.png' };
     function adminRoleLabel(r) { return r === 'patron' ? 'Patron' : r === 'co_fondateur' ? 'Co Fondateur' : 'Flambeur'; }
     function adminRoleIcon(r) { return r === 'patron' ? 'fa-crown' : r === 'co_fondateur' ? 'fa-gem' : 'fa-fire'; }
     function adminRoleClass(r) { return r === 'patron' ? 'role-patron' : r === 'co_fondateur' ? 'role-cofondateur' : 'role-flambeur'; }
@@ -372,6 +373,7 @@
       var a = db[String(name).toLowerCase()];
       if (!a) return;
       adminTarget = { username: a.username, balance: typeof a.balance === 'number' ? a.balance : parseInt(a.balance) || 0, role: a.role || 'flambeur', avatarEmoji: a.avatarEmoji || '🎭' };
+      adminRolePick = adminTarget.role;
       adminMsg = '';
       if (phoneOpen && page === 'admin') renderPhone();
     }
@@ -406,15 +408,17 @@
       if (!adminTarget) return h + '<div class="ph-cp-empty">Choisis un joueur dans la liste pour gérer son rôle et son solde.</div>';
       var t = adminTarget;
       h += '<div class="ph-bk-card">' +
-        '<div class="ph-bk-who"><span class="ph-bk-ava">' + esc(t.avatarEmoji) + '</span><div>' +
+        '<div class="ph-bk-who"><img class="ph-role-ico-sm" src="' + ROLE_ICONS[t.role] + '" alt=""><span class="ph-bk-ava">' + esc(t.avatarEmoji) + '</span><div>' +
           '<b class="ph-bk-nm">' + esc(t.username) + '</b>' +
           '<span class="ph-rank role-tag ' + adminRoleClass(t.role) + '"><i class="fa-solid ' + adminRoleIcon(t.role) + ' role-crown"></i> <span class="role-label">' + adminRoleLabel(t.role) + '</span></span>' +
         '</div></div>' +
         '<small>Solde actuel</small><b><i class="fl-coin"></i> ' + F.fmtN(t.balance) + '</b></div>';
       if (canGrant) {
-        h += '<div class="ph-sect">Rôle</div><div class="ph-card-setting">' +
-          '<select class="ph-in" data-ph="admrole">' + ['flambeur', 'co_fondateur', 'patron'].map(function (r) { return '<option value="' + r + '"' + (r === t.role ? ' selected' : '') + '>' + adminRoleLabel(r) + '</option>'; }).join('') + '</select>' +
-          '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-role">' + fa('fa-check') + ' Enregistrer le rôle</button></div>' +
+        h += '<div class="ph-sect">Rôle</div><div class="ph-card-setting"><div class="ph-role-pick">' +
+          ['flambeur', 'co_fondateur', 'patron'].map(function (r) {
+            return '<button class="ph-role-opt' + (adminRolePick === r ? ' on' : '') + '" type="button" data-adm-role-pick="' + r + '"><img src="' + ROLE_ICONS[r] + '" alt=""><span>' + adminRoleLabel(r) + '</span></button>';
+          }).join('') +
+          '</div><div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-role">' + fa('fa-check') + ' Enregistrer le rôle</button></div>' +
         '</div>';
         h += '<div class="ph-sect">Pseudo en jeu</div><div class="ph-card-setting">' +
           '<input class="ph-in" data-ph="admname" type="text" maxlength="24" value="' + esc(t.username) + '" autocomplete="off" spellcheck="false">' +
@@ -1132,8 +1136,9 @@
       else if (t.hasAttribute('data-amt')) { var am = q('bkamt'); if (am) am.value = t.getAttribute('data-amt'); }
       else if (t.hasAttribute('data-pick')) { var to = q('bkto'); if (to) to.value = t.getAttribute('data-pick'); bankSuggest(''); var am2 = q('bkamt'); if (am2) am2.focus(); }
       else if (t.hasAttribute('data-adm-pick')) { var aq = q('admq'); if (aq) aq.value = ''; adminSuggest(''); adminPick(t.getAttribute('data-adm-pick')); }
+      else if (t.hasAttribute('data-adm-role-pick')) { adminRolePick = t.getAttribute('data-adm-role-pick'); renderPhone(); }
       else if (a === 'adm-role') {
-        if (adminTarget) { var rs = q('admrole'); adminAct({ action: 'set_role', username: adminTarget.username, role: rs ? rs.value : adminTarget.role }, '✅ Rôle mis à jour.'); }
+        if (adminTarget) adminAct({ action: 'set_role', username: adminTarget.username, role: adminRolePick || adminTarget.role }, '✅ Rôle mis à jour.');
       }
       else if (a === 'adm-credit') {
         if (adminTarget) { var ai = q('admamt'), amt = ai ? Math.round(Number(ai.value)) : NaN; if (Number.isFinite(amt) && amt !== 0) adminAct({ action: 'admin_credit', username: adminTarget.username, amount: amt }, (amt > 0 ? '✅ Crédité de ' : '✅ Débité de ') + F.fmtN(Math.abs(amt)) + '.'); }

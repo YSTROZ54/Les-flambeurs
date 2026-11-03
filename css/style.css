@@ -2769,6 +2769,18 @@ body.s3d-full-on #sidebarBackdrop {
   background: transparent; border: none; color: #9ca3af; cursor: pointer; font-size: 13px;
 }
 .ph-pw-eye:hover { color: #f59e0b; }
+.ph-role-ico-sm { width: 26px; height: 26px; border-radius: 8px; object-fit: cover; flex: none; }
+.ph-role-pick { display: flex; gap: 8px; }
+.ph-role-opt {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border-radius: 12px; border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.ph-role-opt img { width: 34px; height: 34px; border-radius: 9px; }
+.ph-role-opt span { font-size: 10px; font-weight: 800; color: #cbd5e1; text-align: center; }
+.ph-role-opt:hover { background: rgba(255, 255, 255, 0.06); }
+.ph-role-opt.on { border-color: #f59e0b; background: rgba(245, 158, 11, 0.14); }
+.ph-role-opt.on span { color: #fbbf24; }
 .ph-civil { margin: 12px 0 6px; }
 .ph-wide {
   display: flex;
