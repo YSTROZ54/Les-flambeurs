@@ -230,7 +230,9 @@
     function refreshUi() {
       if (!ui || !seat || !S) return;
       var s = S, host = !!(s.you && s.you.host), el = ui.el, body = el.querySelector('.bt-body');
-      var key = [s.status, s.phase, s.round, host, s.players.map(function (p) { return p.name; }).join(), JSON.stringify(s.cfg), s.you && s.you.found, s.you && s.you.foundTitle, s.you && s.you.foundArtist, audioBlocked].join('|');
+      // noms triés (pas dans l'ordre du classement, qui change à chaque point marqué) : sinon la réponse d'un
+      // autre joueur reclasse la liste, le panneau se redessine, et le champ de saisie en cours de frappe est perdu
+      var key = [s.status, s.phase, s.round, host, s.players.map(function (p) { return p.name; }).sort().join(), JSON.stringify(s.cfg), s.you && s.you.found, s.you && s.you.foundTitle, s.you && s.you.foundArtist, audioBlocked].join('|');
       if (key !== shownKey) {
         var prev = shownKey.split('|'), newRound = prev[0] !== s.status || prev[1] !== s.phase || prev[2] !== String(s.round);
         shownKey = key;
@@ -328,7 +330,12 @@
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       var locked = questionLocked();
       if (!locked && ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.6; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var ex = s.x, ey = 1.45, ez = s.z - 0.1, a = locked ? 0 : view.yaw, p = locked ? 0.1 : (0.1 + view.pitch);
+      var ex = s.x, ey = 1.45, ez = s.z - 0.1;
+      // angle qui vise le centre de l'écran (SCR_Y), pas un angle fixe : l'écran est haut et les deux rangées de
+      // fauteuils sont à des distances différentes, un angle figé laissait le haut de l'écran hors cadre (bloqué
+      // pendant la question, impossible de corriger à la souris)
+      var basePitch = Math.atan2(SCR_Y - ey, ez - (-HZ + 0.12));
+      var a = locked ? 0 : view.yaw, p = locked ? basePitch : (basePitch + view.pitch);
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8, ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 58 };
     };
     room.syncHud = function () { refreshUi(); };
