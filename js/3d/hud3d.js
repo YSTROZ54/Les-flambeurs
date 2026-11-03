@@ -108,8 +108,14 @@
       { id: 'friends', img: 'assets/icones/applis/amis.png', name: 'Amis', sub: 'Chat en DM avec tes amis', ic: 'fa-user-group', c: '244,114,182' },
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
       { id: 'bank', img: 'assets/icones/services/tropi-bank.png', name: 'Tropi Bank', sub: 'Virements entre joueurs', ic: 'fa-building-columns', c: '16,185,129' },
-      { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' }
+      { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' },
+      { id: 'admin', img: 'assets/icones/applis/direction.png', name: 'Direction', sub: 'Rôles, soldes et comptes', ic: 'fa-crown', c: '201,162,39' }   // Patron / Co Fondateur uniquement (voir canSeeAdmin)
     ];
+    // Patron ou Co Fondateur : seuls à voir l'appli « Direction »
+    function canSeeAdmin() {
+      try { return (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder()); } catch (e) { return false; }
+    }
+    function visibleApps() { return APPS.filter(function (a) { return a.id !== 'admin' || canSeeAdmin(); }); }
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     // petit « tic » à chaque clic sur un bouton du téléphone (suit le volume du jeu ; muet = rien)
     function tick() {
@@ -345,6 +351,85 @@
       if (phoneOpen && page === 'bank') { renderPhone(); sync(); }
     }
 
+    /* ---------- appli « Direction » (Patron / Co Fondateur) : rôles et soldes, voir api/accounts.js (set_role, admin_credit, admin_set_balance, admin_reset) ---------- */
+    var adminTarget = null, adminMsg = '';
+    function adminRoleLabel(r) { return r === 'patron' ? 'Patron' : r === 'co_fondateur' ? 'Co Fondateur' : 'Flambeur'; }
+    function adminRoleIcon(r) { return r === 'patron' ? 'fa-crown' : r === 'co_fondateur' ? 'fa-gem' : 'fa-fire'; }
+    function adminRoleClass(r) { return r === 'patron' ? 'role-patron' : r === 'co_fondateur' ? 'role-cofondateur' : 'role-flambeur'; }
+    function adminSuggest(val) {
+      var box = q('admsug'); if (!box) return;
+      var query = String(val || '').trim().toLowerCase();
+      if (!query) { box.innerHTML = ''; return; }
+      var db = {}; try { db = typeof getAccountsDB === 'function' ? getAccountsDB() : {}; } catch (e) { /* ok */ }
+      var list = Object.keys(db).map(function (k) { return db[k]; }).filter(function (a) { return a && a.username && a.username.toLowerCase().indexOf(query) >= 0; })
+        .sort(function (a, b) { var as = a.username.toLowerCase().indexOf(query) === 0, bs = b.username.toLowerCase().indexOf(query) === 0; return as === bs ? a.username.localeCompare(b.username) : as ? -1 : 1; }).slice(0, 6);
+      box.innerHTML = list.length ? list.map(function (a) {
+        return '<button data-adm-pick="' + esc(a.username) + '">' + fa(adminRoleIcon(a.role || 'flambeur')) + ' ' + esc(a.username) + '</button>';
+      }).join('') : '<small>Aucun joueur trouvé.</small>';
+    }
+    function adminPick(name) {
+      var db = {}; try { db = typeof getAccountsDB === 'function' ? getAccountsDB() : {}; } catch (e) { /* ok */ }
+      var a = db[String(name).toLowerCase()];
+      if (!a) return;
+      adminTarget = { username: a.username, balance: typeof a.balance === 'number' ? a.balance : parseInt(a.balance) || 0, role: a.role || 'flambeur', avatarEmoji: a.avatarEmoji || '🎭' };
+      adminMsg = '';
+      if (phoneOpen && page === 'admin') renderPhone();
+    }
+    function adminRefresh() {
+      if (typeof syncRemoteAccounts === 'function') { try { Promise.resolve(syncRemoteAccounts()).then(function () { if (adminTarget) adminPick(adminTarget.username); }); } catch (e) { /* ok */ } }
+    }
+    async function adminAct(payload, okMsg) {
+      var r = null;
+      try { r = typeof gatewayAction === 'function' ? await gatewayAction(payload) : null; } catch (e) { r = null; }
+      adminMsg = (r && r.ok) ? okMsg : '❌ ' + ((r && r.error) || 'Action refusée.');
+      if (r && r.ok) {
+        try {
+          var db = typeof getAccountsDB === 'function' ? getAccountsDB() : {}, key = payload.username.toLowerCase();
+          if (db[key]) {
+            if (typeof r.balance === 'number') db[key].balance = r.balance;
+            if (typeof r.role === 'string') db[key].role = r.role;
+            if (typeof saveAccountsDB === 'function') saveAccountsDB(db);
+          }
+        } catch (e) { /* ok */ }
+        adminPick(payload.username);
+        try { if (typeof renderLeaderboard === 'function') renderLeaderboard(); } catch (e) { /* ok */ }
+      }
+      if (phoneOpen && page === 'admin') renderPhone();
+    }
+    function adminHtml() {
+      var canGrant = false; try { canGrant = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) { /* ok */ }
+      var h = '<div class="ph-sect">Chercher un joueur</div>' +
+        '<input class="ph-in" data-ph="admq" type="text" maxlength="24" placeholder="Tape un pseudo…" autocomplete="off" spellcheck="false">' +
+        '<div class="ph-bk-sug" data-ph="admsug"></div>';
+      if (!adminTarget) return h + '<div class="ph-cp-empty">Choisis un joueur dans la liste pour gérer son rôle et son solde.</div>';
+      var t = adminTarget;
+      h += '<div class="ph-bk-card">' +
+        '<div class="ph-bk-who"><span class="ph-bk-ava">' + esc(t.avatarEmoji) + '</span><div>' +
+          '<b class="ph-bk-nm">' + esc(t.username) + '</b>' +
+          '<span class="ph-rank role-tag ' + adminRoleClass(t.role) + '"><i class="fa-solid ' + adminRoleIcon(t.role) + ' role-crown"></i> <span class="role-label">' + adminRoleLabel(t.role) + '</span></span>' +
+        '</div></div>' +
+        '<small>Solde actuel</small><b><i class="fl-coin"></i> ' + F.fmtN(t.balance) + '</b></div>';
+      if (canGrant) {
+        h += '<div class="ph-sect">Rôle</div><div class="ph-card-setting">' +
+          '<select class="ph-in" data-ph="admrole">' + ['flambeur', 'co_fondateur', 'patron'].map(function (r) { return '<option value="' + r + '"' + (r === t.role ? ' selected' : '') + '>' + adminRoleLabel(r) + '</option>'; }).join('') + '</select>' +
+          '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-role">' + fa('fa-check') + ' Enregistrer le rôle</button></div>' +
+        '</div>';
+      }
+      h += '<div class="ph-sect">Solde</div>' +
+        '<label class="ph-lab">Créditer (négatif pour retirer)</label>' +
+        '<input class="ph-in" data-ph="admamt" type="number" step="1" value="1000">' +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-credit">' + fa('fa-coins') + ' Créditer</button></div>' +
+        '<label class="ph-lab">Définir le solde exact</label>' +
+        '<input class="ph-in" data-ph="admbal" type="number" min="0" step="1" value="' + t.balance + '">' +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-set">' + fa('fa-pen') + ' Définir</button></div>' +
+        '<div class="ph-card-setting ph-card-danger">' +
+          '<div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-rotate-left'), '239,68,68') + '<span><b>Réinitialiser</b><small>Remet le solde de départ</small></span></div></div>' +
+          '<button class="ph-row-btn ph-btn-danger" data-act="adm-reset"><span>Réinitialiser le solde</span>' + fa('fa-triangle-exclamation') + '</button>' +
+        '</div>' +
+        (adminMsg ? '<div class="ph-bk-msg">' + esc(adminMsg) + '</div>' : '');
+      return h;
+    }
+
     function leaveWorld() { closeAll(); try { w.setFull(false); } catch (e) { /* ok */ } }
 
     /* ---------- navigation : retour d'un cran, puis accueil, puis ferme ---------- */
@@ -564,6 +649,8 @@
         h = profileHtml();
       } else if (page === 'bank') {
         h = bankHtml();
+      } else if (page === 'admin') {
+        h = canSeeAdmin() ? adminHtml() : '<div class="ph-cp-empty">Accès réservé au Patron et au Co Fondateur.</div>';
       } else if (page === 'friends') {
         h = friendsHtml();
       } else if (page === 'chat') {
@@ -576,7 +663,7 @@
         // écran d'accueil : grosse horloge puis les applis sur le fond d'écran
         var dn = new Date();
         h = '<div class="ph-hclock"><b data-ph="hclock">' + ('0' + dn.getHours()).slice(-2) + ':' + ('0' + dn.getMinutes()).slice(-2) + '</b><span>' + dateFr() + '</span></div>' +
-          '<div class="ph-icons">' + APPS.map(function (a) {
+          '<div class="ph-icons">' + visibleApps().map(function (a) {
             var badge = a.id === 'friends' && hasUnreadDm() ? '<i class="ph-ico-badge"></i>' : '';
             return '<button class="ph-ico" data-page="' + a.id + '">' + (a.img ? '<span class="ph-ico-sq ph-ico-img"><img src="' + a.img + '" alt="">' + badge + '</span>' : '<span class="ph-ico-sq" style="--c:' + a.c + '"><i class="fa-solid ' + a.ic + '"></i>' + badge + '</span>') + '<span class="ph-ico-nm">' + a.name + '</span></button>';
           }).join('') + '</div>';
@@ -888,6 +975,7 @@
     root.addEventListener('input', function (ev) {
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'cpin') typingNotify(ev.target.value.trim().length > 0);
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'bkto') bankSuggest(ev.target.value);
+      if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'admq') adminSuggest(ev.target.value);
     });
     root.addEventListener('keydown', function (ev) {
       if (!ev.target || !ev.target.classList || !(ev.target.getAttribute('data-ph') === 'cpin' || ev.target.getAttribute('data-ph') === 'dmin' || ev.target.classList.contains('ph-in'))) return;   // champs du téléphone : ni déplacement ni raccourcis
@@ -1031,6 +1119,19 @@
       else if (t.hasAttribute('data-dm')) { dmWith = t.getAttribute('data-dm'); sub = 'thread'; delete dmUnread[dmKey(dmWith)]; renderPhone(); var dmi = q('dmin'); if (dmi) dmi.focus(); }
       else if (t.hasAttribute('data-amt')) { var am = q('bkamt'); if (am) am.value = t.getAttribute('data-amt'); }
       else if (t.hasAttribute('data-pick')) { var to = q('bkto'); if (to) to.value = t.getAttribute('data-pick'); bankSuggest(''); var am2 = q('bkamt'); if (am2) am2.focus(); }
+      else if (t.hasAttribute('data-adm-pick')) { var aq = q('admq'); if (aq) aq.value = ''; adminSuggest(''); adminPick(t.getAttribute('data-adm-pick')); }
+      else if (a === 'adm-role') {
+        if (adminTarget) { var rs = q('admrole'); adminAct({ action: 'set_role', username: adminTarget.username, role: rs ? rs.value : adminTarget.role }, '✅ Rôle mis à jour.'); }
+      }
+      else if (a === 'adm-credit') {
+        if (adminTarget) { var ai = q('admamt'), amt = ai ? Math.round(Number(ai.value)) : NaN; if (Number.isFinite(amt) && amt !== 0) adminAct({ action: 'admin_credit', username: adminTarget.username, amount: amt }, (amt > 0 ? '✅ Crédité de ' : '✅ Débité de ') + F.fmtN(Math.abs(amt)) + '.'); }
+      }
+      else if (a === 'adm-set') {
+        if (adminTarget) { var bi = q('admbal'), bal = bi ? Math.round(Number(bi.value)) : NaN; if (Number.isFinite(bal) && bal >= 0) adminAct({ action: 'admin_set_balance', username: adminTarget.username, balance: bal }, '✅ Solde défini.'); }
+      }
+      else if (a === 'adm-reset') {
+        if (adminTarget && window.confirm('Réinitialiser le solde de « ' + adminTarget.username + ' » ?')) adminAct({ action: 'admin_reset', username: adminTarget.username }, '✅ Solde réinitialisé.');
+      }
       else if (a === 'key-bind') startKeyCapture(t.getAttribute('data-key'));
       else if (a === 'key-reset') {
         if (typeof F.resetKeys === 'function') F.resetKeys();
@@ -1058,7 +1159,13 @@
         if (fb) fb.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
       }
       else if (t.hasAttribute('data-tab')) setTab(t.getAttribute('data-tab'));
-      else if (t.hasAttribute('data-page')) { if (keyListening) stopKeyCapture(); page = t.getAttribute('data-page'); sub = 'home'; pfEdit = ''; refuse = null; renderPhone(); if (page === 'bank') bankRefresh(); }
+      else if (t.hasAttribute('data-page')) {
+        if (keyListening) stopKeyCapture();
+        page = t.getAttribute('data-page'); sub = 'home'; pfEdit = ''; refuse = null;
+        if (page === 'admin' && !canSeeAdmin()) page = 'menu';   // rôle changé entre-temps, ou appli ouverte « à la main »
+        renderPhone();
+        if (page === 'bank') bankRefresh(); else if (page === 'admin') adminRefresh();
+      }
       else if (t.hasAttribute('data-emo')) play(t.getAttribute('data-emo'));
     });
     root.addEventListener('mouseover', function (ev) {

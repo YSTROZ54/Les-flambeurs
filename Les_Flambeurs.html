@@ -4583,6 +4583,7 @@
                   username: row.username,
                   password: row.password || '',
                   avatarEmoji: row.avatar || '🎭',
+                  role: row.role || 'flambeur',
                   balance: resolvedBalance,
                   friends: Array.isArray(extraData.friends) ? extraData.friends : [],
                   pendingTransfers: Array.isArray(extraData.pendingTransfers) ? extraData.pendingTransfers : [],

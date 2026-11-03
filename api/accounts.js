@@ -113,6 +113,12 @@ function checkPassword(stored, given) {
 /* ------------------------------------------------------------------------- */
 const isReserved = (name) => String(name || '').trim().startsWith('__');
 const lc = (s) => String(s || '').trim().toLowerCase();
+// Patron (ADMINS) ou Co Fondateur (colonne "role") : peuvent créditer/réinitialiser un solde depuis l'appli Direction, mais pas changer de rôle (set_role reste réservé à ADMINS)
+async function isPrivilegedActor(actor) {
+  if (!actor) return false;
+  if (ADMINS.includes(actor)) return true;
+  try { const row = await getRow(actor); return !!(row && row.role === 'co_fondateur'); } catch (e) { return false; }
+}
 
 function cleanName(name) {
   return String(name || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 24);
@@ -457,9 +463,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, role });
     }
 
-    // --- outils du Patron sur les soldes (seule façon de modifier le solde d'un autre joueur) ---
+    // --- outils du Patron (et du Co Fondateur, appli Direction) sur les soldes ---
     if (action === 'admin_credit' || action === 'admin_set_balance' || action === 'admin_reset') {
-      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      if (!isAdmin && !(await isPrivilegedActor(actor))) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
       const target = cleanName(body.username);
       if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
       const amount = Math.floor(Number(body.amount));
