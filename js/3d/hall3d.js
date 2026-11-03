@@ -23,7 +23,7 @@
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
-    { x: -HX, z: -5, nx: 1, nz: 0, label: '🐺 LOUP GAROU', sub: 'BIENTÔT EN 3D', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' },   // l'ancienne porte de la chambre forte : ce jeu reste dans le menu 2D
+    { x: -HX, z: -5, nx: 1, nz: 0, label: '🐺 LOUP GAROU', sub: 'PARTIES DE 4 À 12 JOUEURS', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' },   // l'ancienne porte de la chambre forte : ce jeu reste dans le menu 2D
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · PUISSANCE 4 · COFFRES', color: 0xffd400, target: 'uno', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)

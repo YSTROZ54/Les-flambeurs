@@ -1131,7 +1131,7 @@
       var cab = room.cab;
       cab.stopReels(finals, function () {
         cab.showResult(finals, mult || 0, win || 0, bet || 0);
-        if (F.audio) { if (!(mult > 0)) F.audio.playFile('assets/sons/perdu.mp3'); else if (levelFor(mult) <= 1) F.audio.playFile('assets/sons/gain-petit.mp3'); }     // perdu / petit gain (les gros gains gardent leur fête)
+        if (F.audio) { if (!(mult > 0)) F.audio.playFile('assets/sons/perdu.mp3'); else if (levelFor(mult) <= 1) F.audio.playFile('assets/sons/gain-petit.mp3'); else F.audio.playFile('assets/sons/grosse-somme.mp3', 1.6); }     // perdu / petit gain (les gros gains gardent leur fête)
       });
       room.sendFx('result', finals, mult || 0, win || 0, bet || 0);
     };

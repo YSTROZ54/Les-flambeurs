@@ -308,7 +308,9 @@
     var tc = mkCanvas(512, 192), tx = tc.getContext('2d');
     tx.fillStyle = '#111116'; tx.fillRect(0, 0, 512, 192); tx.fillStyle = '#d01a1a'; tx.fillRect(0, 0, 512, 18); tx.fillRect(0, 174, 512, 18);
     tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.fillStyle = '#fff'; tx.font = '900 130px ' + SERIF; tx.fillText('PMU', 256, 98, 460);
-    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.05), new THREE.MeshBasicMaterial({ map: mkTex(tc) })); tabSign.position.set(-2, 4.1, -HZ + 0.52); g.add(tabSign);
+    // enseigne collée au mur du fond, entre les étagères (haut 2,4 m) et les poutres (bas 4,5 m) : elle ne traverse plus ni le mur ni une poutre
+    box(g, 2.3, 0.9, 0.06, lam(0x111116), -2, 3.45, -HZ + 0.03);
+    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.825), new THREE.MeshBasicMaterial({ map: mkTex(tc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); tabSign.position.set(-2, 3.45, -HZ + 0.07); g.add(tabSign);
 
     /* --- le vendeur de cartes --- */
     var person = F.createPerson('Bruno', '🎟️'), pg = person.group, kids = pg.children;

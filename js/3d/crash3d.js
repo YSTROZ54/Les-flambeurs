@@ -401,11 +401,16 @@
     room.onEnter = function () { poll(); };
     room.onLeave = function () { stand(); };
 
-    var crashAnim = 0, lastRocketY = 0.2, shake = 0;
+    var crashAnim = 0, lastRocketY = 0.2, shake = 0, sndRound = 0;
     room.update = function (dt) {
-      pollT += dt; if (pollT > (seat && (S.status === 'flying' || S.status === 'countdown') ? 0.2 : 0.45)) { pollT = 0; poll(); }
+      pollT += dt; if (pollT > ((S.status === 'flying' || S.status === 'countdown') ? 0.2 : 0.45)) { pollT = 0; poll(); }
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { /* ok */ } } }
       var mult = multNow();
+      // son de décollage : lancé pile à l'heure du décollage fixée par le serveur (une fois par vol, jamais pour un vol déjà bien entamé)
+      if (S.launchTime && S.launchTime !== sndRound && (S.status === 'countdown' || S.status === 'flying') && nowS() >= S.launchTime - 40) {
+        sndRound = S.launchTime;
+        if (F.audio && nowS() - S.launchTime < 2500) F.audio.playFile('assets/sons/fusee-decollage.mp3', 1.5);
+      }
       // fusée : monte avec le multiplicateur (échelle logarithmique)
       if (S.status === 'flying') {
         var fr = Math.min(1, Math.log(mult) / Math.log(25)), y = 0.2 + fr * (SILO.h - 2.0);
@@ -413,7 +418,7 @@
         rocket.userData.flame.scale.set(1, 0.8 + Math.random() * 0.6, 1); rocket.userData.flame.visible = true; if (pl) { pl.intensity = 1.2; pl.position.y = y; }
         boom.visible = false;
       } else if (S.status === 'crashed') {
-        if (lastStatus !== 'crashed') { crashAnim = 1.4; boom.position.set(rocket.position.x, rocket.position.y + 0.8, rocket.position.z); debris.forEach(function (d) { d.m.visible = true; d.m.position.copy(boom.position); d.v.set((Math.random() - 0.5) * 5, Math.random() * 4, (Math.random() - 0.5) * 5); }); rocket.visible = false; }
+        if (lastStatus !== 'crashed') { if (F.audio) { F.audio.stopFile('assets/sons/fusee-decollage.mp3'); if (!S.crashedAtTime || nowS() - S.crashedAtTime < 3500) F.audio.playFile('assets/sons/explosion-fusee.mp3', 1.7); } crashAnim = 1.4; boom.position.set(rocket.position.x, rocket.position.y + 0.8, rocket.position.z); debris.forEach(function (d) { d.m.visible = true; d.m.position.copy(boom.position); d.v.set((Math.random() - 0.5) * 5, Math.random() * 4, (Math.random() - 0.5) * 5); }); rocket.visible = false; }
         if (crashAnim > 0) {
           crashAnim -= dt; var u = 1 - crashAnim / 1.4; boom.visible = true; boom.scale.setScalar(0.6 + u * 4.2); boom.material.opacity = Math.max(0, 1 - u); if (pl) pl.intensity = 2 * (1 - u);
           debris.forEach(function (d) { d.v.y -= 9 * dt; d.m.position.addScaledVector(d.v, dt); d.m.rotation.x += dt * 6; d.m.rotation.y += dt * 5; if (d.m.position.y < 0.15) { d.m.position.y = 0.15; d.v.multiplyScalar(0.3); } });

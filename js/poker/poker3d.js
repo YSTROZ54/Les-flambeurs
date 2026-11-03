@@ -2193,58 +2193,104 @@ class Poker3DExperience {
     const key = `card_${rank}_${suit}`;
     if (this.textureCache[key]) return this.textureCache[key];
 
+    // Carte dessinée en haute définition (1024 x 1440 « virtuels », texture de 768 x 1080 pour rester légère) : coins arrondis, grands indices,
+    // vrais symboles tracés au vecteur (jamais une police : nets à toutes les tailles) et pips disposés comme sur une vraie carte.
+    const W = 1024, H = 1440, SC = 0.75;
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, 512, 720);
-
-    ctx.strokeStyle = '#D1D5DB';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(4, 4, 504, 712);
+    canvas.width = Math.round(W * SC);
+    canvas.height = Math.round(H * SC);
+    const c = canvas.getContext('2d');
+    c.scale(SC, SC);
+    c.imageSmoothingQuality = 'high';
 
     const isRed = (suit === '♥' || suit === '♦');
-    const color = isRed ? '#DC2626' : '#000000';
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    const ink = isRed ? '#d11a2a' : '#101114';
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
 
-    ctx.font = '900 112px "Georgia", "Times New Roman", serif';
-    ctx.fillText(rank, 68, 76);
-    ctx.font = 'bold 80px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 68, 168);
+    // symbole de couleur centré en (x, y), « r » = demi-hauteur, a = rotation
+    const drawSuit = (s, x, y, r, a, color) => {
+      c.save(); c.translate(x, y); c.rotate(a || 0); c.scale(r, r); c.fillStyle = color;
+      c.beginPath();
+      if (s === '♥') {
+        c.moveTo(0, 0.9); c.bezierCurveTo(-1.2, 0.1, -0.85, -0.95, 0, -0.42); c.bezierCurveTo(0.85, -0.95, 1.2, 0.1, 0, 0.9); c.closePath(); c.fill();
+      } else if (s === '♦') {
+        c.moveTo(0, -1); c.bezierCurveTo(0.25, -0.5, 0.55, -0.2, 0.78, 0); c.bezierCurveTo(0.55, 0.2, 0.25, 0.5, 0, 1); c.bezierCurveTo(-0.25, 0.5, -0.55, 0.2, -0.78, 0); c.bezierCurveTo(-0.55, -0.2, -0.25, -0.5, 0, -1); c.closePath(); c.fill();
+      } else if (s === '♠') {
+        c.moveTo(0, -0.95); c.bezierCurveTo(-0.3, -0.5, -1.2, -0.1, -1.0, 0.45); c.bezierCurveTo(-0.9, 0.9, -0.2, 0.85, -0.08, 0.4); c.quadraticCurveTo(-0.1, 0.78, -0.42, 0.98); c.lineTo(0.42, 0.98); c.quadraticCurveTo(0.1, 0.78, 0.08, 0.4);
+        c.bezierCurveTo(0.2, 0.85, 0.9, 0.9, 1.0, 0.45); c.bezierCurveTo(1.2, -0.1, 0.3, -0.5, 0, -0.95); c.closePath(); c.fill();
+      } else {
+        c.arc(0, -0.5, 0.42, 0, Math.PI * 2); c.moveTo(-0.55 + 0.42, 0.18); c.arc(-0.55, 0.18, 0.42, 0, Math.PI * 2); c.moveTo(0.55 + 0.42, 0.18); c.arc(0.55, 0.18, 0.42, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(0, 0.02, 0.4, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.moveTo(-0.1, 0.1); c.quadraticCurveTo(-0.12, 0.72, -0.42, 0.98); c.lineTo(0.42, 0.98); c.quadraticCurveTo(0.12, 0.72, 0.1, 0.1); c.closePath(); c.fill();
+      }
+      c.restore();
+    };
 
-    ctx.save();
-    ctx.translate(450, 648);
-    ctx.rotate(Math.PI);
-    ctx.font = '900 112px "Georgia", "Times New Roman", serif';
-    ctx.fillText(rank, 0, 0);
-    ctx.font = 'bold 80px "Georgia", "Times New Roman", serif';
-    ctx.fillText(suit, 0, 92);
-    ctx.restore();
+    // fond : carte blanche aux coins arrondis, fin liseré gris et léger relief
+    c.clearRect(0, 0, W, H);
+    rr(6, 6, W - 12, H - 12, 64); c.fillStyle = '#fbfbf8'; c.fill();
+    const bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, 'rgba(255,255,255,0.0)'); bg.addColorStop(1, 'rgba(120,110,90,0.10)');
+    rr(6, 6, W - 12, H - 12, 64); c.fillStyle = bg; c.fill();
+    rr(6, 6, W - 12, H - 12, 64); c.lineWidth = 7; c.strokeStyle = '#c7cbd1'; c.stroke();
 
-    if (['J', 'Q', 'K'].includes(rank)) {
-      ctx.strokeStyle = 'rgba(209, 213, 219, 0.8)';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(100, 140, 312, 440);
+    // indices dans les deux coins (rang + couleur), gros pour rester lisibles de loin
+    const corner = (rot) => {
+      c.save();
+      if (rot) { c.translate(W, H); c.rotate(Math.PI); }
+      c.fillStyle = ink; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = (rank === '10' ? '800 190px' : '800 240px') + ' "Georgia","Times New Roman",serif';
+      c.fillText(rank, 112, 132, 170);
+      drawSuit(suit, 112, 322, 74, 0, ink);
+      c.restore();
+    };
+    corner(false); corner(true);
 
-      ctx.font = 'bold 180px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
-
-      ctx.font = '900 68px "Georgia", "Times New Roman", serif';
-      ctx.fillText(rank, 256, 230);
+    const pip = (px, py, big) => {                         // pips : ceux du bas de la carte sont retournés
+      const flip = py > 0.5;
+      drawSuit(suit, px * W, py * H, big || 120, flip ? Math.PI : 0, ink);
+    };
+    const L = 0.3, M = 0.5, R = 0.7;
+    const LAY = {
+      '2': [[M, 0.2], [M, 0.8]], '3': [[M, 0.2], [M, 0.5], [M, 0.8]], '4': [[L, 0.2], [R, 0.2], [L, 0.8], [R, 0.8]],
+      '5': [[L, 0.2], [R, 0.2], [M, 0.5], [L, 0.8], [R, 0.8]], '6': [[L, 0.2], [R, 0.2], [L, 0.5], [R, 0.5], [L, 0.8], [R, 0.8]],
+      '7': [[L, 0.2], [R, 0.2], [M, 0.35], [L, 0.5], [R, 0.5], [L, 0.8], [R, 0.8]],
+      '8': [[L, 0.2], [R, 0.2], [M, 0.35], [L, 0.5], [R, 0.5], [M, 0.65], [L, 0.8], [R, 0.8]],
+      '9': [[L, 0.2], [R, 0.2], [L, 0.4], [R, 0.4], [M, 0.5], [L, 0.6], [R, 0.6], [L, 0.8], [R, 0.8]],
+      '10': [[L, 0.2], [R, 0.2], [M, 0.3], [L, 0.4], [R, 0.4], [L, 0.6], [R, 0.6], [M, 0.7], [L, 0.8], [R, 0.8]]
+    };
+    if (LAY[rank]) {
+      LAY[rank].forEach(p => pip(p[0], p[1], 104));
     } else if (rank === 'A') {
-      ctx.font = 'bold 220px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
+      drawSuit(suit, W / 2, H / 2, 330, 0, ink);
+      c.strokeStyle = isRed ? 'rgba(209,26,42,0.35)' : 'rgba(16,17,20,0.35)'; c.lineWidth = 6; c.beginPath(); c.arc(W / 2, H / 2, 420, 0, Math.PI * 2); c.stroke();
     } else {
-      ctx.font = 'bold 190px "Georgia", "Times New Roman", serif';
-      ctx.fillText(suit, 256, 360);
+      // figures (V, D, R) : cadre doré, fond chaud, grande lettre en haut et en miroir en bas, couleur à côté, couronne ou toque
+      const px = 215, py = 215, pw = W - 430, ph = H - 430;
+      rr(px, py, pw, ph, 36);
+      const fg = c.createLinearGradient(0, py, 0, py + ph); fg.addColorStop(0, '#fff3cf'); fg.addColorStop(0.5, '#f7dc8a'); fg.addColorStop(1, '#fff3cf');
+      c.fillStyle = fg; c.fill(); c.lineWidth = 10; c.strokeStyle = '#b8902f'; c.stroke();
+      rr(px + 22, py + 22, pw - 44, ph - 44, 24); c.lineWidth = 3; c.strokeStyle = 'rgba(184,144,47,0.7)'; c.stroke();
+      c.save(); c.beginPath(); rr(px + 6, py + 6, pw - 12, ph - 12, 30); c.clip();
+      const half = (down) => {
+        c.save();
+        c.translate(W / 2, H / 2); if (down) c.rotate(Math.PI);
+        c.translate(0, -ph / 4 + 55);
+        c.fillStyle = ink; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.font = '900 380px "Georgia","Times New Roman",serif'; c.fillText(rank, -70, 15);
+        drawSuit(suit, 150, -70, 78, 0, ink);
+        // couronne (R, D) ou toque (V)
+        c.fillStyle = '#b8902f'; c.save(); c.translate(0, 55); c.scale(0.8, 0.8);
+        if (rank === 'K') { c.beginPath(); c.moveTo(-120, -190); c.lineTo(-120, -270); c.lineTo(-60, -225); c.lineTo(0, -290); c.lineTo(60, -225); c.lineTo(120, -270); c.lineTo(120, -190); c.closePath(); c.fill(); }
+        else if (rank === 'Q') { c.beginPath(); c.moveTo(-130, -190); c.lineTo(-150, -265); c.lineTo(-75, -225); c.lineTo(-35, -290); c.lineTo(0, -230); c.lineTo(35, -290); c.lineTo(75, -225); c.lineTo(150, -265); c.lineTo(130, -190); c.closePath(); c.fill(); }
+        else { c.beginPath(); c.moveTo(-130, -190); c.quadraticCurveTo(-100, -300, 20, -290); c.quadraticCurveTo(110, -285, 130, -190); c.closePath(); c.fill(); c.fillStyle = '#d11a2a'; c.beginPath(); c.moveTo(60, -285); c.quadraticCurveTo(150, -330, 170, -250); c.quadraticCurveTo(130, -290, 70, -270); c.closePath(); c.fill(); }
+        c.restore(); c.restore();
+      };
+      half(false); half(true);
+      c.strokeStyle = 'rgba(184,144,47,0.75)'; c.lineWidth = 6; c.beginPath(); c.moveTo(px + 30, H / 2); c.lineTo(px + pw - 30, H / 2); c.stroke();
+      c.restore();
     }
 
     const tex = new THREE.CanvasTexture(canvas);
-
     if (this.renderer && this.renderer.capabilities) {
       tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
     } else {
@@ -2263,9 +2309,10 @@ class Poker3DExperience {
     if (this.textureCache['card_back']) return this.textureCache['card_back'];
 
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 720;
+    canvas.width = 768;
+    canvas.height = 1080;
     const ctx = canvas.getContext('2d');
+    ctx.scale(1.5, 1.5);                       // dessin prévu en 512 x 720, rendu en haute définition
 
     ctx.fillStyle = '#7f1d1d';
     ctx.fillRect(0, 0, 512, 720);

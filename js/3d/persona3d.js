@@ -352,5 +352,7 @@
     build(look);
     return va;
   };
+  // Les vrais personnages animés bugaient : on remet les anciens personnages (boîtes peintes, F3D.createPerson). Pour les réactiver : supprimer ces deux lignes.
+  F.createRealPlayer = F.createPlayer; delete F.createPlayer;
 })();
 

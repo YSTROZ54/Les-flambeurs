@@ -239,6 +239,7 @@
         '.cp3d .cp-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.cp3d .cp-chip{padding:6px 11px;border-radius:999px;border:2px solid #ffe08a;background:#241218;color:#ffe08a;font-weight:900;font-size:13px;cursor:pointer}' +
         '.cp3d .cp-chip.minus{border-color:#ff8a80;color:#ff8a80}.cp3d .cp-b{padding:10px 22px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00);align-self:center}' +
         '.cp3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.cp3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(255,224,138,.6);background:rgba(8,5,12,.85);color:#ffe9b0;font-weight:800;cursor:pointer}';
+      s.textContent += '@media (max-height:520px){.cp3d{bottom:62px;width:min(520px,66%);padding:5px 8px}.cp3d .cp-msg{font-size:12px;min-height:14px}.cp3d .cp-chip{padding:3px 8px;font-size:11px}.cp3d .cp-b{padding:6px 14px;font-size:12px}.cp3d-stand{bottom:auto;top:64px}}';
       document.head.appendChild(s);
     }
     var standEl = null;

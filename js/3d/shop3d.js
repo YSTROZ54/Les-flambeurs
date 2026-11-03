@@ -35,7 +35,7 @@
 
   /* ---------- le catalogue vient de la page (SHOP_CATALOG) ---------- */
   function catalog() { try { return (typeof SHOP_CATALOG !== 'undefined' && SHOP_CATALOG) || []; } catch (e) { return []; } }
-  function itemsOf(key) { return catalog().filter(function (i) { return i.group === key && !(key === 'poker' && i.category === 'cardSkin'); }); }   // le rayon poker ne vend que des tapis
+  function itemsOf(key) { return catalog().filter(function (i) { return key === 'poker' && i.group === 'poker' && i.category === 'pokerFelt'; }); }   // pour l'instant les vendeurs ne vendent plus rien, sauf les tapis du poker (le reste reviendra plus tard)
   function findItem(id) { return catalog().filter(function (i) { return i.id === id; })[0] || null; }
   var EMO_RE = null;
   try { EMO_RE = new RegExp('^\\s*((?:\\p{Extended_Pictographic}|\\uFE0F|\\u200D)+)\\s*', 'u'); } catch (e) { EMO_RE = null; }

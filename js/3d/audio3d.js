@@ -235,6 +235,7 @@
     if (list.length > 1) { do { pick = list[(Math.random() * list.length) | 0]; } while (pick === M.last[id]); }
     M.last[id] = pick; return pick;
   }
+  var ROOM_GAIN = { blackjack: 0.3, pokerroom: 0.3 };                // salles où la musique de fond doit rester à peine audible (multiplie FILE_GAIN)
   var FILE_GAIN = 0.4;                                             // les vrais morceaux sont mixés bien plus fort que la musique synthétisée : on les baisse (le curseur du téléphone règle le reste)
   function playFile(id, list) {
     var b = bus, el = new Audio(), file = nextFile(id, list);
@@ -245,7 +246,7 @@
     var track = { el: el, gain: g };
     var old = M.el; M.el = track;
     if (old) dropTrack(old);
-    el.addEventListener('canplay', function () { if (M.el === track) fade(g, FILE_GAIN, 0.8); }, { once: true });
+    el.addEventListener('canplay', function () { if (M.el === track) fade(g, FILE_GAIN * (ROOM_GAIN[id] || 1), 0.8); }, { once: true });
     el.addEventListener('ended', function () { if (M.el === track && A.room === id) playFile(id, list); });
     el.addEventListener('error', function () { if (M.el === track) { M.el = null; dropTrack(track); startSynth(id); } });   // fichier introuvable : musique synthétisée
     var pr = el.play(); if (pr && pr.catch) pr.catch(function () { M.pending = true; });
@@ -280,6 +281,9 @@
   var sfxEls = {};
   A.playFile = function (src, gain) {                              // petit bruitage à partir d'un fichier (suit le volume du jeu ; muet = rien)
     try { var e = sfxEls[src] || (sfxEls[src] = new Audio(src)); e.volume = Math.min(1, master() * (gain || 1.4)); if (e.volume <= 0) return; e.currentTime = 0; var p = e.play(); if (p && p.catch) p.catch(function () { }); } catch (x) { /* pas de son */ }
+  };
+  A.stopFile = function (src) {                                    // coupe un bruitage en cours avec un court fondu
+    try { var e = sfxEls[src]; if (!e || e.paused) return; var v = e.volume, k = 0, t = setInterval(function () { k++; e.volume = Math.max(0, v * (1 - k / 6)); if (k >= 6) { clearInterval(t); e.pause(); e.volume = v; } }, 40); } catch (x) { /* ok */ }
   };
   A.setRoom = function (id) {
     id = id || '';
