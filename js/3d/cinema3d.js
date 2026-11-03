@@ -1163,7 +1163,8 @@
       '.cin-cn-help{font-size:10.5px;line-height:1.4;color:#9d8a53;border-top:1px solid rgba(255,255,255,.08);padding-top:9px}' +
       /* Pane programmation des séances */
       '.cin-pane-schedule{padding:12px 14px;gap:10px;flex-shrink:0;overflow-y:auto;max-height:52vh}' +
-      '.cin-sch-film{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;margin-bottom:8px}' +
+      '.cin-sch-film{width:100%;box-sizing:border-box;background:#1a1014;border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 10px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none;margin-bottom:8px;color-scheme:dark}' +
+      '.cin-sch-film option{background:#1a1014;color:#fff3e0}' +
       '.cin-sch-at{flex:1;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 10px;color:#fff3e0;font-family:inherit;font-size:12px;outline:none;color-scheme:dark}' +
       '.cin-sch-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}' +
       '.cin-sch-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}' +
