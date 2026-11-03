@@ -151,8 +151,11 @@
   var ROLE_GRAD = { 'role-patron': ['#78350f', '#eab308', '#fef9c3'], 'role-cofondateur': ['#3b0764', '#a855f7', '#f5d0fe'], 'role-flambeur': ['#7f1d1d', '#ef4444', '#ffe08a'] };
 
   // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
-  // role (optionnel) : [icône FA, libellé, classe] comme renvoyé par roleOf()/isCurrentUserAdmin() dans la page — affiché sous le pseudo
-  function createPerson(name, avatar, role) {
+  // 3e paramètre : ignoré ici (c'est l'apparence du vrai personnage animé, lue par F.createPlayer dans persona3d.js).
+  // role (optionnel, 4e paramètre, même position que dans F.createPlayer) : [icône FA, libellé, classe] comme renvoyé
+  // par roleOf()/isCurrentUserAdmin() dans la page — affiché sous le pseudo. Garder cette position : world3d.js appelle
+  // toujours (F.createPlayer || F.createPerson)(name, avatar, lookCode, role), qu'on retombe sur l'un ou l'autre.
+  function createPerson(name, avatar, lookInIgnored, role) {
     if (/^[?\s]*$|^(null|undefined)$/.test(String(avatar == null ? '' : avatar))) avatar = '';   // avatar abîmé (« ?? » venu d'un mauvais encodage) : on n'affiche que le pseudo
     var h = nameHash(name), G = geo();
     var skin = new THREE.MeshLambertMaterial({ color: SKIN_TONES[h % SKIN_TONES.length] });
