@@ -522,19 +522,17 @@
     }
     function applyNet(st) {
       if (!st) return;
-      var wasPlaying = net.status === 'playing';
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
       net.title = st.title || '';
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
-        showVideo(true); if (!wasPlaying) setHud(true);
+        showVideo(true);
         ensureVideoAudio();
         if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
         var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis : la lecture reprendra au prochain geste de l'utilisateur */ });
       } else {
         if (!video.paused) video.pause();
-        if (wasPlaying) setHud(false);
         if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
         else {
           showVideo(false);
