@@ -145,8 +145,14 @@
     return personGeo;
   }
 
+  // Rôle affiché sous le pseudo, en dégradé (même couleurs que .role-tag dans style.css ; un sprite ne sachant pas
+  // animer un dégradé CSS, celui-ci est figé, dessiné une fois sur le canvas de l'étiquette)
+  var ROLE_ICON = { 'fa-crown': '👑', 'fa-gem': '💎', 'fa-fire': '🔥' };
+  var ROLE_GRAD = { 'role-patron': ['#78350f', '#eab308', '#fef9c3'], 'role-cofondateur': ['#3b0764', '#a855f7', '#f5d0fe'], 'role-flambeur': ['#7f1d1d', '#ef4444', '#ffe08a'] };
+
   // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
-  function createPerson(name, avatar) {
+  // role (optionnel) : [icône FA, libellé, classe] comme renvoyé par roleOf()/isCurrentUserAdmin() dans la page — affiché sous le pseudo
+  function createPerson(name, avatar, role) {
     if (/^[?\s]*$|^(null|undefined)$/.test(String(avatar == null ? '' : avatar))) avatar = '';   // avatar abîmé (« ?? » venu d'un mauvais encodage) : on n'affiche que le pseudo
     var h = nameHash(name), G = geo();
     var skin = new THREE.MeshLambertMaterial({ color: SKIN_TONES[h % SKIN_TONES.length] });
@@ -171,14 +177,23 @@
       var sh = new THREE.Group(); sh.position.set(s * 0.26, 1.5, 0); g.add(sh); arms.push(sh);
       add(G.arm, shirt, 0, -0.28, 0, sh); add(G.hand, skin, 0, -0.58, 0, sh);
     });
-    // étiquette au-dessus de la tête : avatar + pseudo
-    var cv = mkCanvas(320, 72), c = cv.getContext('2d');
-    roundRectPath(c, 4, 4, 312, 64, 22); c.fillStyle = 'rgba(8,5,12,0.82)'; c.fill(); c.strokeStyle = 'rgba(201,162,39,0.8)'; c.lineWidth = 3; c.stroke();
+    // étiquette au-dessus de la tête : avatar + pseudo, et le rôle en dégradé juste en dessous (si fourni)
+    var rIcon = role && ROLE_ICON[role[0]], rLabel = role && role[1], rGrad = role && ROLE_GRAD[role[2]];
+    var cvH = rLabel ? 104 : 72, cv = mkCanvas(320, cvH), c = cv.getContext('2d');
+    roundRectPath(c, 4, 4, 312, cvH - 8, 22); c.fillStyle = 'rgba(8,5,12,0.82)'; c.fill(); c.strokeStyle = 'rgba(201,162,39,0.8)'; c.lineWidth = 3; c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#f4e3b0'; c.font = '700 32px ' + MONO;
-    c.fillText(((avatar ? avatar + ' ' : '') + name).slice(0, 16), 160, 38, 292);
+    c.fillText(((avatar ? avatar + ' ' : '') + name).slice(0, 16), 160, rLabel ? 32 : 38, 292);
+    if (rLabel) {
+      var rTxt = (rIcon ? rIcon + ' ' : '') + rLabel, rFont = '800 22px ' + MONO;
+      c.font = rFont;
+      var rw = c.measureText(rTxt).width, rx0 = 160 - rw / 2, rx1 = 160 + rw / 2;
+      if (rGrad) { var rg = c.createLinearGradient(rx0, 0, rx1, 0); rg.addColorStop(0, rGrad[0]); rg.addColorStop(0.5, rGrad[1]); rg.addColorStop(1, rGrad[2]); c.fillStyle = rg; }
+      else c.fillStyle = '#d6b35a';
+      c.fillText(rTxt, 160, 78, 292);
+    }
     var tex = mkTex(cv);
     var tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    tag.scale.set(0.9, 0.2, 1); tag.position.set(0, 2.1, 0); g.add(tag);
+    tag.scale.set(0.9, 0.9 * (cvH / 320), 1); tag.position.set(0, 2.1, 0); g.add(tag);
     // bulle de dialogue au-dessus de l'étiquette : un message (say) ou trois points qui bougent (typing)
     var bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
     bub.visible = false; g.add(bub);

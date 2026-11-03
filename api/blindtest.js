@@ -12,12 +12,16 @@ import { randomInt, randomBytes } from 'node:crypto';
 import { actorOf } from './_auth.js';
 import { getRow, getRowExact, putRow, updateAccount, GameError } from './_store.js';
 import { walletPay } from './_wallet.js';
-import { TITLES, ANSWERS } from './_blindtestData.js';
+import { TITLES, ANSWERS, SONG_PARTS } from './_blindtestData.js';
 import { judge, pickRounds, availableTitles, CATS, DIFFS } from './_blindtestEngine.js';
 
 // affiche TMDB de chaque titre (image.tmdb.org n'envoie aucun en-tête CORS : on la relaie depuis notre propre
 // domaine via api/poster.js, même origine, donc pas de souci de CORS côté canvas — voir js/3d/hall3d.js)
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w780';
+// blind test musique : un titre = une chanson (extrait iTunes 30 s + pochette, cat 'musique', jamais mélangée avec
+// les images) ; le titre ET l'artiste comptent chacun pour 1 point (2 si les deux), jugés séparément (SONG_PARTS)
+const isMusicRound = (b) => !!(b && b.cat === 'musique');
+const fullySolved = (cur, entry) => !entry ? false : isMusicRound(cur) ? !!(entry.title && entry.artist) : true;
 
 const PREFIX = '__bt_salon_';
 const NOOP = Symbol('noop');
@@ -39,7 +43,13 @@ const rowName = (code) => PREFIX + code;
 const cleanCode = (c) => { const s = String(c == null ? '' : c).trim(); return ROOM_IDS.includes(s) ? s : ''; };
 const cleanAvatar = (a) => (typeof a === 'string' && a.length > 0 && a.length <= 12 ? a : '🧑‍🎤');
 const fail = (res, code, error, extra) => res.status(code).json({ ok: false, error, ...(extra || {}) });
-const imgOf = (b) => (b && b.poster ? '/api/poster?u=' + encodeURIComponent(TMDB_IMG + b.poster) : null);
+const imgOf = (b) => {
+  if (!b) return null;
+  if (b.poster) return '/api/poster?u=' + encodeURIComponent(TMDB_IMG + b.poster);
+  if (b.artwork) return '/api/poster?u=' + encodeURIComponent(b.artwork);
+  return null;
+};
+const audOf = (b) => (b && b.audio) || null;
 
 export function sanitizeCfg(c) {
   c = c || {};
@@ -98,10 +108,17 @@ export function progress(st, now) {
       st.round = 1; startRound(st, st.phaseEnd); changed = true; continue;
     }
     if (st.phase === 'question') {
+      const cur = bankById.get(st.order[st.round - 1]);
+      const music = isMusicRound(cur);
       const solvers = Object.keys(st.solved);
       const act = stayingKeys(st);
-      const early = (st.cfg.mode === 'first' && solvers.length > 0)
-        || (st.cfg.mode === 'all' && act.length > 0 && act.every((k) => st.solved[k]));
+      // musique : jamais de fin anticipée (titre et artiste sont deux courses indépendantes, tout le monde doit
+      // avoir le temps de tenter les deux) ; images : comme avant (early sur la 1re bonne réponse en « premier »,
+      // ou quand tout le monde a trouvé en « tous »)
+      const early = !music && (
+        (st.cfg.mode === 'first' && solvers.length > 0)
+        || (st.cfg.mode === 'all' && act.length > 0 && act.every((k) => fullySolved(cur, st.solved[k])))
+      );
       if (!early && now < st.phaseEnd) break;
       const endAt = early ? Math.min(st.phaseEnd, Math.max(...solvers.map((k) => st.solved[k].at))) : st.phaseEnd;
       st.phase = 'reveal'; st.phaseStart = endAt; st.phaseEnd = endAt + REVEAL_MS; changed = true; continue;
@@ -130,19 +147,27 @@ export function publicState(st, now, actor) {
     round: st.round, total: st.order.length, phase: st.phase, phaseStart: st.phaseStart, phaseEnd: st.phaseEnd,
     questionMs: QUESTION_MS, reward: st.reward ? REWARD : 0, rewardMinPlayers: MIN_REWARD_PLAYERS,
     img: inRound && cur ? imgOf(cur) : null, nextImg: imgOf(bankById.get(nextKey)),
+    aud: inRound && cur ? audOf(cur) : null, music: isMusicRound(cur),
     players: ranking(st).map((p, i) => ({
       name: p.name, avatar: p.avatar, score: p.score, earned: p.earned, left: !!p.left, rank: i + 1,
-      found: inRound && !!st.solved[p.k], me: p.k === actor, host: p.k === st.host
+      found: inRound && fullySolved(cur, st.solved[p.k]), me: p.k === actor, host: p.k === st.host
     })),
     updatedAt: st.updatedAt
   };
   if (st.status === 'playing' && st.phase === 'reveal' && cur) {
     out.answer = ANSWERS[cur.key][0];
     out.solvedBy = Object.keys(st.solved).sort((a, b) => st.solved[a].at - st.solved[b].at)
-      .map((k, i) => ({ name: st.players[k].name, ms: st.solved[k].ms, first: i === 0 }));
+      .map((k, i) => ({ name: st.players[k].name, ms: st.solved[k].ms, first: i === 0, title: isMusicRound(cur) ? !!st.solved[k].title : undefined, artist: isMusicRound(cur) ? !!st.solved[k].artist : undefined }));
   }
   const me = actor && st.players[actor];
-  if (me) out.you = { name: me.name, host: actor === st.host, found: inRound && !!st.solved[actor], attemptsLeft: Math.max(0, MAX_ATTEMPTS - (st.attempts[actor] || 0)) };
+  if (me) {
+    const mine = st.solved[actor];
+    out.you = {
+      name: me.name, host: actor === st.host, found: inRound && fullySolved(cur, mine),
+      foundTitle: isMusicRound(cur) ? !!(mine && mine.title) : undefined, foundArtist: isMusicRound(cur) ? !!(mine && mine.artist) : undefined,
+      attemptsLeft: Math.max(0, MAX_ATTEMPTS - (st.attempts[actor] || 0))
+    };
+  }
   return out;
 }
 
@@ -317,23 +342,54 @@ export default async function handler(req, res) {
           throw new GameError(409, lost ? 'Trop tard, quelqu\'un a trouvé avant toi !' : 'Il n\'y a pas de question en cours.');
         }
         if (now >= st.phaseEnd) throw new GameError(409, 'Le temps est écoulé.');
-        if (st.solved[actor]) throw new GameError(400, 'Tu as déjà trouvé celle-ci !');
+        const cur = bankById.get(st.order[st.round - 1]);
+        const music = isMusicRound(cur);
+        const prev = st.solved[actor];
+        if (fullySolved(cur, prev)) throw new GameError(400, music ? 'Tu as déjà tout trouvé !' : 'Tu as déjà trouvé celle-ci !');
         if (now - (st.lastGuess[actor] || 0) < GUESS_COOLDOWN_MS) throw new GameError(429, 'Doucement, réessaie dans un instant.');
         const used = st.attempts[actor] || 0;
         if (used >= MAX_ATTEMPTS) throw new GameError(429, 'Plus d\'essais pour cette image.');
         st.lastGuess[actor] = now; st.attempts[actor] = used + 1; p.seen = now;
-        const cur = bankById.get(st.order[st.round - 1]);
-        const j = judge(text, ANSWERS[cur.key]);
-        if (!j.ok) return { correct: false, hint: j.hint, near: !!j.near };
+
+        if (!music) {
+          const j = judge(text, ANSWERS[cur.key]);
+          if (!j.ok) return { correct: false, hint: j.hint, near: !!j.near };
+          const ms = now - st.phaseStart;
+          st.solved[actor] = { at: now, ms };
+          const first = Object.keys(st.solved).length === 1;
+          p.score += 1; p.totalMs += ms;
+          const paid = st.reward && (st.cfg.mode === 'all' || first);
+          if (paid) { p.earned += REWARD; st.owed.push({ key: `bt:${st.id}:${st.round}:${actor}`, name: actor, amount: REWARD }); }
+          st.updatedAt = now;
+          progress(st, now);
+          return { correct: true, ms, first, reward: paid ? REWARD : 0 };
+        }
+
+        // musique : titre et artiste jugés séparément, 1 point chacun (2 si les deux) ; pas de course au premier,
+        // tout le monde qui trouve pendant les 20 s touche ses points (comme le mode « tous », quel que soit cfg.mode)
+        const parts = SONG_PARTS[cur.key] || { title: [], artist: [] };
+        const have = prev || { title: false, artist: false };
+        const tryTitle = !have.title, tryArtist = !have.artist;
+        const jt = tryTitle ? judge(text, parts.title) : null;
+        const ja = tryArtist ? judge(text, parts.artist) : null;
+        const hitTitle = !!(jt && jt.ok), hitArtist = !!(ja && ja.ok);
+        if (!hitTitle && !hitArtist) {
+          const best = [jt, ja].filter(Boolean).sort((a, b) => (b.near ? 1 : 0) - (a.near ? 1 : 0))[0];
+          return { correct: false, hint: (best && best.hint) || 'Ce n\'est pas ça.', near: !!(best && best.near) };
+        }
         const ms = now - st.phaseStart;
-        st.solved[actor] = { at: now, ms };
-        const first = Object.keys(st.solved).length === 1;
-        p.score += 1; p.totalMs += ms;
-        const paid = st.reward && (st.cfg.mode === 'all' || first);
-        if (paid) { p.earned += REWARD; st.owed.push({ key: `bt:${st.id}:${st.round}:${actor}`, name: actor, amount: REWARD }); }
+        st.solved[actor] = { title: have.title || hitTitle, artist: have.artist || hitArtist, at: now, ms };
+        const gained = (hitTitle ? 1 : 0) + (hitArtist ? 1 : 0);
+        p.score += gained; p.totalMs += ms;
+        let paid = 0;
+        if (st.reward) {
+          if (hitTitle) { paid += REWARD; st.owed.push({ key: `bt:${st.id}:${st.round}:${actor}:t`, name: actor, amount: REWARD }); }
+          if (hitArtist) { paid += REWARD; st.owed.push({ key: `bt:${st.id}:${st.round}:${actor}:a`, name: actor, amount: REWARD }); }
+          p.earned += paid;
+        }
         st.updatedAt = now;
         progress(st, now);
-        return { correct: true, ms, first, reward: paid ? REWARD : 0 };
+        return { correct: true, ms, foundTitle: hitTitle, foundArtist: hitArtist, full: st.solved[actor].title && st.solved[actor].artist, reward: paid };
       });
       await settleOwed(code).catch(() => {});
       return reply(out);

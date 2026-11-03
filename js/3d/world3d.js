@@ -15,6 +15,17 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, fmtN = F.fmtN, MONO = F.MONO, SERIF = F.SERIF, TAU = F.TAU;
   var Q = F.quality;
 
+  // rôle d'un pseudo, affiché en dégradé sous l'étiquette flottante (roleOf() vit dans la page, pas ici : on l'appelle
+  // au besoin, comme getAvatarDisplay() ailleurs dans ce fichier ; sans elle (page pas encore chargée), pas de rôle affiché)
+  function roleTripleFor(name) {
+    try {
+      if (typeof roleOf !== 'function') return null;
+      var db = typeof getAccountsDB === 'function' ? getAccountsDB() : {};
+      var key = String(name || '').toLowerCase().trim(), acc = (key && db[key]) || { username: name };
+      return roleOf(acc);
+    } catch (e) { return null; }
+  }
+
   // direction (dx, dz) -> angle de regard du joueur (0 = vers -z)
   F.yawFor = function (dx, dz) { return Math.atan2(dx, -dz); };
   // Sensibilité de la souris verrouillée (×1 = 0,0022 rad par pixel), gardée d'une visite à l'autre
@@ -770,7 +781,7 @@
     if (!this.selfPerson) {
       var nm = '', av = '';
       try { nm = state.username || ''; av = state.avatarEmoji || ''; } catch (er) { /* pas connecté */ }
-      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av, F.myLookCode ? F.myLookCode() : '');
+      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av, F.myLookCode ? F.myLookCode() : '', roleTripleFor(nm));
       this.selfPerson.tag.visible = false;
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
@@ -849,7 +860,7 @@
   World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw, ap) {
     var r = this.remote[k];
     if (!r) {
-      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar, ap), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
+      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar, ap, roleTripleFor(name)), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
       r.person.group.position.set(x, 0, z);
       this.scene.add(r.person.group);
     }

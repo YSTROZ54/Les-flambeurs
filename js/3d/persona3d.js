@@ -183,8 +183,8 @@
     rig.lastT = now; rig.mixer.update(Math.min(dt, 0.1));
   }
 
-  F.createPlayer = function (name, avatar, lookIn) {
-    var p = F.createPerson(name, avatar);
+  F.createPlayer = function (name, avatar, lookIn, role) {
+    var p = F.createPerson(name, avatar, role);
     var walk0 = p.walk, stop0 = p.stopWalk, seat0 = p.setSeated, start0 = p.startEmote, clear0 = p.clearEmote, play0 = p.playEmote, hold0 = p.applyHold, held0 = p.setHeld, dispose0 = p.dispose;
     var look = parseLook(lookIn) || lookFromName(name);
     p._rig = null; p._dead = false; p.heldWanted = ''; p.sit = null; p.look = look;

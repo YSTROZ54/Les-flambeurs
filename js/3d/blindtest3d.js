@@ -22,7 +22,7 @@
   var SCR_W = 9.6, SCR_H = 5.4, SCR_Y = 3.9;  // grands écrans
   var SEAT_DX = [-2, 0, 2, -2, 0, 2];         // deux rangées de trois fauteuils
   var SEAT_Z = [-2.7, -2.7, -2.7, -0.9, -0.9, -0.9];   // un peu reculés : pas collés à l'écran
-  var BTN = [['all', '🎲 Tout'], ['film', '🎬 Films'], ['dessin', '🖍️ Dessins'], ['serie', '📺 Séries']];
+  var BTN = [['all', '🎲 Tout'], ['film', '🎬 Films'], ['dessin', '🖍️ Dessins'], ['serie', '📺 Séries'], ['musique', '🎵 Musique']];
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function loggedIn() { try { return typeof isUserLoggedIn !== 'function' || !!isUserLoggedIn(); } catch (e) { return false; } }
@@ -61,7 +61,7 @@
     rx.fillStyle = '#12081c'; rx.fillRect(0, 0, RW, RH); rx.strokeStyle = '#c9a227'; rx.lineWidth = 10; rx.strokeRect(12, 12, RW - 24, RH - 24); rx.strokeStyle = 'rgba(201,162,39,0.45)'; rx.lineWidth = 3; rx.strokeRect(34, 34, RW - 68, RH - 68);
     rx.textAlign = 'center'; rx.textBaseline = 'middle'; rx.shadowColor = '#e040fb'; rx.shadowBlur = 22; rx.fillStyle = '#ffd9ff'; rx.font = '900 76px ' + SERIF; rx.fillText('RÈGLES DU JEU', RW / 2, 100, RW - 140); rx.shadowBlur = 0;
     rx.strokeStyle = 'rgba(224,64,251,0.7)'; rx.lineWidth = 4; rx.beginPath(); rx.moveTo(220, 160); rx.lineTo(RW - 220, 160); rx.stroke();
-    var RULES = ['Assieds-toi devant l’écran d’un salon (6 joueurs au maximum).', 'Une image d’un film, d’un dessin animé ou d’une série s’affiche : devine son titre.', 'Tape ta réponse avant la fin du chrono (20 secondes).', 'Mode « Tous » : tout le monde peut répondre pendant le chrono. Mode « Premier » : le premier qui trouve gagne le point.', 'Chaque image trouvée vaut 1 point : le meilleur score gagne la partie.', 'À 2 joueurs ou plus, chaque image trouvée rapporte 20 🪙. Seul, c’est un entraînement.', 'Le chef du salon règle la partie (nombre d’images, catégories) et la lance.'];
+    var RULES = ['Assieds-toi devant l’écran d’un salon (6 joueurs au maximum).', 'Une image d’un film, d’un dessin animé ou d’une série s’affiche : devine son titre.', 'Tape ta réponse avant la fin du chrono (20 secondes).', 'Mode « Tous » : tout le monde peut répondre pendant le chrono. Mode « Premier » : le premier qui trouve gagne le point.', 'Chaque image trouvée vaut 1 point : le meilleur score gagne la partie.', '🎵 Catégorie « Musique » : un extrait joue à la place de l’image — le titre vaut 1 point, l’artiste 1 point (2 si les deux).', 'À 2 joueurs ou plus, chaque point rapporte 20 🪙. Seul, c’est un entraînement.', 'Le chef du salon règle la partie (nombre d’images/chansons, catégories) et la lance.'];
     // met les règles en page ; la taille du texte diminue jusqu'à ce que tout tienne dans le cadre (retourne la hauteur occupée)
     function layoutRules(fs, draw) {
       var y = 200, lh = Math.round(fs * 1.32), gap = Math.round(fs * 0.72), bx0 = 100, tx0 = 160, maxW = RW - tx0 - 70;
@@ -127,7 +127,24 @@
         return r;
       });
     }
-    function applyState(s) { if (!s) return; S = s; off = s.serverNow - Date.now(); refreshUi(); }
+    // blind test musique : un vrai <audio> (le canvas de l'écran n'a pas de son) ; ne joue que pendant la question,
+    // s'arrête à la révélation ou en se levant. Si le navigateur refuse la lecture auto (pas de geste récent), le
+    // panneau du bas propose un bouton ▶️ (voir refreshUi).
+    var audioEl = null, audioSrc = '', audioBlocked = false;
+    function stopAudio() {
+      if (!audioEl || !audioSrc) return;
+      audioSrc = ''; audioBlocked = false;
+      try { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); } catch (e) { /* ok */ }
+    }
+    function syncAudio(s) {
+      if (!s || !s.music || s.phase !== 'question' || !s.aud) { stopAudio(); return; }
+      if (audioSrc === s.aud) return;
+      if (!audioEl) { audioEl = new Audio(); audioEl.preload = 'auto'; }
+      audioSrc = s.aud; audioBlocked = false; audioEl.src = s.aud; audioEl.currentTime = 0;
+      var p = audioEl.play();
+      if (p && p.catch) p.catch(function () { audioBlocked = true; shownKey = ''; refreshUi(); });
+    }
+    function applyState(s) { if (!s) return; S = s; off = s.serverNow - Date.now(); syncAudio(s); refreshUi(); }
     function nowS() { return Date.now() + off; }
     function poll() {
       if (polling || !code) return; polling = true;
@@ -178,7 +195,8 @@
       var img = s.img ? loadImg(s.img) : null;
       if (img) { var k2 = Math.min(692 / img.width, 462 / img.height), iw = img.width * k2, ih = img.height * k2; c.drawImage(img, 16 + (700 - iw) / 2, 16 + (470 - ih) / 2, iw, ih); }
       else { c.fillStyle = '#7d6a90'; c.font = '800 32px ' + SERIF; c.fillText('Chargement de l\'image…', 366, 250); }
-      c.fillStyle = '#ffd9ff'; c.font = '800 32px ' + SERIF; c.fillText('Image ' + s.round + '/' + s.total + (s.cfg.mode === 'first' ? '  ⚡ le premier gagne' : '  👥 tous répondent'), 366, 524, 700);
+      if (s.music && s.phase === 'question') { c.fillStyle = 'rgba(10,6,16,0.75)'; c.fillRect(16, 16, 160, 48); c.fillStyle = '#ffd9ff'; c.font = '800 24px ' + SERIF; c.textAlign = 'left'; c.fillText('🎵 En écoute…', 30, 40); c.textAlign = 'center'; }
+      c.fillStyle = '#ffd9ff'; c.font = '800 32px ' + SERIF; c.fillText((s.music ? 'Chanson ' : 'Image ') + s.round + '/' + s.total + (s.cfg.mode === 'first' && !s.music ? '  ⚡ le premier gagne' : s.music ? '  🎤 titre + artiste' : '  👥 tous répondent'), 366, 524, 700);
       if (s.phase === 'question') { var sec = Math.ceil(left / 1000); c.fillStyle = sec <= 5 ? '#ff6b6b' : '#fff'; c.font = '900 110px ' + MONO; c.fillText(String(sec), 868, 90); }
       else { c.fillStyle = '#7ee0a0'; c.font = '900 40px ' + SERIF; c.fillText('Réponse', 868, 60); }
       c.font = '800 26px ' + SERIF;
@@ -186,7 +204,10 @@
       c.textAlign = 'center';
       if (s.phase === 'reveal') {
         c.fillStyle = 'rgba(0,0,0,0.78)'; c.fillRect(16, 396, 700, 90); c.fillStyle = '#7ee0a0'; c.font = '900 44px ' + SERIF; c.fillText(s.answer || '', 366, 428, 680);
-        var w = (s.solvedBy || []).map(function (x) { return (x.first ? '🥇 ' : '✅ ') + x.name; }).join('  ·  ');
+        var w = (s.solvedBy || []).map(function (x) {
+          var parts = x.title === undefined ? '' : (x.title && x.artist) ? ' (titre+artiste)' : x.title ? ' (titre)' : x.artist ? ' (artiste)' : '';
+          return (x.first ? '🥇 ' : '✅ ') + x.name + parts;
+        }).join('  ·  ');
         c.fillStyle = '#fff'; c.font = '700 24px ' + SERIF; c.fillText(w || '😅 Personne n\'a trouvé', 366, 466, 680);
       }
     }
@@ -209,7 +230,7 @@
     function refreshUi() {
       if (!ui || !seat || !S) return;
       var s = S, host = !!(s.you && s.you.host), el = ui.el, body = el.querySelector('.bt-body');
-      var key = [s.status, s.phase, s.round, host, s.players.map(function (p) { return p.name; }).join(), JSON.stringify(s.cfg), s.you && s.you.found].join('|');
+      var key = [s.status, s.phase, s.round, host, s.players.map(function (p) { return p.name; }).join(), JSON.stringify(s.cfg), s.you && s.you.found, s.you && s.you.foundTitle, s.you && s.you.foundArtist, audioBlocked].join('|');
       if (key !== shownKey) {
         var prev = shownKey.split('|'), newRound = prev[0] !== s.status || prev[1] !== s.phase || prev[2] !== String(s.round);
         shownKey = key;
@@ -222,8 +243,10 @@
             (host ? '<button class="bt-b" data-a="start"' + (s.available < 5 ? ' disabled' : '') + '>Lancer la partie</button>' : '<div class="bt-row">En attente du chef (' + esc(s.hostName) + ')…</div>');
           if (newRound) setMsg(host ? 'Tu es le chef : règle la partie puis lance-la.' : '');
         } else if (s.status === 'playing') {
-          body.innerHTML = '<form class="bt-row" style="flex-wrap:nowrap"><input type="text" id="bt-in" autocomplete="off" maxlength="120" placeholder="Titre du film / dessin animé / série…"><button class="bt-b" type="submit" style="align-self:auto;padding:9px 16px">OK</button></form>';
-          var inp = body.querySelector('#bt-in'), btn = body.querySelector('button'), can = s.phase === 'question' && !(s.you && s.you.found);
+          var musicStatus = s.music && s.you ? '<div class="bt-row" style="font-size:12px">' + (s.you.foundTitle ? '✅' : '⬜') + ' titre &nbsp; ' + (s.you.foundArtist ? '✅' : '⬜') + ' artiste</div>' : '';
+          body.innerHTML = '<form class="bt-row" style="flex-wrap:nowrap"><input type="text" id="bt-in" autocomplete="off" maxlength="120" placeholder="' + (s.music ? 'Titre de la chanson ou nom de l\'artiste…' : 'Titre du film / dessin animé / série…') + '"><button class="bt-b" type="submit" style="align-self:auto;padding:9px 16px">OK</button></form>' + musicStatus +
+            (audioBlocked ? '<div class="bt-row"><button class="bt-b" type="button" data-a="playaudio">▶️ Lancer le son</button></div>' : '');
+          var inp = body.querySelector('#bt-in'), btn = body.querySelector('button[type=submit]'), can = s.phase === 'question' && !(s.you && s.you.found);
           inp.disabled = !can; btn.disabled = !can;
           if (newRound) { if (s.phase === 'question') { setMsg(''); setTimeout(function () { try { inp.focus(); } catch (e) { /* ok */ } }, 50); } else if (s.phase === 'reveal') setMsg(s.you && s.you.found ? '✅ Tu as trouvé !' : ''); else setMsg(''); }
           if (s.phase === 'question' && s.you && s.you.found) setMsg('✅ Trouvé ! Attends la fin de la manche…', '#7ee0a0');
@@ -255,6 +278,7 @@
         if (b.dataset.f) { var cfg = {}; cfg[b.dataset.f] = b.dataset.v; api(Object.assign({ action: 'config' }, cfg)).then(function (r) { if (r && r.ok === false) setMsg(r.error, '#ff8a80'); }); return; }
         if (b.dataset.a === 'start') api({ action: 'start' }).then(function (r) { if (r && r.ok === false) setMsg(r.error, '#ff8a80'); });
         if (b.dataset.a === 'again') api({ action: 'again' }).then(function (r) { if (r && r.ok === false) setMsg(r.error, '#ff8a80'); });
+        if (b.dataset.a === 'playaudio') { audioBlocked = false; shownKey = ''; if (audioEl) { var p = audioEl.play(); if (p && p.catch) p.catch(function () { audioBlocked = true; }); } refreshUi(); }
       });
       el.addEventListener('change', function (e) { if (e.target.id === 'bt-rounds') api({ action: 'config', rounds: e.target.value }); });
       el.addEventListener('submit', function (e) {
@@ -262,7 +286,13 @@
         busy = true;
         api({ action: 'guess', text: text }).then(function (r) {
           busy = false; if (!r) return;
-          if (r.ok !== false && r.correct) { inp.value = ''; setMsg('✅ Bien joué !' + (r.reward ? ' +' + r.reward + ' 🪙' : ''), '#7ee0a0'); }
+          if (r.ok !== false && r.correct) {
+            inp.value = '';
+            var msg = r.foundTitle !== undefined
+              ? (r.full ? '✅ Titre et artiste trouvés !' : r.foundTitle ? '✅ Titre trouvé ! Trouve aussi l\'artiste…' : '✅ Artiste trouvé ! Trouve aussi le titre…')
+              : '✅ Bien joué !';
+            setMsg(msg + (r.reward ? ' +' + r.reward + ' 🪙' : ''), '#7ee0a0');
+          }
           else if (r.ok !== false) { setMsg(r.hint || 'Ce n\'est pas ça.', r.near ? '#ffd24a' : '#ff8a80'); inp.select(); }
           else setMsg(r.error || 'Erreur.', '#ff8a80');
         });
@@ -278,7 +308,7 @@
     }
     function stand() {
       if (!seat) return;
-      var s = seat, c = code; seat = null; S = null; code = ''; epoch++; joined = false; polling = false;
+      var s = seat, c = code; seat = null; S = null; code = ''; epoch++; joined = false; polling = false; stopAudio();
       try { world.post('/api/blindtest', { action: 'leave', code: c }); } catch (e) { /* ok */ }
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;

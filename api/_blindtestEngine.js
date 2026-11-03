@@ -61,14 +61,16 @@ const shuffle = (arr) => {
   return a;
 };
 
-export const CATS = ['film', 'dessin', 'serie'];
+export const CATS = ['film', 'dessin', 'serie', 'musique'];
 export const DIFFS = ['f', 'm', 'd'];
 
-// choisit au hasard une image par titre parmi celles qui correspondent aux réglages
+// choisit au hasard une image (ou chanson) par titre parmi celles qui correspondent aux réglages ;
+// « Tout » ne mélange jamais les images et la musique (deux bases différentes) : il faut choisir « Musique » exprès.
 export function availableTitles(bank, cat, diff) {
   const byKey = new Map();
   for (const b of bank) {
-    if (cat !== 'all' && b.cat !== cat) continue;
+    if (cat === 'all') { if (b.cat === 'musique') continue; }
+    else if (b.cat !== cat) continue;
     if (diff !== 'all' && b.diff !== diff) continue;
     if (!byKey.has(b.key)) byKey.set(b.key, []);
     byKey.get(b.key).push(b);

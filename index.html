@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.6">
+  <link rel="stylesheet" href="css/style.css?v=5.7">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -25,15 +25,15 @@
   <script src="js/poker/poker3d-scene.js?v=2.2"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=2.3"></script>
+  <script src="js/3d/f3d-core.js?v=2.4"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
-  <script src="js/3d/persona3d.js?v=3.1"></script>
+  <script src="js/3d/persona3d.js?v=3.2"></script>
   <script src="js/3d/creation3d.js?v=1.0"></script>
   <script src="js/3d/hand3d.js?v=1.8"></script>
   <script src="js/3d/audio3d.js?v=2.0"></script>
   <script src="js/3d/hud3d.js?v=5.1"></script>
   <script src="js/3d/portes3d.js?v=2.7"></script>
-  <script src="js/3d/world3d.js?v=5.2"></script>
+  <script src="js/3d/world3d.js?v=5.3"></script>
   <script src="js/3d/hall3d.js?v=4.6"></script>
   <script src="js/3d/slots3d.js?v=7.7"></script>
   <script src="js/3d/horses3d.js?v=4.2"></script>
@@ -44,7 +44,7 @@
   <script src="js/3d/loupgarou3d.js?v=2.6"></script>
   <script src="js/3d/cups3d.js?v=2.5"></script>
   <script src="js/3d/crash3d.js?v=2.6"></script>
-  <script src="js/3d/blindtest3d.js?v=2.0"></script>
+  <script src="js/3d/blindtest3d.js?v=2.1"></script>
   <script src="js/3d/minijeux-regles.js?v=1.2"></script>
   <script src="js/3d/uno3d.js?v=4.3"></script>
   <script src="js/3d/ludo3d.js?v=1.4"></script>
@@ -1883,8 +1883,8 @@
               </div>
             </div>
             <div>
-              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Type d'images</div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="btCatBtns">
+              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Type d'images (ou musique)</div>
+              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2" id="btCatBtns">
                 <button type="button" data-v="all" onclick="btSetCfg('cat','all')"
                   class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition"><i
                     class="fa-solid fa-dice"></i> Tout mélanger</button>
@@ -1897,7 +1897,11 @@
                 <button type="button" data-v="serie" onclick="btSetCfg('cat','serie')"
                   class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition"><i class="fa-solid fa-tv"></i>
                   Séries</button>
+                <button type="button" data-v="musique" onclick="btSetCfg('cat','musique')"
+                  class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition"><i
+                    class="fa-solid fa-music"></i> Musique</button>
               </div>
+              <div class="text-[11px] text-stone-400 mt-1">🎵 Musique : on devine le titre ou l'artiste à l'oreille (1 point chacun, 2 si les deux) — jamais mélangé avec les images.</div>
             </div>
             <div>
               <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Difficulté</div>
@@ -1917,7 +1921,7 @@
               </div>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-              <label class="text-[11px] uppercase tracking-wider text-stone-400" for="btRounds">Nombre d'images</label>
+              <label class="text-[11px] uppercase tracking-wider text-stone-400" for="btRounds">Nombre d'images / chansons</label>
               <select id="btRounds" onchange="btSetCfg('rounds', this.value)"
                 class="bg-black/60 border border-white/15 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-fuchsia-400">
                 <option>15</option>
@@ -1970,6 +1974,12 @@
               class="relative rounded-2xl overflow-hidden bg-black border border-white/10 aspect-[2/3] max-h-[70vh] w-full max-w-[420px] mx-auto flex items-center justify-center select-none">
               <img id="btImage" class="w-full h-full object-contain hidden" alt="Affiche à deviner" draggable="false"
                 oncontextmenu="return false">
+              <audio id="btAudio" preload="auto"></audio>
+              <div id="btMusicNote" class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/70 border border-fuchsia-400/50 text-xs font-bold text-fuchsia-200 flex items-center gap-1.5">
+                <span class="bt-eq"><i></i><i></i><i></i></span> En écoute…
+              </div>
+              <button id="btAudioPlay" type="button" onclick="btAudioStart()"
+                class="hidden absolute inset-0 flex items-center justify-center bg-black/55 text-white text-5xl">▶️</button>
               <div id="btCountdown"
                 class="absolute inset-0 hidden flex items-center justify-center bg-black/85 text-center">
                 <div>
@@ -1986,7 +1996,7 @@
             </div>
             <form id="btForm" onsubmit="return btSubmit(event)" class="flex gap-2">
               <input id="btInput" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120"
-                placeholder="Écris le titre en entier…"
+                placeholder="Titre, titre de la chanson ou nom de l'artiste…"
                 class="flex-1 min-w-0 bg-black/60 border border-white/15 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-fuchsia-400 disabled:opacity-50">
               <button id="btSend" type="submit"
                 class="px-5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-pink-500 text-black font-extrabold text-sm active:scale-95 disabled:opacity-40">Valider</button>
@@ -10167,7 +10177,7 @@
 
     /* ================= BLIND TEST D'IMAGES : MULTIJOUEUR, SERVEUR AUTORITAIRE (api/blindtest.js) =================
        Le serveur garde les réponses, le chrono et les points : ici on affiche seulement l'état reçu. */
-    const BT = { code: '', st: null, offset: 0, polling: false, sending: false, screen: '', shownRound: -1, shownPhase: '', imgSrc: '', hintTimer: null, rooms: null, listPolling: false };
+    const BT = { code: '', st: null, offset: 0, polling: false, sending: false, screen: '', shownRound: -1, shownPhase: '', imgSrc: '', audSrc: '', hintTimer: null, rooms: null, listPolling: false };
     const btEl = (id) => document.getElementById(id);
     const BT_ON = 'border-fuchsia-400 bg-fuchsia-500/20 text-white';
     const BT_OFF = 'border-white/10 bg-black/40 text-stone-300 hover:bg-white/10';
@@ -10198,14 +10208,14 @@
       if (screen === 'home') btPollRooms();
     }
     function btReset(msg) {
-      BT.code = ''; BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = '';
+      BT.code = ''; BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = ''; btStopAudio();
       btShow('home'); if (msg) showToast(msg);
     }
 
     function btOnEnter() {
       const bal = btEl('btBalance'); if (bal) bal.textContent = fmt(state.balance);
       const note = btEl('btHomeNote');
-      if (note) note.innerHTML = '💰 Trois salons ouverts à tous (6 joueurs maximum chacun), <strong class="text-emerald-300">jouer est gratuit</strong>. Chaque image trouvée rapporte <strong class="text-amber-300">20 🪙</strong> (en « Le premier gagne », seul le premier est payé), dès qu\'on joue à <strong>2 joueurs ou plus</strong> ; seul, c\'est un entraînement. Écris le titre en entier : les accents, majuscules, tirets et numéros de suite (Spider-Man 3 → « spider man ») ne comptent pas. Quitter la page te fait quitter le salon.';
+      if (note) note.innerHTML = '💰 Trois salons ouverts à tous (6 joueurs maximum chacun), <strong class="text-emerald-300">jouer est gratuit</strong>. Chaque image trouvée rapporte <strong class="text-amber-300">20 🪙</strong> (en « Le premier gagne », seul le premier est payé), dès qu\'on joue à <strong>2 joueurs ou plus</strong> ; seul, c\'est un entraînement. 🎵 En mode Musique, on devine le titre ou l\'artiste à l\'oreille : 20 🪙 chacun, 40 🪙 si tu trouves les deux. Écris le titre en entier : les accents, majuscules, tirets et numéros de suite (Spider-Man 3 → « spider man ») ne comptent pas. Quitter la page te fait quitter le salon.';
       if (BT.code) btPoll(); else btShow('home');
     }
 
@@ -10256,7 +10266,7 @@
       } catch (e) { }
       try { fetch(btUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }); } catch (e) { }
     }
-    function btOnExit() { btSendLeave(); BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = ''; }
+    function btOnExit() { btSendLeave(); BT.st = null; BT.shownRound = -1; BT.shownPhase = ''; BT.imgSrc = ''; btStopAudio(); }
     window.addEventListener('pagehide', btSendLeave);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && currentRoomKey === 'blindtest') { if (BT.code) btPoll(); else btPollRooms(); } });
 
@@ -10318,9 +10328,12 @@
       if (r.data && r.data.state) btApply(r.data.state);
       if (r.ok && r.data.correct) {
         inp.value = '';
-        btHint('✅ Bien joué !' + (r.data.reward ? ' +' + r.data.reward + ' 🪙' : ''), 'ok');
+        const msg = r.data.foundTitle !== undefined
+          ? (r.data.full ? '✅ Titre et artiste trouvés !' : r.data.foundTitle ? '✅ Titre trouvé ! Trouve aussi l\'artiste…' : '✅ Artiste trouvé ! Trouve aussi le titre…')
+          : '✅ Bien joué !';
+        btHint(msg + (r.data.reward ? ' +' + r.data.reward + ' 🪙' : ''), 'ok');
         btSound('ok');
-        if (r.data.reward) { try { setTimeout(playCoinWinSound, 330); } catch (e2) { } showToast('🎉 +' + r.data.reward + ' 🪙 pour cette image !'); }
+        if (r.data.reward) { try { setTimeout(playCoinWinSound, 330); } catch (e2) { } showToast('🎉 +' + r.data.reward + ' 🪙 !'); }
       } else if (r.ok) {
         btSound(r.data.near ? 'near' : 'bad');
         btHint(r.data.hint || 'Ce n\'est pas ça.', r.data.near ? 'near' : 'bad'); inp.select();
@@ -10395,18 +10408,39 @@
       btEl('btWaitMsg').classList.toggle('hidden', host);
     }
 
+    // Blind test musique : joue l'extrait pendant la question, s'arrête à la révélation ou en quittant le salon.
+    // Si le navigateur refuse la lecture automatique (pas de geste récent), on montre un bouton ▶️ à la place.
+    function btAudioStart() {
+      const a = btEl('btAudio'); if (!a) return;
+      const p = a.play(); if (p && p.catch) p.catch(() => {});
+      btEl('btAudioPlay').classList.add('hidden');
+    }
+    function btStopAudio() {
+      const a = btEl('btAudio'); if (!a || !BT.audSrc) return;
+      BT.audSrc = ''; try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) { }
+      btEl('btMusicNote').classList.add('hidden'); btEl('btAudioPlay').classList.add('hidden');
+    }
+
     function btRenderGame(st) {
       btShow('game');
       const now = Date.now() + BT.offset;
       const first = st.cfg.mode === 'first';
-      btEl('btRoundLabel').textContent = st.round >= 1 ? 'Image ' + st.round + '/' + st.total : 'Préparation…';
+      btEl('btRoundLabel').textContent = st.round >= 1 ? (st.music ? 'Chanson ' : 'Image ') + st.round + '/' + st.total : 'Préparation…';
       btEl('btModeLabel').textContent = (first ? '⚡ Le premier gagne' : '👥 Tous répondent');
-      btEl('btRewardLabel').textContent = st.reward ? '💰 ' + st.reward + ' 🪙 par image trouvée' : '🧪 Entraînement (sans gains)';
-      // image de la manche (le serveur ne la donne qu'au bon moment) + préchargement de la suivante
+      btEl('btRewardLabel').textContent = st.reward ? (st.music ? '💰 20 🪙 par titre ou artiste trouvé (40 si les deux)' : '💰 ' + st.reward + ' 🪙 par image trouvée') : '🧪 Entraînement (sans gains)';
+      // image (ou pochette d'album) de la manche (le serveur ne la donne qu'au bon moment) + préchargement de la suivante
       const img = btEl('btImage');
       if (st.img) { if (BT.imgSrc !== st.img) { BT.imgSrc = st.img; img.src = st.img; } img.classList.remove('hidden'); }
       else { img.classList.add('hidden'); BT.imgSrc = ''; }
       if (st.nextImg && BT.preload !== st.nextImg) { BT.preload = st.nextImg; const pre = new Image(); pre.src = st.nextImg; }
+      // extrait audio : ne joue que pendant la question ; s'arrête à la révélation/au décompte
+      if (st.music && st.phase === 'question' && st.aud) {
+        if (BT.audSrc !== st.aud) {
+          BT.audSrc = st.aud; const a = btEl('btAudio'); a.src = st.aud; a.currentTime = 0;
+          const p = a.play(); if (p && p.catch) p.catch(() => { btEl('btAudioPlay').classList.remove('hidden'); });
+        }
+        btEl('btMusicNote').classList.remove('hidden');
+      } else btStopAudio();
       btEl('btCountdown').classList.toggle('hidden', st.phase !== 'countdown');
       const reveal = st.phase === 'reveal';
       btEl('btReveal').classList.toggle('hidden', !reveal);
@@ -10414,7 +10448,10 @@
         btEl('btAnswer').textContent = st.answer || '';
         const w = st.solvedBy || [];
         btEl('btWinners').innerHTML = w.length
-          ? w.map((x) => (x.first ? '🥇 ' : '✅ ') + '<strong>' + escapeHtml(x.name) + '</strong> (' + (x.ms / 1000).toFixed(1) + ' s)').join(' · ')
+          ? w.map((x) => {
+            const parts = x.title === undefined ? '' : (x.title && x.artist) ? ' (titre + artiste)' : x.title ? ' (titre)' : x.artist ? ' (artiste)' : '';
+            return (x.first ? '🥇 ' : '✅ ') + '<strong>' + escapeHtml(x.name) + '</strong>' + parts + ' (' + (x.ms / 1000).toFixed(1) + ' s)';
+          }).join(' · ')
           : '😅 Personne n\'a trouvé.';
       }
       // saisie : active seulement pendant la question, tant qu'on n'a pas trouvé
