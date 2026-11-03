@@ -4393,6 +4393,7 @@
         username: row.username,
         password: '',
         avatarEmoji: row.avatar || '🎭',
+        role: row.role || 'flambeur',
         balance: typeof row.balance === 'number' ? row.balance : (parseInt(row.balance) || 5500)
       };
     }
@@ -5316,8 +5317,11 @@
       return current === 'ystroz' || current === 'alex';
     }
     // Co Fondateur : titre affiché (badge violet) sous le pseudo, sans pouvoir d'administration
+    // Source : colonne Supabase "role" (changée par le Patron, menu Admin) ; repli sur la liste ci-dessous tant qu'elle n'est pas renseignée
     const CO_FONDATEURS = ['yohan81'];
     function isCurrentUserCoFounder() {
+      if (state.role === 'co_fondateur') return true;
+      if (state.role === 'patron' || state.role === 'flambeur') return false;
       return CO_FONDATEURS.includes((state.username || '').toLowerCase().trim());
     }
 

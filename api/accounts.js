@@ -27,6 +27,8 @@ import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from
 // Mode strict : le navigateur ne peut plus écrire un solde (le serveur est la seule source). WALLET_STRICT=0 pour le couper.
 const WALLET_STRICT = process.env.WALLET_STRICT !== '0';
 const ADMINS = ['ystroz', 'alex'];
+// rôle affiché (badge) : colonne Supabase "role", changée uniquement par le Patron (action set_role). N'accorde aucun pouvoir : l'accès admin reste ADMINS ci-dessus.
+const ROLES = ['flambeur', 'co_fondateur', 'patron'];
 const START_BALANCE = 5500;
 const RENAME_COST = 50000;
 const TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -119,12 +121,12 @@ function cleanName(name) {
 function publicRow(r) {
   const data = r.data && typeof r.data === 'object' ? { ...r.data } : {};
   SERVER_ONLY_FIELDS.forEach((k) => { delete data[k]; });
-  return { username: r.username, password: '', avatar: r.avatar || '🎭', balance: r.balance, data, updated_at: r.updated_at };
+  return { username: r.username, password: '', avatar: r.avatar || '🎭', balance: r.balance, role: ROLES.includes(r.role) ? r.role : 'flambeur', data, updated_at: r.updated_at };
 }
 
 function toFlat(r) {
   const p = publicRow(r);
-  return { ...p.data, username: p.username, password: '', avatarEmoji: p.avatar, balance: typeof p.balance === 'number' ? p.balance : parseInt(p.balance) || START_BALANCE };
+  return { ...p.data, username: p.username, password: '', avatarEmoji: p.avatar, role: p.role, balance: typeof p.balance === 'number' ? p.balance : parseInt(p.balance) || START_BALANCE };
 }
 
 function parseBody(req) {
@@ -440,6 +442,19 @@ export default async function handler(req, res) {
       });
       await putRow({ username: CONFIG_ROW, password: '', avatar: '⚙️', balance: 0, data: { luck } });
       return res.status(200).json({ ok: true, luck });
+    }
+
+    // --- rôle affiché (badge Patron / Co Fondateur / Flambeur) : seul le Patron peut le changer ---
+    if (action === 'set_role') {
+      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      const target = cleanName(body.username);
+      const role = typeof body.role === 'string' ? body.role.trim().toLowerCase() : '';
+      if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
+      if (!ROLES.includes(role)) return res.status(400).json({ ok: false, error: 'Rôle invalide.' });
+      const row = await getRow(target);
+      if (!row) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
+      await updateAccount(row.username, (d) => { d.role = role; });
+      return res.status(200).json({ ok: true, role });
     }
 
     // --- outils du Patron sur les soldes (seule façon de modifier le solde d'un autre joueur) ---
