@@ -25,7 +25,7 @@
     for (n = 0; n < 4; n++) d.push('4W', '4F');
     return d;
   }
-  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '', said: {}, vuln: -1 }; }
+  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '', said: {}, vuln: -1, pend: 0, pk: '' }; }
   function unoOrder(st) { return Object.keys(st.hands).map(Number).sort(function (a, b) { return a - b; }); }
   function unoNext(st, from, dir) {
     var o = unoOrder(st), i = o.indexOf(from);
@@ -33,6 +33,7 @@
     return o[(i + (dir || st.dir) + o.length) % o.length];
   }
   function unoCanPlay(st, card) {
+    if (st.pend > 0) return cv(card) === (st.pk === 'F' ? 'F' : 'D');            // un +2 / +4 est en attente : on ne peut que l'augmenter (un +4 seulement sur un +4, un +2 seulement sur un +2)
     var top = st.disc[st.disc.length - 1];
     if (!top) return true;
     return cc(card) === 4 || cc(card) === st.col || cv(card) === cv(top);
@@ -53,7 +54,7 @@
     if (st.ph === 'play') return 'Une partie est déjà en cours : attends sa fin pour jouer.';
     var o = Object.keys(st.seats).map(Number).sort(function (a, b) { return a - b; });
     if (o.length < 2) return 'Il faut au moins 2 joueurs.';
-    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1; st.said = {}; st.vuln = -1;
+    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1; st.said = {}; st.vuln = -1; st.pend = 0; st.pk = '';
     o.forEach(function (n) { st.hands[n] = []; });
     o.forEach(function (n) { unoDraw(st, n, 7); });
     var first, guard = 0;
@@ -71,7 +72,7 @@
     var hand = st.hands[n], card = hand && hand[idx];
     if (!card) return 'Carte inconnue.';
     if (st.drawn && card !== st.drawn) return 'Tu peux seulement poser la carte piochée, ou passer.';
-    if (!unoCanPlay(st, card)) return 'Cette carte ne va pas.';
+    if (!unoCanPlay(st, card)) return st.pend > 0 ? 'Il y a un +' + st.pend + ' en attente : réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche ' + st.pend + ' cartes.' : 'Cette carte ne va pas.';
     if (cc(card) === 4 && !(color >= 0 && color <= 3)) return 'Choisis une couleur.';
     st.vuln = -1;                                          // le coup suivant ferme la fenêtre du « Contre UNO »
     hand.splice(idx, 1); st.disc.push(card); st.drawn = '';
@@ -83,8 +84,10 @@
       st.dir = -st.dir;
       if (unoOrder(st).length === 2) { st.turn = n; txt += ' Sens inversé : ' + who + ' rejoue.'; } else { st.turn = unoNext(st, n); txt += ' Le sens change.'; }
     } else if (v === 'S') { st.turn = unoNext(st, nxt); txt += ' ' + nm(st, nxt) + ' passe son tour.'; }
-    else if (v === 'D') { unoDraw(st, nxt, 2); st.turn = unoNext(st, nxt); txt += ' ' + nm(st, nxt) + ' pioche 2 cartes.'; }
-    else if (v === 'F') { unoDraw(st, nxt, 4); st.turn = unoNext(st, nxt); txt += ' ' + nm(st, nxt) + ' pioche 4 cartes.'; }
+    else if (v === 'D' || v === 'F') {                     // +2 / +4 : la pénalité s'empile ; le suivant l'augmente avec le même type de carte ou pioche tout d'un coup
+      st.pend += v === 'D' ? 2 : 4; st.pk = v; st.turn = nxt;
+      txt += ' ' + nm(st, nxt) + ' doit piocher ' + st.pend + ' cartes ou répondre par un ' + (v === 'D' ? '+2' : '+4') + '.';
+    }
     else st.turn = nxt;
     if (hand.length === 1) {
       if (st.said && st.said[n]) txt += ' ' + who + ' : UNO !';
@@ -101,10 +104,15 @@
     if (st.turn !== n) return 'Ce n\'est pas ton tour.';
     if (st.drawn) return 'Pose la carte piochée ou passe.';
     st.vuln = -1;
-    var got = unoDraw(st, n, 1);
-    if (!got.length) { st.turn = unoNext(st, n); st.msg = 'Plus de cartes à piocher : ' + nm(st, n) + ' passe.'; return ''; }
-    if (unoCanPlay(st, got[0])) { st.drawn = got[0]; st.msg = nm(st, n) + ' a pioché : il peut la poser ou passer.'; }
-    else { st.turn = unoNext(st, n); st.msg = nm(st, n) + ' pioche et passe son tour.'; }
+    if (st.pend > 0) {                                    // pénalité de +2 / +4 empilés : on pioche tout et on passe son tour
+      var k = st.pend; unoDraw(st, n, k); st.pend = 0; st.pk = ''; st.turn = unoNext(st, n);
+      st.msg = nm(st, n) + ' pioche ' + k + ' cartes (pénalité) et passe son tour.'; return '';
+    }
+    var before = st.hands[n].length, found = '';
+    for (var guard = 0; guard < 120 && !found; guard++) { var g = unoDraw(st, n, 1); if (!g.length) break; if (unoCanPlay(st, g[0])) found = g[0]; }     // on pioche jusqu'à avoir une carte jouable
+    var cnt = st.hands[n].length - before;
+    if (found) { st.drawn = found; st.msg = nm(st, n) + ' a pioché ' + cnt + ' carte' + (cnt > 1 ? 's' : '') + ' pour en avoir une jouable.'; }
+    else { st.turn = unoNext(st, n); st.msg = 'Plus de cartes à piocher : ' + nm(st, n) + ' passe.'; }
     return '';
   }
   function unoPass(st, n) {
@@ -115,7 +123,11 @@
   // « UNO ! » : à dire quand il ne reste que 2 cartes (avant de poser l'avant-dernière) ; encore possible de justesse s'il vient d'être oublié
   function unoSayUno(st, n) {
     if (st.ph !== 'play' || !st.hands[n]) return 'Tu ne joues pas cette manche.';
-    if (st.hands[n].length > 2) return 'Tu as encore trop de cartes pour dire UNO.';
+    if (st.vuln !== n) {
+      if (st.hands[n].length > 2) return 'Tu as encore trop de cartes pour dire UNO.';
+      if (st.hands[n].length < 2) return 'Pas besoin de dire UNO maintenant.';
+      if (!st.hands[n].some(function (c) { return unoCanPlay(st, c); })) return 'Tu ne peux poser aucune carte : pas de UNO.';
+    }
     if (st.vuln === n) { st.vuln = -1; st.msg = '📣 ' + nm(st, n) + ' crie UNO juste à temps !'; return ''; }
     if (st.said && st.said[n]) return 'Tu as déjà dit UNO.';
     st.said = st.said || {}; st.said[n] = true; st.msg = '📣 ' + nm(st, n) + ' : UNO !';

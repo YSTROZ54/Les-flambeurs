@@ -388,10 +388,11 @@
     function announce(tid, old, st) {
       if (!seat || seat.tid !== tid || !st || st.ph === 'wait') return;
       old = old || {}; var loc = seat.local, msg = st.msg || '', nm0 = myName(), mine = st.turn === loc;
-      if (st.ph === 'over') { if (old.ph !== 'over') { if (st.win === loc) toast('🏆 Tu as gagné !', 'win'); else if (st.win === 2) toast('🤝 Match nul', 'info'); else toast('😵 Perdu…', 'hit', msg); } return; }
+      if (st.ph === 'over') { if (old.ph !== 'over') { if (st.win === loc) toast('🏆 Tu as gagné !', 'win'); else if (kindOf(tid) === 'c' && st.win === 2) toast('🤝 Match nul', 'info'); else toast('😵 Perdu…', 'hit', msg); } return; }
       if (st.ph !== 'play') return;
       if (kindOf(tid) === 'u') {
         var oh = old.hands && old.hands[loc], nh = st.hands && st.hands[loc];
+        if (st.org !== me() && mine && st.pend > 0 && old.pend !== st.pend) { toast('⚠️ +' + st.pend + ' !', 'hit', 'Réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche ' + st.pend + ' cartes'); return; }
         if (st.org !== me() && old.vuln === loc && st.vuln === -1 && oh && nh && nh.length >= oh.length + 2) { toast('😱 Contre UNO !', 'hit', 'Tu avais oublié de dire UNO : +2 cartes'); return; }
         if (st.org !== me() && st.hands && st.hands[loc] && st.vuln >= 0 && st.vuln !== loc && old.vuln !== st.vuln) { toast('⚠️ ' + ((st.seats[st.vuln] || {}).name || 'Un joueur') + " n'a pas dit UNO !", 'skip', 'Vite : appuie sur CONTRE UNO (C)'); return; }
         if (st.org !== me() && /crie UNO|: UNO !/.test(msg) && old.msg !== msg && !mine) toast('📣 UNO !', 'info', msg);
@@ -426,6 +427,7 @@
     function playCard(i) {
       var st = getSt(seat.tid), hand = st.hands[seat.local]; if (!hand || !hand[i]) return;
       if (st.turn !== seat.local || st.ph !== 'play') { errMsg = 'Ce n\'est pas ton tour.'; errT = 3; refreshUi(); return; }
+      if (!MJ.unoCanPlay(st, hand[i])) { errMsg = st.pend > 0 ? 'Il y a un +' + st.pend + ' en attente : réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche.' : 'Cette carte ne va pas.'; errT = 3; refreshUi(); return; }
       if (MJ.cardColor(hand[i]) === 4) { if (st.drawn && hand[i] !== st.drawn) { errMsg = 'Tu peux seulement poser la carte piochée, ou passer.'; errT = 3; } else pendingWild = i; refreshUi(); return; }
       var e = mutate(seat.tid, function (s2) { return MJ.unoPlay(s2, seat.local, i, -1); });
       if (e) { errMsg = e; errT = 3; refreshUi(); }
@@ -450,8 +452,8 @@
         else {
           if (hand.length) body += '<div class="mj-hand">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';
           body += '<div class="mj-row">';
-          if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
-            + (hand.length <= 2 && !(st.said && st.said[seat.local]) ? '<button class="mj-b uno" data-a="uno">📣 UNO ! <kbd>U</kbd></button>' : '')
+          if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher' + (st.pend > 0 ? ' ' + st.pend : '') + '</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
+            + ((st.vuln === seat.local || (mine && hand.length === 2 && !(st.said && st.said[seat.local]) && hand.some(function (c) { return MJ.unoCanPlay(st, c); }))) ? '<button class="mj-b uno" data-a="uno">📣 UNO ! <kbd>U</kbd></button>' : '')
             + (st.vuln >= 0 && st.vuln !== seat.local ? '<button class="mj-b red" data-a="counter">⚡ CONTRE UNO ! <kbd>C</kbd></button>' : '');
           else if (st.ph === 'play') body += '<div style="font-weight:800;font-size:13px;color:#c9b88a;text-align:center">👀 Une partie est en cours : tu joueras à la prochaine manche, quand elle sera finie.</div>';
           else body += '<button class="mj-b" data-a="start"' + (canStart ? '' : ' disabled') + '>' + startTxt + '</button>';
@@ -513,7 +515,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', ex = s.x + (s.tx - s.x) * (u ? 0.14 : -0.35), ey = u ? 1.6 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.14 : -0.35), ty = u ? 0.86 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? 0.14 : tc ? 0.1 : -0.35), ey = u ? 1.6 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.14 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
     };
