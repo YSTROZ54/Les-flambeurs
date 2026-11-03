@@ -1,0 +1,3 @@
+# Fichier minimal pour l'intégration GitHub -> Supabase (applique automatiquement supabase/migrations/*.sql au push sur main).
+# Pas besoin du reste de la config CLI ici : le projet est déjà lié côté tableau de bord Supabase.
+project_id = "les-flambeurs"
