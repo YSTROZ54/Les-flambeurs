@@ -153,11 +153,46 @@
       im.src = boardSrc(url);
       return null;
     }
-    function poster(img, x, y, w, h) {   // affiche avec coins arrondis + liteau doré ; un rectangle sombre tant qu'elle n'est pas chargée
-      sn.save(); F.roundRectPath(sn, x, y, w, h, 8); sn.clip();
-      if (img) sn.drawImage(img, x, y, w, h); else { sn.fillStyle = '#1c0e12'; sn.fillRect(x, y, w, h); }
+    // affiche avec coins arrondis, ombre portée et liteau doré ; un rectangle sombre tant qu'elle n'est pas chargée
+    function poster(img, x, y, w, h, r) {
+      r = r || 10;
+      sn.save(); sn.shadowColor = 'rgba(0,0,0,0.6)'; sn.shadowBlur = 16; sn.shadowOffsetY = 6;
+      F.roundRectPath(sn, x, y, w, h, r); sn.fillStyle = '#000'; sn.fill(); sn.restore();
+      sn.save(); F.roundRectPath(sn, x, y, w, h, r); sn.clip();
+      if (img) sn.drawImage(img, x, y, w, h); else {
+        var g = sn.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#2a1520'); g.addColorStop(1, '#120a10');
+        sn.fillStyle = g; sn.fillRect(x, y, w, h);
+      }
       sn.restore();
-      sn.strokeStyle = 'rgba(201,162,39,0.55)'; sn.lineWidth = 2; F.roundRectPath(sn, x, y, w, h, 8); sn.stroke();
+      sn.strokeStyle = 'rgba(201,162,39,0.75)'; sn.lineWidth = 2; F.roundRectPath(sn, x, y, w, h, r); sn.stroke();
+    }
+    // texte sur plusieurs lignes (retour à la ligne par mot, ellipse sur la dernière si ça déborde)
+    function wrapLines(x, text, maxWidth, maxLines) {
+      var words = String(text).split(' '), lines = [], cur = '';
+      for (var i = 0; i < words.length; i++) {
+        var test = cur ? cur + ' ' + words[i] : words[i];
+        if (x.measureText(test).width > maxWidth && cur) { lines.push(cur); cur = words[i]; if (lines.length === maxLines) break; }
+        else cur = test;
+      }
+      if (lines.length < maxLines && cur) lines.push(cur);
+      var consumed = lines.join(' ').split(' ').length;
+      if (consumed < words.length || (cur && lines.length === maxLines && lines[lines.length - 1] !== cur)) {
+        var last = lines[lines.length - 1] || '';
+        while (last.length > 1 && x.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+        lines[lines.length - 1] = last + '…';
+      }
+      return lines;
+    }
+    function truncate(x, text, maxWidth) {
+      text = String(text); if (x.measureText(text).width <= maxWidth) return text;
+      var t = text; while (t.length > 1 && x.measureText(t + '…').width > maxWidth) t = t.slice(0, -1);
+      return t + '…';
+    }
+    // filet façon pellicule 35 mm (perforations) : décor le long du haut et du bas du panneau
+    function filmstrip(y) {
+      sn.fillStyle = '#060305'; sn.fillRect(0, y, 1280, 16);
+      sn.fillStyle = 'rgba(201,162,39,0.55)';
+      for (var x = 14; x < 1280; x += 36) sn.fillRect(x, y + 4, 16, 8);
     }
     var hallPlaylist = null, hallPlaylistLoading = false;
     function ensureHallPlaylist() {
@@ -170,47 +205,74 @@
     var lastCinSt;
     function paintCinemaBoard(st) {
       lastCinSt = st;
-      sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
-      // en-tête : logo Tropi Stream + titre du panneau
-      var logo = getImg('assets/cinema/tropistream-serveur.png');
-      sn.save(); sn.beginPath(); sn.arc(170, 92, 46, 0, TAU); sn.clip();
-      if (logo) sn.drawImage(logo, 124, 46, 92, 92); else { sn.fillStyle = '#2a1208'; sn.fillRect(124, 46, 92, 92); }
-      sn.restore();
-      sn.strokeStyle = 'rgba(255,122,26,0.8)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(170, 92, 46, 0, TAU); sn.stroke();
-      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 24; sn.fillStyle = '#ffb066';
-      sn.font = '900 86px ' + SERIF; sn.fillText('À L\'AFFICHE', 690, 100, 1020);
-      sn.shadowBlur = 0;
-      sn.fillStyle = 'rgba(255,122,26,0.35)'; sn.fillRect(70, 160, 1140, 2);
+      // fond : dégradé sombre façon salle obscure + vignette, plutôt qu'un aplat
+      var bg = sn.createRadialGradient(640, 320, 80, 640, 360, 760);
+      bg.addColorStop(0, '#1c0f16'); bg.addColorStop(1, '#0a0509');
+      sn.fillStyle = bg; sn.fillRect(0, 0, 1280, 720);
+      filmstrip(0); filmstrip(704);
 
+      // en-tête : médaillon Tropi Stream + titre du panneau, double filet doré en dessous
+      var logo = getImg('assets/cinema/tropistream-serveur.png');
+      sn.save(); sn.beginPath(); sn.arc(160, 92, 48, 0, TAU); sn.clip();
+      if (logo) sn.drawImage(logo, 112, 44, 96, 96); else { sn.fillStyle = '#2a1208'; sn.fillRect(112, 44, 96, 96); }
+      sn.restore();
+      sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(160, 92, 48, 0, TAU); sn.stroke();
+      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 26; sn.fillStyle = '#ffb066';
+      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 700, 98, 980);
+      sn.shadowBlur = 0;
+      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 152, 1140, 2);
+      sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 157, 1140, 1);
+
+      var HX0 = 90, HY0 = 172, HW = 250, HH = 374;   // boîte à affiche de la séance en cours (ou de l'icône « salle fermée »)
       var playing = st && st.status === 'playing' && st.title;
       if (playing) {
         ensureHallPlaylist();
         var titre = String(st.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), startD = new Date(Date.now() - st.position * 1000);
         var f = hallPlaylist && hallPlaylist.find(function (x) { return x.nom === titre; });
-        poster(getImg(f && f.poster), 90, 195, 120, 172);
+        poster(getImg(f && f.poster), HX0, HY0, HW, HH, 12);
+        var tx = HX0 + HW + 50;
         sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-        sn.fillStyle = '#4ade80'; sn.font = '800 26px ' + MONO; sn.fillText('● SÉANCE EN COURS', 240, 245);
-        sn.fillStyle = '#f8e7d0'; sn.font = '700 44px ' + MONO; sn.fillText(titre, 240, 300, 960);
-        sn.fillStyle = '#c98a55'; sn.font = '600 26px ' + MONO; sn.fillText('Depuis ' + fmtHeureBoard(startD), 240, 342);
+        sn.fillStyle = 'rgba(74,222,128,0.14)'; sn.fillRect(tx - 2, 222, 300, 36);
+        sn.fillStyle = '#4ade80'; sn.font = '800 24px ' + MONO; sn.fillText('●  SÉANCE EN COURS', tx + 10, 247);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 48px ' + SERIF;
+        wrapLines(sn, titre, 780, 2).forEach(function (ln, i) { sn.fillText(ln, tx, 320 + i * 54); });
+        sn.fillStyle = '#ffb066'; sn.font = '700 24px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD), tx, 450);
+        if (f && f.annee) { sn.fillStyle = '#9d8a53'; sn.font = '600 22px ' + MONO; sn.fillText(String(f.annee) + (f.genres && f.genres[0] ? ' · ' + f.genres[0] : ''), tx, 484); }
       } else {
-        sn.textAlign = 'center'; sn.textBaseline = 'middle';
-        sn.fillStyle = '#f8e7d0'; sn.font = '700 42px ' + MONO; sn.fillText('CINÉMA TROPI STREAM', 640, 245);
-        sn.fillStyle = '#c98a55'; sn.font = '600 25px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 292);
+        sn.save(); F.roundRectPath(sn, HX0, HY0, HW, HH, 12); sn.clip();
+        var g2 = sn.createLinearGradient(HX0, HY0, HX0, HY0 + HH); g2.addColorStop(0, '#2a1016'); g2.addColorStop(1, '#140a10');
+        sn.fillStyle = g2; sn.fillRect(HX0, HY0, HW, HH);
+        sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '160px sans-serif'; sn.fillText('🎬', HX0 + HW / 2, HY0 + HH / 2);
+        sn.restore();
+        sn.strokeStyle = 'rgba(201,162,39,0.75)'; sn.lineWidth = 2; F.roundRectPath(sn, HX0, HY0, HW, HH, 12); sn.stroke();
+        var tx2 = HX0 + HW + 50;
+        sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
+        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx2 - 2, 222, 160, 36);
+        sn.fillStyle = '#ff9a4a'; sn.font = '800 24px ' + MONO; sn.fillText('●  OUVERT', tx2 + 10, 247);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 46px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx2, 320);
+        sn.fillStyle = '#c98a55'; sn.font = '600 26px ' + MONO; sn.fillText('Entre par la porte — la séance commence', tx2, 364);
+        sn.fillText('dès que la régie lance un film.', tx2, 396);
       }
 
-      sn.fillStyle = 'rgba(255,122,26,0.35)'; sn.fillRect(70, 395, 1140, 2);
+      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 568, 1140, 2);
       var sched = (st && st.schedule) || [];
       sn.textAlign = 'center'; sn.textBaseline = 'middle';
-      sn.fillStyle = '#ffb066'; sn.font = '800 28px ' + MONO; sn.fillText('PROCHAINES SÉANCES', 640, 440);
+      sn.fillStyle = 'rgba(255,122,26,0.5)'; sn.fillRect(395, 599, 70, 2); sn.fillRect(815, 599, 70, 2);
+      sn.fillStyle = '#ffb066'; sn.font = '800 30px ' + MONO; sn.fillText('PROCHAINES SÉANCES', 640, 600);
       if (!sched.length) {
-        sn.fillStyle = '#8a7050'; sn.font = '600 24px ' + MONO; sn.fillText('Aucune séance programmée pour l\'instant', 640, 495);
+        sn.fillStyle = '#8a7050'; sn.font = '600 24px ' + MONO; sn.fillText('Aucune séance programmée pour l\'instant', 640, 660);
       } else {
-        sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
+        var n = Math.min(3, sched.length), cw = 362, gap = 20, totalW = n * cw + (n - 1) * gap, x0 = 640 - totalW / 2;
         sched.slice(0, 3).forEach(function (it, i) {
-          var d = new Date(it.at), y0 = 480 + i * 80, label = String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, '');
-          poster(getImg(it.poster), 220, y0, 62, 62);
-          sn.fillStyle = '#f4e3b0'; sn.font = '700 28px ' + MONO; sn.fillText(label, 300, y0 + 26, 760);
-          sn.fillStyle = '#c98a55'; sn.font = '600 23px ' + MONO; sn.fillText(fmtJourBoard(d) + ' à ' + fmtHeureBoard(d), 300, y0 + 54);
+          var d = new Date(it.at), cx = x0 + i * (cw + gap), cy = 624, ch = 72;
+          sn.fillStyle = 'rgba(255,255,255,0.045)'; F.roundRectPath(sn, cx, cy, cw, ch, 10); sn.fill();
+          sn.strokeStyle = 'rgba(201,162,39,0.3)'; sn.lineWidth = 1.5; F.roundRectPath(sn, cx, cy, cw, ch, 10); sn.stroke();
+          poster(getImg(it.poster), cx + 9, cy + 9, 60, ch - 18, 6);
+          var tx3 = cx + 84, label = String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, '');
+          sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
+          sn.fillStyle = '#f4e3b0'; sn.font = '700 25px ' + MONO; sn.fillText(truncate(sn, label, cw - 100), tx3, cy + 33);
+          sn.fillStyle = '#ffb066'; sn.font = '700 22px ' + MONO; sn.fillText(fmtJourBoard(d) + ' à ' + fmtHeureBoard(d), tx3, cy + 60);
+          sn.textAlign = 'center'; sn.textBaseline = 'middle';
         });
       }
       if (cinPosterMat.map) cinPosterMat.map.needsUpdate = true;
