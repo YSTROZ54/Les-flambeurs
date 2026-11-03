@@ -304,7 +304,7 @@
       var boss = false, co = false; try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); co = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) { /* ok */ }
       var rc = boss ? 'role-patron' : co ? 'role-cofondateur' : 'role-flambeur', ri = boss ? 'fa-crown' : co ? 'fa-gem' : 'fa-fire', rn = boss ? 'Patron' : co ? 'Co Fondateur' : 'Flambeur';
       return '<div class="ph-bk-card">' +
-        '<div class="ph-bk-who"><span class="ph-bk-ava">' + esc(myAv()) + '</span><div>' +
+        '<div class="ph-bk-who"><span class="ph-bk-ava"><b>' + esc(myAv()) + '</b></span><div>' +
           '<b class="ph-bk-nm">' + esc(me) + '</b>' +
           '<span class="ph-rank role-tag ' + rc + '"><i class="fa-solid ' + ri + ' role-crown"></i> <span class="role-label">' + rn + '</span></span>' +
         '</div></div>' +
@@ -408,7 +408,7 @@
       if (!adminTarget) return h + '<div class="ph-cp-empty">Choisis un joueur dans la liste pour gérer son rôle et son solde.</div>';
       var t = adminTarget;
       h += '<div class="ph-bk-card">' +
-        '<div class="ph-bk-who"><img class="ph-role-ico-sm" src="' + ROLE_ICONS[t.role] + '" alt=""><span class="ph-bk-ava">' + esc(t.avatarEmoji) + '</span><div>' +
+        '<div class="ph-bk-who"><img class="ph-role-ico-sm" src="' + ROLE_ICONS[t.role] + '" alt=""><span class="ph-bk-ava"><b>' + esc(t.avatarEmoji) + '</b></span><div>' +
           '<b class="ph-bk-nm">' + esc(t.username) + '</b>' +
           '<span class="ph-rank role-tag ' + adminRoleClass(t.role) + '"><i class="fa-solid ' + adminRoleIcon(t.role) + ' role-crown"></i> <span class="role-label">' + adminRoleLabel(t.role) + '</span></span>' +
         '</div></div>' +
@@ -535,7 +535,7 @@
         return '<div class="ph-avp"><div class="ph-avp-art' + (a.owned ? '' : ' locked') + '"><span>' + (a.emoji ? esc(a.emoji) : esc(a.letter)) + '</span>' + (a.owned ? '' : '<i class="fa-solid fa-lock"></i>') + '</div>' +
           '<b>' + esc(a.name) + '</b><small>' + esc(a.desc) + '</small>' +
           '<div class="ph-avp-st ' + (a.on ? 'on' : a.owned ? 'own' : 'buy') + '">' + (a.on ? '<i class="fa-solid fa-check"></i> Avatar actuel' : a.owned ? '<i class="fa-solid fa-circle-check"></i> Dans Mes logos' : '<i class="fa-solid fa-lock"></i> À acheter dans le Tropi Shop · ' + F.fmtN(a.price) + ' <i class="fl-coin"></i>') + '</div>' +
-          '<div class="ph-avp-prev"><span>Aperçu sur ton profil</span><div class="ph-bk-who"><span class="ph-bk-ava">' + (a.emoji ? esc(a.emoji) : esc(a.letter)) + '</span><div><b class="ph-bk-nm">' + esc(name) + '</b><span class="ph-rank role-tag ' + rc + '"><i class="fa-solid ' + ri + ' role-crown"></i> <span class="role-label">' + rn + '</span></span></div></div></div>' +
+          '<div class="ph-avp-prev"><span>Aperçu sur ton profil</span><div class="ph-bk-who"><span class="ph-bk-ava"><b>' + (a.emoji ? esc(a.emoji) : esc(a.letter)) + '</b></span><div><b class="ph-bk-nm">' + esc(name) + '</b><span class="ph-rank role-tag ' + rc + '"><i class="fa-solid ' + ri + ' role-crown"></i> <span class="role-label">' + rn + '</span></span></div></div></div>' +
           '<button class="ph-wide save" data-act="av-use"' + (a.on ? ' disabled' : '') + '>' + fa('fa-floppy-disk') + ' Enregistrer cet avatar</button></div>';
       }
       var h = '<div class="ph-pf-head">' +

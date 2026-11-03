@@ -2982,6 +2982,7 @@ body.s3d-full-on #sidebarBackdrop {
   line-height: 1;
   font-weight: 900;
 }
+.ph-bk-ava > b { display: inline-block; transform: scale(1.8); }   /* certains emojis (ex. cartes) laissent beaucoup de vide dans leur propre glyphe : on force la taille visuelle */
 .ph-bk-who .ph-rank { font-size: 11px; }
 .ph-bk-who .ph-bk-nm { color: #fff; font-size: 17px; font-weight: 900; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
