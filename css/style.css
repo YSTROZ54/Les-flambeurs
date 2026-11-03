@@ -2761,6 +2761,14 @@ body.s3d-full-on #sidebarBackdrop {
   outline: none;
 }
 .ph-in:focus { border-color: #f59e0b; }
+.ph-pw-wrap { position: relative; }
+.ph-pw-wrap .ph-in { padding-right: 38px; }
+.ph-pw-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #9ca3af; cursor: pointer; font-size: 13px;
+}
+.ph-pw-eye:hover { color: #f59e0b; }
 .ph-civil { margin: 12px 0 6px; }
 .ph-wide {
   display: flex;

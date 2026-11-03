@@ -463,6 +463,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, role });
     }
 
+    // --- renommer le compte d'un joueur (Patron uniquement, gratuit, appli Direction) ---
+    if (action === 'admin_rename') {
+      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      const target = cleanName(body.username);
+      const newName = cleanName(body.newName);
+      if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
+      if (newName.length < 2 || isReserved(newName)) return res.status(400).json({ ok: false, error: 'Nouveau pseudo invalide.' });
+      if (FAKE_NAMES.includes(lc(newName)) || ADMINS.includes(lc(newName))) return res.status(400).json({ ok: false, error: 'Ce blase n\'est pas autorisé.' });
+      const row = await getRow(target);
+      if (!row) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
+      if (lc(row.username) !== lc(newName)) {
+        const clash = await getRow(newName);
+        if (clash) return res.status(409).json({ ok: false, error: 'Ce blase est déjà pris par un autre joueur.' });
+      }
+      const moved = { ...row, username: newName };
+      await putRow(moved);
+      if (lc(row.username) !== lc(newName)) await deleteRow(row.username);
+      return res.status(200).json({ ok: true, username: moved.username });
+    }
+
     // --- outils du Patron (et du Co Fondateur, appli Direction) sur les soldes ---
     if (action === 'admin_credit' || action === 'admin_set_balance' || action === 'admin_reset') {
       if (!isAdmin && !(await isPrivilegedActor(actor))) return res.status(403).json({ ok: false, error: 'Accès refusé.' });

@@ -352,7 +352,7 @@
     }
 
     /* ---------- appli « Direction » (Patron / Co Fondateur) : rôles et soldes, voir api/accounts.js (set_role, admin_credit, admin_set_balance, admin_reset) ---------- */
-    var adminTarget = null, adminMsg = '';
+    var adminTarget = null, adminMsg = '', adminPwVisible = false;
     function adminRoleLabel(r) { return r === 'patron' ? 'Patron' : r === 'co_fondateur' ? 'Co Fondateur' : 'Flambeur'; }
     function adminRoleIcon(r) { return r === 'patron' ? 'fa-crown' : r === 'co_fondateur' ? 'fa-gem' : 'fa-fire'; }
     function adminRoleClass(r) { return r === 'patron' ? 'role-patron' : r === 'co_fondateur' ? 'role-cofondateur' : 'role-flambeur'; }
@@ -378,24 +378,26 @@
     function adminRefresh() {
       if (typeof syncRemoteAccounts === 'function') { try { Promise.resolve(syncRemoteAccounts()).then(function () { if (adminTarget) adminPick(adminTarget.username); }); } catch (e) { /* ok */ } }
     }
-    async function adminAct(payload, okMsg) {
+    async function adminAct(payload, okMsg, nextName) {
       var r = null;
       try { r = typeof gatewayAction === 'function' ? await gatewayAction(payload) : null; } catch (e) { r = null; }
       adminMsg = (r && r.ok) ? okMsg : '❌ ' + ((r && r.error) || 'Action refusée.');
       if (r && r.ok) {
         try {
           var db = typeof getAccountsDB === 'function' ? getAccountsDB() : {}, key = payload.username.toLowerCase();
+          if (nextName && db[key] && lc2(nextName) !== key) { db[lc2(nextName)] = { ...db[key], username: nextName }; delete db[key]; key = lc2(nextName); }
           if (db[key]) {
             if (typeof r.balance === 'number') db[key].balance = r.balance;
             if (typeof r.role === 'string') db[key].role = r.role;
             if (typeof saveAccountsDB === 'function') saveAccountsDB(db);
           }
         } catch (e) { /* ok */ }
-        adminPick(payload.username);
+        adminPick(nextName || payload.username);
         try { if (typeof renderLeaderboard === 'function') renderLeaderboard(); } catch (e) { /* ok */ }
       }
       if (phoneOpen && page === 'admin') renderPhone();
     }
+    function lc2(s) { return String(s || '').toLowerCase().trim(); }
     function adminHtml() {
       var canGrant = false; try { canGrant = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) { /* ok */ }
       var h = '<div class="ph-sect">Chercher un joueur</div>' +
@@ -413,6 +415,16 @@
         h += '<div class="ph-sect">Rôle</div><div class="ph-card-setting">' +
           '<select class="ph-in" data-ph="admrole">' + ['flambeur', 'co_fondateur', 'patron'].map(function (r) { return '<option value="' + r + '"' + (r === t.role ? ' selected' : '') + '>' + adminRoleLabel(r) + '</option>'; }).join('') + '</select>' +
           '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-role">' + fa('fa-check') + ' Enregistrer le rôle</button></div>' +
+        '</div>';
+        h += '<div class="ph-sect">Pseudo en jeu</div><div class="ph-card-setting">' +
+          '<input class="ph-in" data-ph="admname" type="text" maxlength="24" value="' + esc(t.username) + '" autocomplete="off" spellcheck="false">' +
+          '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-rename">' + fa('fa-signature') + ' Renommer</button></div>' +
+        '</div>';
+        h += '<div class="ph-sect">Mot de passe</div><div class="ph-card-setting">' +
+          '<div class="ph-row-head"><small style="color:#9ca3af;font-size:10.5px">Les mots de passe sont chiffrés : impossible de voir l\'ancien, seulement en définir un nouveau.</small></div>' +
+          '<div class="ph-pw-wrap"><input class="ph-in" data-ph="admpass" type="' + (adminPwVisible ? 'text' : 'password') + '" maxlength="100" placeholder="Nouveau mot de passe" autocomplete="new-password">' +
+            '<button class="ph-pw-eye" type="button" data-act="adm-pw-eye" title="' + (adminPwVisible ? 'Masquer' : 'Afficher') + '">' + fa(adminPwVisible ? 'fa-eye-slash' : 'fa-eye') + '</button></div>' +
+          '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-pw">' + fa('fa-key') + ' Définir le mot de passe</button></div>' +
         '</div>';
       }
       h += '<div class="ph-sect">Solde</div>' +
@@ -1132,6 +1144,20 @@
       else if (a === 'adm-reset') {
         if (adminTarget && window.confirm('Réinitialiser le solde de « ' + adminTarget.username + ' » ?')) adminAct({ action: 'admin_reset', username: adminTarget.username }, '✅ Solde réinitialisé.');
       }
+      else if (a === 'adm-rename') {
+        if (adminTarget) {
+          var ni = q('admname'), nn = ni ? ni.value.trim() : '';
+          if (nn && nn !== adminTarget.username) adminAct({ action: 'admin_rename', username: adminTarget.username, newName: nn }, '✅ Renommé en « ' + nn + ' ».', nn);
+        }
+      }
+      else if (a === 'adm-pw') {
+        if (adminTarget) {
+          var pi = q('admpass'), pw = pi ? pi.value : '';
+          if (pw.length >= 3) { adminAct({ action: 'set_password', username: adminTarget.username, password: pw }, '✅ Mot de passe mis à jour.'); if (pi) pi.value = ''; }
+          else { adminMsg = '❌ Le mot de passe doit faire au moins 3 caractères.'; renderPhone(); }
+        }
+      }
+      else if (a === 'adm-pw-eye') { adminPwVisible = !adminPwVisible; renderPhone(); var pf = q('admpass'); if (pf) pf.focus(); }
       else if (a === 'key-bind') startKeyCapture(t.getAttribute('data-key'));
       else if (a === 'key-reset') {
         if (typeof F.resetKeys === 'function') F.resetKeys();
