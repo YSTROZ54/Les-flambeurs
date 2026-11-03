@@ -412,11 +412,11 @@
           '<b class="ph-bk-nm">' + esc(t.username) + '</b>' +
           '<span class="ph-rank role-tag ' + adminRoleClass(t.role) + '"><i class="fa-solid ' + adminRoleIcon(t.role) + ' role-crown"></i> <span class="role-label">' + adminRoleLabel(t.role) + '</span></span>' +
         '</div></div>' +
-        '<small>Solde actuel</small><b><i class="fl-coin"></i> ' + F.fmtN(t.balance) + '</b></div>';
+        '<small>Solde actuel</small><b class="ph-bk-bal"><i class="fl-coin"></i> ' + F.fmtN(t.balance) + '</b></div>';
       if (canGrant) {
         h += '<div class="ph-sect">Rôle</div><div class="ph-card-setting"><div class="ph-role-pick">' +
           ['flambeur', 'co_fondateur', 'patron'].map(function (r) {
-            return '<button class="ph-role-opt' + (adminRolePick === r ? ' on' : '') + '" type="button" data-adm-role-pick="' + r + '"><img src="' + ROLE_ICONS[r] + '" alt=""><span>' + adminRoleLabel(r) + '</span></button>';
+            return '<button class="ph-role-opt ph-role-opt-' + r + (adminRolePick === r ? ' on' : '') + '" type="button" data-adm-role-pick="' + r + '"><img src="' + ROLE_ICONS[r] + '" alt=""><span>' + adminRoleLabel(r) + '</span></button>';
           }).join('') +
           '</div><div class="ph-setting-actions"><button class="ph-btn-action" data-act="adm-role">' + fa('fa-check') + ' Enregistrer le rôle</button></div>' +
         '</div>';
@@ -689,6 +689,7 @@
       elScreen.innerHTML = h; elScreen.scrollTop = 0;
       elScreen.classList.toggle('chat', page === 'chat');
       elScreen.classList.toggle('menu', page === 'menu');
+      elScreen.classList.toggle('admin-page', page === 'admin');
       elPhone.querySelector('.ph-body').classList.toggle('home', page === 'menu');          // fond d'écran seulement sur l'accueil
       if (page === 'chat') paintChatPage();
       if (page === 'friends' && sub === 'thread') paintDmThread();

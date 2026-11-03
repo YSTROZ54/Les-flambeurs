@@ -2777,10 +2777,30 @@ body.s3d-full-on #sidebarBackdrop {
   background: rgba(0, 0, 0, 0.35); cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
 .ph-role-opt img { width: 34px; height: 34px; border-radius: 9px; }
-.ph-role-opt span { font-size: 10px; font-weight: 800; color: #cbd5e1; text-align: center; }
+.ph-role-opt span {
+  font-size: 9.5px; font-weight: 800; text-align: center; white-space: nowrap; letter-spacing: 0.01em;
+  background-size: 300% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
 .ph-role-opt:hover { background: rgba(255, 255, 255, 0.06); }
-.ph-role-opt.on { border-color: #f59e0b; background: rgba(245, 158, 11, 0.14); }
-.ph-role-opt.on span { color: #fbbf24; }
+.ph-role-opt.on { background: rgba(255, 255, 255, 0.05); }
+/* dégradés assortis au badge choisi, mêmes teintes que les étiquettes de rôle du reste du site */
+.ph-role-opt-flambeur span { background-image: linear-gradient(100deg, #7f1d1d 0%, #ef4444 25%, #ffe08a 50%, #ef4444 75%, #7f1d1d 100%); }
+.ph-role-opt-flambeur.on { border-color: #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, 0.35); }
+.ph-role-opt-co_fondateur span { background-image: linear-gradient(100deg, #3b0764 0%, #a855f7 25%, #f5d0fe 50%, #a855f7 75%, #3b0764 100%); }
+.ph-role-opt-co_fondateur.on { border-color: #a855f7; box-shadow: 0 0 12px rgba(168, 85, 247, 0.35); }
+.ph-role-opt-patron span { background-image: linear-gradient(100deg, #78350f 0%, #eab308 25%, #fef9c3 50%, #eab308 75%, #78350f 100%); }
+.ph-role-opt-patron.on { border-color: #facc15; box-shadow: 0 0 12px rgba(250, 204, 21, 0.4); }
+
+/* ================= APPLI DIRECTION : un peu de couleur sur les textes ================= */
+.ph-screen.admin-page .ph-sect {
+  color: #f3cf62;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+}
+.ph-screen.admin-page .ph-lab { color: #c9a86a; }
+.ph-screen.admin-page .ph-bk-nm { background-image: linear-gradient(100deg, #fef9c3, #f3cf62, #eab308, #f3cf62, #fef9c3); background-size: 300% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+.ph-screen.admin-page .ph-bk-card small { color: #9d8a53; }
+.ph-screen.admin-page .ph-bk-bal { color: #4ade80; }
+.ph-screen.admin-page .ph-btn-action { color: #fde68a; }
 .ph-civil { margin: 12px 0 6px; }
 .ph-wide {
   display: flex;
