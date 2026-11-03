@@ -399,7 +399,7 @@
     }
     function lc2(s) { return String(s || '').toLowerCase().trim(); }
     function adminHtml() {
-      var canGrant = false; try { canGrant = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); } catch (e) { /* ok */ }
+      var canGrant = canSeeAdmin();   // rôle, pseudo, mot de passe : ouvert au Patron et au Co Fondateur
       var h = '<div class="ph-sect">Chercher un joueur</div>' +
         '<input class="ph-in" data-ph="admq" type="text" maxlength="24" placeholder="Tape un pseudo…" autocomplete="off" spellcheck="false">' +
         '<div class="ph-bk-sug" data-ph="admsug"></div>';

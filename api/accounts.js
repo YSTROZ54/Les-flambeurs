@@ -113,7 +113,7 @@ function checkPassword(stored, given) {
 /* ------------------------------------------------------------------------- */
 const isReserved = (name) => String(name || '').trim().startsWith('__');
 const lc = (s) => String(s || '').trim().toLowerCase();
-// Patron (ADMINS) ou Co Fondateur (colonne "role") : peuvent créditer/réinitialiser un solde depuis l'appli Direction, mais pas changer de rôle (set_role reste réservé à ADMINS)
+// Patron (ADMINS) ou Co Fondateur (colonne "role") : toutes les actions de l'appli Direction (solde, rôle, pseudo, mot de passe). Le pouvoir admin "historique" (ADMINS) reste inchangé par ailleurs.
 async function isPrivilegedActor(actor) {
   if (!actor) return false;
   if (ADMINS.includes(actor)) return true;
@@ -362,10 +362,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, adminToken: adminToken(who), secure: secretIsSafe() && adminPasswordIsSafe() });
     }
 
-    // --- changement de mot de passe (soi-même, ou n'importe qui pour le Patron) ---
+    // --- changement de mot de passe (soi-même, ou n'importe qui pour le Patron / Co Fondateur) ---
     if (action === 'set_password') {
       const target = cleanName(body.username);
-      if (!isAdmin && lc(target) !== actor) return res.status(403).json({ ok: false, error: 'Interdit.' });
+      if (!isAdmin && !(await isPrivilegedActor(actor)) && lc(target) !== actor) return res.status(403).json({ ok: false, error: 'Interdit.' });
       if (!validPassword(body.password)) return res.status(400).json({ ok: false, error: 'Le mot de passe doit faire au moins 3 caractères.' });
       const row = await getRow(target);
       if (!row || isReserved(row.username)) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
@@ -450,9 +450,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, luck });
     }
 
-    // --- rôle affiché (badge Patron / Co Fondateur / Flambeur) : seul le Patron peut le changer ---
+    // --- rôle affiché (badge Patron / Co Fondateur / Flambeur) ---
     if (action === 'set_role') {
-      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      if (!isAdmin && !(await isPrivilegedActor(actor))) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
       const target = cleanName(body.username);
       const role = typeof body.role === 'string' ? body.role.trim().toLowerCase() : '';
       if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
@@ -463,9 +463,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, role });
     }
 
-    // --- renommer le compte d'un joueur (Patron uniquement, gratuit, appli Direction) ---
+    // --- renommer le compte d'un joueur (Patron / Co Fondateur, gratuit, appli Direction) ---
     if (action === 'admin_rename') {
-      if (!isAdmin) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      if (!isAdmin && !(await isPrivilegedActor(actor))) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
       const target = cleanName(body.username);
       const newName = cleanName(body.newName);
       if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
