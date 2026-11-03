@@ -242,6 +242,29 @@
       x.fillStyle = '#ffb066'; x.font = '700 28px ' + MONO; x.fillText('Présentation Premium · tropistream.fr', 640, 678, 1180);
       posterTex.needsUpdate = true;
     }
+    // écran de chargement : pendant que le flux extrait par Tropi Stream se met en mémoire tampon (ça peut prendre quelques secondes),
+    // tout le monde voit ce rond qui tourne plutôt qu'un écran figé ou noir
+    function paintLoading(angle) {
+      var x = posterC.getContext('2d');
+      x.fillStyle = '#0c0508'; x.fillRect(0, 0, 1280, 720);
+      if (posterImg) { x.globalAlpha = 0.3; x.drawImage(posterImg, 0, 0, 1280, 720); x.globalAlpha = 1; }
+      x.fillStyle = 'rgba(6,2,4,0.55)'; x.fillRect(0, 0, 1280, 720);
+      x.save(); x.translate(640, 300); x.rotate(angle);
+      x.strokeStyle = '#ff7a1a'; x.lineWidth = 12; x.lineCap = 'round';
+      x.beginPath(); x.arc(0, 0, 66, 0, Math.PI * 1.3); x.stroke();
+      x.restore();
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff3e0';
+      x.font = '800 46px ' + SERIF; x.fillText('CHARGEMENT DU FLUX…', 640, 430, 1180);
+      x.fillStyle = '#ffb066'; x.font = '700 24px ' + MONO; x.fillText('Tropi Stream prépare la lecture, ça peut prendre quelques secondes', 640, 478, 1180);
+      posterTex.needsUpdate = true;
+    }
+    var loadingActive = false, loadingAngle = 0, loadingPaintT = 0;
+    function setLoading(on) {
+      on = !!on;
+      if (on === loadingActive) return;
+      loadingActive = on;
+      if (on) { loadingPaintT = 0; paintLoading(loadingAngle); showVideo(false); }
+    }
     var posterLabel = 'LANCER LA SÉANCE';
     paintPoster(posterLabel);
     var img = new Image();
@@ -479,6 +502,9 @@
     }
     video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
     video.addEventListener('ended', function () { if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); });   // le Patron/Co Fondateur coupe la séance pour tout le monde
+    // écran de chargement tant que le flux met en mémoire tampon (extraction Tropi Stream + démarrage du flux, parfois plusieurs secondes)
+    video.addEventListener('waiting', function () { if (net.status === 'playing') setLoading(true); });
+    video.addEventListener('playing', function () { if (net.status === 'playing') { setLoading(false); showVideo(true); } });
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
     var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false };
     function ensureVideoAudio() {
@@ -527,11 +553,14 @@
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
-        showVideo(true);
         ensureVideoAudio();
         if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
+        var ready = video.readyState >= 3;   // HAVE_FUTURE_DATA : assez de données pour lire sans à-coup tout de suite
+        setLoading(!ready);
+        if (ready) showVideo(true);
         var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis : la lecture reprendra au prochain geste de l'utilisateur */ });
       } else {
+        setLoading(false);
         if (!video.paused) video.pause();
         if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
         else {
@@ -1044,6 +1073,10 @@
     room.update = function (dt, w) {
       clock += dt;
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
+      if (loadingActive) {   // rond qui tourne tant que le flux met en mémoire tampon
+        loadingAngle += dt * 4; loadingPaintT += dt;
+        if (loadingPaintT > 0.08) { loadingPaintT = 0; paintLoading(loadingAngle); }
+      }
       var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film

@@ -135,17 +135,22 @@
     // affiches des films chargées depuis la playlist / la programmation, logo Tropi Stream en en-tête
     function fmtHeureBoard(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
     function fmtJourBoard(d) { var n = new Date(); return d.toDateString() === n.toDateString() ? 'Aujourd\'hui' : (('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2)); }
-    // petit cache d'images (logo + affiches) : on redessine dès qu'une image arrive, les suivantes sont déjà prêtes
+    // petit cache d'images (logo + affiches) : on redessine dès qu'une image arrive, les suivantes sont déjà prêtes.
+    // Les affiches TMDB (image.tmdb.org) n'envoient aucun en-tête CORS : chargées telles quelles, elles « taintent » le
+    // canvas (plus utilisable comme texture) ; on les fait donc transiter par notre propre relais (api/poster.js), qui
+    // les sert depuis notre domaine — même origine, donc aucun souci de CORS.
+    var TMDB_RE = /^https?:\/\/image\.tmdb\.org\//i;
+    function boardSrc(url) { return TMDB_RE.test(url) ? ('/api/poster?u=' + encodeURIComponent(url)) : url; }
     var boardImg = {};
     function getImg(url) {
       if (!url) return null;
       var im = boardImg[url];
       if (im === 'error') return null;
       if (im) return im.complete && im.naturalWidth ? im : null;
-      im = boardImg[url] = new Image(); im.crossOrigin = 'anonymous';
+      im = boardImg[url] = new Image();
       im.onload = function () { if (lastCinSt !== undefined) paintCinemaBoard(lastCinSt); };
       im.onerror = function () { boardImg[url] = 'error'; };
-      im.src = url;
+      im.src = boardSrc(url);
       return null;
     }
     function poster(img, x, y, w, h) {   // affiche avec coins arrondis + liteau doré ; un rectangle sombre tant qu'elle n'est pas chargée
