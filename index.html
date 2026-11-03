@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.7">
+  <link rel="stylesheet" href="css/style.css?v=5.8">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -31,7 +31,7 @@
   <script src="js/3d/creation3d.js?v=1.0"></script>
   <script src="js/3d/hand3d.js?v=1.8"></script>
   <script src="js/3d/audio3d.js?v=2.0"></script>
-  <script src="js/3d/hud3d.js?v=5.1"></script>
+  <script src="js/3d/hud3d.js?v=5.2"></script>
   <script src="js/3d/portes3d.js?v=2.7"></script>
   <script src="js/3d/world3d.js?v=5.3"></script>
   <script src="js/3d/hall3d.js?v=4.6"></script>
@@ -44,7 +44,7 @@
   <script src="js/3d/loupgarou3d.js?v=2.6"></script>
   <script src="js/3d/cups3d.js?v=2.5"></script>
   <script src="js/3d/crash3d.js?v=2.6"></script>
-  <script src="js/3d/blindtest3d.js?v=2.2"></script>
+  <script src="js/3d/blindtest3d.js?v=2.3"></script>
   <script src="js/3d/minijeux-regles.js?v=1.2"></script>
   <script src="js/3d/uno3d.js?v=4.3"></script>
   <script src="js/3d/ludo3d.js?v=1.4"></script>
@@ -1920,18 +1920,19 @@
                     class="fa-solid fa-circle text-rose-500"></i> Difficile</button>
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <label class="text-[11px] uppercase tracking-wider text-stone-400" for="btRounds">Nombre d'images / chansons</label>
-              <select id="btRounds" onchange="btSetCfg('rounds', this.value)"
-                class="bg-black/60 border border-white/15 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:border-fuchsia-400">
-                <option>15</option>
-                <option>16</option>
-                <option>17</option>
-                <option>18</option>
-                <option>19</option>
-                <option>20</option>
-              </select>
-              <span id="btAvail" class="text-xs text-stone-300"></span>
+            <div>
+              <div class="text-[11px] uppercase tracking-wider text-stone-400 mb-1.5">Nombre d'images / chansons</div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="grid grid-cols-6 gap-2 flex-1" id="btRoundsBtns">
+                  <button type="button" data-v="15" onclick="btSetCfg('rounds','15')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">15</button>
+                  <button type="button" data-v="16" onclick="btSetCfg('rounds','16')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">16</button>
+                  <button type="button" data-v="17" onclick="btSetCfg('rounds','17')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">17</button>
+                  <button type="button" data-v="18" onclick="btSetCfg('rounds','18')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">18</button>
+                  <button type="button" data-v="19" onclick="btSetCfg('rounds','19')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">19</button>
+                  <button type="button" data-v="20" onclick="btSetCfg('rounds','20')" class="bt-opt rounded-xl border px-2 py-2 text-xs font-bold transition">20</button>
+                </div>
+                <span id="btAvail" class="text-xs text-stone-300"></span>
+              </div>
             </div>
             <div id="btConfigNote" class="text-[11px] text-stone-400"></div>
           </div>
@@ -1975,6 +1976,10 @@
               <img id="btImage" class="w-full h-full object-contain hidden" alt="Affiche à deviner" draggable="false"
                 oncontextmenu="return false">
               <audio id="btAudio" preload="auto"></audio>
+              <div id="btMusicHidden" class="hidden flex flex-col items-center justify-center gap-3 text-center px-6">
+                <div class="text-7xl animate-pulse">🎵</div>
+                <div class="text-sm font-bold text-fuchsia-200">Devine à l'oreille…</div>
+              </div>
               <div id="btMusicNote" class="hidden absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/70 border border-fuchsia-400/50 text-xs font-bold text-fuchsia-200 flex items-center gap-1.5">
                 <span class="bt-eq"><i></i><i></i><i></i></span> En écoute…
               </div>
@@ -10390,8 +10395,7 @@
         b.className = 'bt-opt ' + (b.className.includes('text-left') ? 'text-left rounded-xl border px-3 py-2.5 transition ' : 'rounded-xl border px-2 py-2 text-xs font-bold transition ') + (b.dataset.v === String(val) ? BT_ON : BT_OFF) + (host ? '' : ' opacity-70 cursor-default');
         b.disabled = !host;
       });
-      mark('btModeBtns', st.cfg.mode); mark('btCatBtns', st.cfg.cat); mark('btDiffBtns', st.cfg.diff);
-      const sel = btEl('btRounds'); sel.value = String(st.cfg.rounds); sel.disabled = !host;
+      mark('btModeBtns', st.cfg.mode); mark('btCatBtns', st.cfg.cat); mark('btDiffBtns', st.cfg.diff); mark('btRoundsBtns', st.cfg.rounds);
       const n = Math.min(st.cfg.rounds, st.available);
       btEl('btAvail').innerHTML = st.available < 5
         ? '<span class="text-rose-300">⚠️ Seulement ' + st.available + ' titre(s) avec ces réglages : élargis le type ou la difficulté.</span>'
@@ -10429,14 +10433,17 @@
       btEl('btModeLabel').textContent = (first ? '⚡ Le premier gagne' : '👥 Tous répondent');
       btEl('btRewardLabel').textContent = st.reward ? (st.music ? '💰 20 🪙 par titre ou artiste trouvé (40 si les deux)' : '💰 ' + st.reward + ' 🪙 par image trouvée') : '🧪 Entraînement (sans gains)';
       // image (ou pochette d'album) de la manche (le serveur ne la donne qu'au bon moment) + préchargement de la suivante
-      const img = btEl('btImage');
-      if (st.img) { if (BT.imgSrc !== st.img) { BT.imgSrc = st.img; img.src = st.img; } img.classList.remove('hidden'); }
+      // en musique, la pochette donnerait la réponse d'un coup d'œil : cachée tant qu'on devine, révélée à la correction
+      const hideArt = st.music && st.phase === 'question';
+      const img = btEl('btImage'), musicHidden = btEl('btMusicHidden');
+      if (st.img) { if (BT.imgSrc !== st.img) { BT.imgSrc = st.img; img.src = st.img; } img.classList.toggle('hidden', hideArt); }
       else { img.classList.add('hidden'); BT.imgSrc = ''; }
+      musicHidden.classList.toggle('hidden', !hideArt);
       if (st.nextImg && BT.preload !== st.nextImg) { BT.preload = st.nextImg; const pre = new Image(); pre.src = st.nextImg; }
-      // extrait audio : ne joue que pendant la question ; s'arrête à la révélation/au décompte
+      // extrait audio : ne joue que pendant la question ; s'arrête à la révélation/au décompte ; volume modéré (0,45)
       if (st.music && st.phase === 'question' && st.aud) {
         if (BT.audSrc !== st.aud) {
-          BT.audSrc = st.aud; const a = btEl('btAudio'); a.src = st.aud; a.currentTime = 0;
+          BT.audSrc = st.aud; const a = btEl('btAudio'); a.src = st.aud; a.currentTime = 0; a.volume = 0.45;
           const p = a.play(); if (p && p.catch) p.catch(() => { btEl('btAudioPlay').classList.remove('hidden'); });
         }
         btEl('btMusicNote').classList.remove('hidden');

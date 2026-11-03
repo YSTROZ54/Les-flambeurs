@@ -2680,6 +2680,7 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-crow.me .ph-cav { border-color: rgba(254, 243, 199, 0.7); }
 
 /* ── Appli Amis : liste des amis, puis le fil de DM avec celui qu'on a choisi ── */
+.ph-friend-add { margin-bottom: 10px; }
 .ph-dmlist { display: flex; flex-direction: column; gap: 6px; }
 .ph-dmrow {
   display: flex;

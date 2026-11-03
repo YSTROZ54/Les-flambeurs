@@ -141,6 +141,8 @@
       if (audioSrc === s.aud) return;
       if (!audioEl) { audioEl = new Audio(); audioEl.preload = 'auto'; }
       audioSrc = s.aud; audioBlocked = false; audioEl.src = s.aud; audioEl.currentTime = 0;
+      var mv = 1; try { mv = typeof getMasterVolume === 'function' ? getMasterVolume() : 1; } catch (e) { /* ok */ }
+      audioEl.volume = Math.max(0, Math.min(1, 0.55 * mv));
       var p = audioEl.play();
       if (p && p.catch) p.catch(function () { audioBlocked = true; shownKey = ''; refreshUi(); });
     }
@@ -192,10 +194,16 @@
       if (s.phase === 'countdown') { title('PRÉPAREZ-VOUS…', 180, 70, '#ffd9ff'); title(String(Math.max(1, Math.ceil(left / 1000))), 360, 220, '#ffe08a'); return; }
       // image de la manche à gauche, chrono et scores à droite
       c.fillStyle = '#000'; c.fillRect(16, 16, 700, 470);
-      var img = s.img ? loadImg(s.img) : null;
-      if (img) { var k2 = Math.min(692 / img.width, 462 / img.height), iw = img.width * k2, ih = img.height * k2; c.drawImage(img, 16 + (700 - iw) / 2, 16 + (470 - ih) / 2, iw, ih); }
-      else { c.fillStyle = '#7d6a90'; c.font = '800 32px ' + SERIF; c.fillText('Chargement de l\'image…', 366, 250); }
-      if (s.music && s.phase === 'question') { c.fillStyle = 'rgba(10,6,16,0.75)'; c.fillRect(16, 16, 160, 48); c.fillStyle = '#ffd9ff'; c.font = '800 24px ' + SERIF; c.textAlign = 'left'; c.fillText('🎵 En écoute…', 30, 40); c.textAlign = 'center'; }
+      var hideArt = s.music && s.phase === 'question';   // la pochette donnerait la réponse d'un coup d'œil : cachée tant qu'on devine, révélée seulement à la correction
+      if (hideArt) {
+        var pulse = 0.5 + 0.5 * Math.sin(nowS() / 260);
+        c.fillStyle = '#ffd9ff'; c.globalAlpha = 0.35 + 0.35 * pulse; c.font = '900 150px ' + SERIF; c.fillText('🎵', 366, 220); c.globalAlpha = 1;
+        c.fillStyle = '#c9a8e0'; c.font = '800 28px ' + SERIF; c.fillText('Devine à l\'oreille…', 366, 340, 640);
+      } else {
+        var img = s.img ? loadImg(s.img) : null;
+        if (img) { var k2 = Math.min(692 / img.width, 462 / img.height), iw = img.width * k2, ih = img.height * k2; c.drawImage(img, 16 + (700 - iw) / 2, 16 + (470 - ih) / 2, iw, ih); }
+        else { c.fillStyle = '#7d6a90'; c.font = '800 32px ' + SERIF; c.fillText('Chargement de l\'image…', 366, 250); }
+      }
       c.fillStyle = '#ffd9ff'; c.font = '800 32px ' + SERIF; c.fillText((s.music ? 'Chanson ' : 'Image ') + s.round + '/' + s.total + (s.cfg.mode === 'first' && !s.music ? '  ⚡ le premier gagne' : s.music ? '  🎤 titre + artiste' : '  👥 tous répondent'), 366, 524, 700);
       if (s.phase === 'question') { var sec = Math.ceil(left / 1000); c.fillStyle = sec <= 5 ? '#ff6b6b' : '#fff'; c.font = '900 110px ' + MONO; c.fillText(String(sec), 868, 90); }
       else { c.fillStyle = '#7ee0a0'; c.font = '900 40px ' + SERIF; c.fillText('Réponse', 868, 60); }
@@ -240,7 +248,7 @@
           body.innerHTML = '<div class="bt-row">' + s.players.map(function (p) { return '<span>' + esc(p.avatar) + ' <b>' + esc(p.name) + '</b>' + (p.host ? ' 👑' : '') + '</span>'; }).join(' · ') + ' (' + s.players.length + '/' + s.max + ')</div>' +
             optRow('mode', [['all', '👥 Tous répondent'], ['first', '⚡ Le premier gagne']], s.cfg.mode, host) + optRow('cat', BTN, s.cfg.cat, host) +
             optRow('diff', [['all', '🎲 Tout'], ['f', '🟢 Facile'], ['m', '🟠 Moyen'], ['d', '🔴 Difficile']], s.cfg.diff, host) +
-            '<div class="bt-row">Images : <select id="bt-rounds"' + (host ? '' : ' disabled') + '>' + [15, 16, 17, 18, 19, 20].map(function (n) { return '<option' + (n === s.cfg.rounds ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
+            '<div class="bt-row" style="font-size:12px;opacity:.85">Images / chansons</div>' + optRow('rounds', [15, 16, 17, 18, 19, 20].map(function (n) { return [String(n), String(n)]; }), String(s.cfg.rounds), host) +
             '<div class="bt-row" style="font-size:12px">' + (s.players.length >= s.rewardMinPlayers ? '💰 20 🪙 par image trouvée' : '🧪 Seul : entraînement, il faut 2 joueurs pour gagner des pièces') + ' · ' + s.available + ' titres</div>' +
             (host ? '<button class="bt-b" data-a="start"' + (s.available < 5 ? ' disabled' : '') + '>Lancer la partie</button>' : '<div class="bt-row">En attente du chef (' + esc(s.hostName) + ')…</div>');
           if (newRound) setMsg(host ? 'Tu es le chef : règle la partie puis lance-la.' : '');
@@ -282,7 +290,6 @@
         if (b.dataset.a === 'again') api({ action: 'again' }).then(function (r) { if (r && r.ok === false) setMsg(r.error, '#ff8a80'); });
         if (b.dataset.a === 'playaudio') { audioBlocked = false; shownKey = ''; if (audioEl) { var p = audioEl.play(); if (p && p.catch) p.catch(function () { audioBlocked = true; }); } refreshUi(); }
       });
-      el.addEventListener('change', function (e) { if (e.target.id === 'bt-rounds') api({ action: 'config', rounds: e.target.value }); });
       el.addEventListener('submit', function (e) {
         e.preventDefault(); var inp = el.querySelector('#bt-in'); if (!inp || busy) return; var text = (inp.value || '').trim(); if (!text) return;
         busy = true;

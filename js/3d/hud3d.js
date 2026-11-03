@@ -267,14 +267,27 @@
           '<div class="ph-cp"><div class="ph-cp-list" data-ph="dmlist"></div>' +
           '<form class="ph-cp-form" data-ph="dmform"><input data-ph="dmin" maxlength="200" placeholder="Écrire à ' + esc(dmWith) + '…" autocomplete="off" spellcheck="false"><button type="submit" title="Envoyer">' + fa('fa-paper-plane') + '</button></form></div>';
       }
-      if (!friends.length) return '<div class="ph-cp-empty">Tu n\'as pas encore d\'amis. Ajoute-en depuis le profil d\'un joueur, dans le monde.</div>';
-      return '<div class="ph-dmlist">' + friends.map(function (fn) {
+      // barre « demander en ami » : envoie une vraie demande (sendFriendRequest, dans la page), acceptée ou refusée
+      // par l'autre joueur — on ne force rien, pas d'ajout direct.
+      var addBar = '<form class="ph-cp-form ph-friend-add" data-ph="friendaddform">' +
+        '<input data-ph="friendaddin" type="text" maxlength="20" placeholder="Pseudo à ajouter en ami…" autocomplete="off" spellcheck="false">' +
+        '<button type="submit" title="Envoyer une demande d\'ami">' + fa('fa-user-plus') + '</button></form>';
+      if (!friends.length) return addBar + '<div class="ph-cp-empty">Tu n\'as pas encore d\'amis. Ajoute-en avec la barre ci-dessus !</div>';
+      return addBar + '<div class="ph-dmlist">' + friends.map(function (fn) {
         var k = dmKey(fn), unread = !!dmUnread[k];
         return '<button class="ph-dmrow' + (unread ? ' unread' : '') + '" data-dm="' + esc(fn) + '">' +
           '<span class="ph-cav" style="background:' + avBg(fn) + '">' + cleanAv(F.presence && F.presence.avatarOf(k), fn) + '</span>' +
           '<span class="ph-dmname">' + esc(fn) + '</span>' + (unread ? '<span class="ph-dmdot"></span>' : '') +
           '<i class="fa-solid fa-chevron-right"></i></button>';
       }).join('') + '</div>';
+    }
+    // envoie la demande depuis le téléphone : réutilise sendFriendRequest() de la page (mêmes vérifications,
+    // mêmes toasts) — la liste d'amis elle-même ne change qu'une fois la demande acceptée par l'autre joueur.
+    function phoneAddFriend(inp) {
+      var name = (inp && inp.value || '').trim();
+      if (!name) { try { showToast('❌ Entre le pseudo d\'un joueur.'); } catch (e) { /* ok */ } return; }
+      try { if (typeof sendFriendRequest === 'function') sendFriendRequest(name); } catch (e) { /* ok */ }
+      if (inp) inp.value = '';
     }
     function bankHtml() {
       var s = st(), me = s && s.username || '', bal = s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0';
@@ -989,6 +1002,7 @@
       var f = ev.target, ph = f && f.getAttribute('data-ph');
       if (ph === 'cpform') { ev.preventDefault(); var inp = f.querySelector('input'); if (inp && sendText(inp.value)) inp.value = ''; }
       else if (ph === 'dmform') { ev.preventDefault(); var inp2 = f.querySelector('input'); if (inp2 && dmWith && sendDm(dmWith, inp2.value)) inp2.value = ''; }
+      else if (ph === 'friendaddform') { ev.preventDefault(); phoneAddFriend(f.querySelector('input')); }
     });
     root.addEventListener('input', function (ev) {
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-ph') === 'cpin') typingNotify(ev.target.value.trim().length > 0);
