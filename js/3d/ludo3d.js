@@ -4,9 +4,10 @@
    On y entre par l'ouverture à droite de la Chambre Forte, au fond de la salle des mini jeux (uno3d.js), et on en ressort par l'ouverture
    derrière soi. Deux tables (Table 1 et 2) de 2 à 4 joueurs, un joueur par côté du plateau : rouge à gauche, vert en haut, jaune à droite, bleu en
    bas. Le premier arrivé est le chef : il lance la partie. AUCUN argent n'est misé ni gagné.
-   Les règles (api/ludo.js) : un 6 pour sortir un pion (3 essais si aucun pion n'est en jeu), un 6 fait rejouer (trois 6 d'affilée : le tour est
+   Les règles (api/ludo.js) : un 6 ou un 1 pour sortir un pion (3 essais si aucun pion n'est en jeu ; pas de sortie si un de nos pions est déjà sur la case de départ ;
+   en sortant on mange l'adversaire qui s'y trouve), un 6 ou une capture font rejouer (trois 6 d'affilée : le tour est
    perdu), nombre EXACT pour arriver à la maison, on renvoie un adversaire à l'écurie en tombant sur lui (sauf sur les cases de départ et les
-   étoiles), le premier qui rentre ses 4 pions gagne. Le serveur tire le dé et valide les coups ; ici on affiche le plateau, les pions qui sautent
+   étoiles), la partie continue quand quelqu'un finit : elle s'arrête quand tous sauf un ont rentré leurs 4 pions. Le serveur tire le dé et valide les coups ; ici on affiche le plateau, les pions qui sautent
    case par case, le dé qui roule, et on envoie « lancer » ou « jouer ce pion ».
    Fichiers liés : f3d-core.js, world3d.js, uno3d.js (l'ouverture d'entrée), api/ludo.js (serveur).
    ===================================================================== */
@@ -281,17 +282,17 @@
     function refreshUi() {
       if (!ui || !seat || !S) return;
       var s = S, y = s.you || {}, el = ui.el, body = el.querySelector('.ld-body'), host = !!y.host;
-      var key = JSON.stringify([s.status, s.phase, s.turn, s.dice, s.players.map(function (p) { return [p.name, p.color, p.left, p.host]; }), s.pawns, y.canRoll, y.canMove, y.legal, s.winner, s.log.length, flash, host, rollReady()]);
+      var key = JSON.stringify([s.status, s.phase, s.turn, s.dice, s.done, s.players.map(function (p) { return [p.name, p.color, p.left, p.host]; }), s.pawns, y.canRoll, y.canMove, y.legal, s.winner, s.log.length, flash, host, rollReady()]);
       if (key !== shownKey) {
         shownKey = key;
         var h = '', colsHome = function (c) { return s.pawns[c].filter(function (p) { return p === HOME; }).length; };
-        h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
+        h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + ((s.done || []).indexOf(p.color) >= 0 ? ' ✅ ' + ((s.done.indexOf(p.color)) + 1) + 'e' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
         if (s.status === 'lobby') {
-          h += '<div class="ld-note">' + s.players.length + ' joueur' + (s.players.length > 1 ? 's' : '') + ' (de 2 à 4). Il faut un 6 pour sortir un pion. Aucun argent n’est en jeu.</div>';
+          h += '<div class="ld-note">' + s.players.length + ' joueur' + (s.players.length > 1 ? 's' : '') + ' (de 2 à 4). Il faut un 6 ou un 1 pour sortir un pion. Aucun argent n’est en jeu.</div>';
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="start"' + (s.players.length >= s.min ? '' : ' disabled') + '>▶ Lancer la partie</button></div>' : '<div class="ld-note">En attente du chef (' + esc(s.hostName) + ')…</div>';
         } else if (s.status === 'finished') {
           var wn = s.players.filter(function (p) { return p.color === s.winner; })[0];
-          h += '<div class="ld-msg" style="color:#ffd98a;font-size:17px">🏆 ' + (wn ? esc(wn.name) : '?') + ' (' + COLORS[s.winner] + ') gagne la partie !</div>';
+          h += '<div class="ld-msg" style="color:#ffd98a;font-size:17px">🏆 ' + (wn ? esc(wn.name) : '?') + ' (' + COLORS[s.winner] + ') gagne la partie !</div><div class="ld-note">' + (s.rank || []).map(function (r, q) { var pp = s.players.filter(function (p) { return p.color === r.c; })[0]; return (q + 1) + '. ' + (pp ? esc(pp.name) : COLORS[r.c]) + ' (' + r.home + '/4)'; }).join(' · ') + '</div>';
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="again">🔁 Rejouer</button></div>' : '<div class="ld-note">En attente du chef…</div>';
         } else {
           var tp = s.players.filter(function (p) { return p.color === s.turn; })[0], mine = y.color === s.turn;

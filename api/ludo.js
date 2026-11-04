@@ -5,13 +5,16 @@
 //
 // RÈGLES (petits chevaux classiques) :
 //  - 4 couleurs, 4 pions chacune ; la couleur est celle de la chaise (0 rouge, 1 vert, 2 jaune, 3 bleu, dans le sens des aiguilles d'une montre).
-//  - Un pion sort de l'écurie sur un 6 et se pose sur la case de départ de sa couleur. Tant qu'on n'a aucun pion en jeu, on a 3 essais par tour.
-//  - Un 6 fait rejouer ; trois 6 d'affilée font perdre le tour (le troisième coup n'est pas joué).
+//  - Un pion sort de l'écurie sur un 6 OU sur un 1 et se pose sur la case de départ de sa couleur. Tant qu'on n'a aucun pion en jeu, on a 3 essais par tour.
+//    Si un de nos pions est déjà sur la case de départ, on ne peut pas en sortir un autre (on joue les pions libres). Un pion qui sort mange l'adversaire
+//    qui se trouve sur notre case de départ.
+//  - Un 6 fait rejouer, et manger un pion fait rejouer aussi ; trois 6 d'affilée font perdre le tour (le troisième coup n'est pas joué).
 //  - On avance d'exactement la valeur du dé. Après un tour complet (51 cases), le pion monte son escalier de 5 cases puis rejoint la case
 //    centrale ; il faut le nombre EXACT pour y arriver (sinon le pion ne peut pas bouger).
 //  - Un pion qui s'arrête sur un adversaire le renvoie à l'écurie, sauf sur une case protégée (les 4 cases de départ et les 4 étoiles).
 //  - Plusieurs pions de la même couleur peuvent partager une case.
-//  - Le premier qui rentre ses 4 pions gagne la partie.
+//  - Un joueur qui a rentré ses 4 pions a fini : la partie continue pour les autres, et s'arrête quand tous sauf un ont fini
+//    (2 joueurs : 1 a fini ; 3 joueurs : 2 ont fini ; 4 joueurs : 3 ont fini). Le premier à finir est le gagnant.
 import { randomInt, randomBytes } from 'node:crypto';
 import { actorOf } from './_auth.js';
 import { getRow, getRowExact, putRow, updateAccount, GameError } from './_store.js';
@@ -41,7 +44,7 @@ function freshState(code, now) {
     code, id: randomBytes(6).toString('hex'), status: 'lobby', host: '', created: now, updatedAt: now,
     players: {},                                   // clé = pseudo en minuscules : { name, avatar, color, joinedAt, seen, left }
     pawns: [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]],   // -1 écurie, 0..55 en jeu, 56 arrivé
-    turn: -1, phase: '', phaseStart: 0, phaseEnd: 0, dice: 0, rollAt: 0, sixes: 0, tries: 0, legal: [], last: null, winner: -1, rank: [], log: [], moves: 0
+    turn: -1, phase: '', phaseStart: 0, phaseEnd: 0, dice: 0, rollAt: 0, sixes: 0, tries: 0, legal: [], last: null, winner: -1, rank: [], done: [], log: [], moves: 0
   };
 }
 function resetTable(st, now) { Object.assign(st, freshState(st.code, now)); }
@@ -60,12 +63,16 @@ function pickHost(st) {
 // case de la boucle (0..51) d'un pion de progression p (0..50), sinon -1
 export const loopIndex = (c, p) => (p >= 0 && p <= 50 ? (START[c] + p) % 52 : -1);
 
+// un pion peut sortir de l'écurie avec un 6 ou un 1, si la case de départ n'est pas déjà prise par un de nos pions
+export const exitDice = (dice) => dice === 6 || dice === 1;
+export const canExit = (st, c, dice) => exitDice(dice) && !st.pawns[c].some((p) => p === 0);
+
 // coups possibles pour la couleur c avec ce dé : liste de numéros de pions
 export function legalMoves(st, c, dice) {
   const out = [];
   st.pawns[c].forEach((p, i) => {
     if (p === HOME) return;
-    if (p === -1) { if (dice === 6) out.push(i); return; }
+    if (p === -1) { if (canExit(st, c, dice)) out.push(i); return; }
     if (p + dice <= HOME) out.push(i);
   });
   return out;
@@ -78,7 +85,7 @@ function applyMove(st, c, i, dice) {
   st.pawns[c][i] = to;
   const captured = [];
   const idx = loopIndex(c, to);
-  if (idx >= 0 && !SAFE.includes(idx)) {
+  if (idx >= 0 && (!SAFE.includes(idx) || from === -1)) {      // en sortant, on mange celui qui est sur notre case de départ (même protégée)
     for (let o = 0; o < 4; o++) {
       if (o === c) continue;
       st.pawns[o].forEach((q, j) => { if (q >= 0 && q <= 50 && loopIndex(o, q) === idx) { st.pawns[o][j] = -1; captured.push({ c: o, i: j }); } });
@@ -94,6 +101,7 @@ function botChoice(st, c, legal, dice) {
     const p = st.pawns[c][i], to = p === -1 ? 0 : p + dice, idx = loopIndex(c, to);
     let s = to;
     if (to === HOME) s += 1000;
+    else if (p === -1 && [0, 1, 2, 3].some((o) => o !== c && st.pawns[o].some((q) => q === (START[c] - START[o] + 52) % 52))) s += 500;
     else if (idx >= 0 && !SAFE.includes(idx) && [0, 1, 2, 3].some((o) => o !== c && st.pawns[o].some((q) => q >= 0 && q <= 50 && loopIndex(o, q) === idx))) s += 500;
     else if (p === -1) s += 300;
     else if (idx >= 0 && SAFE.includes(idx)) s += 100;
@@ -103,7 +111,7 @@ function botChoice(st, c, legal, dice) {
 }
 
 function nextTurnColor(st, from) {
-  const cs = colorsInGame(st);
+  const cs = colorsInGame(st).filter((c) => !(st.done || []).includes(c));      // ceux qui ont fini ne jouent plus
   for (let k = 1; k <= 4; k++) { const c = (from + k) % 4; if (cs.includes(c)) return c; }
   return from;
 }
@@ -112,16 +120,17 @@ function startTurn(st, c, at) { st.turn = c; st.sixes = 0; st.tries = 0; st.lega
 
 function startGame(st, now) {
   st.pawns = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]];
-  st.status = 'playing'; st.winner = -1; st.rank = []; st.last = null; st.log = []; st.moves = 0; st.id = randomBytes(6).toString('hex');
+  st.status = 'playing'; st.winner = -1; st.rank = []; st.done = []; st.last = null; st.log = []; st.moves = 0; st.id = randomBytes(6).toString('hex');
   const cs = colorsInGame(st);
   startTurn(st, cs[randomInt(0, cs.length)], now);
-  say(st, 'La partie commence ! Il faut un 6 pour sortir un pion.');
+  say(st, 'La partie commence ! Il faut un 6 ou un 1 pour sortir un pion.');
 }
 
 function finishGame(st, c, at) {
   st.status = 'finished'; st.winner = c; st.phase = ''; st.phaseEnd = 0;
-  st.rank = colorsInGame(st).map((o) => ({ c: o, home: st.pawns[o].filter((p) => p === HOME).length })).sort((a, b) => b.home - a.home);
-  say(st, (st.players[colorKey(st, c)] || {}).name + ' (' + COLORS[c] + ') a rentré ses 4 pions : victoire !');
+  const done = st.done || [], homeOf = (o) => st.pawns[o].filter((p) => p === HOME).length;
+  st.rank = done.map((o) => ({ c: o, home: 4 })).concat(colorsInGame(st).filter((o) => !done.includes(o)).map((o) => ({ c: o, home: homeOf(o) })).sort((a, b) => b.home - a.home));
+  say(st, (st.players[colorKey(st, c)] || {}).name + ' (' + COLORS[c] + ') gagne la partie !');
 }
 
 // lance le dé pour la couleur dont c'est le tour
@@ -134,9 +143,9 @@ function doRoll(st, at) {
   const legal = legalMoves(st, c, dice);
   if (!legal.length) {
     const onBoard = st.pawns[c].some((p) => p >= 0 && p < HOME);
-    if (!onBoard && st.pawns[c].some((p) => p === -1) && dice !== 6) {     // aucun pion en jeu : trois essais pour sortir un 6
+    if (!onBoard && st.pawns[c].some((p) => p === -1) && !exitDice(dice)) {     // aucun pion en jeu : trois essais pour sortir un 6 ou un 1
       st.tries += 1;
-      if (st.tries < 3) { st.legal = []; setPhase(st, 'roll', at + 1400, ROLL_MS); say(st, nm + ' n\'a pas de 6 (essai ' + st.tries + '/3).'); return; }
+      if (st.tries < 3) { st.legal = []; setPhase(st, 'roll', at + 1400, ROLL_MS); say(st, nm + ' n\'a ni 6 ni 1 (essai ' + st.tries + '/3).'); return; }
     }
     say(st, nm + ' fait ' + dice + ' : aucun pion ne peut jouer.');
     startTurn(st, nextTurnColor(st, c), at + 1400); return;
@@ -153,9 +162,14 @@ function doMove(st, i, at) {
   const nm = (st.players[colorKey(st, c)] || {}).name || COLORS[c];
   if (r.to === HOME) say(st, nm + ' rentre un pion à la maison !');
   r.captured.forEach((k) => say(st, nm + ' renvoie un pion ' + COLORS[k.c] + ' à l\'écurie !'));
-  if (st.pawns[c].every((p) => p === HOME)) { finishGame(st, c, at); return; }
   st.legal = [];
-  if (dice === 6) { st.dice = 0; setPhase(st, 'roll', at + 900, ROLL_MS); st.tries = 0; return; }   // un 6 fait rejouer (st.sixes reste compté)
+  if (st.pawns[c].every((p) => p === HOME)) {                                   // ce joueur a fini : il ne joue plus, les autres continuent
+    if (!st.done) st.done = [];
+    st.done.push(c); say(st, nm + ' a rentré ses 4 pions : ' + (st.done.length === 1 ? '1er' : st.done.length + 'e') + ' !');
+    if (st.done.length >= colorsInGame(st).length - 1) { finishGame(st, st.done[0], at); return; }
+    startTurn(st, nextTurnColor(st, c), at + 900); return;
+  }
+  if (dice === 6 || r.captured.length) { st.dice = 0; setPhase(st, 'roll', at + 900, ROLL_MS); st.tries = 0; return; }   // un 6 ou une capture fait rejouer (st.sixes reste compté)
   startTurn(st, nextTurnColor(st, c), at + 900);
 }
 
@@ -195,7 +209,7 @@ export function publicState(st, now, actor) {
   const out = {
     code: st.code, name: 'Table ' + st.code, id: st.id, status: st.status, serverNow: now, min: MIN_PLAYERS, colors: COLORS,
     host: st.host, hostName: st.players[st.host] ? st.players[st.host].name : '', turn: st.turn, phase: st.phase, phaseStart: st.phaseStart, phaseEnd: st.phaseEnd,
-    dice: st.dice, rollAt: st.rollAt, pawns: st.pawns, last: st.last, winner: st.winner, rank: st.rank, log: st.log.slice(-8), moves: st.moves, updatedAt: st.updatedAt,
+    dice: st.dice, rollAt: st.rollAt, pawns: st.pawns, last: st.last, winner: st.winner, rank: st.rank, done: st.done || [], log: st.log.slice(-8), moves: st.moves, updatedAt: st.updatedAt,
     players: Object.keys(st.players).map((k) => { const p = st.players[k]; return { name: p.name, avatar: p.avatar, color: p.color, left: !!p.left, host: k === st.host, me: k === actor }; }).sort((a, b) => a.color - b.color)
   };
   if (me) {
@@ -359,7 +373,7 @@ export default async function handler(req, res) {
         if (st.host !== actor) throw new GameError(403, 'Seul le chef de la table peut relancer.');
         if (st.status !== 'finished') throw new GameError(409, 'La partie n\'est pas terminée.');
         Object.keys(st.players).forEach((k) => { if (st.players[k].left) delete st.players[k]; });
-        Object.assign(st, { status: 'lobby', turn: -1, phase: '', phaseStart: 0, phaseEnd: 0, dice: 0, legal: [], last: null, winner: -1, rank: [], log: [], moves: 0, updatedAt: now });
+        Object.assign(st, { status: 'lobby', turn: -1, phase: '', phaseStart: 0, phaseEnd: 0, dice: 0, legal: [], last: null, winner: -1, rank: [], done: [], log: [], moves: 0, updatedAt: now });
         st.pawns = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]];
       });
       return reply();
@@ -373,4 +387,4 @@ export default async function handler(req, res) {
   }
 }
 
-export const __t = { freshState, startGame, doRoll, doMove, applyMove, legalMoves, botChoice };
+export const __t = { freshState, startGame, doRoll, doMove, applyMove, legalMoves, botChoice, canExit };
