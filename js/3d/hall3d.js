@@ -24,7 +24,7 @@
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
     { x: -HX, z: -5, nx: 1, nz: 0, label: '🥤 GOBELETS', sub: 'TROUVE LA BILLE', color: 0xffe08a, target: 'cups', theme: 'cups' },
-    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · LUDO · LOUP-GAROU · BLIND TEST', color: 0xffd400, target: 'uno', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
+    { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · P4 · LUDO · PMU · COFFRES…', color: 0xffd400, target: 'minijeux', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)
     { x: HX, z: 5, nx: -1, nz: 0, label: '🎬 CINÉMA PREMIUM', sub: 'ÉCRAN GÉANT · FAUTEUILS CLUB', color: 0xffd36a, target: 'cinemapremium', theme: 'cinemapremium' },
     { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },

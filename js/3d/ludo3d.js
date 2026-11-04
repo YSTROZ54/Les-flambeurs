@@ -137,22 +137,13 @@
     var wtex = new THREE.CanvasTexture(wc); wtex.wrapS = wtex.wrapT = THREE.RepeatWrapping; wtex.anisotropy = 8;
     function wall(len, px, pz, ry, hh, py) { var t = wtex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.4, (hh || H) / 2.4); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, hh || H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 })); m.position.set(px, py || H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
-    wall(HX - OG, -(HX + OG) / 2, HZ, Math.PI); wall(HX - OG, (HX + OG) / 2, HZ, Math.PI); wall(OG * 2, 0, HZ, Math.PI, H - OPH, OPH + (H - OPH) / 2);     // mur d'entrée, ouvert au milieu
+    wall(HX * 2, 0, HZ, Math.PI);     // mur de la porte de sortie
     [[HX * 2, 0, -HZ + 0.05, 0], [HZ * 2, -HX + 0.05, 0, Math.PI / 2], [HZ * 2, HX - 0.05, 0, -Math.PI / 2]].forEach(function (d) { var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.1), woodM); m.position.set(d[1], 0.55, d[2]); m.rotation.y = d[3]; g.add(m); box(g, d[3] === 0 ? d[0] : 0.1, 0.07, d[3] === 0 ? 0.1 : d[0], brass, d[3] === 0 ? 0 : (d[3] > 0 ? -HX + 0.05 : HX - 0.05), 1.12, d[3] === 0 ? -HZ + 0.05 : 0); });
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x120a05 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     for (i = -3; i <= 3; i++) box(g, 0.3, 0.3, HZ * 2, woodD, i * 3.4, H - 0.15, 0);
     var sc0 = mkCanvas(1536, 256), sx0 = sc0.getContext('2d'); sx0.textAlign = 'center'; sx0.textBaseline = 'middle'; sx0.shadowColor = '#ffb300'; sx0.shadowBlur = 24; sx0.fillStyle = '#fff1b8'; sx0.font = '900 170px ' + SERIF; sx0.fillText('🎲 LUDO', 768, 120, 1480); sx0.shadowBlur = 0; sx0.fillStyle = '#e0c585'; sx0.font = '700 54px ' + SERIF; sx0.fillText('PETITS CHEVAUX', 768, 220, 1480);
     var banner = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.17), new THREE.MeshBasicMaterial({ map: mkTex(sc0), transparent: true, depthWrite: false })); banner.position.set(0, 4.7, -HZ + 0.08); g.add(banner);
-    // ouverture d'entrée (derrière soi)
-    [-1, 1].forEach(function (sd) { box(g, 0.3, OPH + 0.1, 0.28, woodM, sd * (OG + 0.15), (OPH + 0.1) / 2, HZ - 0.12); });
-    box(g, OG * 2 + 0.6, 0.3, 0.32, woodM, 0, OPH + 0.1, HZ - 0.14); box(g, OG * 2 + 0.7, 0.05, 0.36, brass, 0, OPH + 0.28, HZ - 0.14);
-    var ec = mkCanvas(1024, 256), ex = ec.getContext('2d'); ex.fillStyle = '#1c1008'; ex.fillRect(0, 0, 1024, 256); ex.strokeStyle = '#d9a830'; ex.lineWidth = 10; ex.strokeRect(6, 6, 1012, 244); ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillStyle = '#fff1b8'; ex.font = '800 92px ' + SERIF; ex.fillText('🎮 MINI JEUX', 512, 100, 960); ex.fillStyle = '#d9c88f'; ex.font = '600 44px ' + MONO; ex.fillText('RETOUR · UNO · PUISSANCE 4', 512, 190, 960);
-    box(g, 2.7, 0.76, 0.08, woodD, 0, OPH + 0.62, HZ - 0.36);
-    var es = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: mkTex(ec), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); es.position.set(0, OPH + 0.62, HZ - 0.42); es.rotation.y = Math.PI; g.add(es);
-    var CL = 3.2, cf = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), new THREE.MeshStandardMaterial({ color: 0x5a0f1c, roughness: 0.8 })); cf.rotation.x = -Math.PI / 2; cf.position.set(0, 0.02, HZ + CL / 2); g.add(cf);
-    var cce = new THREE.Mesh(new THREE.PlaneGeometry(OG * 2, CL), woodD); cce.rotation.x = Math.PI / 2; cce.position.set(0, OPH, HZ + CL / 2); g.add(cce);
-    [-1, 1].forEach(function (sd) { var cw = new THREE.Mesh(new THREE.PlaneGeometry(CL, OPH), new THREE.MeshStandardMaterial({ color: 0x4a1422, roughness: 0.85 })); cw.rotation.y = -sd * Math.PI / 2; cw.position.set(sd * OG, OPH / 2, HZ + CL / 2); g.add(cw); });
-    box(g, OG * 2, OPH, 0.05, new THREE.MeshBasicMaterial({ color: 0x3a0c18 }), 0, OPH / 2, HZ + CL);
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.2, label: '🎮 MINI JEUX', sub: 'RETOUR', color: 0xffd24a, target: 'minijeux', theme: 'exitUno' });
 
     /* --- les deux tables avec leur plateau, leurs pions, leur dé et leurs quatre chaises --- */
     var boardTex = boardTexture(low ? 2048 : 4096);
@@ -464,7 +455,6 @@
     room.onLeave = function () { stand(); };
     room.update = function (dt) {
       clockT += dt; pollT += dt; listT += dt;
-      if (world.mode === 'room' && !world.trans && world.blend === 0 && world.player.z > HZ - 1.15 && Math.abs(world.player.x) < OG - 0.2) world.goRoom('uno', 'ludo');     // on repasse l'ouverture : retour aux mini jeux
       if (seat && pollT > (S && S.status === 'playing' ? 0.6 : 1)) { pollT = 0; poll(); }
       if (listT > 3) { listT = 0; pollList(); }
       if (flashT > 0) { flashT -= dt; if (flashT <= 0) { flash = ''; shownKey = ''; refreshUi(); } }

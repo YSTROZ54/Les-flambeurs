@@ -355,19 +355,6 @@
 
     /* --- porte de retour vers le hall --- */
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.2, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall', theme: 'exitShop' });
-    // porte du PMU (bureau de tabac, bar, cartes à gratter) : salle pmu3d.js
-    world.addDoor(room, { x: PMU_DOOR_X, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.2, label: 'PMU', sub: 'ESPACE SOCIALE', color: 0xff4a4a, target: 'pmu' });
-
-    // de chaque côté de la porte du PMU : un grand panneau doré éclairé par deux appliques, et un banc de velours
-    [-1, 1].forEach(function (sd) {
-      var px = PMU_DOOR_X + sd * 2.35, pz = -HZ + 0.06;
-      box(g, 1.5, 2.9, 0.06, GOLD(), px, 2.1, pz); box(g, 1.34, 2.74, 0.04, std(0x1a0e14, 0.5, 0.2), px, 2.1, pz + 0.03);
-      box(g, 1.1, 2.5, 0.02, std(0x3a1626, 0.6, 0.1), px, 2.1, pz + 0.055);
-      [0.8, 3.4].forEach(function (y) { box(g, 0.14, 0.14, 0.1, GOLD(), px, y, pz + 0.07); });
-      box(g, 1.3, 0.45, 0.45, std(0x5a1020, 0.8, 0), px, 0.25, pz + 0.3); box(g, 1.4, 0.06, 0.5, GOLD(), px, 0.5, pz + 0.3);
-      room.colliders.push({ x: px, z: pz + 0.3, r: 0.6 });
-    });
-
     /* --- les six stands --- */
     function toWorld(def, lx, lz) {   // repère du stand (x = à droite en regardant le vendeur, z = vers la salle) -> repère du monde
       var th = Math.atan2(def.nx, def.nz);
@@ -553,7 +540,6 @@
       });
     };
     room.spawn = function (from) {
-      if (from === 'pmu') return { x: PMU_DOOR_X, z: -HZ + 3, yaw: F.yawFor(0, 1) };   // on ressort du PMU devant sa porte
       return { x: 0, z: HZ - 3, yaw: 0 };
     };
     room.hint = function (w) {
