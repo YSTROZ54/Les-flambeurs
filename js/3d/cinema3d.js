@@ -1241,7 +1241,7 @@
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
-      var dv = P ? 0.22 + 0.78 * dim : Math.max(dim, 0.16);                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
+      var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
       amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
       lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; });
       wash.intensity = playing ? 0.5 : 0;

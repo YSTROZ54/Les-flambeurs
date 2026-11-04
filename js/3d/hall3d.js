@@ -120,7 +120,7 @@
 
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
-    neon(WALL.entree, -4.5, 4.2, 'assets/bannieres/tropistream.jpg', 4.4, 2.475, 0xff7a1a);
+    neon(WALL.entree, -4.75, 4.2, 'assets/bannieres/tropistream-2.jpg', 4.95, 2.475, 0xff7a1a);   // nouvelle bannière (2 pour 1)
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
     sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
     sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 30; sn.fillStyle = '#ffb066';
@@ -211,13 +211,15 @@
       filmstrip(0); filmstrip(704);
 
       // en-tête : titre du panneau, médaillon Tropi Stream à droite du texte, double filet doré en dessous
-      var logo = getImg('assets/cinema/tropistream-serveur.png'), LX = 150, LY = 86, LR = 46;
-      sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
-      if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
-      sn.restore();
-      sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
+      var logo = getImg('assets/cinema/tropistream-serveur.png'), LY = 86, LR = 46;
+      [150, 1130].forEach(function (LX) {                                      // le logo de chaque côté du titre
+        sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
+        if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
+        sn.restore();
+        sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
+      });
       sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 26; sn.fillStyle = '#ffb066';
-      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 700, 92, 880);
+      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 92, 860);
       sn.shadowBlur = 0;
       sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 146, 1140, 2);
       sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 151, 1140, 1);

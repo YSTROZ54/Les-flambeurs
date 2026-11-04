@@ -118,7 +118,10 @@
       }
       if (th.image) {                                      // logo rond : photo du serveur
         c.save(); c.beginPath(); if (th.square) rr(c, x, y, S, S, 26); else c.arc(x + S / 2, y + S / 2, S / 2, 0, TAU); c.clip(); c.fillStyle = bg; c.fillRect(x, y, S, S);
-        var im = imgs[th.image]; if (im && im.complete && im.naturalWidth) c.drawImage(im, x, y, S, S); c.restore();
+        var im = imgs[th.image];
+        if (im && im.complete && im.naturalWidth) c.drawImage(im, x, y, S, S);
+        else if (ICONS[th.logo]) { c.fillStyle = 'rgba(' + rgb + ',0.2)'; c.fillRect(x, y, S, S); c.save(); c.translate(x + S * 0.17, y + S * 0.17); c.scale(S * 0.66 / 24, S * 0.66 / 24); c.lineCap = 'round'; ICONS[th.logo](c, 'rgb(' + rgb + ')', bg); c.restore(); }   // pas encore d'image : l'icône
+        c.restore();
         c.strokeStyle = 'rgb(' + rgb + ')'; c.lineWidth = 5; if (th.square) { rr(c, x, y, S, S, 26); } else { c.beginPath(); c.arc(x + S / 2, y + S / 2, S / 2 - 1, 0, TAU); } c.stroke();
       } else {                                             // pastille façon .fl-logo : fond teinté, bord teinté, icône pleine
         c.fillStyle = 'rgba(' + rgb + ',0.2)'; rr(c, x, y, S, S, 22); c.fill(); c.strokeStyle = 'rgba(' + rgb + ',0.6)'; c.lineWidth = 4; rr(c, x, y, S, S, 22); c.stroke();
@@ -287,17 +290,40 @@
       }
     },
     cinemapremium: {
-      frame: 0xe8c75a, leaf: 0x0c1a48, rgb: '255, 215, 120', logo: 'cinema',
-      paint: function (c, W, H) {
-        for (var x = 0; x < W; x++) { var sh = 0.55 + 0.45 * Math.abs(Math.sin(x / W * TAU * 3)); c.fillStyle = 'rgb(' + Math.round(14 * sh + 8) + ',' + Math.round(40 * sh + 14) + ',' + Math.round(140 * sh + 20) + ')'; c.fillRect(x, 0, 1, H); }
-        border(c, W, H, '#ffd36a', 8); c.strokeStyle = 'rgba(255,211,106,0.55)'; c.lineWidth = 3; c.strokeRect(22, 22, W - 44, H - 44);
-        c.fillStyle = '#ffd36a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 ' + Math.round(W * 0.26) + 'px ' + SERIF; c.fillText('★', W / 2, H * 0.28);
-        c.font = '900 ' + Math.round(W * 0.15) + 'px ' + SERIF; c.fillText('PREMIUM', W / 2, H * 0.52, W - 40); c.font = '700 ' + Math.round(W * 0.085) + 'px ' + SERIF; c.fillStyle = '#f4e3b0'; c.fillText('CINÉMA', W / 2, H * 0.63, W - 40);
-        c.fillStyle = '#ffd36a'; c.font = '900 ' + Math.round(W * 0.26) + 'px ' + SERIF; c.fillText('★', W / 2, H * 0.84);
+      frame: 0xe8c75a, leaf: 0x0b1233, rgb: '255, 215, 120', logo: 'cinema', image: 'assets/icones/services/cinema-premium.png', square: true,   // le logo se dépose dans assets/icones/services/cinema-premium.png (secours : le clap dessiné)
+      paint: function (c, W, H) {                              // battant noir-bleu nuit et or : arche à éventail art déco, étoile, panneau « PREMIUM », fines rayures de velours
+        c.fillStyle = '#0b1233'; c.fillRect(0, 0, W, H);
+        c.fillStyle = 'rgba(255,215,120,0.05)'; for (var x = 14; x < W; x += 22) c.fillRect(x, 0, 3, H);
+        border(c, W, H, '#e8c75a', 8); border(c, W, H, 'rgba(232,199,90,0.5)', 20);
+        var px = 38, pw = W - 76, ty = H * 0.08, th2 = H * 0.4, cx = W / 2;
+        c.strokeStyle = '#d4af37'; c.lineWidth = 4;                                      // arche du haut
+        c.beginPath(); c.moveTo(px, ty + th2); c.lineTo(px, ty + pw / 2); c.arc(cx, ty + pw / 2, pw / 2, Math.PI, 0); c.lineTo(px + pw, ty + th2); c.closePath(); c.stroke();
+        c.save(); c.translate(cx, ty + th2 - 8);                                          // éventail art déco
+        for (var i = 0; i < 11; i++) { var a = Math.PI + (i + 0.5) / 11 * Math.PI; c.strokeStyle = 'rgba(232,199,90,0.5)'; c.lineWidth = 3; c.beginPath(); c.moveTo(Math.cos(a) * 22, Math.sin(a) * 22); c.lineTo(Math.cos(a) * pw * 0.44, Math.sin(a) * pw * 0.44); c.stroke(); }
+        c.restore();
+        c.fillStyle = '#0b1233'; c.beginPath(); c.arc(cx, ty + th2 * 0.62, W * 0.13, 0, TAU); c.fill(); c.strokeStyle = '#ffd36a'; c.lineWidth = 3; c.stroke();
+        c.fillStyle = '#ffd36a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 ' + Math.round(W * 0.17) + 'px ' + SERIF; c.fillText('★', cx, ty + th2 * 0.64);
+        var by = H * 0.54, bh = H * 0.38;                                                 // panneau du bas
+        c.strokeStyle = '#d4af37'; c.lineWidth = 4; rr(c, px, by, pw, bh, 10); c.stroke();
+        c.strokeStyle = 'rgba(232,199,90,0.4)'; c.lineWidth = 2; rr(c, px + 12, by + 12, pw - 24, bh - 24, 6); c.stroke();
+        c.fillStyle = '#ffd36a'; c.font = '900 ' + Math.round(W * 0.15) + 'px ' + SERIF; c.fillText('PREMIUM', cx, by + bh * 0.42, pw - 36);
+        c.fillStyle = 'rgba(232,199,90,0.7)'; c.fillRect(px + 30, by + bh * 0.62, pw - 60, 2);
+        c.fillStyle = '#f4e3b0'; c.font = '700 ' + Math.round(W * 0.08) + 'px ' + SERIF; c.fillText('CINÉMA', cx, by + bh * 0.8, pw - 36);
+      },
+      deco: function (g, w, h) {
+        bulbRing(g, w, h, [new THREE.MeshBasicMaterial({ color: 0xfff1a8 }), new THREE.MeshBasicMaterial({ color: 0xffd36a })]);
+        var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.4, 2.6), new THREE.MeshLambertMaterial({ color: 0x1c2a6a })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.4); g.add(tapis);       // tapis bleu nuit bordé d'or
+        var lis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.56, 2.72), new THREE.MeshLambertMaterial({ color: 0xc9a227 })); lis.rotation.x = -Math.PI / 2; lis.position.set(0, 0.012, 1.4); g.add(lis);
+        [-1, 1].forEach(function (sd) {                                                   // potelets dorés
+          var x = sd * (w / 2 + 0.7), gold = new THREE.MeshStandardMaterial({ color: 0xe8c75a, roughness: 0.3, metalness: 0.7 });
+          var base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.06, 16), gold); base.position.set(x, 0.03, 0.8); g.add(base);
+          var post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1.0, 10), gold); post.position.set(x, 0.55, 0.8); g.add(post);
+          var ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), gold); ball.position.set(x, 1.08, 0.8); g.add(ball);
+        });
       }
     },
     cinema: {
-      frame: 0xc9a227, leaf: 0x8c1a26, rgb: '255, 122, 26', logo: 'cinema', image: 'assets/cinema/tropistream-serveur.png',
+      frame: 0xc9a227, leaf: 0x8c1a26, rgb: '255, 122, 26', logo: 'cinema', noLogo: true,   // enseigne sans logo, texte centré
       paint: function (c, W, H) {
         for (var x = 0; x < W; x++) { var sh = 0.6 + 0.4 * Math.abs(Math.sin(x / W * TAU * 4)); c.fillStyle = 'rgb(' + Math.round(150 * sh) + ',' + Math.round(24 * sh) + ',' + Math.round(38 * sh) + ')'; c.fillRect(x, 0, 1, H); }
         c.fillStyle = '#0d0508'; [10, W - 34].forEach(function (x) { c.fillRect(x - 6, 0, 30, H); c.fillStyle = '#f4e3b0'; for (var y = 18; y < H; y += 36) { rr(c, x, y, 18, 18, 4); c.fill(); } c.fillStyle = '#0d0508'; });   // pellicule le long des bords
