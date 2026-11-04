@@ -455,7 +455,19 @@
         fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.18 + (tx + 0.18) * e, 0.95 + Math.sin(v * Math.PI) * 0.55, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
       })(q);
     }
-    var lastFxVer = {}, lastVoice = { f: '', t: 0 };
+    var lastFxVer = {}, lastVoice = { f: '', t: 0 }, vq = [], vNow = null, COLOR_VOICE = ['rouge', 'jaune', 'vert', 'bleu'];
+    function masterVol() { try { return typeof getMasterVolume === 'function' ? getMasterVolume() : 0.5; } catch (e) { return 0.5; } }
+    function vPump() {
+      if (vNow || !vq.length) return;
+      var o = vq.shift(); if (performance.now() - o.t > 9000) { vPump(); return; }
+      var vol = Math.min(1, masterVol() * 1.6); if (vol <= 0) { vPump(); return; }
+      try {
+        var a = new Audio('assets/sons/uno/' + o.f + '.mp3'); a.volume = vol; vNow = a;
+        var done = function () { if (vNow === a) { vNow = null; vPump(); } };
+        a.onended = done; a.onerror = done; setTimeout(done, 8000);
+        var pr = a.play(); if (pr && pr.catch) pr.catch(done);
+      } catch (e) { vNow = null; }
+    }
     function hash(n) { n = (n * 2654435761) >>> 0; n ^= n >>> 15; n = (n * 2246822519) >>> 0; n ^= n >>> 13; return n >>> 0; }
     function fx3d(tid, old, st) {
       try {
@@ -463,22 +475,28 @@
         if ((lastFxVer[tid] || 0) >= st.ver) return; lastFxVer[tid] = st.ver;                 // chaque changement d'état n'est traité qu'une fois : jamais deux sons d'affilée
         var seatNow = seat && seat.tid === tid, said = {};
         // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
-        function voice(file) { var now = performance.now(); if (!seatNow || !F.audio || !F.audio.playFile || (lastVoice.f === file && now - lastVoice.t < 1500)) return; lastVoice = { f: file, t: now }; F.audio.playFile('assets/sons/uno/' + file + '.mp3', 1.6); }
+        function voice(file) { var now = performance.now(); if (!seatNow || (lastVoice.f === file && now - lastVoice.t < 1500)) return; lastVoice = { f: file, t: now }; vq.push({ f: file, t: now }); vPump(); }
+        var chance = function (k, pct) { return hash(st.ver * 31 + k) % 100 < pct; };                // tirage identique pour tous les joueurs de la table
         // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour les +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
         function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (n > 2 && hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
-        if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice('gagner'); return; }
+        if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice(chance(5, 50) ? 'victoire' : 'gagner'); return; }
         if (st.disc.length > old.disc.length) {
           var top = st.disc[st.disc.length - 1], v = top.slice(1);
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
             fxText(tv, v === 'D' ? '+2' : '+4', col, 0.2, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.2, 0);
             var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); plusVoice(pn);
+            if (old.pend > 0 && st.pend > old.pend && (v === 'D' || v === 'F')) voice('quipioche');       // un +2 sur un +2, un +4 sur un +4 : qui va devoir piocher ?
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
           } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.2, 0);
+          if (v === 'W' || v === 'F') {                                                  // changement de couleur : la même qu'avant -> Cléa ; sinon, parfois, « changement de couleur » puis la couleur choisie
+            if (st.col === old.col) voice('clea'); else if (chance(2, 65)) { voice('changement'); voice(COLOR_VOICE[st.col]); }
+          }
         }
         for (var s = 0; s < 4; s++) {
           var oh = old.hands[s], nh = st.hands[s]; if (!oh || !nh) continue;
           if (nh.length >= oh.length + 2) fxFlyers(tv, s, nh.length - oh.length);
+          if (old.pend > 0 && st.pend === 0 && nh.length >= oh.length + 2 && seat && seat.local === s) voice('tupioche');      // celui qui paie la pénalité : « tu pioches »
           if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
           if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
             if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
@@ -655,7 +673,12 @@
     room._etat = function () { return G; };
     room._dbg = { adopt: adopt, toast: toast, renderTable: renderTable, seatOf: function () { return seat; } };
     room.dispose = function () { stand(); };
+    var slow = { key: '', t: 0, done: false };
     room.update = function (dt) {
+      if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
+        var sst = G[seat.tid], skey = sst && sst.ph === 'play' && Object.keys(sst.hands).length > 1 ? sst.turn + '|' + sst.disc.length + '|' + (sst.pend | 0) + '|' + (sst.drawn || '') : '';
+        if (skey !== slow.key) { slow.key = skey; slow.t = 0; slow.done = false; } else if (skey && !slow.done && (slow.t += dt) > 22) { slow.done = true; lastVoice = { f: 'trop-long', t: performance.now() }; vq.push({ f: 'trop-long', t: performance.now() }); vPump(); }
+      }
       for (var fi = fxs.length - 1; fi >= 0; fi--) { var fo = fxs[fi]; fo.t += dt; var fu = Math.min(1, fo.t / fo.dur); fo.upd(fu, fo.t); if (fu >= 1) { fo.end(); fxs.splice(fi, 1); } }
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('ludo') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x - (LO_A + LO_B) / 2) < (LO_B - LO_A) / 2 - 0.2) world.goRoom('ludo', 'uno');     // 2e ouverture : le Ludo
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('vault') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x) < OG - 0.2) world.goRoom('vault', 'uno');     // on franchit l'ouverture : fondu vers la Chambre Forte
