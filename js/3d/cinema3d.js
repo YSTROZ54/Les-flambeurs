@@ -1208,8 +1208,8 @@
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
       /* Général : le curseur normal du site, caché quand on est assis ou interface masquée (bouton œil ou touche L) */
-      '.cin-in-cinema.cin-seated,.cin-in-cinema.cin-seated canvas,.cin-in-cinema.cin-seated .s3d-hud{cursor:none!important}' +
-      '.cin-in-cinema.cin-seated.s3d-ui-open,.cin-in-cinema.cin-seated.s3d-ui-open canvas,.cin-in-cinema.cin-seated.s3d-ui-open .s3d-hud,.cin-console{cursor:auto!important}' +
+      '.cin-in-cinema.cin-seated,.cin-in-cinema.cin-seated *,.cin-in-cinema.cin-hud-hidden *{cursor:none!important}' +   // partout, boutons compris : la souris pilote la vue, elle ne doit jamais apparaître
+      '.cin-in-cinema.cin-seated.s3d-ui-open *,.cin-in-cinema.cin-hud-hidden.s3d-ui-open *,.cin-in-cinema .cin-console,.cin-in-cinema .cin-console *{cursor:auto!important}.cin-in-cinema .cin-console button,.cin-in-cinema .cin-console [data-a]{cursor:pointer!important}' +
       '.cin-hud-hidden .cin-seance,.cin-hud-hidden .cin-stand{display:none!important}' +
       '.cin-in-cinema.cin-hud-hidden,.cin-in-cinema.cin-hud-hidden canvas,.cin-in-cinema.cin-hud-hidden .s3d-hud{cursor:none!important}' +
       '.cin-in-cinema.cin-hud-hidden.s3d-ui-open,.cin-in-cinema.cin-hud-hidden.s3d-ui-open canvas,.cin-in-cinema.cin-hud-hidden.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible même interface masquée
