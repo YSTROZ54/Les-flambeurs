@@ -29,9 +29,9 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 12, HZ: 17, H: 13, SCR_W: 17, SCR_Y: 1.3, SCR_H: 17 * 9 / 16, ROW_H: 0.2, ROWS: [], COLS: [-7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3],
-      blocks: [{ x0: -8.05, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 8.05 }], lanes: [], aisleLights: [-8.05, -3.65, -2.2, 2.2, 3.65, 8.05],
-      nLow: 7, HB: 3.4, zb: 5.6, zs0: -6.2, railX: 8.85
+      HX: 16, HZ: 17, H: 16.5, SCR_W: 25, SCR_Y: 1.3, SCR_H: 25 * 9 / 16, ROW_H: 0.2, ROWS: [], COLS: [-10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2],
+      blocks: [{ x0: -10.95, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 10.95 }], lanes: [], aisleLights: [-10.95, -3.65, -2.2, 2.2, 3.65, 10.95],
+      nLow: 7, HB: 3.4, zb: 5.6, zs0: -6.2, railX: 11.75
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
@@ -291,7 +291,7 @@
       });
       [-1, 1].forEach(function (sd) { box(g, 0.1, 0.1, HZ * 2 - 0.4, bas(0xb878ff), sd * (HX - 0.06), H - 0.45, 0); });
       box(g, HX * 2 - 0.4, 0.1, 0.1, bas(0xb878ff), 0, H - 0.45, -HZ + 0.06); box(g, HX * 2 - 0.4, 0.1, 0.1, bas(0xb878ff), 0, H - 0.45, HZ - 0.06);
-      [[-7, -9], [0, -9], [7, -9], [-7, 0], [0, 0], [7, 0], [-4, 9], [4, 9], [0, 14]].forEach(function (p) { var sp = sph(g, 0.13, bas(0xffffff), p[0], H - 0.04, p[1]); sp.scale.y = 0.4; var halo = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xcfd8ff, transparent: true, opacity: 0.5, depthWrite: false })); halo.scale.set(1.2, 1.2, 1); halo.position.set(p[0], H - 0.2, p[1]); g.add(halo); });
+      [[-11, -9], [-5.5, -9], [0, -9], [5.5, -9], [11, -9], [-11, 0], [-5.5, 0], [0, 0], [5.5, 0], [11, 0], [-8, 9], [0, 9], [8, 9], [0, 14]].forEach(function (p) { var sp = sph(g, 0.13, bas(0xffffff), p[0], H - 0.04, p[1]); sp.scale.y = 0.4; });
     }
     if (false) {
       for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
@@ -303,7 +303,7 @@
       var step = 1.0;
       for (var z = -HZ; z < HZ; z += step) { var zc = Math.min(z + step / 2, HZ - step / 2); box(g, w, h, step + 0.02, mat, x, y0 + cinemaGroundY(x, zc), zc); }
     }
-    [-HX + 0.06, HX - 0.06].forEach(function (x) { wallStrip(x, 0.62, 0.1, 0.1, trimM); wallStrip(x, 5.6, 0.1, 0.1, trimM); });   // filets dorés bas et haut
+    (P ? [] : [-HX + 0.06, HX - 0.06]).forEach(function (x) { wallStrip(x, 0.62, 0.1, 0.1, trimM); wallStrip(x, 5.6, 0.1, 0.1, trimM); });   // filets dorés bas et haut
     [-HX + 0.02, HX - 0.02].forEach(function (x) { wallStrip(x, 0.3, 0.04, 0.6, std(0x14070b, 0.9, 0)); });                                   // soubassement
 
     /* --- scène, rampe de lumières, écran --- */
@@ -385,7 +385,7 @@
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9),
       pCush: new THREE.BoxGeometry(0.8, 0.2, 0.74), pBase: new THREE.BoxGeometry(0.6, 0.34, 0.5), pBack: new THREE.BoxGeometry(0.8, 0.98, 0.2), pHead: new THREE.BoxGeometry(0.52, 0.26, 0.15), pArm: new THREE.BoxGeometry(0.2, 0.22, 0.78), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03)
     };
-    var velM = P ? std(0xe9e5de, 0.85, 0.02, 0x2a2824) : lam(VELVET), darkM = P ? std(0x3a3a44, 0.7, 0.1, 0x0c0c10) : lam(0x180a0e), ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var velM = P ? std(0x0d0d10, 0.8, 0.05, 0x060608) : lam(VELVET), darkM = P ? std(0x050507, 0.7, 0.1, 0x030304) : lam(0x180a0e), ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
       var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pHead, mat: velM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: velM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: velM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pLed, mat: ledM, p: [0, 0.06, -0.3] }];
@@ -439,7 +439,7 @@
       box(g, HX * 2, HB, ROWS[ROWS.length - 1] - zb + 0.9, deckM, 0, HB / 2, (zb + ROWS[ROWS.length - 1] + 0.9) / 2);                       // le dessous de l'étage : un mur plein
       box(g, HX * 2 - 0.4, 0.06, 0.06, bas(0xd77cff), 0, HB - 0.3, zb - 0.03);                                                           // ruban lumineux sur le balcon
       box(g, HX * 2 - 0.4, 0.07, 0.1, trimM, 0, HB - 0.06, zb - 0.04);
-      for (k2 = -10.5; k2 <= 10.6; k2 += 1.5) { var dl = sph(g, 0.07, bas(0xfff2d0), k2, HB - 0.65, zb - 0.04); dl.scale.z = 0.4; }       // petits spots au pied du balcon
+      for (k2 = -RX0 + 0.5; k2 <= RX0 - 0.4; k2 += 1.5) { var dl = sph(g, 0.07, bas(0xfff2d0), k2, HB - 0.65, zb - 0.04); dl.scale.z = 0.4; }       // petits spots au pied du balcon
       // garde-corps de verre au bord de l'étage
       var gl = new THREE.Mesh(new THREE.PlaneGeometry(RX0 * 2, 0.95), new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })); gl.position.set(0, HB + 0.5, zb + 0.28); g.add(gl);
       box(g, RX0 * 2, 0.06, 0.08, trimM, 0, HB + 1.0, zb + 0.28); for (k2 = -RX0; k2 <= RX0 + 0.01; k2 += 2.95) box(g, 0.05, 1.0, 0.05, trimM, k2, HB + 0.5, zb + 0.28);
@@ -449,10 +449,7 @@
         for (z2 = zs0; z2 < zb; z2 += 0.45) {
           var zc = z2 + 0.225, top = cinemaGroundY(xC, zc);
           if (top > 0.02) { box(g, xW, top, 0.47, deckM, xC, top / 2, zc); box(g, xW, 0.03, 0.06, bas(0xcfd8ff), xC, top + 0.005, z2 + 0.03); }
-          if (top > 0.02) box(g, 0.07, 0.07, 0.5, trimM, sd * RX0, top + 0.98, zc);
         }
-        for (z2 = zs0 + 1.2; z2 < zb; z2 += 1.9) box(g, 0.06, 1.0, 0.06, trimM, sd * RX0, cinemaGroundY(sd * (RX0 + 0.5), z2) + 0.5, z2);
-        for (z2 = zb; z2 < HZ - 0.5; z2 += 0.5) box(g, 0.07, 0.07, 0.52, trimM, sd * RX0, HB + 1.0, z2 + 0.25);
         // les murs ne se traversent pas : une barrière invisible le long de la rampe, du garde-corps et du bord de l'étage
         for (z2 = zs0 + 1.0; z2 < zb + 0.3; z2 += 0.6) room.colliders.push({ x: sd * (RX0 + 0.1), z: z2, r: 0.4 });
       });
@@ -494,7 +491,7 @@
     [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
     // faisceau du projecteur retiré
     // comptoir à pop-corn
-    var cw = new THREE.Group(); var PXc = -(HX - 3.2); cw.position.set(PXc, BACK_H, HZ - 0.45); g.add(cw);   // collé contre le mur du fond
+    var cw = new THREE.Group(); var PXc = -(HX - 3.2); cw.position.set(PXc, BACK_H, HZ - 0.45); g.add(cw); if (P) cw.visible = false;   // collé contre le mur du fond
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
     box(cw, 0.9, 0.9, 0.6, std(0xc41e2a, 0.5, 0.2), -0.9, 1.5, 0); box(cw, 0.8, 0.8, 0.52, new THREE.MeshLambertMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.75 }), -0.9, 2.35, 0);
     for (i = 0; i < 14; i++) sph(cw, 0.07, lam(i % 3 ? 0xfff0c0 : 0xf2d98a), -0.9 + (Math.random() - 0.5) * 0.55, 2.1 + Math.random() * 0.55, (Math.random() - 0.5) * 0.3);
@@ -505,7 +502,7 @@
     if (!low) [[-6.8, HZ - 1.7], [0, HZ - 1.6], [6.8, HZ - 1.7]].forEach(function (p) { var fl = new THREE.PointLight(0xffd9a8, 0.85, 7); fl.position.set(p[0], BACK_H + 2.8, p[1]); g.add(fl); });   // pop-corn, sortie et régie restent visibles même pendant le film
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
-    room.colliders.push({ x: PXc - 1.0, z: HZ - 1.1, r: 0.8 }, { x: PXc, z: HZ - 1.1, r: 0.8 }, { x: PXc + 1.0, z: HZ - 1.1, r: 0.8 });
+    if (!P) room.colliders.push({ x: PXc - 1.0, z: HZ - 1.1, r: 0.8 }, { x: PXc, z: HZ - 1.1, r: 0.8 }, { x: PXc + 1.0, z: HZ - 1.1, r: 0.8 });
     // --- régie : la console du Patron / Co Fondateur, collée contre le mur du fond, à droite ---
     var RX = HX - 3.2, RZ = HZ - 0.5;
     var regie = new THREE.Group(); regie.position.set(RX, BACK_H, RZ); regie.rotation.y = Math.PI; g.add(regie);   // dos au mur, face tournée vers la salle
@@ -555,15 +552,15 @@
     ex.beginPath(); ex.moveTo(40, 46); ex.lineTo(48, 62); ex.stroke();                              // jambe avant
     ex.beginPath(); ex.moveTo(50, 36); ex.lineTo(66, 36); ex.moveTo(60, 30); ex.lineTo(66, 36); ex.lineTo(60, 42); ex.stroke();   // flèche vers la sortie
     ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 160, 42, 180);
-    var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
-    var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema' });
-    exitDoor.g.position.y = BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
+    var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); if (P) { exit.position.set(-HX + 0.06, 4.9, -12.1); exit.rotation.y = Math.PI / 2; } else { exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; } g.add(exit);
+    var exitDoor = world.addDoor(room, { x: P ? -HX : 0, z: P ? -12.1 : HZ, nx: P ? 1 : 0, nz: P ? 0 : -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema' });
+    exitDoor.g.position.y = P ? 0 : BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
 
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     var lights = [];
-    if (!low) (P ? [[-8, 9, -9], [8, 9, -9], [-8, 9, 1], [8, 9, 1], [0, 9, 12]] : [[-6, 6.8, -3], [6, 6.8, -3], [0, 6.8, 6]]).forEach(function (p) { var pl = new THREE.PointLight(P ? 0xe8dcff : 0xffd9a8, 0.55, P ? 28 : 16); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
+    if (!low) (P ? [[-12, 11, -9], [12, 11, -9], [-12, 11, 1], [12, 11, 1], [0, 11, -4], [0, 11, 12]] : [[-6, 6.8, -3], [6, 6.8, -3], [0, 6.8, 6]]).forEach(function (p) { var pl = new THREE.PointLight(P ? 0xe8dcff : 0xffd9a8, 0.55, P ? 28 : 16); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
     var wash = new THREE.PointLight(0xaec8ff, 0, 18); wash.position.set(0, SCR_Y + SCR_H / 2, -HZ + 3.2); g.add(wash);    // reflet bleuté de l'écran sur les premières rangées
     var dim = 1;                                       // 1 = salle allumée, 0,22 = séance en cours
 
@@ -629,19 +626,28 @@
     // (l'écran de chargement n'apparaît qu'après une vraie coupure d'une seconde, voir room.update : plus de rond qui clignote pour un micro-ralentissement)
     video.addEventListener('playing', function () { stallT = 0; started = true; if (net.status === 'playing') { setLoading(false); showVideo(true); } });
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
-    var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false };
+    var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false, pl: null, pr: null };
     function ensureVideoAudio() {
       if (vAudio.ctx || !(navigator.userActivation && navigator.userActivation.hasBeenActive)) return;
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       try {
         var c = vAudio.ctx = new AC(), src = c.createMediaElementSource(video);
-        vAudio.pan = c.createStereoPanner ? c.createStereoPanner() : null;
-        vAudio.lp = c.createBiquadFilter(); vAudio.lp.type = 'lowpass'; vAudio.lp.frequency.value = 18000;
+        // deux enceintes virtuelles de chaque côté de l'écran (voie gauche à gauche, voie droite à droite), rendu 3D réaliste (HRTF)
+        var pre = c.createGain(); pre.channelCount = 2; pre.channelCountMode = 'explicit'; pre.channelInterpretation = 'speakers';
+        var sp = c.createChannelSplitter(2); vAudio.lp = c.createBiquadFilter(); vAudio.lp.type = 'lowpass'; vAudio.lp.frequency.value = 18000;
         vAudio.gain = c.createGain(); vAudio.gain.gain.value = 1;
-        src.connect(vAudio.pan || vAudio.lp); if (vAudio.pan) vAudio.pan.connect(vAudio.lp);
-        vAudio.lp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
+        function spk(x) { var p = c.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 9; p.maxDistance = 100; p.rolloffFactor = 0.45; if (p.positionX) { p.positionX.value = x; p.positionY.value = SCR_Y + SCR_H / 2; p.positionZ.value = -HZ + 0.5; } else p.setPosition(x, SCR_Y + SCR_H / 2, -HZ + 0.5); return p; }
+        vAudio.pl = spk(-SCR_W * 0.38); vAudio.pr = spk(SCR_W * 0.38);
+        src.connect(pre); pre.connect(sp); sp.connect(vAudio.pl, 0); sp.connect(vAudio.pr, 1);
+        vAudio.pl.connect(vAudio.lp); vAudio.pr.connect(vAudio.lp); vAudio.lp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
+    }
+    function setEars(w) {                              // l'oreille (écouteur) est à la tête du joueur, tournée comme son regard
+      if (!vAudio.ok) return;
+      var L = vAudio.ctx.listener, px = w.player.x, pz = w.player.z, py = 1.6 + cinemaGroundY(px, pz), fx2 = Math.sin(w.player.yaw), fz2 = -Math.cos(w.player.yaw);
+      if (L.positionX) { L.positionX.value = px; L.positionY.value = py; L.positionZ.value = pz; L.forwardX.value = fx2; L.forwardY.value = 0; L.forwardZ.value = fz2; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+      else { L.setPosition(px, py, pz); L.setOrientation(fx2, 0, fz2, 0, 1, 0); }
     }
     /* --- annonce « séance en cours » à l'entrée : titre, affiche, début et fin (heure réelle) --- */
     var seanceAsked = false;
@@ -1263,7 +1269,7 @@
       if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
-    room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
+    room.spawn = function () { return P ? { x: -HX + 2.8, z: -12.1, yaw: Math.PI } : { x: 0, z: HZ - 2.6, yaw: 0 }; };
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       seanceAsked = false;
@@ -1321,11 +1327,11 @@
       music.setLevel(playing ? 0 : 1);
       // son du film en 3D : plus fort et net près de l'écran, panoramique vers le côté où tu es, étouffé loin derrière
       if (playing || net.status === 'paused') {
-        var sdist = Math.hypot(w.player.x, w.player.z + HZ), svol = clamp(1.15 - sdist / 26, 0.35, 1);
+        var sdist = Math.hypot(w.player.x, w.player.z + HZ), svol = vAudio.ok ? clamp(1.25 - sdist / 60, 0.7, 1) : clamp(1.15 - sdist / 26, 0.35, 1);
         if (vAudio.ok) {
           var t = vAudio.ctx.currentTime;
           vAudio.gain.gain.setTargetAtTime(svol, t, 0.2);
-          if (vAudio.pan) vAudio.pan.pan.setTargetAtTime(clamp(w.player.x / 9, -1, 1), t, 0.25);
+          setEars(w);
           vAudio.lp.frequency.setTargetAtTime(clamp(17000 - sdist * 420, 700, 17000), t, 0.3);
         } else video.volume = svol;
       }
