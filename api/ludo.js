@@ -8,10 +8,12 @@
 //  - Un pion sort de l'écurie sur un 6 OU sur un 1 et se pose sur la case de départ de sa couleur. Tant qu'on n'a aucun pion en jeu, on a 3 essais par tour.
 //    Si un de nos pions est déjà sur la case de départ, on ne peut pas en sortir un autre (on joue les pions libres). Un pion qui sort mange l'adversaire
 //    qui se trouve sur notre case de départ.
-//  - Un 6 fait rejouer, et manger un pion fait rejouer aussi ; trois 6 d'affilée font perdre le tour (le troisième coup n'est pas joué).
+//  - Un 6 fait rejouer, manger un pion fait rejouer aussi, et rentrer un pion à la maison aussi ; trois 6 d'affilée font perdre le tour (le troisième coup n'est pas joué).
 //  - On avance d'exactement la valeur du dé. Après un tour complet (51 cases), le pion monte son escalier de 5 cases puis rejoint la case
 //    centrale ; il faut le nombre EXACT pour y arriver (sinon le pion ne peut pas bouger).
 //  - Un pion qui s'arrête sur un adversaire le renvoie à l'écurie, sauf sur une case protégée (les 4 cases de départ et les 4 étoiles).
+//  - Un pion qui n'a pas encore quitté sa case de départ ne peut pas être mangé, et on ne peut pas s'arrêter sur lui : un pas de 1 juste derrière lui
+//    est donc impossible (on joue un autre pion, ou on passe) ; avec un pas plus grand, on le saute simplement.
 //  - Plusieurs pions de la même couleur peuvent partager une case.
 //  - Un joueur qui a rentré ses 4 pions a fini : la partie continue pour les autres, et s'arrête quand tous sauf un ont fini
 //    (2 joueurs : 1 a fini ; 3 joueurs : 2 ont fini ; 4 joueurs : 3 ont fini). Le premier à finir est le gagnant.
@@ -73,9 +75,15 @@ export function legalMoves(st, c, dice) {
   st.pawns[c].forEach((p, i) => {
     if (p === HOME) return;
     if (p === -1) { if (canExit(st, c, dice)) out.push(i); return; }
-    if (p + dice <= HOME) out.push(i);
+    if (p + dice <= HOME && !landsOnGuarded(st, c, p + dice)) out.push(i);
   });
   return out;
+}
+// la case d'arrivée est-elle la case de départ d'un adversaire dont le pion n'a pas encore bougé ? (alors on ne peut pas s'y arrêter)
+export function landsOnGuarded(st, c, to) {
+  const idx = loopIndex(c, to);
+  if (idx < 0) return false;
+  return [0, 1, 2, 3].some((o) => o !== c && START[o] === idx && st.pawns[o].some((q) => q === 0));
 }
 
 // applique le coup ; renvoie { from, to, captured:[{c,i}] }
@@ -169,7 +177,7 @@ function doMove(st, i, at) {
     if (st.done.length >= colorsInGame(st).length - 1) { finishGame(st, st.done[0], at); return; }
     startTurn(st, nextTurnColor(st, c), at + 900); return;
   }
-  if (dice === 6 || r.captured.length) { st.dice = 0; setPhase(st, 'roll', at + 900, ROLL_MS); st.tries = 0; return; }   // un 6 ou une capture fait rejouer (st.sixes reste compté)
+  if (dice === 6 || r.captured.length || r.to === HOME) { st.dice = 0; setPhase(st, 'roll', at + 900, ROLL_MS); st.tries = 0; return; }   // un 6, une capture ou un pion rentré à la maison font rejouer (st.sixes reste compté)
   startTurn(st, nextTurnColor(st, c), at + 900);
 }
 
@@ -387,4 +395,4 @@ export default async function handler(req, res) {
   }
 }
 
-export const __t = { freshState, startGame, doRoll, doMove, applyMove, legalMoves, botChoice, canExit };
+export const __t = { freshState, startGame, doRoll, doMove, applyMove, legalMoves, botChoice, canExit, landsOnGuarded };
