@@ -268,6 +268,12 @@
           room.interactables.push({ hit: hit, x: sx0, z: sz0, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Table ' + (ti + 1); }, use: function (w) { sit(w, s); } });
         }
       });
+      // spectateur assis à l'écart, en skin de croupier (alterne homme/femme comme les croupiers), qui lance « Lancez vos paris ! » dès que la table se remplit
+      var pnjX = td.x + 2.4, pnjZ = td.z - 1.1, pnjAimX = td.x - pnjX, pnjAimZ = (td.z + 0.3) - pnjZ, pnjRy = Math.atan2(pnjAimX, pnjAimZ);
+      makeChair(grp, pnjX - td.x, pnjZ - td.z, pnjRy, 0.6, false);
+      room.colliders.push({ x: pnjX, z: pnjZ, r: 0.3 });
+      var pnj = F.createPlayer ? F.createPlayer('Public', '', ti % 2 ? 'f1230' : 'h1010') : null;
+      if (pnj) { pnj.group.position.set(pnjX, 0, pnjZ); pnj.group.rotation.y = pnjRy; pnj.tag.visible = false; pnj.setSeated(true, { y: 0.12, z: 0.28 }); g.add(pnj.group); people.push({ p: pnj, kind: 'pnj', s: null }); T.pnj = { x: pnjX, z: pnjZ }; }
     });
     function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); p.add(o); return o; }
 
@@ -322,6 +328,16 @@
       T.scoreLabels[key] = { sp: sp, sc: sc };
     }
     function wake(T, tx, tz) { if (T && T.dealerO) { T.dealerO.awake = 1.1; T.dealerO.aimX = (tx === undefined ? T.x : tx) - T.x; T.dealerO.aimZ = (tz === undefined ? T.z + 0.7 : tz) - T.z; } }
+    // le spectateur de la table crie « Lancez vos paris ! » (bulle + son) dès que la table se remplit
+    function pnjSay(T, text) {
+      if (!T.pnj) return;
+      var cv = mkCanvas(420, 110), c = cv.getContext('2d'); roundRect(c, 4, 4, 412, 102, 30); c.fillStyle = 'rgba(8,5,12,0.88)'; c.fill(); c.strokeStyle = '#f3cf62'; c.lineWidth = 5; c.stroke();
+      c.fillStyle = '#f3cf62'; c.font = '900 42px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 210, 55, 400);
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(1.1, 0.29, 1); sp.position.set(T.pnj.x, 1.95, T.pnj.z); g.add(sp);
+      later(3.2, function () { g.remove(sp); sp.material.map.dispose(); sp.material.dispose(); });
+      if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/lancez-vos-paris.mp3', 1.4);
+    }
+    function tableHasPlayer(T) { return T.spots.some(function (s) { return !s.bot && (s === seat || seatTaken(s)); }); }
     function showHand(T, s, cards, keep) {
       wake(T, s.x, s.z);
       T.handMeshes = T.handMeshes || {};
@@ -654,6 +670,12 @@
     room.update = function (dt) {
       clockT += dt;
       pollT += dt; if (seat && pollT > 1.1) { pollT = 0; pollNow(); }     // l'état de la table vient du serveur (api/blackjack.js) : sondé environ une fois par seconde
+      // le spectateur annonce la manche dès qu'un premier vrai joueur s'assoit à une table vide
+      tables.forEach(function (T) {
+        var occ = tableHasPlayer(T);
+        if (occ && !T._hadPlayer) { T._hadPlayer = true; pnjSay(T, '🎲 Lancez vos paris !'); }
+        else if (!occ) T._hadPlayer = false;
+      });
       if (autoRebet && seat && TBL && TBL.status === 'waiting') {
         if (Date.now() >= autoRebet.deadline) { var amt = autoRebet.amount; autoRebet = null; setBet(amt); }
         else if (ui) { var cnt0 = ui.el.querySelector('.bj-count'); setText(cnt0, 'Prochaine manche dans ' + Math.max(0, Math.ceil((autoRebet.deadline - Date.now()) / 1000)) + ' s'); }
