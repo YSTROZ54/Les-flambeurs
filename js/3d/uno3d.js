@@ -459,17 +459,23 @@
       try {
         var tv = TV[tid]; if (!tv || tv.kind !== 'u' || !old || !old.hands || !st || (st.ph !== 'play' && st.ph !== 'over') || old.ph !== 'play' || old.ver >= st.ver) return;
         var seatNow = seat && seat.tid === tid, said = {};
+        // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
+        function voice(file) { if (seatNow && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/uno/' + file + '.mp3', 1.6); }
+        if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice('gagner'); return; }
         if (st.disc.length > old.disc.length) {
           var top = st.disc[st.disc.length - 1], v = top.slice(1);
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
             fxText(tv, v === 'D' ? '+2' : '+4', col, 0.2, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.2, 0);
+            var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); voice('plus' + pn);
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
           } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.2, 0);
         }
         for (var s = 0; s < 4; s++) {
           var oh = old.hands[s], nh = st.hands[s]; if (!oh || !nh) continue;
           if (nh.length >= oh.length + 2) fxFlyers(tv, s, nh.length - oh.length);
+          if (nh.length === oh.length + 2 && st.disc.length === old.disc.length) voice('plus2');           // pénalité « contre UNO » : +2 cartes
+          if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
           if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
             if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
             fxText(tv, 'UNO !', '#ffe35a', Math.cos(hh.sa) * 0.9, Math.sin(hh.sa) * 0.9); fxRing(tv, 0xffe35a, Math.cos(hh.sa) * 0.8, Math.sin(hh.sa) * 0.8);
