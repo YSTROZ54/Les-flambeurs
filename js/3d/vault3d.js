@@ -352,7 +352,7 @@
     }
     room.forceStand = function () { stand(); };
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.12, z: 0.28 };
+    room.sitSpec = { y: 0.05, z: 0.28 };      // assise à 0,55 m
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-0.5, Math.min(0.5, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.3, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };

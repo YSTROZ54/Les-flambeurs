@@ -326,7 +326,7 @@
     }
     room.forceStand = function () { stand(); };
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.2, z: 0.1 };
+    room.sitSpec = { y: 0.09, z: 0.1 };      // assise des fauteuils à 0,59 m : on est assis dessus, plus au-dessus
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     // pendant la question (chrono en cours), la caméra reste figée droit sur l'écran : impossible de regarder ailleurs
     // tant qu'on n'a pas trouvé ou que le temps n'est pas écoulé (le lobby et la révélation restent libres).

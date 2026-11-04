@@ -108,8 +108,8 @@
         (function (si) {
           var sp = seatPos(ti, si), n = ti * NSEAT + si, s = { n: n, ti: ti, si: si, x: sp.x, z: sp.z, yaw: sp.yaw, sx: T.x + Math.sin(si / NSEAT * TAU) * (SEAT_R + 1.0), sz: T.z + Math.cos(si / NSEAT * TAU) * (SEAT_R + 1.0) };
           seats.push(s);
-          var stool = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.4, 14), woodM); stool.position.set(sp.x, 0.2, sp.z); g.add(stool);
-          var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 14), woodD); cush.position.set(sp.x, 0.43, sp.z); g.add(cush);
+          var stool = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.44, 14), woodM); stool.position.set(sp.x, 0.22, sp.z); g.add(stool);
+          var cush = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 14), woodD); cush.position.set(sp.x, 0.47, sp.z); g.add(cush);
           room.colliders.push({ x: sp.x, z: sp.z, r: 0.26 });
           var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.3, 8), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sp.x, 0.65, sp.z); g.add(hit);
           room.interactables.push({ hit: hit, x: sp.x, z: sp.z, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S’asseoir — Salon ' + (ti + 1) + (roomInfo(ti) ? ' (' + roomInfo(ti).players + '/' + NSEAT + ')' : ''); }, use: function (w) { sit(w, s); } });
@@ -403,7 +403,7 @@
     function resetAvatars() { Object.keys(world.remote).forEach(function (kk) { var r = world.remote[kk]; if (r && r.person && r.person.look) { r.person.look(0); r.person.point(null); r.person.slump(false); r.person.poseStep(0.5); } }); }
     room.forceStand = function () { stand(); };
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.12, z: 0.1 };
+    room.sitSpec = { y: 0, z: 0.1 };      // tabouret à 0,50 m : pieds au sol
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-1.3, Math.min(1.3, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.35, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };
