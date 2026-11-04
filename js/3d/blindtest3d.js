@@ -347,7 +347,7 @@
     };
     room.syncHud = function () { refreshUi(); };
 
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xd9a0ff, target: 'hall', theme: 'exitBlindtest' });
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🎮 MINI JEUX', sub: 'RETOUR', color: 0xd9a0ff, target: 'uno', theme: 'exitBlindtest' });
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un fauteuil pour t\'asseoir' : 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil (F ou clic) : tu entres dans le salon de cet écran · F : se lever'; };
     // plafond : voile de guirlandes de LED (mêmes LED lumineuses que la table des chevaux)
