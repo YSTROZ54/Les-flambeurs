@@ -462,7 +462,7 @@
       var o = vq.shift(); if (performance.now() - o.t > 9000) { vPump(); return; }
       var vol = Math.min(1, masterVol() * 1.6); if (vol <= 0) { vPump(); return; }
       try {
-        var a = new Audio('assets/sons/uno/' + o.f + '.mp3'); a.volume = vol; vNow = a;
+        var a = new Audio('assets/sons/' + (o.f.indexOf('/') >= 0 ? o.f : 'uno/' + o.f) + '.mp3'); a.volume = vol; vNow = a;
         var done = function () { if (vNow === a) { vNow = null; vPump(); } };
         a.onended = done; a.onerror = done; setTimeout(done, 8000);
         var pr = a.play(); if (pr && pr.catch) pr.catch(done);
@@ -471,6 +471,10 @@
     function hash(n) { n = (n * 2654435761) >>> 0; n ^= n >>> 15; n = (n * 2246822519) >>> 0; n ^= n >>> 13; return n >>> 0; }
     function fx3d(tid, old, st) {
       try {
+        if (kindOf(tid) === 'c') {                                    // Puissance 4 : la voix « perdu » n'est entendue que par celui qui perd (pas en cas de match nul)
+          if (old && old.ph === 'play' && st.ph === 'over' && (lastFxVer[tid] || 0) < st.ver && seat && seat.tid === tid && st.win >= 0 && st.win < 2 && st.win !== seat.local) { lastFxVer[tid] = st.ver; vq.push({ f: 'puissance4/perdu', t: performance.now() }); vPump(); }
+          return;
+        }
         var tv = TV[tid]; if (!tv || tv.kind !== 'u' || !old || !old.hands || !st || (st.ph !== 'play' && st.ph !== 'over') || old.ph !== 'play' || old.ver >= st.ver) return;
         if ((lastFxVer[tid] || 0) >= st.ver) return; lastFxVer[tid] = st.ver;                 // chaque changement d'état n'est traité qu'une fois : jamais deux sons d'affilée
         var seatNow = seat && seat.tid === tid, said = {};
@@ -678,6 +682,11 @@
       if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
         var sst = G[seat.tid], skey = sst && sst.ph === 'play' && Object.keys(sst.hands).length > 1 ? sst.turn + '|' + sst.disc.length + '|' + (sst.pend | 0) + '|' + (sst.drawn || '') : '';
         if (skey !== slow.key) { slow.key = skey; slow.t = 0; slow.done = false; } else if (skey && !slow.done && (slow.t += dt) > 22) { slow.done = true; lastVoice = { f: 'trop-long', t: performance.now() }; vq.push({ f: 'trop-long', t: performance.now() }); vPump(); }
+      }
+      if (seat && kindOf(seat.tid) === 'c') {                                              // Puissance 4 : si on met du temps à jouer, une voix le dit (un seul seuil tiré au hasard par tour : 30, 40, 50 ou 60 s, parfois aucun)
+        var cst = G[seat.tid], ckey = cst && cst.ph === 'play' ? cst.turn + '|' + cst.g.reduce(function (a, c) { return a + c.length; }, 0) : '';
+        if (ckey !== slow.key) { slow.key = ckey; slow.t = 0; slow.done = false; slow.thr = ckey && hash(cst.ver * 17 + 3) % 100 >= 20 ? [30, 40, 50, 60][hash(cst.ver * 13 + 1) % 4] : 0; }
+        else if (ckey && slow.thr && !slow.done && (slow.t += dt) > slow.thr) { slow.done = true; vq.push({ f: 'puissance4/temps', t: performance.now() }); vPump(); }
       }
       for (var fi = fxs.length - 1; fi >= 0; fi--) { var fo = fxs[fi]; fo.t += dt; var fu = Math.min(1, fo.t / fo.dur); fo.upd(fu, fo.t); if (fu >= 1) { fo.end(); fxs.splice(fi, 1); } }
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('ludo') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x - (LO_A + LO_B) / 2) < (LO_B - LO_A) / 2 - 0.2) world.goRoom('ludo', 'uno');     // 2e ouverture : le Ludo
