@@ -229,17 +229,22 @@
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
     for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
-    function paintPoster(label) {
+    var posterLabel = 'AUCUNE SÉANCE EN COURS', posterSub = '';
+    // écran de base (aucune séance) : l'affiche assombrie, un clap, le texte ; surtout pas de bouton lecture
+    function paintPoster() {
       var x = posterC.getContext('2d');
       x.fillStyle = '#0c0508'; x.fillRect(0, 0, 1280, 720);
       if (posterImg) x.drawImage(posterImg, 0, 0, 1280, 720);
-      x.fillStyle = 'rgba(6,2,4,0.35)'; x.fillRect(0, 0, 1280, 720);
-      x.fillStyle = 'rgba(6,2,4,0.88)'; x.fillRect(0, 560, 1280, 160);                                   // bandeau en bas pour le texte
-      x.fillStyle = 'rgba(255,122,26,0.95)'; x.beginPath(); x.arc(640, 300, 92, 0, TAU); x.fill();         // gros bouton lecture
-      x.fillStyle = '#1a0a04'; x.beginPath(); x.moveTo(610, 250); x.lineTo(610, 350); x.lineTo(698, 300); x.closePath(); x.fill();
+      x.fillStyle = 'rgba(6,2,4,0.62)'; x.fillRect(0, 0, 1280, 720);
+      x.save(); x.translate(640, 250);                                                                     // clap de cinéma
+      x.fillStyle = '#1a0a04'; x.strokeStyle = '#ff7a1a'; x.lineWidth = 8; x.beginPath(); x.rect(-120, -10, 240, 140); x.fill(); x.stroke();
+      x.save(); x.rotate(-0.2); x.fillStyle = '#ff7a1a'; x.fillRect(-126, -60, 252, 40);
+      x.fillStyle = '#1a0a04'; for (var k = 0; k < 5; k++) { x.beginPath(); x.moveTo(-104 + k * 48, -60); x.lineTo(-76 + k * 48, -60); x.lineTo(-94 + k * 48, -20); x.lineTo(-122 + k * 48, -20); x.closePath(); x.fill(); }
+      x.restore(); x.restore();
       x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff3e0';
-      x.font = '800 54px ' + SERIF; x.fillText(label, 640, 612, 1180);
-      x.fillStyle = '#ffb066'; x.font = '700 28px ' + MONO; x.fillText('Présentation Premium · tropistream.fr', 640, 678, 1180);
+      x.font = '800 62px ' + SERIF; x.fillText(posterLabel, 640, 450, 1180);
+      if (posterSub) { x.fillStyle = '#ffb066'; x.font = '700 30px ' + MONO; x.fillText(posterSub, 640, 520, 1180); }
+      x.fillStyle = 'rgba(255,176,102,0.55)'; x.font = '700 22px ' + MONO; x.fillText('tropistream.fr', 640, 672, 1180);
       posterTex.needsUpdate = true;
     }
     // écran de chargement : pendant que le flux extrait par Tropi Stream se met en mémoire tampon (ça peut prendre quelques secondes),
@@ -265,10 +270,9 @@
       loadingActive = on;
       if (on) { loadingPaintT = 0; paintLoading(loadingAngle); showVideo(false); }
     }
-    var posterLabel = 'LANCER LA SÉANCE';
-    paintPoster(posterLabel);
+    paintPoster();
     var img = new Image();
-    img.onload = function () { posterImg = img; paintPoster(posterLabel); };
+    img.onload = function () { posterImg = img; paintPoster(); };
     img.src = POSTER_SRC;
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
@@ -462,7 +466,7 @@
       return boss || co;
     }
     var video = document.createElement('video');
-    video.crossOrigin = 'anonymous'; video.preload = 'metadata'; video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
+    video.crossOrigin = 'anonymous'; video.preload = 'auto';   // on charge le film d'avance, même avant le lancement video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
     var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '', schedule: [] };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
@@ -492,8 +496,14 @@
       if (url && type === 'hls' && !video.canPlayType('application/vnd.apple.mpegurl')) {
         loadHlsLib(function (Hls) {
           if (!Hls) { world.flash('🎬 Lecture HLS indisponible.', 'Réessaie dans un instant.'); return; }
-          hlsInst = new Hls();
-          hlsInst.on(Hls.Events.ERROR, function (ev, data) { if (data && data.fatal) world.flash('🎬 Ce flux n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
+          // grosse avance de lecture : on charge la suite bien avant d'en avoir besoin (moins de « chargement du flux » en cours de film)
+          hlsInst = new Hls({ maxBufferLength: 90, maxMaxBufferLength: 180, maxBufferSize: 200 * 1000 * 1000, backBufferLength: 20, startFragPrefetch: true, manifestLoadingMaxRetry: 4, fragLoadingMaxRetry: 6, levelLoadingMaxRetry: 4 });
+          hlsInst.on(Hls.Events.ERROR, function (ev, data) {
+            if (!data || !data.fatal) return;
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) { try { hlsInst.startLoad(); } catch (e) { /* ok */ } }          // coupure réseau : on relance le chargement sans bruit
+            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { try { hlsInst.recoverMediaError(); } catch (e) { /* ok */ } }
+            else world.flash('🎬 Ce flux n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.');
+          });
           hlsInst.loadSource(url); hlsInst.attachMedia(video);
         });
       } else {
@@ -501,10 +511,12 @@
       }
     }
     video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
-    video.addEventListener('ended', function () { if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); });   // le Patron/Co Fondateur coupe la séance pour tout le monde
+    var endedUrl = '', lastSt = null, stallT = 0;
+    // fin du film : chez tout le monde on revient à l'écran de base (aucune séance), et le Patron/Co Fondateur coupe la séance pour tout le monde
+    video.addEventListener('ended', function () { endedUrl = net.url; if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); if (lastSt) applyNet(lastSt); });
     // écran de chargement tant que le flux met en mémoire tampon (extraction Tropi Stream + démarrage du flux, parfois plusieurs secondes)
-    video.addEventListener('waiting', function () { if (net.status === 'playing') setLoading(true); });
-    video.addEventListener('playing', function () { if (net.status === 'playing') { setLoading(false); showVideo(true); } });
+    // (l'écran de chargement n'apparaît qu'après une vraie coupure d'une seconde, voir room.update : plus de rond qui clignote pour un micro-ralentissement)
+    video.addEventListener('playing', function () { stallT = 0; if (net.status === 'playing') { setLoading(false); showVideo(true); } });
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
     var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false };
     function ensureVideoAudio() {
@@ -546,27 +558,37 @@
       seanceCardEl.classList.remove('out'); void seanceCardEl.offsetWidth; seanceCardEl.classList.add('on');
       clearTimeout(seanceCardT); seanceCardT = setTimeout(function () { if (seanceCardEl) seanceCardEl.classList.add('out'); }, 7000);
     }
+    function nextSeanceSub() {
+      var nx = (net.schedule || []).filter(function (it) { return it.at > Date.now(); })[0];
+      if (nx) return 'Prochaine séance : ' + nx.title.replace(/\s*\[(VF|VO)\]\s*$/, '') + ' · ' + fmtSchedDate(nx.at);
+      return net.url && net.title ? 'Film chargé : ' + net.title.replace(/\s*\[(VF|VO)\]\s*$/, '') : '';
+    }
     function applyNet(st) {
       if (!st) return;
-      net.url = st.url || ''; net.type = st.type || 'mp4'; net.status = st.status || 'idle'; net.position = st.position || 0; net.recvAt = performance.now();
+      lastSt = st;
+      net.url = st.url || ''; net.type = st.type || 'mp4'; net.position = st.position || 0; net.recvAt = performance.now();
       net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
-      if (net.url !== net.lastSrc) { net.lastSrc = net.url; setSource(net.url, net.type); }
+      if (st.status !== 'playing') endedUrl = '';
+      net.status = (st.status === 'playing' && net.url && net.url === endedUrl) ? 'idle' : (st.status || 'idle');   // film terminé chez moi : écran de base, même si le serveur n'a pas encore coupé
+      if (net.url !== net.lastSrc) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
         ensureVideoAudio();
-        if (Math.abs(video.currentTime - netPosNow()) > 0.6) video.currentTime = Math.max(0, netPosNow());
-        var ready = video.readyState >= 3;   // HAVE_FUTURE_DATA : assez de données pour lire sans à-coup tout de suite
-        setLoading(!ready);
-        if (ready) showVideo(true);
+        var drift = netPosNow() - video.currentTime;
+        if (Math.abs(drift) > 2.5) video.currentTime = Math.max(0, netPosNow());       // gros écart seulement : un saut en arrière-plan coupe la lecture, on évite
+        else if (Math.abs(drift) > 0.4) video.playbackRate = drift > 0 ? 1.06 : 0.94;  // petit écart : on rattrape en douceur
+        else if (video.playbackRate !== 1) video.playbackRate = 1;
+        if (video.readyState >= 3) showVideo(true);
         var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis : la lecture reprendra au prochain geste de l'utilisateur */ });
       } else {
-        setLoading(false);
+        setLoading(false); stallT = 0;
         if (!video.paused) video.pause();
+        if (video.playbackRate !== 1) video.playbackRate = 1;
         if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
         else {
           showVideo(false);
-          var lbl = net.title ? ('PRÊT : ' + net.title.toUpperCase()) : (net.url ? 'LANCER LA SÉANCE' : 'AUCUNE VIDÉO CHARGÉE');
-          if (lbl !== posterLabel) { posterLabel = lbl; paintPoster(lbl); }
+          var sub = nextSeanceSub();
+          if (posterLabel !== 'AUCUNE SÉANCE EN COURS' || sub !== posterSub) { posterLabel = 'AUCUNE SÉANCE EN COURS'; posterSub = sub; paintPoster(); }
         }
       }
       refreshConsole(); renderSchedule();
@@ -742,22 +764,70 @@
       var urlInput = consoleEl.querySelector('.cin-cn-url');
       if (urlInput) urlInput.value = targetUrl;
       world.flash('🎬 ' + f.titre + ' (' + ver + ')', 'Extraction du flux ' + (f.host || 'Premium') + ' via Tropi Stream...');
-      cinemaAction('set', { url: targetUrl, title: fullTitle });
+      pendingTitle = fullTitle; refreshConsole();
+      cinemaAction('set', { url: targetUrl, title: fullTitle }).then(function () { pendingTitle = ''; refreshConsole(); });
     }
+    function filmOfTitle(title) {
+      if (!playlist || !title) return null;
+      var base = String(title).replace(/\s*\[(VF|VO)\]\s*$/, '');
+      return playlist.find(function (x) { return x.nom === base; }) || null;
+    }
+    function verOfTitle(t) { var m = /\[(VF|VO)\]\s*$/.exec(t || ''); return m ? m[1] : ''; }
 
-    /* ===================== PROGRAMMATION DES SÉANCES ===================== */
-    function populateScheduleSelect() {
-      if (!consoleEl || !playlist) return;
-      var sel = consoleEl.querySelector('.cin-sch-film');
-      if (!sel) return;
-      var cur = sel.value;
-      var html = '<option value="">Choisis un film de la playlist…</option>';
-      playlist.forEach(function (f) {
-        if (f.vf) html += '<option value="' + f.id + ':VF">' + escapeHtml(f.titre) + (f.annee ? ' (' + f.annee + ')' : '') + ' · VF</option>';
-        if (f.vo) html += '<option value="' + f.id + ':VO">' + escapeHtml(f.titre) + (f.annee ? ' (' + f.annee + ')' : '') + ' · VO</option>';
-      });
-      sel.innerHTML = html;
-      sel.value = cur;
+    /* ===================== PROGRAMMATION DES SÉANCES : choix du film en affiches, choix de la date en jours + heure ===================== */
+    var schedPick = null, schedDay = 0, schedH = 20, schedM = 0, fpSearch = '', fpBatch = 24, pendingTitle = '';
+    var JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'], MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    var NO_POSTER = 'assets/cinema/tropistream-serveur.png';
+    function fpFiltered() {
+      var q = fpSearch.trim().toLowerCase();
+      return (playlist || []).filter(function (f) { return !q || (f.nom + ' ' + (f.annee || '') + ' ' + (f.genres || []).join(' ')).toLowerCase().indexOf(q) !== -1; });
+    }
+    function renderFpButton() {
+      if (!consoleEl) return;
+      var b = consoleEl.querySelector('.cin-fp-btn'); if (!b) return;
+      var f = schedPick && playlist && playlist.find(function (x) { return String(x.id) === String(schedPick.id); });
+      b.innerHTML = f
+        ? '<img src="' + escapeHtml(f.poster || NO_POSTER) + '" alt="" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'"><span class="cin-fp-sel"><b>' + escapeHtml(f.titre) + '</b><small>' + (f.annee ? f.annee + ' · ' : '') + schedPick.ver + '</small></span><i class="fa-solid fa-chevron-down"></i>'
+        : '<span class="cin-fp-ph"><i class="fa-solid fa-film"></i></span><span class="cin-fp-sel"><b>Choisis un film</b><small>Touche pour voir les affiches</small></span><i class="fa-solid fa-chevron-down"></i>';
+    }
+    function renderFilmPicker() {
+      if (!consoleEl) return;
+      var grid = consoleEl.querySelector('.cin-fp-grid'); if (!grid) return;
+      if (!playlist) { grid.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-spinner fa-spin"></i> Chargement des affiches…</div>'; return; }
+      var list = fpFiltered();
+      if (!list.length) { grid.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-magnifying-glass"></i> Aucun film trouvé.</div>'; return; }
+      grid.innerHTML = list.slice(0, fpBatch).map(function (f) {
+        var sel = schedPick && String(schedPick.id) === String(f.id);
+        return '<div class="cin-fp-card' + (sel ? ' sel' : '') + '"><img loading="lazy" src="' + escapeHtml(f.poster || NO_POSTER) + '" alt="" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'">' +
+          '<div class="cin-fp-t" title="' + escapeHtml(f.nom) + '">' + escapeHtml(f.titre) + (f.annee ? ' <small>(' + f.annee + ')</small>' : '') + '</div>' +
+          '<div class="cin-fp-v">' + (f.vf ? '<button data-a="fp-pick" data-id="' + f.id + '" data-ver="VF"' + (sel && schedPick.ver === 'VF' ? ' class="on"' : '') + '>VF</button>' : '') + (f.vo ? '<button data-a="fp-pick" data-id="' + f.id + '" data-ver="VO"' + (sel && schedPick.ver === 'VO' ? ' class="on"' : '') + '>VO</button>' : '') + '</div></div>';
+      }).join('');
+    }
+    function populateScheduleSelect() { renderFilmPicker(); renderFpButton(); }
+    function schedAt() {
+      var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + schedDay); d.setHours(schedH, schedM, 0, 0);
+      return d.getTime();
+    }
+    function renderDatePicker() {
+      if (!consoleEl) return;
+      var el = consoleEl.querySelector('.cin-dp'); if (!el) return;
+      var base = new Date(); base.setHours(0, 0, 0, 0);
+      var days = '';
+      for (var i = 0; i < 14; i++) {
+        var d = new Date(base.getTime()); d.setDate(d.getDate() + i);
+        days += '<button class="cin-dp-day' + (i === schedDay ? ' sel' : '') + '" data-a="dp-day" data-i="' + i + '"><small>' + (i === 0 ? 'auj.' : JOURS[d.getDay()]) + '</small><b>' + d.getDate() + '</b><small>' + MOIS[d.getMonth()] + '</small></button>';
+      }
+      var two = function (n) { return ('0' + n).slice(-2); };
+      var chips = ['18:00', '19:00', '20:00', '20:30', '21:00', '22:00'].map(function (t) {
+        return '<button class="cin-dp-chip' + (t === two(schedH) + ':' + two(schedM) ? ' sel' : '') + '" data-a="dp-t" data-t="' + t + '">' + t + '</button>';
+      }).join('');
+      var at = schedAt(), past = at <= Date.now(), dd = new Date(at);
+      var when = (schedDay === 0 ? 'Aujourd\'hui' : schedDay === 1 ? 'Demain' : JOURS[dd.getDay()] + ' ' + dd.getDate() + ' ' + MOIS[dd.getMonth()]) + ' à ' + two(schedH) + ':' + two(schedM);
+      el.innerHTML = '<div class="cin-dp-days">' + days + '</div>' +
+        '<div class="cin-dp-time"><div class="cin-dp-step"><button data-a="dp-h" data-d="1"><i class="fa-solid fa-chevron-up"></i></button><b>' + two(schedH) + '</b><button data-a="dp-h" data-d="-1"><i class="fa-solid fa-chevron-down"></i></button></div><span class="cin-dp-sep">:</span>' +
+        '<div class="cin-dp-step"><button data-a="dp-m" data-d="5"><i class="fa-solid fa-chevron-up"></i></button><b>' + two(schedM) + '</b><button data-a="dp-m" data-d="-5"><i class="fa-solid fa-chevron-down"></i></button></div>' +
+        '<div class="cin-dp-chips">' + chips + '</div></div>' +
+        '<div class="cin-dp-sum' + (past ? ' bad' : '') + '"><i class="fa-regular fa-calendar"></i> ' + when + (past ? ' · choisis une heure à venir' : '') + '</div>';
     }
     function fmtSchedDate(ts) {
       var d = new Date(ts), now = new Date(), sameDay = d.toDateString() === now.toDateString();
@@ -771,7 +841,7 @@
       var items = (net.schedule || []).slice().sort(function (a, b) { return a.at - b.at; });
       if (!items.length) { listEl.innerHTML = '<div class="cin-pl-empty"><i class="fa-solid fa-calendar"></i> Aucune séance programmée.</div>'; return; }
       listEl.innerHTML = items.map(function (it) {
-        return '<div class="cin-sch-item">' +
+        return '<div class="cin-sch-item"><img class="cin-sch-img" src="' + escapeHtml(it.poster || NO_POSTER) + '" alt="" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'">' +
           '<div class="cin-sch-info"><div class="cin-sch-title">' + escapeHtml(it.title) + '</div><div class="cin-sch-when"><i class="fa-regular fa-clock"></i> ' + fmtSchedDate(it.at) + '</div></div>' +
           '<button class="cin-sch-del" data-a="sched-remove" data-id="' + escapeHtml(it.id) + '" title="Retirer"><i class="fa-solid fa-trash"></i></button>' +
         '</div>';
@@ -779,17 +849,15 @@
     }
     function addSchedule() {
       if (!consoleEl) return;
-      var sel = consoleEl.querySelector('.cin-sch-film'), atInput = consoleEl.querySelector('.cin-sch-at');
-      var val = sel && sel.value, atLocal = atInput && atInput.value;
-      if (!val || !atLocal) { world.flash('🗓️ Choisis un film et une date.'); return; }
-      var at = new Date(atLocal).getTime();
+      if (!schedPick) { world.flash('🗓️ Choisis un film.'); return; }
+      var at = schedAt();
       if (!isFinite(at) || at <= Date.now()) { world.flash('🗓️ Choisis une date dans le futur.'); return; }
-      var parts = val.split(':'), id = parts[0], ver = parts[1];
+      var id = schedPick.id, ver = schedPick.ver;
       var f = playlist && playlist.find(function (x) { return String(x.id) === String(id); });
       if (!f) return;
       var targetUrl = (ver === 'VO' && f.vo) ? f.vo : (f.vf || f.url);
       cinemaAction('schedule-add', { title: f.nom + ' [' + ver + ']', url: targetUrl, type: /\.m3u8(\?|#|$)/i.test(targetUrl) ? 'hls' : 'mp4', poster: f.poster || '', at: at }).then(function (r) {
-        if (r && r.ok) { world.flash('🗓️ Séance programmée', f.titre + ' · ' + fmtSchedDate(at)); if (atInput) atInput.value = ''; if (sel) sel.value = ''; }
+        if (r && r.ok) { world.flash('🗓️ Séance programmée', f.titre + ' · ' + fmtSchedDate(at)); schedPick = null; renderFpButton(); renderFilmPicker(); }
       });
     }
 
@@ -803,11 +871,12 @@
       var paneSch = consoleEl.querySelector('.cin-pane-schedule');
       if (panePl) panePl.classList.toggle('hid', tab !== 'playlist');
       if (paneDir) paneDir.classList.toggle('hid', tab !== 'direct');
-      if (paneSch) { paneSch.classList.toggle('hid', tab !== 'schedule'); if (tab === 'schedule') renderSchedule(); }
+      if (paneSch) { paneSch.classList.toggle('hid', tab !== 'schedule'); if (tab === 'schedule') { renderSchedule(); renderDatePicker(); populateScheduleSelect(); } }
     }
 
     function mountConsole() {
       if (consoleEl || !isCinemaCtrl()) return;
+      var nw = new Date(); schedDay = 0; schedH = nw.getHours() + 1; schedM = 0; if (schedH >= 24) { schedDay = 1; schedH = 20; }
       consoleEl = document.createElement('div'); consoleEl.className = 'cin-console hid';
       consoleEl.innerHTML =
         '<button class="cin-cn-x" data-a="close" title="Fermer"><i class="fa-solid fa-xmark"></i></button>' +
@@ -816,7 +885,16 @@
           '<div class="cin-cn-badge"><img class="cin-cn-logo" src="assets/cinema/tropistream-serveur.png" alt=""> Tropi Stream</div>' +
         '</div>' +
         '<div class="cin-cn-playback">' +
-          '<div class="cin-cn-st" data-a="status"></div>' +
+          '<div class="cin-np">' +
+            '<div class="cin-np-poster"><img class="cin-np-img" data-r="img" alt=""><div class="cin-np-ph"><i class="fa-solid fa-film"></i></div></div>' +
+            '<div class="cin-np-body">' +
+              '<div class="cin-np-badge" data-r="badge"></div>' +
+              '<div class="cin-np-title" data-r="title"></div>' +
+              '<div class="cin-np-meta" data-r="meta"></div>' +
+              '<div class="cin-np-bar"><i data-r="bar"></i></div>' +
+              '<div class="cin-np-time"><span data-r="t1"></span><span data-r="t2"></span></div>' +
+            '</div>' +
+          '</div>' +
           '<div class="cin-cn-row">' +
             '<button data-a="play" class="btn-play" title="Lancer la séance"><i class="fa-solid fa-play"></i> Lancer</button>' +
             '<button data-a="pause" class="btn-pause" title="Mettre en pause"><i class="fa-solid fa-pause"></i> Pause</button>' +
@@ -824,7 +902,7 @@
           '</div>' +
         '</div>' +
         '<div class="cin-cn-tabs">' +
-          '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist Tropi Stream</button>' +
+          '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist</button>' +
           '<button class="cin-tab-btn" data-tab="direct"><i class="fa-solid fa-link"></i> Lien direct</button>' +
           '<button class="cin-tab-btn" data-tab="schedule"><i class="fa-solid fa-calendar-days"></i> Séances</button>' +
         '</div>' +
@@ -851,11 +929,13 @@
         '</div>' +
         '<div class="cin-pane cin-pane-schedule hid">' +
           '<div class="cin-direct-desc">Programme une prochaine séance : elle s\'affichera sur le panneau « À l\'affiche » à l\'entrée du cinéma.</div>' +
-          '<select class="cin-sch-film"><option value="">Choisis un film de la playlist…</option></select>' +
-          '<div class="cin-cn-row">' +
-            '<input class="cin-sch-at" type="datetime-local">' +
-            '<button class="cin-btn-load" data-a="sched-add"><i class="fa-solid fa-calendar-plus"></i> Programmer</button>' +
-          '</div>' +
+          '<div class="cin-lbl">1 · Le film</div>' +
+          '<button class="cin-fp-btn" data-a="fp-toggle"></button>' +
+          '<div class="cin-fp-pop hid"><div class="cin-pl-search-wrap"><i class="fa-solid fa-magnifying-glass cin-pl-icon"></i><input class="cin-fp-search" type="text" placeholder="Rechercher un film..." maxlength="100"></div><div class="cin-fp-grid"></div></div>' +
+          '<div class="cin-lbl">2 · Le jour et l\'heure</div>' +
+          '<div class="cin-dp"></div>' +
+          '<div class="cin-cn-row"><button class="cin-btn-load" data-a="sched-add"><i class="fa-solid fa-calendar-plus"></i> Programmer la séance</button></div>' +
+          '<div class="cin-lbl">Séances programmées</div>' +
           '<div class="cin-sch-list"></div>' +
         '</div>';
 
@@ -878,7 +958,7 @@
         }
 
         var b = e.target && e.target.closest ? e.target.closest('[data-a]') : null;
-        if (!b) return;
+        if (!b || b.disabled) return;
         var a = b.getAttribute('data-a');
         if (a === 'close') { closeConsole(); return; }
         if (a === 'clear-search') {
@@ -903,8 +983,14 @@
           cinemaAction('set', { url: u });
           return;
         }
-        if (a === 'play' || a === 'pause' || a === 'stop') cinemaAction(a);
-        if (a === 'sched-add') addSchedule();
+        if (a === 'play' || a === 'pause' || a === 'stop') { cinemaAction(a); return; }
+        if (a === 'fp-toggle') { consoleEl.querySelector('.cin-fp-pop').classList.toggle('hid'); renderFilmPicker(); return; }
+        if (a === 'fp-pick') { schedPick = { id: b.getAttribute('data-id'), ver: b.getAttribute('data-ver') || 'VF' }; consoleEl.querySelector('.cin-fp-pop').classList.add('hid'); renderFpButton(); return; }
+        if (a === 'dp-day') { schedDay = parseInt(b.getAttribute('data-i'), 10) || 0; renderDatePicker(); return; }
+        if (a === 'dp-h') { schedH = (schedH + parseInt(b.getAttribute('data-d'), 10) + 24) % 24; renderDatePicker(); return; }
+        if (a === 'dp-m') { schedM = (schedM + parseInt(b.getAttribute('data-d'), 10) + 60) % 60; renderDatePicker(); return; }
+        if (a === 'dp-t') { var tt = (b.getAttribute('data-t') || '20:00').split(':'); schedH = parseInt(tt[0], 10); schedM = parseInt(tt[1], 10); renderDatePicker(); return; }
+        if (a === 'sched-add') { addSchedule(); return; }
         if (a === 'sched-remove') {
           var sid = b.getAttribute('data-id');
           cinemaAction('schedule-remove', { id: sid }).then(function (r) { if (r && r.ok) renderSchedule(); });
@@ -926,6 +1012,12 @@
           }, 150);
         });
       }
+      var fpSearchEl = consoleEl.querySelector('.cin-fp-search');
+      if (fpSearchEl) fpSearchEl.addEventListener('input', function () { fpSearch = this.value; fpBatch = 24; renderFilmPicker(); });
+      var fpGrid = consoleEl.querySelector('.cin-fp-grid');
+      if (fpGrid) fpGrid.addEventListener('scroll', function () {
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 80 && fpBatch < fpFiltered().length) { var st0 = this.scrollTop; fpBatch += 24; renderFilmPicker(); this.scrollTop = st0; }
+      });
 
       var listEl = consoleEl.querySelector('.cin-pl-list');
       if (listEl) {
@@ -940,7 +1032,9 @@
       }
 
       world.container.appendChild(consoleEl);
-      loadPlaylist();
+      renderFpButton(); renderDatePicker();
+      if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); }   // déjà chargée (à l'entrée du cinéma) : on affiche la liste tout de suite, sans attendre une recherche
+      else loadPlaylist();
     }
 
     function unmountConsole() {
@@ -965,31 +1059,40 @@
       if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
       consoleEl.classList.remove('hid');
       consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+      if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); } else loadPlaylist();
       refreshConsole();
-      loadPlaylist();
-      populateScheduleSelect();
       renderSchedule();
     }
 
+    // la carte « en cours » : écriture seulement si la valeur change (la régie est rafraîchie à chaque image, les boutons ne doivent pas être refaits)
+    function setR(root, name, html) { var el = root.querySelector('[data-r="' + name + '"]'); if (el && el.__h !== html) { el.__h = html; el.innerHTML = html; } return el; }
     function refreshConsole() {
       if (!consoleEl || consoleEl.classList.contains('hid')) return;
-      var st = consoleEl.querySelector('[data-a="status"]');
-      if (!st) return;
-      var displayTitle = net.title ? net.title : (net.url ? 'Lien personnalisé' : '');
-      if (net.status === 'playing') {
-        st.innerHTML = '<span class="cin-st-badge playing"><i class="fa-solid fa-circle-play"></i> En cours</span> ' +
-          (displayTitle ? '<span class="cin-st-title" title="' + escapeHtml(displayTitle) + '">' + escapeHtml(displayTitle) + '</span> · ' : '') +
-          '<span class="cin-st-time">' + fmtT(netPosNow()) + '</span>';
-      } else if (net.status === 'paused') {
-        st.innerHTML = '<span class="cin-st-badge paused"><i class="fa-solid fa-circle-pause"></i> En pause</span> ' +
-          (displayTitle ? '<span class="cin-st-title" title="' + escapeHtml(displayTitle) + '">' + escapeHtml(displayTitle) + '</span> · ' : '') +
-          '<span class="cin-st-time">' + fmtT(net.position) + '</span>';
-      } else if (net.url) {
-        st.innerHTML = '<span class="cin-st-badge ready"><i class="fa-solid fa-circle-check"></i> Prêt</span> ' +
-          '<span class="cin-st-title" title="' + escapeHtml(displayTitle || net.url) + '">' + escapeHtml(displayTitle || net.url) + '</span>';
-      } else {
-        st.innerHTML = '<span class="cin-st-badge idle"><i class="fa-solid fa-circle-stop"></i> Aucun film</span> <span class="cin-st-help">Choisis un film dans la playlist</span>';
+      var playing = net.status === 'playing', paused = net.status === 'paused', has = !!net.url, active = playing || paused;
+      var f = filmOfTitle(net.title), ver = verOfTitle(net.title);
+      var badgeCls, badgeHtml, title, meta;
+      if (pendingTitle) { badgeCls = 'pending'; badgeHtml = '<i class="fa-solid fa-spinner fa-spin"></i> Préparation du flux…'; title = pendingTitle.replace(/\s*\[(VF|VO)\]\s*$/, ''); meta = 'Extraction via Tropi Stream, ça peut prendre quelques secondes'; f = filmOfTitle(pendingTitle); ver = verOfTitle(pendingTitle); }
+      else if (playing) { badgeCls = 'playing'; badgeHtml = '<i class="fa-solid fa-circle-play"></i> En cours'; }
+      else if (paused) { badgeCls = 'paused'; badgeHtml = '<i class="fa-solid fa-circle-pause"></i> En pause'; }
+      else if (has && net.title) { badgeCls = 'ready'; badgeHtml = '<i class="fa-solid fa-circle-check"></i> Film chargé, prêt à lancer'; }
+      else { badgeCls = 'idle'; badgeHtml = '<i class="fa-solid fa-circle-stop"></i> Aucune séance en cours'; }
+      if (!pendingTitle) {
+        title = net.title ? net.title.replace(/\s*\[(VF|VO)\]\s*$/, '') : (has && active ? 'Lien personnalisé' : 'Aucune séance en cours');
+        meta = (f ? ((f.genres || []).slice(0, 2).join(' · ')) : '') || (net.title || active ? '' : 'Choisis un film dans la playlist');
       }
+      var cn = consoleEl.querySelector('.cin-np'); cn.className = 'cin-np ' + badgeCls;
+      setR(consoleEl, 'badge', badgeHtml);
+      setR(consoleEl, 'title', escapeHtml(title) + (f && f.annee ? ' <small>(' + f.annee + ')</small>' : '') + (ver ? ' <em>' + ver + '</em>' : ''));
+      setR(consoleEl, 'meta', escapeHtml(meta));
+      var img = consoleEl.querySelector('[data-r="img"]'), src = (net.title || pendingTitle) && f ? (f.poster || NO_POSTER) : (net.title || pendingTitle ? NO_POSTER : '');
+      if (img.__s !== src) { img.__s = src; if (src) { img.src = src; img.style.display = ''; } else { img.removeAttribute('src'); img.style.display = 'none'; } }
+      var dur = video.duration, pos = playing ? netPosNow() : net.position, pct = active && isFinite(dur) && dur > 0 ? clamp(pos / dur * 100, 0, 100) : 0;
+      var bar = consoleEl.querySelector('[data-r="bar"]'), w = pct.toFixed(1) + '%'; if (bar.__w !== w) { bar.__w = w; bar.style.width = w; }
+      setR(consoleEl, 't1', active ? fmtT(pos) : '');
+      setR(consoleEl, 't2', active && isFinite(dur) && dur > 0 ? '-' + fmtT(dur - pos) + ' · ' + fmtT(dur) : '');
+      var bp = consoleEl.querySelector('.btn-play'), bpa = consoleEl.querySelector('.btn-pause'), bs = consoleEl.querySelector('.btn-stop');
+      bp.disabled = !has || playing || !!pendingTitle; bpa.disabled = !playing; bs.disabled = !active;
+      var pl = paused ? 'Reprendre' : 'Lancer'; if (bp.__l !== pl) { bp.__l = pl; bp.innerHTML = '<i class="fa-solid fa-play"></i> ' + pl; }
     }
 
     /* ===================== S'ASSEOIR ===================== */
@@ -1069,10 +1172,19 @@
     room.onPageHide = function () { video.pause(); };
     room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
-    var clock = 0, netT = 0;
+    var clock = 0, netT = 0, remotesHid = false;
     room.update = function (dt, w) {
       clock += dt;
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
+      if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
+        stallT = (video.readyState < 3 || video.seeking) ? stallT + dt : 0;
+        setLoading(stallT > 1.0);
+        if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
+      }
+      if (cur || remotesHid) {   // assis : on masque les autres joueurs (têtes, pseudos) qui gêneraient la vue de l'écran
+        Object.keys(w.remote).forEach(function (k) { var r = w.remote[k]; if (r && r.person && r.person.group) r.person.group.visible = !cur; });
+        remotesHid = !!cur;
+      }
       if (loadingActive) {   // rond qui tourne tant que le flux met en mémoire tampon
         loadingAngle += dt * 4; loadingPaintT += dt;
         if (loadingPaintT > 0.08) { loadingPaintT = 0; paintLoading(loadingAngle); }
@@ -1204,7 +1316,52 @@
       '.cin-sch-info{flex:1;min-width:0}' +
       '.cin-sch-title{font-size:12px;font-weight:700;color:#f4e3b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
       '.cin-sch-when{font-size:11px;color:#9d8a53;margin-top:2px}' +
-      '.cin-sch-del{flex-shrink:0;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:7px;padding:6px 9px;font-size:11px}.cin-sch-del:hover{background:rgba(239,68,68,.3)}';
+      '.cin-sch-del{flex-shrink:0;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:7px;padding:6px 9px;font-size:11px}.cin-sch-del:hover{background:rgba(239,68,68,.3)}' +
+      /* Régie : refonte (carte « en cours » avec l'affiche, sélecteur d'affiches, choix du jour et de l'heure) */
+      '.cin-console{width:540px;max-height:90vh}' +
+      '.cin-cn-playback{padding:12px 14px 12px}' +
+      '.cin-np{display:flex;gap:12px;margin-bottom:10px;padding:10px;border-radius:14px;background:#120a0d;border:1px solid rgba(255,255,255,.08)}' +
+      '.cin-np.playing{border-color:rgba(74,222,128,.45)}.cin-np.paused{border-color:rgba(250,200,80,.45)}.cin-np.pending{border-color:rgba(255,122,26,.5)}' +
+      '.cin-np-poster{position:relative;width:78px;height:116px;flex:none;border-radius:10px;overflow:hidden;background:#1d1014;display:flex;align-items:center;justify-content:center}' +
+      '.cin-np-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cin-np-ph{color:#5a4d38;font-size:26px}' +
+      '.cin-np-body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px}' +
+      '.cin-np-badge{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:800;letter-spacing:.03em;background:rgba(255,255,255,.07);color:#9d8a53}' +
+      '.cin-np.playing .cin-np-badge{background:rgba(34,197,94,.18);color:#4ade80}.cin-np.paused .cin-np-badge{background:rgba(250,200,80,.15);color:#facc15}.cin-np.ready .cin-np-badge{background:rgba(99,102,241,.2);color:#a5b4fc}.cin-np.pending .cin-np-badge{background:rgba(255,122,26,.18);color:#ff9a4a}' +
+      '.cin-np-title{font-weight:900;font-size:17px;line-height:1.2;color:#f4e3b0}.cin-np-title small{font-size:12px;font-weight:600;color:#9d8a53}.cin-np-title em{font-style:normal;font-size:10.5px;font-weight:900;background:#c2410c;color:#fff;border-radius:4px;padding:1px 6px;vertical-align:2px}' +
+      '.cin-np-meta{font-size:11.5px;color:#9d8a53;min-height:14px}' +
+      '.cin-np-bar{height:6px;border-radius:3px;background:#2a1f24;overflow:hidden;margin-top:2px}.cin-np-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
+      '.cin-np-time{display:flex;justify-content:space-between;font-size:11px;color:#9d8a53;font-variant-numeric:tabular-nums;min-height:14px}' +
+      '.cin-cn-row button:disabled{opacity:.35;cursor:not-allowed}' +
+      '.cin-cn-row button{padding:10px 6px;font-size:12.5px}' +
+      '.cin-pl-item{padding:7px 9px}.cin-pl-thumb{width:44px;height:66px}.cin-pl-title{font-size:13px}' +
+      '.cin-pane-schedule{max-height:56vh}' +
+      '.cin-lbl{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#c9a227;margin-top:4px}' +
+      '.cin-fp-btn{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;cursor:pointer;font-family:inherit;text-align:left;background:#120a0d;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;color:#f4e3b0}.cin-fp-btn:hover{border-color:rgba(201,162,39,.5)}' +
+      '.cin-fp-btn img,.cin-fp-ph{width:38px;height:56px;flex:none;border-radius:6px;object-fit:cover;background:#1d1014;display:flex;align-items:center;justify-content:center;color:#5a4d38;font-size:18px}' +
+      '.cin-fp-sel{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.cin-fp-sel b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cin-fp-sel small{font-size:11px;color:#9d8a53}.cin-fp-btn>i{color:#9d8a53}' +
+      '.cin-fp-pop{display:flex;flex-direction:column;gap:8px;background:#0d070a;border:1px solid rgba(201,162,39,.35);border-radius:12px;padding:8px}.cin-fp-pop.hid{display:none}' +
+      '.cin-fp-search{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px 10px 8px 30px;color:#fff3e0;font-family:inherit;font-size:12.5px;outline:none}.cin-fp-search:focus{border-color:rgba(201,162,39,.5)}' +
+      '.cin-fp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-height:260px;overflow-y:auto;padding-right:2px}' +
+      '.cin-fp-grid::-webkit-scrollbar{width:4px}.cin-fp-grid::-webkit-scrollbar-thumb{background:rgba(201,162,39,.3);border-radius:2px}' +
+      '.cin-fp-grid .cin-pl-empty{grid-column:1/-1}' +
+      '.cin-fp-card{display:flex;flex-direction:column;gap:4px;border-radius:10px;padding:4px;background:#160d11;border:1px solid transparent}.cin-fp-card.sel{border-color:#ff7a1a;background:#2a1208}' +
+      '.cin-fp-card img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:7px;background:#1d1014}' +
+      '.cin-fp-t{font-size:10.5px;font-weight:700;line-height:1.25;color:#f4e3b0;height:26px;overflow:hidden}.cin-fp-t small{color:#9d8a53;font-weight:500}' +
+      '.cin-fp-v{display:flex;gap:4px}.cin-fp-v button{flex:1;cursor:pointer;font-family:inherit;font-weight:800;font-size:10.5px;border-radius:6px;padding:4px 0;border:1px solid rgba(255,255,255,.18);background:transparent;color:#d9c88f}.cin-fp-v button:hover{background:rgba(255,122,26,.25);border-color:#ff7a1a;color:#fff}.cin-fp-v button.on{background:#c2410c;border-color:#c2410c;color:#fff}' +
+      '.cin-dp{display:flex;flex-direction:column;gap:10px;background:#120a0d;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px}' +
+      '.cin-dp-days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.cin-dp-days::-webkit-scrollbar{height:4px}.cin-dp-days::-webkit-scrollbar-thumb{background:rgba(201,162,39,.3);border-radius:2px}' +
+      '.cin-dp-day{flex:none;width:52px;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;font-family:inherit;border-radius:10px;padding:7px 0;border:1px solid rgba(255,255,255,.12);background:#1a1014;color:#d9c88f}' +
+      '.cin-dp-day b{font-size:18px;color:#fff3e0}.cin-dp-day small{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#9d8a53}.cin-dp-day:hover{border-color:rgba(201,162,39,.5)}' +
+      '.cin-dp-day.sel{background:#c2410c;border-color:#c2410c}.cin-dp-day.sel b,.cin-dp-day.sel small{color:#fff}' +
+      '.cin-dp-time{display:flex;align-items:center;gap:8px;flex-wrap:wrap}' +
+      '.cin-dp-step{display:flex;flex-direction:column;align-items:center;gap:2px;background:#1a1014;border-radius:10px;padding:3px 10px}.cin-dp-step b{font-size:26px;font-weight:900;color:#fff3e0;font-variant-numeric:tabular-nums;line-height:1.1}' +
+      '.cin-dp-step button{cursor:pointer;background:none;border:none;color:#9d8a53;font-size:12px;padding:2px 10px}.cin-dp-step button:hover{color:#ff9a4a}' +
+      '.cin-dp-sep{font-size:24px;font-weight:900;color:#9d8a53}' +
+      '.cin-dp-chips{display:flex;flex-wrap:wrap;gap:5px;flex:1;justify-content:flex-end}' +
+      '.cin-dp-chip{cursor:pointer;font-family:inherit;font-weight:800;font-size:11.5px;border-radius:999px;padding:5px 10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#d9c88f}.cin-dp-chip:hover{border-color:#ff7a1a}.cin-dp-chip.sel{background:#c2410c;border-color:#c2410c;color:#fff}' +
+      '.cin-dp-sum{font-size:13px;font-weight:800;color:#4ade80;display:flex;align-items:center;gap:7px}.cin-dp-sum.bad{color:#f87171}' +
+      '.cin-sch-img{width:34px;height:50px;border-radius:5px;object-fit:cover;flex:none;background:#1d1014}' +
+      '';
     document.head.appendChild(st);
   }
 
