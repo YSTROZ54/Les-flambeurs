@@ -455,26 +455,30 @@
         fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.18 + (tx + 0.18) * e, 0.95 + Math.sin(v * Math.PI) * 0.55, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
       })(q);
     }
+    var lastFxVer = {}, lastVoice = { f: '', t: 0 };
+    function hash(n) { n = (n * 2654435761) >>> 0; n ^= n >>> 15; n = (n * 2246822519) >>> 0; n ^= n >>> 13; return n >>> 0; }
     function fx3d(tid, old, st) {
       try {
         var tv = TV[tid]; if (!tv || tv.kind !== 'u' || !old || !old.hands || !st || (st.ph !== 'play' && st.ph !== 'over') || old.ph !== 'play' || old.ver >= st.ver) return;
+        if ((lastFxVer[tid] || 0) >= st.ver) return; lastFxVer[tid] = st.ver;                 // chaque changement d'état n'est traité qu'une fois : jamais deux sons d'affilée
         var seatNow = seat && seat.tid === tid, said = {};
         // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
-        function voice(file) { if (seatNow && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/uno/' + file + '.mp3', 1.6); }
+        function voice(file) { var now = performance.now(); if (!seatNow || !F.audio || !F.audio.playFile || (lastVoice.f === file && now - lastVoice.t < 1500)) return; lastVoice = { f: file, t: now }; F.audio.playFile('assets/sons/uno/' + file + '.mp3', 1.6); }
+        // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour les +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
+        function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (n > 2 && hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
         if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice('gagner'); return; }
         if (st.disc.length > old.disc.length) {
           var top = st.disc[st.disc.length - 1], v = top.slice(1);
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
             fxText(tv, v === 'D' ? '+2' : '+4', col, 0.2, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.2, 0);
-            var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); voice('plus' + pn);
+            var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); plusVoice(pn);
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
           } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.2, 0);
         }
         for (var s = 0; s < 4; s++) {
           var oh = old.hands[s], nh = st.hands[s]; if (!oh || !nh) continue;
           if (nh.length >= oh.length + 2) fxFlyers(tv, s, nh.length - oh.length);
-          if (nh.length === oh.length + 2 && st.disc.length === old.disc.length) voice('plus2');           // pénalité « contre UNO » : +2 cartes
           if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
           if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
             if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
