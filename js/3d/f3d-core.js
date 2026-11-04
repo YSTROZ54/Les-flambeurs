@@ -326,9 +326,10 @@
       setSeated: function (on, spec) {
         // spec.y = hauteur du dessus de l'assise moins 0,50 m (comme pour le vrai personnage) : le bas des cuisses se pose pile dessus (assise = 0,835 + hauteur du corps)
         if (spec && typeof spec.y === 'number') this.sitY = spec.y;
-        var gy = typeof this.sitY === 'number' ? this.sitY - 0.335 : -0.3;
-        if (on === this.seated) { if (on) g.position.y = gy; return; } this.seated = on;
+        var sy = typeof this.sitY === 'number' ? this.sitY : 0.035, gy = sy - 0.335, ks = Math.max(1, Math.min(1.7, (sy + 0.585) / 0.52));      // ks : on allonge le bas des jambes pour que les pieds touchent le sol, quelle que soit la hauteur de la chaise
+        if (on === this.seated) { if (on) { g.position.y = gy; knees.forEach(function (k) { k.scale.y = ks; }); } return; } this.seated = on;
         g.position.y = on ? gy : 0;                                     // hanches posées sur le tabouret
+        knees.forEach(function (k) { k.scale.y = on ? ks : 1; });
         hips.forEach(function (hp) { hp.rotation.x = on ? -Math.PI / 2 : 0; });
         knees.forEach(function (k) { k.rotation.x = on ? Math.PI / 2 : 0; });
         arms.forEach(function (a) { a.rotation.x = on ? -1.05 : 0; });
