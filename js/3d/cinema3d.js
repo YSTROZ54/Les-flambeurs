@@ -21,28 +21,34 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var HX = 10, HZ = 13, H = 11;                      // demi-largeur, demi-profondeur, hauteur (mètres)
   var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
-  var SCR_W = 19.9;                                   // plein mur gauche-droite (aucun bord gauche / droite)
-  var SCR_Y = 0.9;                                    // bas de l'écran proche des yeux du 1er rang (assis) : pas besoin de lever la tête
-  var SCR_H = H - SCR_Y;                              // monte toujours exactement jusqu'au plafond (aucun bord en haut) : l'écran est juste plus grand qu'avant
-  var ROWS = [-4.6, -2.7, -0.8, 1.1, 3.0];           // z de chaque rangée
-  var COLS = [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2];
   var VELVET = 0x8c1a26;
 
   /* ---------- gradins : chaque rangée est un peu plus haute que la précédente (vrai sol praticable, voir world3d.js: room.groundY) ---------- */
-  var ROW_H = 0.4;                                    // une marche par rangée
-  var ROW_GAP = ROWS[1] - ROWS[0];                     // 1,9 m : les rangées se touchent, pas de bande plate entre elles
-  var ROW_BND = [];                                    // frontière (milieu) entre chaque rangée et la suivante
-  for (var _ri = 0; _ri < ROWS.length - 1; _ri++) ROW_BND.push((ROWS[_ri] + ROWS[_ri + 1]) / 2);
-  var BACK_H = (ROWS.length - 1) * ROW_H;              // palier du fond (régie, pop-corn, sortie) : hauteur de la dernière rangée
   function smoothT(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
-  function inAisleX(x) { var ax = Math.abs(x); return ax < 1.4 || ax > 5.7; }   // allée centrale et allées latérales (hors blocs de fauteuils)
-  function cinemaGroundY(x, z) {                        // hauteur du sol à (x,z) : marche nette sous les fauteuils, rampe d'escalier dans les allées
-    var width = inAisleX(x) ? ROW_GAP : 0.35, h = 0;
-    for (var i = 0; i < ROW_BND.length; i++) { var b = ROW_BND[i]; h += ROW_H * smoothT((z - (b - width / 2)) / width); }
-    return h;
+  // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
+  function makeGeo(P) {
+    var G0 = P ? {
+      HX: 12, HZ: 17, H: 13, SCR_W: 15, SCR_Y: 1.7, SCR_H: 15 * 9 / 16, ROW_H: 0.26, ROWS: [], COLS: [-9.0, -7.9, -6.8, -5.7, -3.3, -2.2, -1.1, 0, 1.1, 2.2, 3.3, 5.7, 6.8, 7.9, 9.0],
+      blocks: [{ x0: -9.45, x1: -5.25 }, { x0: -3.75, x1: 3.75 }, { x0: 5.25, x1: 9.45 }], lanes: [[-4.5, 1.5], [4.5, 1.5], [-10.4, 1.9], [10.4, 1.9]], aisleLights: [-9.6, -5.0, 5.0, 9.6]
+    } : {
+      HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
+      blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
+    };
+    var k;
+    if (P) for (k = 0; k < 13; k++) G0.ROWS.push(-8.4 + k * 1.2);
+    G0.ROW_GAP = G0.ROWS[1] - G0.ROWS[0];
+    G0.BND = []; for (k = 0; k < G0.ROWS.length - 1; k++) G0.BND.push((G0.ROWS[k] + G0.ROWS[k + 1]) / 2);
+    G0.BACK_H = (G0.ROWS.length - 1) * G0.ROW_H;
+    G0.inAisle = function (x) { for (var q = 0; q < G0.blocks.length; q++) if (x >= G0.blocks[q].x0 && x <= G0.blocks[q].x1) return false; return true; };
+    G0.ground = function (x, z) {                         // hauteur du sol à (x,z) : marche nette sous les fauteuils, rampe d'escalier dans les allées
+      var width = G0.inAisle(x) ? G0.ROW_GAP : 0.35, h = 0;
+      for (var i = 0; i < G0.BND.length; i++) { var b = G0.BND[i]; h += G0.ROW_H * smoothT((z - (b - width / 2)) / width); }
+      return h;
+    };
+    return G0;
   }
+  var GEO = { classic: makeGeo(false), premium: makeGeo(true) };
 
   /* ---------- petits outils ---------- */
   var cache = {};
@@ -203,13 +209,15 @@
   function pleatTex() {                                    // velours bleu plissé : bandes verticales claires et sombres
     if (pleat) return pleat;
     var cv = mkCanvas(256, 64), x = cv.getContext('2d'), k;
-    for (k = 0; k < 16; k++) { var g2 = x.createLinearGradient(k * 16, 0, k * 16 + 16, 0); g2.addColorStop(0, '#0c2268'); g2.addColorStop(0.5, '#2a58c8'); g2.addColorStop(1, '#0b1f60'); x.fillStyle = g2; x.fillRect(k * 16, 0, 16, 64); }
+    for (k = 0; k < 16; k++) { var g2 = x.createLinearGradient(k * 16, 0, k * 16 + 16, 0); g2.addColorStop(0, '#071a58'); g2.addColorStop(0.5, '#1b44a8'); g2.addColorStop(1, '#061650'); x.fillStyle = g2; x.fillRect(k * 16, 0, 16, 64); }
     pleat = new THREE.CanvasTexture(cv); pleat.wrapS = pleat.wrapT = THREE.RepeatWrapping; return pleat;
   }
 
   /* ===================== LA SALLE ===================== */
   function createCinemaRoom(world, premium) {
-    var P = !!premium;                                   // salle « premium » : plafond doré en anneaux, murs de bois doré, fauteuils bleus, rideaux bleus (même séance partagée que le cinéma classique)
+    var P = !!premium, G0 = P ? GEO.premium : GEO.classic;
+    var HX = G0.HX, HZ = G0.HZ, H = G0.H, SCR_W = G0.SCR_W, SCR_Y = G0.SCR_Y, SCR_H = G0.SCR_H, ROWS = G0.ROWS, COLS = G0.COLS, ROW_H = G0.ROW_H, ROW_GAP = G0.ROW_GAP, BACK_H = G0.BACK_H, cinemaGroundY = G0.ground;
+    // salle « premium » : plafond doré en anneaux, murs de bois doré, fauteuils bleus, rideaux bleus (même séance partagée que le cinéma classique)
     var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">' + (P ? 'CINÉMA PREMIUM' : 'CINÉMA'), subtitle: P ? 'ÉCRAN GÉANT · FAUTEUILS CLUB' : 'TROPI STREAM · PRÉSENTATION', topic: P ? 'flambeurs-cinemapremium-room' : 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, low = !!world.low;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 3.0, zMax: HZ - 0.7 };   // la scène (les 2,3 premiers mètres) reste hors d'atteinte
@@ -226,7 +234,7 @@
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ map: ftex })); floor.rotation.x = -Math.PI / 2; g.add(floor);
 
     /* --- murs, plafond, panneaux acoustiques --- */
-    var wallM = P ? std(0x6e4214, 0.8, 0.1, 0x1a0e02) : std(0x24090f, 0.9, 0.05), panelM = P ? std(0xd69a42, 0.5, 0.15, 0x3a2308) : std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
+    var wallM = P ? std(0x2a1707, 0.85, 0.05, 0x100802) : std(0x24090f, 0.9, 0.05), panelM = P ? std(0xc4852e, 0.55, 0.1, 0x241503) : std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection, centrée (x = 0, y = 7 + BACK_H : remontée avec le palier du fond)
       var bw = new THREE.Shape(), hole = new THREE.Path(), hy = 6.6 + BACK_H, hy2 = 7.4 + BACK_H;
@@ -234,8 +242,12 @@
       hole.moveTo(-1.0, hy); hole.lineTo(1.0, hy); hole.lineTo(1.0, hy2); hole.lineTo(-1.0, hy2); hole.closePath(); bw.holes.push(hole);
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
     })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? new THREE.MeshBasicMaterial({ map: ringCeilingTex() }) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
-    if (P) {                                                // lames de bois doré verticales, serrées, sur les deux murs de côté (sombres entre les lames)
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? new THREE.MeshBasicMaterial({ map: ringCeilingTex(), color: 0xd0d0d0 }) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    if (P) {                                                // lames de bois doré, hautes jusqu'au plafond, serrées (joints sombres entre les lames), sur les murs de côté et le mur de la scène
+      for (i = -HZ + 0.4; i < HZ - 0.2; i += 0.62) [-1, 1].forEach(function (sd) { var gy = cinemaGroundY(sd * (HX - 0.06), i), hh = H - gy; box(g, 0.12, hh, 0.52, panelM, sd * (HX - 0.06), gy + hh / 2, i); });
+      for (i = -HX + 0.4; i < HX - 0.2; i += 0.62) box(g, 0.52, H - 0.1, 0.12, panelM, i, (H - 0.1) / 2 + 0.1, -HZ + 0.07);
+    }
+    if (false) {
       for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
     }
     for (i = -HZ + 1.4; i < (P ? -HZ : HZ - 1); i += 1.3) {            // lattes verticales sur les deux murs de côté, chacune suit le relief du sol (gradins) sous elle
@@ -302,8 +314,10 @@
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
     if (P) {                                                // rideaux de velours bleu, plissés, de chaque côté de l'écran
-      var ct = pleatTex(); [-1, 1].forEach(function (sd) { box(g, 1.7, H, 0.55, new THREE.MeshLambertMaterial({ map: ct }), sd * (HX - 0.85), H / 2, -HZ + 0.5); box(g, 1.76, 0.12, 0.62, trimM, sd * (HX - 0.85), 0.06, -HZ + 0.5); });
-      box(g, HX * 2, 0.9, 0.5, new THREE.MeshLambertMaterial({ map: ct }), 0, H - 0.45, -HZ + 0.45);
+      var ct = pleatTex(), curM = new THREE.MeshLambertMaterial({ map: ct, emissive: 0x040e30 }), cw0 = 2.6, cx0 = SCR_W / 2 + cw0 / 2 - 0.15;
+      [-1, 1].forEach(function (sd) { box(g, cw0, H - 0.3, 0.6, curM, sd * cx0, (H - 0.3) / 2, -HZ + 0.55); box(g, cw0 + 0.06, 0.12, 0.66, trimM, sd * cx0, 0.06, -HZ + 0.55); });
+      box(g, SCR_W + cw0 * 2 - 0.3, 1.2, 0.55, curM, 0, H - 1.0, -HZ + 0.5);                          // lambrequin au-dessus de l'écran
+      var frm = 0.14; box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y + SCR_H + 0.07, -HZ + 0.2); box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y - 0.07, -HZ + 0.2); [-1, 1].forEach(function (sd) { box(g, frm, SCR_H + 0.3, 0.1, trimM, sd * (SCR_W / 2 + 0.07), SCR_Y + SCR_H / 2, -HZ + 0.2); });   // fin cadre doré
     }
     // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P
 
@@ -318,7 +332,7 @@
       cyl(s, 0.045, 0.045, 0.05, coneM, 0, -0.11, 0.25, 14).rotation.x = Math.PI / 2;             // tweeter
       cyl(s, 0.042, 0.042, 0.015, ringM, 0, -0.11, 0.275, 14).rotation.x = Math.PI / 2;
     }
-    [-7, -0.8, 4.7, 11.3].forEach(function (z) { speaker(-(HX - 0.2), z, Math.PI / 2); speaker(HX - 0.2, z, -Math.PI / 2); });
+    (P ? [-12, -4, 4, 12] : [-7, -0.8, 4.7, 11.3]).forEach(function (z) { speaker(-(HX - 0.2), z, Math.PI / 2); speaker(HX - 0.2, z, -Math.PI / 2); });
 
     /* --- pas de bords gauche/droite ni en haut (ni cadre, ni rideaux, ni lambrequin) : écran géant plein mur --- */
     function layoutScreen() {}
@@ -328,12 +342,22 @@
       cush: new THREE.BoxGeometry(0.74, 0.14, 0.62), back: new THREE.BoxGeometry(0.74, 0.7, 0.14), roll: new THREE.CylinderGeometry(0.075, 0.075, 0.74, 10),
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9)
     };
-    var velM = lam(P ? 0x1f45a8 : VELVET), darkM = lam(P ? 0x0b1737 : 0x180a0e), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var velM = P ? std(0x14378f, 0.8, 0.05, 0x06143c) : lam(VELVET), darkM = P ? std(0x0a1a4a, 0.8, 0.05, 0x030a22) : lam(0x180a0e), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var inst = null, dummy = new THREE.Object3D();
+    if (P) {                                                // 195 places : chaque pièce de fauteuil est dessinée en une seule fois pour toute la salle
+      var parts = [{ geo: seatGeo.cush, mat: velM, p: [0, 0.5, -0.02] }, { geo: seatGeo.back, mat: velM, p: [0, 0.86, 0.3], rx: 0.14 }, { geo: seatGeo.roll, mat: velM, p: [0, 1.23, 0.36], rz: Math.PI / 2 }, { geo: seatGeo.side, mat: darkM, p: [-0.415, 0.25, 0] }, { geo: seatGeo.side, mat: darkM, p: [0.415, 0.25, 0] }, { geo: seatGeo.arm, mat: velM, p: [-0.415, 0.58, -0.02] }, { geo: seatGeo.arm, mat: velM, p: [0.415, 0.58, -0.02] }];
+      inst = { parts: parts, meshes: parts.map(function (pt) { var im = new THREE.InstancedMesh(pt.geo, pt.mat, ROWS.length * COLS.length); im.frustumCulled = false; im.count = 0; g.add(im); return im; }), n: 0 };
+    }
     function seat(x, z, elev) {
       var s = new THREE.Group(); s.position.set(x, elev, z); g.add(s);
       function put(geo, mat, px, py, pz, rx) { var m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); if (rx) m.rotation.x = rx; s.add(m); return m; }
-      put(seatGeo.cush, velM, 0, 0.5, -0.02); put(seatGeo.back, velM, 0, 0.86, 0.3, 0.14); put(seatGeo.roll, velM, 0, 1.23, 0.36).rotation.z = Math.PI / 2;
-      [-1, 1].forEach(function (sd) { put(seatGeo.side, darkM, sd * 0.415, 0.25, 0.0); put(seatGeo.arm, velM, sd * 0.415, 0.58, -0.02); });
+      if (inst) {
+        inst.parts.forEach(function (pt, pi) { dummy.position.set(x + pt.p[0], elev + pt.p[1], z + pt.p[2]); dummy.rotation.set(pt.rx || 0, 0, pt.rz || 0); dummy.updateMatrix(); inst.meshes[pi].setMatrixAt(inst.n, dummy.matrix); });
+        inst.n++; inst.meshes.forEach(function (im) { im.count = inst.n; im.instanceMatrix.needsUpdate = true; });
+      } else {
+        put(seatGeo.cush, velM, 0, 0.5, -0.02); put(seatGeo.back, velM, 0, 0.86, 0.3, 0.14); put(seatGeo.roll, velM, 0, 1.23, 0.36).rotation.z = Math.PI / 2;
+        [-1, 1].forEach(function (sd) { put(seatGeo.side, darkM, sd * 0.415, 0.25, 0.0); put(seatGeo.arm, velM, sd * 0.415, 0.58, -0.02); });
+      }
       var hit = put(seatGeo.hit, hitM, 0, 0.65, 0.05);
       var n = seats.length, st = { n: n, x: x, z: z, y: elev, yaw: 0, sx: x, sz: z - 0.95, hit: hit };
       seats.push(st);
@@ -345,17 +369,18 @@
       });
     }
     var seat_ = { cur: null };
+    if (P) ROWS.forEach(function (rz, ri) { [-3.95, 3.95, -9.6, 9.6].forEach(function (rx) { var ry = cinemaGroundY(rx, rz); box(g, 0.05, 0.05, ROW_GAP + 0.02, trimM, rx, ry + 0.95, rz); box(g, 0.04, 0.95, 0.04, trimM, rx, ry + 0.47, rz - ROW_GAP / 2); }); });      // rampes dorées le long des allées
     ROWS.forEach(function (rz, ri) { var elev = ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
 
     /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
     var deckM = P ? std(0x0f1c44, 0.85, 0.05) : std(0x34101b, 0.85, 0.05);
     function deckBlock(xC, xW, zC, topY) { if (topY < 0.01) return; box(g, xW, topY, ROW_GAP, deckM, xC, topY / 2, zC); box(g, xW, 0.03, 0.05, trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
-    ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = ri * ROW_H; deckBlock(-3.55, 4.3, rz, topY); deckBlock(3.55, 4.3, rz, topY); });
+    ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = ri * ROW_H; G0.blocks.forEach(function (b) { deckBlock((b.x0 + b.x1) / 2, b.x1 - b.x0, rz, topY); }); });
 
     /* --- allées (centrale + deux latérales) : un escalier continu, construit en échantillonnant cinemaGroundY --- */
     (function buildStairs() {
       var sideW = (HX - 0.7) - 5.7, sideX = 5.7 + sideW / 2;   // allée latérale : de x=5,7 jusqu'au bord de la salle
-      var lanes = [[0, 2.8], [-sideX, sideW], [sideX, sideW]], step = 0.38;
+      var lanes = G0.lanes, step = 0.38;
       lanes.forEach(function (ln) {
         var xC = ln[0], xW = ln[1];
         for (var z = ROWS[0]; z < ROWS[ROWS.length - 1]; z += step) {
@@ -370,7 +395,7 @@
     box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
-    ROWS.forEach(function (rz) { [-6.0, -1.3, 1.3, 6.0].forEach(function (ax) { box(g, 0.06, 0.04, 0.2, bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
+    ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
 
     /* --- fond de salle : appliques, cabine de projection, comptoir à pop-corn, porte de sortie --- */
     var glowC = mkCanvas(64, 64), gx = glowC.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -385,7 +410,7 @@
       sph(s, 0.05, bas(0xfff0c0), 0, -0.02, 0.2);
       var gl = new THREE.Sprite(glowM); gl.scale.set(1.6, 1.6, 1); gl.position.set(0, -0.02, 0.27); s.add(gl); lampGlow.push(gl);
     }
-    [-7, -3.1, 0.8, 4.7, 8.6, 11.3].forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
+    (P ? [-13, -9, -5, -1, 3, 7, 11, 14.5] : [-7, -3.1, 0.8, 4.7, 8.6, 11.3]).forEach(function (z) { sconce(-(HX - 0.145), z, Math.PI / 2); sconce(HX - 0.145, z, -Math.PI / 2); });   // une par latte de bois
     // cabine de projection, centrée dans le mur du fond : une vraie fenêtre, et le projecteur derrière la vitre
     var BX = 0, BY = 7.0 + BACK_H;   // remontée avec le palier du fond (sinon elle retombe au niveau de l'enseigne de la sortie)
     var glass = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb4d8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); glass.position.set(BX, BY, HZ - 0.01); g.add(glass);
@@ -400,7 +425,7 @@
     [[-0.12, 0.2], [0.14, 0.2]].forEach(function (rl) { cyl(proj, 0.15, 0.15, 0.05, std(0x8a8a96, 0.4, 0.6), 0, 0.4, rl[0], 18).rotation.z = Math.PI / 2; });   // deux bobines de film
     // faisceau du projecteur retiré
     // comptoir à pop-corn
-    var cw = new THREE.Group(); cw.position.set(-6.8, BACK_H, HZ - 0.45); g.add(cw);   // collé contre le mur du fond
+    var cw = new THREE.Group(); var PXc = -(HX - 3.2); cw.position.set(PXc, BACK_H, HZ - 0.45); g.add(cw);   // collé contre le mur du fond
     box(cw, 3.2, 1.0, 0.8, lam(0x2a0f16), 0, 0.5, 0); box(cw, 3.3, 0.07, 0.9, std(0xd8cfc0, 0.4, 0.2), 0, 1.03, 0);
     box(cw, 0.9, 0.9, 0.6, std(0xc41e2a, 0.5, 0.2), -0.9, 1.5, 0); box(cw, 0.8, 0.8, 0.52, new THREE.MeshLambertMaterial({ color: 0xfff1b8, transparent: true, opacity: 0.75 }), -0.9, 2.35, 0);
     for (i = 0; i < 14; i++) sph(cw, 0.07, lam(i % 3 ? 0xfff0c0 : 0xf2d98a), -0.9 + (Math.random() - 0.5) * 0.55, 2.1 + Math.random() * 0.55, (Math.random() - 0.5) * 0.3);
@@ -410,9 +435,9 @@
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 3.1, 0.05); sign.rotation.y = Math.PI; cw.add(sign);   // tourné vers la salle (sinon lu de dos, inversé) — remontée au-dessus du pop-corn
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
-    room.colliders.push({ x: -6.8 - 1.0, z: HZ - 1.1, r: 0.8 }, { x: -6.8, z: HZ - 1.1, r: 0.8 }, { x: -6.8 + 1.0, z: HZ - 1.1, r: 0.8 });
+    room.colliders.push({ x: PXc - 1.0, z: HZ - 1.1, r: 0.8 }, { x: PXc, z: HZ - 1.1, r: 0.8 }, { x: PXc + 1.0, z: HZ - 1.1, r: 0.8 });
     // --- régie : la console du Patron / Co Fondateur, collée contre le mur du fond, à droite ---
-    var RX = 6.8, RZ = HZ - 0.5;
+    var RX = HX - 3.2, RZ = HZ - 0.5;
     var regie = new THREE.Group(); regie.position.set(RX, BACK_H, RZ); regie.rotation.y = Math.PI; g.add(regie);   // dos au mur, face tournée vers la salle
     box(regie, 1.4, 0.04, 0.78, std(0x8a8a92, 0.5, 0.2), 0, 0.75, 0.02);                   // bureau : plateau clair sur quatre pieds
     [[-0.63, -0.33], [0.63, -0.33], [-0.63, 0.33], [0.63, 0.33]].forEach(function (lp) { box(regie, 0.05, 0.73, 0.05, std(0x2a2a30, 0.5, 0.3), lp[0], 0.365, lp[1]); });
@@ -468,7 +493,7 @@
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     var lights = [];
-    if (!low) [[-6, 6.8, -3], [6, 6.8, -3], [0, 6.8, 6]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a8, 0.55, 16); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
+    if (!low) (P ? [[-8, 10, -10], [8, 10, -10], [-8, 10, 2], [8, 10, 2], [0, 10, 10]] : [[-6, 6.8, -3], [6, 6.8, -3], [0, 6.8, 6]]).forEach(function (p) { var pl = new THREE.PointLight(0xffd9a8, 0.55, P ? 28 : 16); pl.position.set(p[0], p[1], p[2]); g.add(pl); lights.push(pl); });
     var wash = new THREE.PointLight(0xaec8ff, 0, 18); wash.position.set(0, SCR_Y + SCR_H / 2, -HZ + 3.2); g.add(wash);    // reflet bleuté de l'écran sur les premières rangées
     var dim = 1;                                       // 1 = salle allumée, 0,22 = séance en cours
 
@@ -612,11 +637,11 @@
     function pollCinema() {
       if (net.busy) return;
       net.busy = true;
-      fetch('/api/cinema', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { net.busy = false; applyNet(st); }).catch(function () { net.busy = false; });
+      fetch('/api/cinema' + (P ? '?room=premium' : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { net.busy = false; applyNet(st); }).catch(function () { net.busy = false; });
     }
     function cinemaAction(action, extra) {
       if (!isCinemaCtrl()) return Promise.resolve(null);
-      return world.post('/api/cinema', Object.assign({ action: action }, extra || {})).then(function (r) {
+      return world.post('/api/cinema', Object.assign({ action: action }, P ? { room: 'premium' } : {}, extra || {})).then(function (r) {
         if (r && r.ok && r.state) applyNet(r.state);
         else if (r && r.error) world.flash('⛔ ' + r.error);
         return r;
@@ -1217,8 +1242,9 @@
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
-      amb.intensity = 0.95 * dim; key.intensity = 0.3 * dim;
-      lights.forEach(function (l) { l.intensity = 0.55 * dim; });
+      var dv = P ? 0.22 + 0.78 * dim : dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
+      amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
+      lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; });
       wash.intensity = playing ? 0.5 : 0;
       lampGlow.forEach(function (s, i) { s.scale.setScalar(1.8 + Math.sin(clock * 3 + i) * 0.06); });
       // musique : elle se tait pendant le film (qui a son propre son)
