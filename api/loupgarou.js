@@ -267,7 +267,8 @@ function advance(st, at) {
     proceed(st, at, st.after === 'night' ? 'night' : 'day');
     return true;
   }
-  if (ph === 'discussion') { setPhase(st, 'vote', at, T.vote); st.votes = {}; st.votesAt = 0; say(st, 'Place au vote : désignez un suspect.', 'day'); return true; }
+  // les votes posés pendant la discussion sont gardés : chacun peut encore les changer
+  if (ph === 'discussion') { setPhase(st, 'vote', at, T.vote); st.votesAt = at; say(st, 'Place au vote : désignez un suspect.', 'day'); return true; }
   if (ph === 'vote') { resolveVote(st, at); return true; }
   if (ph === 'result') {
     const dead = st.victims || [];
@@ -292,7 +293,7 @@ export function publicState(st, now, actor) {
       const showRole = over || !p.alive && st.status === 'playing' || k === actor || (meWolf && p.role === 'loup');
       return { name: p.name, avatar: p.avatar, seat: p.seat, alive: st.status === 'lobby' ? true : !!p.alive, left: !!p.left, host: k === st.host, me: k === actor,
         role: st.status !== 'lobby' && showRole ? p.role : undefined, idiot: !!p.idiotSpared, winner: over && st.winners.includes(k),
-        voted: st.phase === 'vote' && k in st.votes ? (st.votes[k] ? st.players[st.votes[k]].name : '—') : undefined };
+        voted: (st.phase === 'vote' || st.phase === 'discussion') && k in st.votes ? (st.votes[k] ? st.players[st.votes[k]].name : '—') : undefined };
     }),
     lastVoteResult: st.lastVoteResult && (st.phase === 'result') ? st.lastVoteResult : null
   };
@@ -310,7 +311,7 @@ export function publicState(st, now, actor) {
         else if (ph === 'loups' && me.role === 'loup') act = 'loups';
         else if (ph === 'loups' && me.role === 'petitefille') act = 'spy';
         else if (ph === 'sorciere' && me.role === 'sorciere' && !a.witchDone) act = 'sorciere';
-        else if (ph === 'vote' && !me.idiotSpared) act = 'vote';
+        else if ((ph === 'vote' || ph === 'discussion') && !me.idiotSpared) act = 'vote';
       }
       if (st.phase === 'chasseur' && st.hunter === actor && !(st.acts.shot !== null && st.acts.shot !== undefined)) act = 'chasseur';
       you.act = act;
@@ -569,9 +570,10 @@ export default async function handler(req, res) {
           return { ok: true };
         }
         if (action === 'vote') {
-          if (st.phase !== 'vote' || !p.alive || p.idiotSpared) throw new GameError(409, 'Tu ne peux pas voter maintenant.');
+          if ((st.phase !== 'vote' && st.phase !== 'discussion') || !p.alive || p.idiotSpared) throw new GameError(409, 'Tu ne peux pas voter maintenant.');
+          if (body.unvote) { delete st.votes[actor]; return { ok: true }; }          // on retire son vote en recliquant sur la même personne
           if (tk && (!livingTarget(st, tk) || tk === actor)) throw new GameError(400, 'Choisis un autre joueur en vie.');
-          st.votes[actor] = tk; st.votesAt = now;
+          st.votes[actor] = tk; if (st.phase === 'vote') st.votesAt = now;
           return { ok: true };
         }
         return undefined;
