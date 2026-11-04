@@ -1394,8 +1394,8 @@ class Poker3DExperience {
       if (!root) return;
       const st = document.createElement('style');
       st.textContent = `
-        #pokerBoardWidget { position:absolute; left:84px; bottom:128px; z-index:34; display:none; gap:6px; pointer-events:none; padding:6px 8px; border-radius:12px; background:rgba(0,0,0,.45); border:1px solid rgba(245,158,11,.3); }
-        #pokerBoardWidget .hh-card { width:50px; height:72px; background:#fff; border-radius:7px; border:1px solid #d6d3d1; color:#111; font:900 18px Georgia,serif; display:flex; align-items:center; justify-content:center; position:relative; }
+        #pokerBoardWidget { position:fixed; left:84px; bottom:124px; z-index:34; display:none; gap:6px; pointer-events:none; padding:6px 8px; border-radius:12px; background:rgba(0,0,0,.45); border:1px solid rgba(245,158,11,.3); }
+        #pokerBoardWidget .hh-card { width:46px; height:66px; background:#fff; border-radius:7px; border:1px solid #d6d3d1; color:#111; font:900 18px Georgia,serif; display:flex; align-items:center; justify-content:center; position:relative; }
         #pokerBoardWidget .hh-card.red { color:#dc2626; }
         #pokerBoardWidget .hh-card .rk { position:absolute; top:3px; left:5px; font-size:15px; }
         #pokerBoardWidget .hh-card .su { font-size:28px; }
@@ -1407,7 +1407,8 @@ class Poker3DExperience {
     }
     let cards = (this.game && this.game.communityCards) || [];
     if (this._boardLanded != null) cards = cards.slice(0, this._boardLanded); // seulement les cartes déjà arrivées sur la table
-    const show = !!this.handWidget && cards.length > 0 && this.viewMode !== 'first';
+    const heroIn = this.game && this.game.players && this.game.players[0] && this.game.players[0].hand && this.game.players[0].hand.length === 2;
+    const show = !!this.handWidget && !!heroIn && this.viewMode !== 'first';        // les 5 places restent affichées (vides avant le flop), juste au-dessus de ma main
     box.style.display = show ? 'flex' : 'none';
     if (!show) return;
     let html = '';
@@ -2546,7 +2547,7 @@ class Poker3DExperience {
       if (!root) return;
       const st = document.createElement('style');
       st.textContent = `
-        #pokerHeroHandWidget { position:absolute; left:84px; bottom:24px; z-index:34; display:none; gap:8px; pointer-events:none; }
+        #pokerHeroHandWidget { position:fixed; left:84px; bottom:20px; z-index:34; display:none; gap:8px; pointer-events:none; }
         #pokerHeroHandWidget .hh-card { width:62px; height:88px; background:#fff; border-radius:8px; border:1px solid #d6d3d1; box-shadow:0 6px 18px rgba(0,0,0,.65); color:#111; font:900 22px Georgia,serif; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; position:relative; }
         #pokerHeroHandWidget .hh-card.red { color:#dc2626; }
         #pokerHeroHandWidget .hh-card .rk { position:absolute; top:5px; left:7px; font-size:19px; }
