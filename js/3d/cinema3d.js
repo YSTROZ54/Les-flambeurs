@@ -478,6 +478,7 @@
       hlsLibPromise.then(cb);
     }
     function setSource(url, type) {
+      started = false;
       if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; }
       if (url && type === 'hls' && !video.canPlayType('application/vnd.apple.mpegurl')) {
         loadHlsLib(function (Hls) {
@@ -497,12 +498,12 @@
       }
     }
     video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
-    var endedUrl = '', lastSt = null, stallT = 0;
+    var endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null;
     // fin du film : chez tout le monde on revient à l'écran de base (aucune séance), et le Patron/Co Fondateur coupe la séance pour tout le monde
     video.addEventListener('ended', function () { endedUrl = net.url; if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); if (lastSt) applyNet(lastSt); });
     // écran de chargement tant que le flux met en mémoire tampon (extraction Tropi Stream + démarrage du flux, parfois plusieurs secondes)
     // (l'écran de chargement n'apparaît qu'après une vraie coupure d'une seconde, voir room.update : plus de rond qui clignote pour un micro-ralentissement)
-    video.addEventListener('playing', function () { stallT = 0; if (net.status === 'playing') { setLoading(false); showVideo(true); } });
+    video.addEventListener('playing', function () { stallT = 0; started = true; if (net.status === 'playing') { setLoading(false); showVideo(true); } });
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
     var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false };
     function ensureVideoAudio() {
@@ -1017,6 +1018,7 @@
         });
       }
 
+      consoleEl.addEventListener('wheel', function (e) { e.stopPropagation(); }, { passive: true });   // la molette fait défiler la régie, pas les cases de l'inventaire
       world.container.appendChild(consoleEl);
       renderFpButton(); renderDatePicker();
       if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); }   // déjà chargée (à l'entrée du cinéma) : on affiche la liste tout de suite, sans attendre une recherche
@@ -1153,6 +1155,7 @@
       if (world.container) world.container.classList.remove('cin-in-cinema', 'cin-seated');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
       window.removeEventListener('keydown', onKeyL, true);
+      if (bufEl && bufEl.parentNode) bufEl.parentNode.removeChild(bufEl); bufEl = null;
       clearTimeout(seanceCardT); if (seanceCardEl && seanceCardEl.parentNode) seanceCardEl.parentNode.removeChild(seanceCardEl); seanceCardEl = null;
     }
     room.onLeave = leave;
@@ -1166,8 +1169,11 @@
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
         stallT = (video.readyState < 3 || video.seeking) ? stallT + dt : 0;
-        setLoading(stallT > 1.0);
+        setLoading(!started && stallT > 1.0);          // écran « chargement » seulement avant le début du film ; ensuite l'image reste figée le temps de recharger
         if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
+        var showBuf = started && stallT > 2.5;           // coupure en plein film : petit témoin discret au lieu de remplacer l'écran
+        if (showBuf && !bufEl) { bufEl = document.createElement('div'); bufEl.className = 'cin-buffer'; bufEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mise en mémoire…'; w.container.appendChild(bufEl); }
+        if (bufEl) bufEl.style.display = showBuf ? '' : 'none';
       }
       Object.keys(w.remote).forEach(function (k) { var r = w.remote[k]; if (r && r.person && r.person.tag) r.person.tag.visible = !hudHidden; });   // interface masquée : plus de pseudos au-dessus des joueurs
       if (cur || remotesHid) {   // assis : on masque les autres joueurs (têtes, pseudos) qui gêneraient la vue de l'écran
@@ -1311,6 +1317,11 @@
       '.cin-sch-del{flex-shrink:0;cursor:pointer;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:7px;padding:6px 9px;font-size:11px}.cin-sch-del:hover{background:rgba(239,68,68,.3)}' +
       /* Régie : refonte (carte « en cours » avec l'affiche, sélecteur d'affiches, choix du jour et de l'heure) */
       '.cin-console{width:540px;max-height:90vh}' +
+      '.cin-console *{scrollbar-width:thin;scrollbar-color:#8a6d1d transparent}' +
+      '.cin-console ::-webkit-scrollbar{width:10px;height:10px}.cin-console ::-webkit-scrollbar-track{background:transparent;margin:6px 0}' +
+      '.cin-console ::-webkit-scrollbar-thumb{background:#8a6d1d;border-radius:10px;border:3px solid transparent;background-clip:padding-box;min-height:40px}.cin-console ::-webkit-scrollbar-thumb:hover{background:#e8b923;background-clip:padding-box;border:3px solid transparent}' +
+      '.cin-console ::-webkit-scrollbar-corner{background:transparent}' +
+      '.cin-buffer{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:7;background:rgba(8,5,12,.78);color:#ffb066;border:1px solid rgba(255,122,26,.5);border-radius:999px;padding:6px 14px;font-weight:800;font-size:12px;pointer-events:none}' +
       '.cin-cn-playback{padding:12px 14px 12px}' +
       '.cin-np{display:flex;gap:12px;margin-bottom:10px;padding:10px;border-radius:14px;background:#120a0d;border:1px solid rgba(255,255,255,.08)}' +
       '.cin-np.playing{border-color:rgba(74,222,128,.45)}.cin-np.paused{border-color:rgba(250,200,80,.45)}.cin-np.pending{border-color:rgba(255,122,26,.5)}' +

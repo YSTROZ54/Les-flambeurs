@@ -39,12 +39,14 @@ export default async function handler(req, res) {
     const text = await upstream.text();
     const rewritten = text.replace(/\/srv\/[^\s"]+/g, (m) => '/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr' + m));
     res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');   // film en replay : la liste ne change pas, le CDN la sert à tout le monde
     return res.status(200).send(rewritten);
   }
 
   res.status(upstream.status);
   for (const h of PASS_HEADERS) { const v = upstream.headers.get(h); if (v) res.setHeader(h, v); }
+  // segments du film (sans Range) : mis en cache par le CDN de Vercel, le 2e spectateur n'attend plus le relais
+  if (!req.headers.range && upstream.status === 200 && !contentType.includes('text')) res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400');
   if (!upstream.body) return res.end();
   const { Readable } = await import('node:stream');
   Readable.fromWeb(upstream.body).pipe(res);
