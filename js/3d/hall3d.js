@@ -120,7 +120,7 @@
 
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
-    neon(WALL.entree, -4.5, 4.2, 'assets/bannieres/tropistream.jpg', 4.4, 2.475, 0xff7a1a);
+    neon(WALL.entree, -4.75, 4.2, 'assets/bannieres/tropistream-2.jpg', 4.95, 2.475, 0xff7a1a);   // nouvelle bannière (2 pour 1)
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
     sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
     sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 30; sn.fillStyle = '#ffb066';
@@ -211,13 +211,15 @@
       filmstrip(0); filmstrip(704);
 
       // en-tête : titre du panneau, médaillon Tropi Stream à droite du texte, double filet doré en dessous
-      var logo = getImg('assets/cinema/tropistream-serveur.png'), LX = 1100, LY = 86, LR = 46;
-      sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
-      if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
-      sn.restore();
-      sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
+      var logo = getImg('assets/cinema/tropistream-serveur.png'), LY = 86, LR = 46;
+      [150, 1130].forEach(function (LX) {                                      // le logo de chaque côté du titre
+        sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
+        if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
+        sn.restore();
+        sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
+      });
       sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 26; sn.fillStyle = '#ffb066';
-      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 92, 760);
+      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 92, 860);
       sn.shadowBlur = 0;
       sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 146, 1140, 2);
       sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 151, 1140, 1);
@@ -237,17 +239,14 @@
         wrapLines(sn, titre, 1040, 1).forEach(function (ln) { sn.fillText(ln, tx, BY + 92); });
         sn.fillStyle = '#ffb066'; sn.font = '700 23px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '   ·   ' + f.annee : '') + (f && f.genres && f.genres[0] ? '   ·   ' + f.genres[0] : ''), tx, BY + 136);
       } else {
-        sn.save(); F.roundRectPath(sn, BX, BY, BW, BH, 10); sn.clip();
-        var g2 = sn.createLinearGradient(BX, BY, BX, BY + BH); g2.addColorStop(0, '#2a1016'); g2.addColorStop(1, '#140a10');
-        sn.fillStyle = g2; sn.fillRect(BX, BY, BW, BH);
-        sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '66px sans-serif'; sn.fillText('🎬', BX + BW / 2, BY + BH / 2);
-        sn.restore();
-        sn.strokeStyle = 'rgba(201,162,39,0.75)'; sn.lineWidth = 2; F.roundRectPath(sn, BX, BY, BW, BH, 10); sn.stroke();
+        var ban = getImg('assets/bannieres/tropistream-2.jpg'), BWI = 304;      // la nouvelle bannière (2 pour 1) à gauche
+        poster(ban, BX, BY, BWI, BH, 10);
+        var tx4 = BX + BWI + 28;
         sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx - 2, BY + 6, 160, 34);
-        sn.fillStyle = '#ff9a4a'; sn.font = '800 23px ' + MONO; sn.fillText('●  OUVERT', tx + 10, BY + 30);
-        sn.fillStyle = '#f8e7d0'; sn.font = '800 44px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx, BY + 92);
-        sn.fillStyle = '#c98a55'; sn.font = '600 23px ' + MONO; sn.fillText('Aucune séance en cours · la prochaine commence dès que la régie lance un film.', tx, BY + 136, 1040);
+        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx4 - 2, BY + 6, 160, 34);
+        sn.fillStyle = '#ff9a4a'; sn.font = '800 23px ' + MONO; sn.fillText('●  OUVERT', tx4 + 10, BY + 30);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 42px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx4, BY + 88, 840);
+        sn.fillStyle = '#c98a55'; sn.font = '600 22px ' + MONO; sn.fillText('Aucune séance en cours.', tx4, BY + 124, 840); sn.fillText('La prochaine commence dès que la régie lance un film.', tx4, BY + 150, 840);
       }
 
       // en bas : le calendrier de la semaine, du lundi au dimanche ; chaque film programmé est posé à son jour, empilés en hauteur (affiche + heure)

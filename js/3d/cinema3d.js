@@ -21,7 +21,7 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var POSTER_SRC = 'assets/bannieres/tropistream.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
+  var POSTER_SRC = 'assets/bannieres/tropistream-2.jpg';  // 16/9 : sert d'affiche sur l'écran avant la séance
   var VELVET = 0x8c1a26;
 
   /* ---------- gradins : chaque rangée est un peu plus haute que la précédente (vrai sol praticable, voir world3d.js: room.groundY) ---------- */
@@ -271,17 +271,15 @@
     function paintPoster() {
       var x = posterC.getContext('2d');
       x.fillStyle = '#0c0508'; x.fillRect(0, 0, 1280, 720);
-      if (posterImg) x.drawImage(posterImg, 0, 0, 1280, 720);
-      x.fillStyle = 'rgba(6,2,4,0.62)'; x.fillRect(0, 0, 1280, 720);
-      x.save(); x.translate(640, 250);                                                                     // clap de cinéma
-      x.fillStyle = '#1a0a04'; x.strokeStyle = '#ff7a1a'; x.lineWidth = 8; x.beginPath(); x.rect(-120, -10, 240, 140); x.fill(); x.stroke();
-      x.save(); x.rotate(-0.2); x.fillStyle = '#ff7a1a'; x.fillRect(-126, -60, 252, 40);
-      x.fillStyle = '#1a0a04'; for (var k = 0; k < 5; k++) { x.beginPath(); x.moveTo(-104 + k * 48, -60); x.lineTo(-76 + k * 48, -60); x.lineTo(-94 + k * 48, -20); x.lineTo(-122 + k * 48, -20); x.closePath(); x.fill(); }
-      x.restore(); x.restore();
+      if (posterImg) {                                                    // la bannière Tropi Stream, remplie sans déformation
+        var sr = posterImg.naturalWidth / posterImg.naturalHeight, dr = 1280 / 720, sw = sr > dr ? posterImg.naturalHeight * dr : posterImg.naturalWidth, sh = sr > dr ? posterImg.naturalHeight : posterImg.naturalWidth / dr;
+        x.drawImage(posterImg, (posterImg.naturalWidth - sw) / 2, (posterImg.naturalHeight - sh) / 2, sw, sh, 0, 0, 1280, 720);
+      }
+      x.fillStyle = 'rgba(6,2,4,0.9)'; x.fillRect(0, 596, 1280, 124);        // bandeau du bas : aucun bouton lecture, juste l'état de la salle
+      x.fillStyle = '#ff7a1a'; x.fillRect(0, 596, 1280, 3);
       x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff3e0';
-      x.font = '800 62px ' + SERIF; x.fillText(posterLabel, 640, 450, 1180);
-      if (posterSub) { x.fillStyle = '#ffb066'; x.font = '700 30px ' + MONO; x.fillText(posterSub, 640, 520, 1180); }
-      x.fillStyle = 'rgba(255,176,102,0.55)'; x.font = '700 22px ' + MONO; x.fillText('tropistream.fr', 640, 672, 1180);
+      x.font = '800 52px ' + SERIF; x.fillText(posterLabel, 640, posterSub ? 636 : 658, 1180);
+      if (posterSub) { x.fillStyle = '#ffb066'; x.font = '700 26px ' + MONO; x.fillText(posterSub, 640, 691, 1180); }
       posterTex.needsUpdate = true;
     }
     // écran de chargement : pendant que le flux extrait par Tropi Stream se met en mémoire tampon (ça peut prendre quelques secondes),
@@ -433,6 +431,7 @@
     sgx.fillStyle = '#12080f'; sgx.fillRect(0, 0, 512, 128); sgx.strokeStyle = '#ff7a1a'; sgx.lineWidth = 6; sgx.strokeRect(5, 5, 502, 118);
     sgx.textAlign = 'center'; sgx.textBaseline = 'middle'; sgx.fillStyle = '#ffb066'; sgx.font = '800 62px ' + SERIF; sgx.fillText('POP-CORN', 256, 66, 470);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sgC) })); sign.position.set(0.6, 3.1, 0.05); sign.rotation.y = Math.PI; cw.add(sign);   // tourné vers la salle (sinon lu de dos, inversé) — remontée au-dessus du pop-corn
+    if (!low) [[-6.8, HZ - 1.7], [0, HZ - 1.6], [6.8, HZ - 1.7]].forEach(function (p) { var fl = new THREE.PointLight(0xffd9a8, 0.85, 7); fl.position.set(p[0], BACK_H + 2.8, p[1]); g.add(fl); });   // pop-corn, sortie et régie restent visibles même pendant le film
     var cupM = [lam(0xffffff), lam(0xd01a1a)];
     for (i = 0; i < 6; i++) cyl(cw, 0.1, 0.075, 0.24, cupM[i % 2], 0.2 + i * 0.22, 1.19, 0.1, 12);
     room.colliders.push({ x: PXc - 1.0, z: HZ - 1.1, r: 0.8 }, { x: PXc, z: HZ - 1.1, r: 0.8 }, { x: PXc + 1.0, z: HZ - 1.1, r: 0.8 });
@@ -1242,7 +1241,7 @@
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
-      var dv = P ? 0.22 + 0.78 * dim : dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
+      var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
       amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
       lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; });
       wash.intensity = playing ? 0.5 : 0;
