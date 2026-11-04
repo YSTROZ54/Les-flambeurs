@@ -108,6 +108,14 @@
       c.clearRect(0, 0, W, H);
       c.fillStyle = '#12080f'; c.fillRect(0, 0, W, H); c.strokeStyle = 'rgb(' + rgb + ')'; c.lineWidth = 7; c.strokeRect(5, 5, W - 10, H - 10);
       var S = H - 44, x = 26, y = 22, bg = '#1b0e16';
+      if (th.noLogo) {                                     // enseigne sans logo : nom et sous-titre centrés
+        var lb = String(spec.label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = 'rgba(' + rgb + ',0.7)'; c.shadowBlur = 10; c.fillStyle = '#fff3d6';
+        c.font = '800 58px ' + SERIF; c.fillText(lb, W / 2, spec.sub ? H * 0.42 : H / 2, W - 60);
+        if (spec.sub) { c.shadowBlur = 0; c.fillStyle = 'rgb(' + rgb + ')'; c.font = '700 26px ' + MONO; c.fillText(spec.sub, W / 2, H * 0.74, W - 60); }
+        if (onLoad) onLoad();
+        return;
+      }
       if (th.image) {                                      // logo rond : photo du serveur
         c.save(); c.beginPath(); if (th.square) rr(c, x, y, S, S, 26); else c.arc(x + S / 2, y + S / 2, S / 2, 0, TAU); c.clip(); c.fillStyle = bg; c.fillRect(x, y, S, S);
         var im = imgs[th.image]; if (im && im.complete && im.naturalWidth) c.drawImage(im, x, y, S, S); c.restore();
@@ -293,17 +301,18 @@
     }
   };
   // portes de sortie (retour au hall) : une porte élégante par salle, aux couleurs de la salle, avec un tapis et deux lanternes
-  function exitTheme(leaf, rgb, accent, carpet) {
+  function exitTheme(leaf, rgb, accent, carpet, opts) {
+    var plain = !!(opts && opts.plain);   // sans logo : texte centré (enseigne et battants)
     return {
-      frame: 0xc9a227, leaf: leaf, rgb: rgb, logo: 'hall',
+      frame: 0xc9a227, leaf: leaf, rgb: rgb, logo: 'hall', noLogo: plain,
       paint: function (c, W, H) {
         var col = '#' + ('000000' + leaf.toString(16)).slice(-6);
         var gr = c.createLinearGradient(0, 0, W, H); gr.addColorStop(0, col); gr.addColorStop(1, '#0c0508'); c.fillStyle = gr; c.fillRect(0, 0, W, H);
         noise(c, W, H, 600, 'rgba(255,255,255,0.04)'); border(c, W, H, '#e6c458', 8); border(c, W, H, 'rgba(230,196,88,0.45)', 22);
         c.strokeStyle = 'rgba(230,196,88,0.7)'; c.lineWidth = 4;                       // panneau en arche
         c.beginPath(); c.moveTo(W * 0.2, H * 0.86); c.lineTo(W * 0.2, H * 0.3); c.arc(W / 2, H * 0.3, W * 0.3, Math.PI, 0); c.lineTo(W * 0.8, H * 0.86); c.closePath(); c.stroke();
-        c.save(); c.translate(W / 2, H * 0.52); c.scale(W / 24 * 0.42, W / 24 * 0.42); c.translate(-12, -12); ICONS.bank(c, accent); c.restore();
-        c.fillStyle = accent; c.font = '800 ' + Math.round(W * 0.15) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('HALL', W / 2, H * 0.8);
+        if (!plain) { c.save(); c.translate(W / 2, H * 0.52); c.scale(W / 24 * 0.42, W / 24 * 0.42); c.translate(-12, -12); ICONS.bank(c, accent); c.restore(); }
+        c.fillStyle = accent; c.font = '800 ' + Math.round(W * (plain ? 0.2 : 0.15)) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('HALL', W / 2, plain ? H * 0.56 : H * 0.8);
       },
       deco: function (g, w, h) {
         var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, 2.6), new THREE.MeshLambertMaterial({ color: carpet })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.4); g.add(tapis);
@@ -326,7 +335,7 @@
   T.exitHorses = exitTheme(0x14502a, '127, 209, 255', '#f2f2f2', 0x1f6b2a);
   T.exitCups = exitTheme(0x0f2a3a, '255, 224, 138', '#ffe9a8', 0x1b4f6e);
   T.exitUno = exitTheme(0x2a0f1c, '255, 214, 0', '#ffe9a8', 0x7a1020);
-  T.exitCinema = exitTheme(0x4a0a16, '255, 122, 26', '#ffd9a0', 0x9a1424);
+  T.exitCinema = exitTheme(0x4a0a16, '255, 122, 26', '#ffd9a0', 0x9a1424, { plain: true });
   // les fichiers images des thèmes sont chargés à l'avance
   Object.keys(T).forEach(function (k) { if (T[k].image) loadImg(T[k].image, function () { /* le dessin se refait dans paintDoorSign */ }); });
 })();
