@@ -19,7 +19,7 @@
   var TABLE_R = 1.9, SEAT_R = 2.5, TOP_Y = 0.86;
   var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }, { x: 0, z: -1.0, bots: [] }];
   var PHI = [-0.55, 0.55];                                  // angle des deux places de jeu, autour de la table (le croupier est assis en face)
-  var DEALER_NAMES = ['Jade', 'Enzo', 'Lina', 'Nathan', 'Chloé'];   // un par table : femme aux tables 1, 3, 5, homme aux tables 2 et 4
+  var DEALER_FEMALE = [true, false, false, true, true];   // croupières en diagonale (fond gauche, devant droite, milieu), croupiers fond droite et devant gauche
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
   var CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -217,30 +217,45 @@
     }
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
     // personnage : le vrai personnage animé s'il est actif, sinon le personnage en boîtes (persona3d.js désactive F.createPlayer)
+    // tenue de croupier posée sur le personnage en boîtes (f3d-core.js : hanches, buste, cou, tête = 4 premiers enfants du groupe)
+    var DEALER_SKINS = [0xf1c9a5, 0xc68642, 0xffdbac, 0x8d5524, 0xe0ac82];
+    var DEALER_HAIR = { f: [0x3b2314, 0xb8863b, 0x1a1210, 0x6b4423, 0x8a2b1c], h: [0x1a1210, 0x3b2314, 0x222222, 0x6b4423, 0x1a1210] };
     var dressGeo = null;
-    function dressCroupier(p, female) {
-      var gp = p.group, torso = gp.children[1];
+    function dressCroupier(p, female, idx) {
+      var gp = p.group, torso = gp.children[1], head = gp.children[3], gold = std(0xd4af37, 0.3, 0.8), red = lam(0x9a1022), black = lam(0x121216);
       if (!dressGeo) dressGeo = {
-        vest: new THREE.CylinderGeometry(0.208, 0.178, 0.5, 14, 1, true, 0.5, TAU - 1.0),
-        bow: new THREE.ConeGeometry(0.035, 0.07, 4), knot: new THREE.SphereGeometry(0.018, 8, 6),
-        cap: new THREE.SphereGeometry(0.155, 16, 10, 0, TAU, 0, Math.PI * 0.58), long: new THREE.BoxGeometry(0.27, 0.38, 0.07)
+        vest: new THREE.CylinderGeometry(0.2, 0.178, 0.4, 16), collar: new THREE.CylinderGeometry(0.07, 0.075, 0.045, 12),
+        btn: new THREE.SphereGeometry(0.012, 8, 6), badge: new THREE.BoxGeometry(0.07, 0.022, 0.008),
+        bow: new THREE.ConeGeometry(0.032, 0.065, 4), knot: new THREE.SphereGeometry(0.017, 8, 6), garter: new THREE.CylinderGeometry(0.064, 0.062, 0.035, 10),
+        top: new THREE.SphereGeometry(0.153, 16, 10, 0, TAU, 0, Math.PI * 0.36), back: new THREE.SphereGeometry(0.152, 16, 10, Math.PI, Math.PI, 0, Math.PI * 0.6),
+        backLong: new THREE.SphereGeometry(0.152, 16, 10, Math.PI, Math.PI, 0, Math.PI * 0.72), bun: new THREE.SphereGeometry(0.068, 12, 10),
+        lips: new THREE.BoxGeometry(0.045, 0.013, 0.01), ear: new THREE.SphereGeometry(0.014, 8, 6)
       };
-      if (torso && torso.material && torso.material.color) torso.material.color.set(0xf4f1ea);   // chemise blanche (manches comprises)
-      var vest = new THREE.Mesh(dressGeo.vest, new THREE.MeshLambertMaterial({ color: 0x15151a, side: THREE.DoubleSide })); vest.position.set(0, 1.3, 0); gp.add(vest);
-      [-1, 1].forEach(function (sd) { var b = new THREE.Mesh(dressGeo.bow, lam(0x9a1022)); b.rotation.z = sd * Math.PI / 2; b.position.set(sd * 0.035, 1.53, 0.19); gp.add(b); });
-      var kn = new THREE.Mesh(dressGeo.knot, lam(0x9a1022)); kn.position.set(0, 1.53, 0.195); gp.add(kn);
+      function put(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || gp).add(m); return m; }
+      if (torso && torso.material) torso.material.color.set(0xf6f3ec);                 // chemise blanche, manches comprises
+      if (head && head.material) head.material.color.set(DEALER_SKINS[idx % DEALER_SKINS.length]);   // la peau : tête, cou et mains partagent ce matériau
+      gp.children.forEach(function (c) { var pr = c.geometry && c.geometry.parameters; if (pr && pr.thetaLength && Math.abs(pr.thetaLength - Math.PI * 0.55) < 1e-6) c.visible = false; });   // cheveux d'origine : ils tombent sur les yeux
+      put(dressGeo.collar, torso ? torso.material : lam(0xf6f3ec), 0, 1.585, 0);
+      put(dressGeo.vest, black, 0, 1.24, 0);                                           // gilet noir, le haut de la chemise reste visible
+      [1.12, 1.22, 1.32].forEach(function (y) { put(dressGeo.btn, gold, 0, y, 0.17 + (y - 1.025) / 0.55 * 0.03 + 0.016); });
+      var badge = put(dressGeo.badge, gold, 0.095, 1.37, 0.172); badge.rotation.y = 0.5;
+      [-1, 1].forEach(function (sd) { var b = put(dressGeo.bow, red, sd * 0.034, 1.535, 0.192); b.rotation.z = sd * Math.PI / 2; });
+      put(dressGeo.knot, red, 0, 1.535, 0.198);
+      (p.arms || []).forEach(function (a) { put(dressGeo.garter, red, 0, -0.17, 0, a); });   // brassards rouges du croupier
+      var hm = lam(DEALER_HAIR[female ? 'f' : 'h'][idx % 5]);
+      put(dressGeo.top, hm, 0, 1.76, -0.004);
+      put(female ? dressGeo.backLong : dressGeo.back, hm, 0, 1.76, -0.006);
       if (female) {
-        var hm = lam(0x3b2314);
-        var cap = new THREE.Mesh(dressGeo.cap, hm); cap.position.set(0, 1.76, -0.005); gp.add(cap);
-        var lg = new THREE.Mesh(dressGeo.long, hm); lg.position.set(0, 1.6, -0.1); gp.add(lg);
+        put(dressGeo.bun, hm, 0, 1.8, -0.16);                                          // chignon
+        put(dressGeo.lips, lam(0xb3122e), 0, 1.69, 0.128);
+        [-1, 1].forEach(function (sd) { put(dressGeo.ear, gold, sd * 0.138, 1.71, 0.01); });
       }
     }
-    function makeNpc(name, look, croupier) {
-      var role = croupier ? ['', look.charAt(0) === 'f' ? 'Croupière' : 'Croupier', ''] : undefined;   // affiché en doré sous le prénom
-      if (F.createPlayer) return F.createPlayer(name, '', look, role);
+    function makeNpc(name, look, croupier, idx) {
+      if (F.createPlayer) return F.createPlayer(name, '', look);
       if (!F.createPerson) return null;
-      var p = F.createPerson(name, '', look, role);
-      if (croupier) dressCroupier(p, look.charAt(0) === 'f');
+      var p = F.createPerson(name, '', look);
+      if (croupier) dressCroupier(p, look.charAt(0) === 'f', idx || 0);
       return p;
     }
     TABLES.forEach(function (td, ti) {
@@ -273,7 +288,7 @@
       var T = { i: ti, x: td.x, z: td.z, group: grp, hands: {}, dealerCards: [], spots: [] };
       tables.push(T);
       // croupier
-      var dl = makeNpc(DEALER_NAMES[ti], ti % 2 ? 'h1010' : 'f1230', true);
+      var fem = DEALER_FEMALE[ti], dl = makeNpc(fem ? 'Croupière' : 'Croupier', fem ? 'f1230' : 'h1010', true, ti);
       if (dl) {
         dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.multiplyScalar(1.1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
         // la chaise du croupier : assise capitonnée et dossier, derrière la table
