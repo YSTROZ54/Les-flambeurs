@@ -183,7 +183,7 @@
 
     /* --- cartes UNO du jeu : une texture par carte (créée à la demande), une miniature nette pour la main du joueur --- */
     var faceTexCache = {}, faceMatCache = {}, imgCache = {};
-    function faceMat(card) { return faceMatCache[card] || (faceMatCache[card] = new THREE.MeshBasicMaterial({ map: (function (t) { t.anisotropy = 16; return t; })(mkTex(unoFaceCanvas(card))) })); }
+    function faceMat(card) { return faceMatCache[card] || (faceMatCache[card] = new THREE.MeshBasicMaterial({ map: (function (t) { t.anisotropy = 16; t.generateMipmaps = true; t.minFilter = THREE.LinearMipMapLinearFilter; return t; })(mkTex(unoFaceCanvas(card))) })); }
     function faceImg(card) {
       if (imgCache[card]) return imgCache[card];
       var cv = mkCanvas(160, 240), x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(unoFaceCanvas(card), 0, 0, 160, 240);
@@ -213,8 +213,8 @@
     var arrowGeo = new THREE.ShapeGeometry(arrowShape), arrowM = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
     var arrowOutM = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     var headArrowGeo = new THREE.ConeGeometry(0.13, 0.3, 18); headArrowGeo.rotateX(Math.PI); var headArrowM = new THREE.MeshBasicMaterial({ color: 0xffe35a });
-    var cardGeo = new THREE.PlaneGeometry(0.29, 0.435), bigCardGeo = new THREE.PlaneGeometry(0.33, 0.495), pileCardGeo = new THREE.PlaneGeometry(0.25, 0.375), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
-    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.36, 40);
+    var cardGeo = new THREE.PlaneGeometry(0.29, 0.435), bigCardGeo = new THREE.PlaneGeometry(0.48, 0.72), pileCardGeo = new THREE.PlaneGeometry(0.24, 0.36), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
+    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.62, 48);
     function addChair(ch) {                                          // une place : le fauteuil, la zone cliquable pour s'asseoir et ses repères
       ch.yaw = Math.atan2(ch.tx - ch.x, -(ch.tz - ch.z)); ch.sx = ch.x + (ch.x - ch.tx) * 0.45; ch.sz = ch.z + (ch.z - ch.tz) * 0.45; chairs.push(ch);
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(ch.x, 0.7, ch.z); g.add(hit);
@@ -229,24 +229,24 @@
       var inl = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.013, 6, 64), gold); inl.rotation.x = Math.PI / 2; inl.position.y = 0.915; t.add(inl);
       lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.75]].map(function (q) { return [q[0] * 1.35, q[1]]; }), woodM, 32);
       [[0.5 * 1.35, 0.03, 0.03], [0.18 * 1.35, 0.22, 0.024]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
-      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.07, 0.375), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.42, 0.885, 0); pile.rotation.y = 0.15; t.add(pile);
-      var pt = new THREE.Mesh(pileCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.42, 0.922, 0); t.add(pt);
+      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.07, 0.375), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.62, 0.885, 0); pile.rotation.y = 0.15; t.add(pile);
+      var pt = new THREE.Mesh(pileCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.62, 0.922, 0); t.add(pt);
       var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [], heads: [], arrows: [], badges: [] };
       for (var aq = 0; aq < 4; aq++) {                                       // flèches de sens de jeu, dans les espaces entre les mains
         var am = (aq + 0.5) / 4 * TAU + Math.PI / 4, ag = new THREE.Group(); ag.position.set(Math.cos(am) * UARR, 0.884, Math.sin(am) * UARR);
         var ash0 = new THREE.Mesh(arrowGeo, arrowOutM); ash0.rotation.x = -Math.PI / 2; ash0.scale.set(1.3, 1.35, 1); ash0.renderOrder = 5; ag.add(ash0); var ash = new THREE.Mesh(arrowGeo, arrowM); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.002; ash.renderOrder = 6; ag.add(ash); ag.visible = false; t.add(ag); tv.arrows.push({ g: ag, am: am, phi: am + Math.PI / 2 });
       }
-      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.42, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
-      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.4, 0.866, 0.05); tv.top2.visible = false; t.add(tv.top2);
-      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.42, 0.873, 0); tv.top.visible = false; t.add(tv.top);
+      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.5, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
+      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.44, 0.866, 0.08); tv.top2.visible = false; t.add(tv.top2);
+      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.5, 0.873, 0); tv.top.visible = false; t.add(tv.top);
       for (var s = 0; s < 4; s++) {
         var sa = s / 4 * TAU + Math.PI / 4, hg = [];
         for (var k = 0; k < 9; k++) { var hc = new THREE.Mesh(cardGeo, backM); hc.rotation.x = -Math.PI / 2; hc.visible = false; t.add(hc); hg.push(hc); }
         tv.hands.push({ cards: hg, sa: sa });
         var lb = mkLabel(); lb.position.set(Math.cos(sa) * (UR + 0.12), 1.02, Math.sin(sa) * (UR + 0.12)); t.add(lb); tv.labels.push(lb);
         var bgd = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTex(0), transparent: true, depthWrite: false })); bgd.scale.set(0.3, 0.44, 1); bgd.visible = false; bgd.userData.n = -1; bgd.renderOrder = 12;
-        bgd.position.set(Math.cos(sa) * (USEAT - 0.15) - Math.sin(sa) * 0.9, 1.55, Math.sin(sa) * (USEAT - 0.15) + Math.cos(sa) * 0.9); t.add(bgd); tv.badges.push(bgd);
-        var hd = new THREE.Mesh(headArrowGeo, headArrowM); hd.position.set(Math.cos(sa) * USEAT, 1.95, Math.sin(sa) * USEAT); hd.visible = false; hd.renderOrder = 15; t.add(hd); tv.heads.push(hd);
+        bgd.position.set(Math.cos(sa) * USEAT - Math.sin(sa) * 0.8, 2.12, Math.sin(sa) * USEAT + Math.cos(sa) * 0.8); t.add(bgd); tv.badges.push(bgd);
+        var hd = new THREE.Mesh(headArrowGeo, headArrowM); hd.position.set(Math.cos(sa) * USEAT, 2.8, Math.sin(sa) * USEAT); hd.visible = false; hd.renderOrder = 15; t.add(hd); tv.heads.push(hd);
         var cx = UNO_X + Math.cos(sa) * USEAT, cz = tz + Math.sin(sa) * USEAT;
         makeChair(cx, cz, Math.atan2(-Math.cos(sa), -Math.sin(sa)), chairU, chairUD);
         addChair({ tid: tid, ti: ti, local: s, n: ti * 4 + s, x: cx, z: cz, tx: UNO_X, tz: tz });
@@ -382,7 +382,7 @@
           cm.rotation.z = -sa - Math.PI / 2 + off * 0.2;
           cm.position.set(Math.cos(sa) * UHR + Math.cos(sa + Math.PI / 2) * off * 0.1, 0.872 + k * 0.003, Math.sin(sa) * UHR + Math.sin(sa + Math.PI / 2) * off * 0.1);
         }
-        lb.visible = !!e && !(seat && seat.tid === tid && seat.local === s);        // mon propre nom ne cache pas la table
+        lb.visible = false;                                                          // plus de nom ni de nombre de cartes sur la table : ils sont au-dessus du joueur
         var bgd = tv.badges[s], showB = !!e && !!hand && st.ph === 'play' && !(seat && seat.tid === tid && seat.local === s); bgd.visible = showB;
         if (showB && bgd.userData.n !== n) { bgd.userData.n = n; if (bgd.material.map) bgd.material.map.dispose(); bgd.material.map = badgeTex(n); bgd.material.needsUpdate = true; }
         if (e) { var act = st.ph === 'play' && st.turn === s; var key = e.name + '|' + n + '|' + act + '|' + (st.win === s); if (lb.userData.key !== key) { lb.userData.key = key; setLabel(lb, (st.win === s ? '🏆 ' : act ? '▶ ' : '') + e.name, hand ? n + ' carte' + (n > 1 ? 's' : '') : (st.ph === 'play' ? 'spectateur' : 'prêt'), act || st.win === s); } }
@@ -478,7 +478,7 @@
       for (var q = 0; q < Math.min(n, 8); q++) (function (q) {
         var m = new THREE.Mesh(cardGeo, backM); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
         var tx = Math.cos(h.sa) * UHR, tz = Math.sin(h.sa) * UHR;
-        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.42 + (tx + 0.42) * e, 0.95 + Math.sin(v * Math.PI) * 0.6, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
+        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.62 + (tx + 0.62) * e, 0.95 + Math.sin(v * Math.PI) * 0.6, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
       })(q);
     }
     var lastFxVer = {}, lastVoice = { f: '', t: 0 }, vq = [], vNow = null, COLOR_VOICE = ['rouge', 'jaune', 'vert', 'bleu'];
@@ -501,8 +501,8 @@
       var m = new THREE.Mesh(bigCardGeo, faceMat(card)); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
       var x0 = Math.cos(hh.sa) * (UHR + 0.5), z0 = Math.sin(hh.sa) * (UHR + 0.5), r0 = -hh.sa - Math.PI / 2;
       tv.pendingTop = true; renderTable(tid);
-      fxAdd({ dur: 0.55, upd: function (u) { m.visible = true; var e = u * u * (3 - 2 * u); m.position.set(x0 + (0.42 - x0) * e, 0.95 + Math.sin(u * Math.PI) * 0.5, z0 + (0 - z0) * e); m.rotation.z = r0 + (-0.2 - r0) * e + (1 - e) * 2.2; var k = 1.25 - 0.25 * e; m.scale.set(k, k, 1); },
-        end: function () { tv.group.remove(m); tv.pendingTop = false; renderTable(tid); fxRing(tv, 0xffffff, 0.42, 0); } });
+      fxAdd({ dur: 0.55, upd: function (u) { m.visible = true; var e = u * u * (3 - 2 * u); m.position.set(x0 + (0.5 - x0) * e, 0.95 + Math.sin(u * Math.PI) * 0.5, z0 + (0 - z0) * e); m.rotation.z = r0 + (-0.2 - r0) * e + (1 - e) * 2.2; var k = 1.25 - 0.25 * e; m.scale.set(k, k, 1); },
+        end: function () { tv.group.remove(m); tv.pendingTop = false; renderTable(tid); fxRing(tv, 0xffffff, 0.5, 0); } });
     }
     function fx3d(tid, old, st) {
       try {
@@ -527,12 +527,12 @@
           if (vict >= 0 && tv.hands[vict]) { var vp = seatFxPos(tv, vict); if (v === 'S') fxText(tv, '⛔', '#ffd24a', vp[0], vp[1]); else if (v === 'D' || v === 'F') fxText(tv, v === 'D' ? '+2' : '+4', v === 'D' ? '#ff6a4a' : '#d946ef', vp[0], vp[1]); }
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
-            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.42, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.42, 0);
+            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.5, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.5, 0);
             var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); plusVoice(pn);
             if (old.pend > 0 && st.pend > old.pend && (v === 'D' || v === 'F')) voice('quipioche');       // un +2 sur un +2, un +4 sur un +4 : qui va devoir piocher ?
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
-          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.42, 0);
-          if ((v === 'W' || v === 'F') && st.col >= 0 && st.col < 4) fxRing(tv, new THREE.Color(COLORS[st.col]).getHex(), 0.42, 0);
+          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.5, 0);
+          if ((v === 'W' || v === 'F') && st.col >= 0 && st.col < 4) fxRing(tv, new THREE.Color(COLORS[st.col]).getHex(), 0.5, 0);
           if (v === 'W' || v === 'F') {                                                  // changement de couleur : la même qu'avant -> Cléa ; sinon, parfois, « changement de couleur » puis la couleur choisie
             if (st.col === old.col) voice('clea'); else if (chance(2, 65)) { voice('changement'); voice(COLOR_VOICE[st.col]); }
           }
@@ -731,7 +731,7 @@
           var target = a.am + dir * Math.PI / 2, d = target - a.phi; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
           a.phi += d * Math.min(1, dt * 5); a.g.rotation.y = -a.phi; a.g.scale.setScalar(pulse);
         });
-        tv.heads.forEach(function (h, s2) { var act = on && st.turn === s2 && st.hands[s2] && !(st.wait >= 0 && false); h.visible = act; if (act) { h.position.y = 1.95 + 0.09 * Math.sin(arrowClock * 5); h.rotation.y += dt * 2; } });
+        tv.heads.forEach(function (h, s2) { var act = on && st.turn === s2 && st.hands[s2] && !(st.wait >= 0 && false); h.visible = act; if (act) { h.position.y = 2.8 + 0.09 * Math.sin(arrowClock * 5); h.rotation.y += dt * 2; } });
       });
       if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
         var sst = G[seat.tid], skey = sst && sst.ph === 'play' && Object.keys(sst.hands).length > 1 ? sst.turn + '|' + sst.disc.length + '|' + (sst.pend | 0) + '|' + (sst.drawn || '') : '';
