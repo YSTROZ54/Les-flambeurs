@@ -80,10 +80,10 @@
     wall(HX - OG, -(HX + OG) / 2, -HZ, 0); wall(LO_A - OG, (OG + LO_A) / 2, -HZ, 0); wall(HX - LO_B, (HX + LO_B) / 2, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI);    // le mur du fond est ouvert au milieu (passage vers la Chambre Forte) wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), woodM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.15, side: THREE.DoubleSide });
     var DG = 1.5;                                                  // demi-ouverture laissée libre devant la porte
-    [[HX - OG, -(HX + OG) / 2, -HZ + 0.04, 0], [LO_A - OG, (OG + LO_A) / 2, -HZ + 0.04, 0], [HX - LO_B, (HX + LO_B) / 2, -HZ + 0.04, 0], [HX - DG, -(HX + DG) / 2, HZ - 0.04, Math.PI], [HX - DG, (HX + DG) / 2, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
+    [[HX - OG, -(HX + OG) / 2, -HZ + 0.04, 0], [LO_A - OG, (OG + LO_A) / 2, -HZ + 0.04, 0], [HX - LO_B, (HX + LO_B) / 2, -HZ + 0.04, 0], [HX - DG, -(HX + DG) / 2, HZ - 0.04, Math.PI], [HX - DG, (HX + DG) / 2, HZ - 0.04, Math.PI], [HZ - DG, -HX + 0.04, -(HZ + DG) / 2, Math.PI / 2], [HZ - DG, -HX + 0.04, (HZ + DG) / 2, Math.PI / 2], [HZ - DG, HX - 0.04, -(HZ + DG) / 2, -Math.PI / 2], [HZ - DG, HX - 0.04, (HZ + DG) / 2, -Math.PI / 2]].forEach(function (d) {
       var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.2), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 })); m.position.set(d[1], 0.6, d[2]); m.rotation.y = d[3]; g.add(m);
     });
-    [[HX - OG, 0.12, 0.1, -(HX + OG) / 2, 1.2, -HZ + 0.05], [LO_A - OG, 0.12, 0.1, (OG + LO_A) / 2, 1.2, -HZ + 0.05], [HX - LO_B, 0.12, 0.1, (HX + LO_B) / 2, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0],
+    [[HX - OG, 0.12, 0.1, -(HX + OG) / 2, 1.2, -HZ + 0.05], [LO_A - OG, 0.12, 0.1, (OG + LO_A) / 2, 1.2, -HZ + 0.05], [HX - LO_B, 0.12, 0.1, (HX + LO_B) / 2, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ - DG, -HX + 0.05, 1.2, -(HZ + DG) / 2], [0.1, 0.12, HZ - DG, -HX + 0.05, 1.2, (HZ + DG) / 2], [0.1, 0.12, HZ - DG, HX - 0.05, 1.2, -(HZ + DG) / 2], [0.1, 0.12, HZ - DG, HX - 0.05, 1.2, (HZ + DG) / 2],
       [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
     /* --- ouverture du fond : un passage (sans porte) vers la salle de la Chambre Forte, avec couloir d'acier, néons verts et grande porte de coffre au bout --- */
     (function () {
@@ -713,7 +713,10 @@
     g.add(new THREE.AmbientLight(0xf0e0e8, 1.2));
     if (!low) [[UNO_X, -5.7], [UNO_X, 5.7], [C4_X, -2.75], [C4_X, 2.75]].forEach(function (p) { var l = new THREE.PointLight(0xffd9a0, 0.8, 11); l.position.set(p[0], 4.2, p[1]); g.add(l); });
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffd24a, target: 'hall', theme: 'exitUno' });
-    room.spawn = function (from) { return from === 'vault' ? { x: 0, z: -HZ + 2.8, yaw: Math.PI } : from === 'ludo' ? { x: (LO_A + LO_B) / 2, z: -HZ + 2.8, yaw: Math.PI } : { x: 0, z: HZ - 3, yaw: 0 }; };
+    // les portes du Loup-Garou (mur de gauche) et du Blind Test (mur de droite) : on n'y accède plus que par cette salle
+    world.addDoor(room, { x: -HX, z: 0, nx: 1, nz: 0, w: 2.2, h: 3.0, label: '🐺 LOUP GAROU', sub: 'PARTIES DE 4 À 12 JOUEURS', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' });
+    world.addDoor(room, { x: HX, z: 0, nx: -1, nz: 0, w: 2.2, h: 3.0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' });
+    room.spawn = function (from) { return from === 'loupgarou' ? { x: -HX + 2.8, z: 0, yaw: Math.PI / 2 } : from === 'blindtest' ? { x: HX - 2.8, z: 0, yaw: -Math.PI / 2 } : from === 'vault' ? { x: 0, z: -HZ + 2.8, yaw: Math.PI } : from === 'ludo' ? { x: (LO_A + LO_B) / 2, z: -HZ + 2.8, yaw: Math.PI } : { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un fauteuil pour jouer' : 'ZQSD / flèches : marcher · Maj : courir · à gauche : UNO (2 à 4 joueurs), à droite : Puissance 4 (2 joueurs) · avance vers un fauteuil (F ou clic) pour t\'asseoir et jouer avec les autres · F : se lever' + (w.full ? ' · Échap : quitter' : ''); };
     room.onLeave = function () { stand(); };
     room._etat = function () { return G; };
