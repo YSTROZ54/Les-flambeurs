@@ -477,8 +477,8 @@
         // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
         function voice(file) { var now = performance.now(); if (!seatNow || (lastVoice.f === file && now - lastVoice.t < 1500)) return; lastVoice = { f: file, t: now }; vq.push({ f: file, t: now }); vPump(); }
         var chance = function (k, pct) { return hash(st.ver * 31 + k) % 100 < pct; };                // tirage identique pour tous les joueurs de la table
-        // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour les +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
-        function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (n > 2 && hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
+        // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour chaque +2, +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
+        function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
         if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice(chance(5, 50) ? 'victoire' : 'gagner'); return; }
         if (st.disc.length > old.disc.length) {
           var top = st.disc[st.disc.length - 1], v = top.slice(1);
