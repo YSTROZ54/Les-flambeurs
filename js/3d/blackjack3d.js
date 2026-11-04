@@ -19,6 +19,7 @@
   var TABLE_R = 1.9, SEAT_R = 2.5, TOP_Y = 0.86;
   var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }, { x: 0, z: -1.0, bots: [] }];
   var PHI = [-0.55, 0.55];                                  // angle des deux places de jeu, autour de la table (le croupier est assis en face)
+  var DEALER_NAMES = ['Inès Moreau', 'Karim Benali', 'Léa Fontaine', 'Hugo Marchand', 'Sofia Laurent'];   // un par table : femme aux tables 1, 3, 5, homme aux tables 2 et 4
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
   var CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -235,9 +236,10 @@
       }
     }
     function makeNpc(name, look, croupier) {
-      if (F.createPlayer) return F.createPlayer(name, '', look);
+      var role = croupier ? ['', look.charAt(0) === 'f' ? 'Croupière' : 'Croupier', ''] : undefined;   // affiché en doré sous le prénom
+      if (F.createPlayer) return F.createPlayer(name, '', look, role);
       if (!F.createPerson) return null;
-      var p = F.createPerson(name, '', look);
+      var p = F.createPerson(name, '', look, role);
       if (croupier) dressCroupier(p, look.charAt(0) === 'f');
       return p;
     }
@@ -271,9 +273,9 @@
       var T = { i: ti, x: td.x, z: td.z, group: grp, hands: {}, dealerCards: [], spots: [] };
       tables.push(T);
       // croupier
-      var dl = makeNpc('Croupier', ti % 2 ? 'h1010' : 'f1230', true);
+      var dl = makeNpc(DEALER_NAMES[ti], ti % 2 ? 'h1010' : 'f1230', true);
       if (dl) {
-        dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
+        dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.multiplyScalar(1.1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
         // la chaise du croupier : assise capitonnée et dossier, derrière la table
         makeChair(grp, 0, -0.75, 0, 0.5, true);
         room.colliders.push({ x: td.x, z: td.z - 0.8, r: 0.5 });
@@ -294,12 +296,6 @@
           room.interactables.push({ hit: hit, x: sx0, z: sz0, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Table ' + (ti + 1); }, use: function (w) { sit(w, s); } });
         }
       });
-      // spectateur assis à l'écart, en skin de croupier (alterne homme/femme comme les croupiers), qui lance « Lancez vos paris ! » dès que la table se remplit
-      var pnjX = td.x + 2.4, pnjZ = td.z - 1.1, pnjAimX = td.x - pnjX, pnjAimZ = (td.z + 0.3) - pnjZ, pnjRy = Math.atan2(pnjAimX, pnjAimZ);
-      makeChair(grp, pnjX - td.x, pnjZ - td.z, pnjRy, 0.6, false);
-      room.colliders.push({ x: pnjX, z: pnjZ, r: 0.3 });
-      var pnj = makeNpc('Public', ti % 2 ? 'f1230' : 'h1010', true);
-      if (pnj) { pnj.group.position.set(pnjX, 0, pnjZ); pnj.group.rotation.y = pnjRy; pnj.tag.visible = false; pnj.setSeated(true, { y: 0.12, z: 0.28 }); g.add(pnj.group); people.push({ p: pnj, kind: 'pnj', s: null }); T.pnj = { x: pnjX, z: pnjZ, p: pnj }; }
     });
     function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); p.add(o); return o; }
 
@@ -354,10 +350,9 @@
       T.scoreLabels[key] = { sp: sp, sc: sc };
     }
     function wake(T, tx, tz) { if (T && T.dealerO) { T.dealerO.awake = 1.1; T.dealerO.aimX = (tx === undefined ? T.x : tx) - T.x; T.dealerO.aimZ = (tz === undefined ? T.z + 0.7 : tz) - T.z; } }
-    // le spectateur de la table crie « Lancez vos paris ! » (bulle + son) dès que la table se remplit
-    function pnjSay(T, text) {
-      if (!T.pnj) return;
-      if (T.pnj.p.say) T.pnj.p.say(text);
+    // le croupier de la table annonce « Lancez vos paris ! » (bulle + son) dès que la table se remplit
+    function dealerSay(T, text) {
+      if (T.dealer && T.dealer.say) T.dealer.say(text);
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/lancez-vos-paris.mp3', 1.4);
     }
     function tableHasPlayer(T) { return T.spots.some(function (s) { return !s.bot && (s === seat || seatTaken(s)); }); }
@@ -693,10 +688,10 @@
     room.update = function (dt) {
       clockT += dt;
       pollT += dt; if (seat && pollT > 1.1) { pollT = 0; pollNow(); }     // l'état de la table vient du serveur (api/blackjack.js) : sondé environ une fois par seconde
-      // le spectateur annonce la manche dès qu'un premier vrai joueur s'assoit à une table vide
+      // le croupier annonce la manche dès qu'un premier vrai joueur s'assoit à une table vide
       tables.forEach(function (T) {
         var occ = tableHasPlayer(T);
-        if (occ && !T._hadPlayer) { T._hadPlayer = true; pnjSay(T, '🎲 Lancez vos paris !'); }
+        if (occ && !T._hadPlayer) { T._hadPlayer = true; dealerSay(T, '🎲 Lancez vos paris !'); }
         else if (!occ) T._hadPlayer = false;
       });
       if (autoRebet && seat && TBL && TBL.status === 'waiting') {
