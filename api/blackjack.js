@@ -440,7 +440,7 @@ export default async function handler(req, res) {
 
       if (modified) {
         memoryTables = tables;
-        saveSupabaseTables(tables).catch(() => {});
+        await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
       }
 
       return res.status(200).json({
@@ -497,7 +497,7 @@ export default async function handler(req, res) {
 
     if (modified) {
       memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
+      await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
     }
 
     return res.status(200).json(publicTable(table, req.query.me));
@@ -546,7 +546,7 @@ export default async function handler(req, res) {
 
       if (modified) {
         memoryTables = tables;
-        saveSupabaseTables(tables).catch(() => {});
+        await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
       }
 
       return res.status(200).json({
@@ -588,7 +588,7 @@ export default async function handler(req, res) {
       await tryAutoStart(tableId, table, now, false);
       table.updatedAt = now;
       memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});   // pour que les autres joueurs (autre instance serveur) voient ma mise tout de suite
+      await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)   // pour que les autres joueurs (autre instance serveur) voient ma mise tout de suite
       return res.status(200).json({ ok: true, started: table.status === 'playing', readyBets: table.readyBets, table: publicTable(table, viewer) });
     }
 
@@ -600,7 +600,7 @@ export default async function handler(req, res) {
       if (table.readyBets && !Object.keys(table.readyBets).length) table.bettingStartTime = 0;
       table.updatedAt = now;
       memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
+      await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
       return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
     }
 
@@ -626,7 +626,7 @@ export default async function handler(req, res) {
       }
       table.updatedAt = now;
       memoryTables = tables;
-      saveSupabaseTables(tables).catch(() => {});
+      await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
       return res.status(200).json({ ok: true, started: table.status === 'playing', table: publicTable(table, viewer) });
     }
 
@@ -756,7 +756,7 @@ export default async function handler(req, res) {
 
     if (table.status === 'finished') await settleTable(table);
     memoryTables = tables;
-    saveSupabaseTables(tables).catch(() => {});
+    await saveSupabaseTables(tables);   // attendu : sur Vercel une écriture non attendue peut être perdue, et une autre instance renverrait l'ancien état (écran des mises après « Prêt »)
 
     return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
   }
