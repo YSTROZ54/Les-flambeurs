@@ -211,69 +211,90 @@
       sn.fillStyle = bg; sn.fillRect(0, 0, 1280, 720);
       filmstrip(0); filmstrip(704);
 
-      // en-tête : médaillon Tropi Stream + titre du panneau, double filet doré en dessous
-      var logo = getImg('assets/cinema/tropistream-serveur.png');
-      sn.save(); sn.beginPath(); sn.arc(160, 92, 48, 0, TAU); sn.clip();
-      if (logo) sn.drawImage(logo, 112, 44, 96, 96); else { sn.fillStyle = '#2a1208'; sn.fillRect(112, 44, 96, 96); }
+      // en-tête : titre du panneau, médaillon Tropi Stream à droite du texte, double filet doré en dessous
+      var logo = getImg('assets/cinema/tropistream-serveur.png'), LX = 1100, LY = 86, LR = 46;
+      sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
+      if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
       sn.restore();
-      sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(160, 92, 48, 0, TAU); sn.stroke();
+      sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
       sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 26; sn.fillStyle = '#ffb066';
-      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 700, 98, 980);
+      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 92, 760);
       sn.shadowBlur = 0;
-      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 152, 1140, 2);
-      sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 157, 1140, 1);
+      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 146, 1140, 2);
+      sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 151, 1140, 1);
 
-      var HX0 = 90, HY0 = 172, HW = 250, HH = 374;   // boîte à affiche de la séance en cours (ou de l'icône « salle fermée »)
+      // en haut : la séance en cours de lecture (ou « ouvert » quand rien ne passe)
+      var BX = 70, BY = 164, BW = 104, BH = 152, tx = BX + BW + 28;
       var playing = st && st.status === 'playing' && st.title;
+      sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
       if (playing) {
         ensureHallPlaylist();
         var titre = String(st.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), startD = new Date(Date.now() - st.position * 1000);
         var f = hallPlaylist && hallPlaylist.find(function (x) { return x.nom === titre; });
-        poster(getImg(f && f.poster), HX0, HY0, HW, HH, 12);
-        var tx = HX0 + HW + 50;
-        sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-        sn.fillStyle = 'rgba(74,222,128,0.14)'; sn.fillRect(tx - 2, 222, 300, 36);
-        sn.fillStyle = '#4ade80'; sn.font = '800 24px ' + MONO; sn.fillText('●  SÉANCE EN COURS', tx + 10, 247);
-        sn.fillStyle = '#f8e7d0'; sn.font = '800 48px ' + SERIF;
-        wrapLines(sn, titre, 780, 2).forEach(function (ln, i) { sn.fillText(ln, tx, 320 + i * 54); });
-        sn.fillStyle = '#ffb066'; sn.font = '700 24px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD), tx, 450);
-        if (f && f.annee) { sn.fillStyle = '#9d8a53'; sn.font = '600 22px ' + MONO; sn.fillText(String(f.annee) + (f.genres && f.genres[0] ? ' · ' + f.genres[0] : ''), tx, 484); }
+        poster(getImg(f && f.poster), BX, BY, BW, BH, 10);
+        sn.fillStyle = 'rgba(74,222,128,0.14)'; sn.fillRect(tx - 2, BY + 6, 360, 34);
+        sn.fillStyle = '#4ade80'; sn.font = '800 23px ' + MONO; sn.fillText('●  EN COURS DE LECTURE', tx + 10, BY + 30);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 44px ' + SERIF;
+        wrapLines(sn, titre, 1040, 1).forEach(function (ln) { sn.fillText(ln, tx, BY + 92); });
+        sn.fillStyle = '#ffb066'; sn.font = '700 23px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '   ·   ' + f.annee : '') + (f && f.genres && f.genres[0] ? '   ·   ' + f.genres[0] : ''), tx, BY + 136);
       } else {
-        sn.save(); F.roundRectPath(sn, HX0, HY0, HW, HH, 12); sn.clip();
-        var g2 = sn.createLinearGradient(HX0, HY0, HX0, HY0 + HH); g2.addColorStop(0, '#2a1016'); g2.addColorStop(1, '#140a10');
-        sn.fillStyle = g2; sn.fillRect(HX0, HY0, HW, HH);
-        sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '160px sans-serif'; sn.fillText('🎬', HX0 + HW / 2, HY0 + HH / 2);
+        sn.save(); F.roundRectPath(sn, BX, BY, BW, BH, 10); sn.clip();
+        var g2 = sn.createLinearGradient(BX, BY, BX, BY + BH); g2.addColorStop(0, '#2a1016'); g2.addColorStop(1, '#140a10');
+        sn.fillStyle = g2; sn.fillRect(BX, BY, BW, BH);
+        sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '66px sans-serif'; sn.fillText('🎬', BX + BW / 2, BY + BH / 2);
         sn.restore();
-        sn.strokeStyle = 'rgba(201,162,39,0.75)'; sn.lineWidth = 2; F.roundRectPath(sn, HX0, HY0, HW, HH, 12); sn.stroke();
-        var tx2 = HX0 + HW + 50;
+        sn.strokeStyle = 'rgba(201,162,39,0.75)'; sn.lineWidth = 2; F.roundRectPath(sn, BX, BY, BW, BH, 10); sn.stroke();
         sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx2 - 2, 222, 160, 36);
-        sn.fillStyle = '#ff9a4a'; sn.font = '800 24px ' + MONO; sn.fillText('●  OUVERT', tx2 + 10, 247);
-        sn.fillStyle = '#f8e7d0'; sn.font = '800 46px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx2, 320);
-        sn.fillStyle = '#c98a55'; sn.font = '600 26px ' + MONO; sn.fillText('Entre par la porte — la séance commence', tx2, 364);
-        sn.fillText('dès que la régie lance un film.', tx2, 396);
+        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx - 2, BY + 6, 160, 34);
+        sn.fillStyle = '#ff9a4a'; sn.font = '800 23px ' + MONO; sn.fillText('●  OUVERT', tx + 10, BY + 30);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 44px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx, BY + 92);
+        sn.fillStyle = '#c98a55'; sn.font = '600 23px ' + MONO; sn.fillText('Aucune séance en cours · la prochaine commence dès que la régie lance un film.', tx, BY + 136, 1040);
       }
 
-      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 568, 1140, 2);
-      var sched = (st && st.schedule) || [];
-      sn.textAlign = 'center'; sn.textBaseline = 'middle';
-      sn.fillStyle = 'rgba(255,122,26,0.5)'; sn.fillRect(395, 599, 70, 2); sn.fillRect(815, 599, 70, 2);
-      sn.fillStyle = '#ffb066'; sn.font = '800 30px ' + MONO; sn.fillText('PROCHAINES SÉANCES', 640, 600);
-      if (!sched.length) {
-        sn.fillStyle = '#8a7050'; sn.font = '600 24px ' + MONO; sn.fillText('Aucune séance programmée pour l\'instant', 640, 660);
-      } else {
-        var n = Math.min(3, sched.length), cw = 362, gap = 20, totalW = n * cw + (n - 1) * gap, x0 = 640 - totalW / 2;
-        sched.slice(0, 3).forEach(function (it, i) {
-          var d = new Date(it.at), cx = x0 + i * (cw + gap), cy = 624, ch = 72;
-          sn.fillStyle = 'rgba(255,255,255,0.045)'; F.roundRectPath(sn, cx, cy, cw, ch, 10); sn.fill();
-          sn.strokeStyle = 'rgba(201,162,39,0.3)'; sn.lineWidth = 1.5; F.roundRectPath(sn, cx, cy, cw, ch, 10); sn.stroke();
-          poster(getImg(it.poster), cx + 9, cy + 9, 60, ch - 18, 6);
-          var tx3 = cx + 84, label = String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, '');
+      // en bas : le calendrier de la semaine, du lundi au dimanche ; chaque film programmé est posé à son jour, empilés en hauteur (affiche + heure)
+      var sched = ((st && st.schedule) || []).filter(function (it) { return it && isFinite(it.at); }).sort(function (a, b) { return a.at - b.at; });
+      var today0 = new Date(); today0.setHours(0, 0, 0, 0);
+      var weekOf = function (t) { var d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; };
+      var mon = weekOf(today0.getTime()), monEnd = new Date(mon.getTime()); monEnd.setDate(monEnd.getDate() + 7);
+      if (!sched.some(function (it) { return it.at >= mon.getTime() && it.at < monEnd.getTime(); })) {      // rien cette semaine : on montre la semaine de la prochaine séance
+        var nxt = sched.filter(function (it) { return it.at >= monEnd.getTime(); })[0];
+        if (nxt) mon = weekOf(nxt.at);
+      }
+      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 328, 1140, 2);
+      var JRS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'], CG = 8, CW = (1140 - CG * 6) / 7, HY = 338, HH = 42, CBY = HY + HH + 6, CBH = 698 - CBY, PAD = 6;
+      for (var di = 0; di < 7; di++) {
+        var day = new Date(mon.getTime()); day.setDate(day.getDate() + di);
+        var dayEnd = new Date(day.getTime()); dayEnd.setDate(dayEnd.getDate() + 1);
+        var cx0 = 70 + di * (CW + CG), isToday = day.getTime() === today0.getTime(), isPast = day.getTime() < today0.getTime();
+        sn.fillStyle = isToday ? '#ff7a1a' : 'rgba(255,255,255,0.07)'; F.roundRectPath(sn, cx0, HY, CW, HH, 9); sn.fill();
+        sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '800 23px ' + MONO;
+        sn.fillStyle = isToday ? '#1a0a04' : (isPast ? '#7a6446' : '#ffb066'); sn.fillText(JRS[di] + ' ' + day.getDate(), cx0 + CW / 2, HY + HH / 2 + 1, CW - 10);
+        sn.fillStyle = 'rgba(255,255,255,0.035)'; F.roundRectPath(sn, cx0, CBY, CW, CBH, 9); sn.fill();
+        sn.strokeStyle = isToday ? 'rgba(255,122,26,0.8)' : 'rgba(201,162,39,0.18)'; sn.lineWidth = isToday ? 2.5 : 1.5; F.roundRectPath(sn, cx0, CBY, CW, CBH, 9); sn.stroke();
+        var items = sched.filter(function (it) { return it.at >= day.getTime() && it.at < dayEnd.getTime(); });
+        var MAXC = 5, shown = items.slice(0, MAXC), extra = items.length - shown.length;
+        if (!shown.length) continue;
+        var G2 = 6, availH = CBH - PAD * 2 - (extra > 0 ? 24 : 0), ch = Math.min(150, (availH - G2 * (shown.length - 1)) / shown.length);
+        shown.forEach(function (it, k) {
+          var cy0 = CBY + PAD + k * (ch + G2), cxx = cx0 + PAD, cww = CW - PAD * 2, im = getImg(it.poster), dd = new Date(it.at), over = it.at < Date.now();
+          sn.save(); F.roundRectPath(sn, cxx, cy0, cww, ch, 8); sn.clip();
+          if (im) {                                                    // affiche remplie sans déformation (rognée au centre)
+            var sr = im.naturalWidth / im.naturalHeight, dr = cww / ch, sw = sr > dr ? im.naturalHeight * dr : im.naturalWidth, sh = sr > dr ? im.naturalHeight : im.naturalWidth / dr;
+            sn.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, cxx, cy0, cww, ch);
+          } else { var gg = sn.createLinearGradient(cxx, cy0, cxx, cy0 + ch); gg.addColorStop(0, '#2a1520'); gg.addColorStop(1, '#120a10'); sn.fillStyle = gg; sn.fillRect(cxx, cy0, cww, ch); }
+          var sh2 = sn.createLinearGradient(0, cy0 + ch * 0.45, 0, cy0 + ch); sh2.addColorStop(0, 'rgba(6,2,4,0)'); sh2.addColorStop(1, 'rgba(6,2,4,0.92)');
+          sn.fillStyle = sh2; sn.fillRect(cxx, cy0, cww, ch);
+          if (over) { sn.fillStyle = 'rgba(6,2,4,0.45)'; sn.fillRect(cxx, cy0, cww, ch); }
+          sn.restore();
+          sn.strokeStyle = 'rgba(201,162,39,0.7)'; sn.lineWidth = 1.5; F.roundRectPath(sn, cxx, cy0, cww, ch, 8); sn.stroke();
           sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-          sn.fillStyle = '#f4e3b0'; sn.font = '700 25px ' + MONO; sn.fillText(truncate(sn, label, cw - 100), tx3, cy + 33);
-          sn.fillStyle = '#ffb066'; sn.font = '700 22px ' + MONO; sn.fillText(fmtJourBoard(d) + ' à ' + fmtHeureBoard(d), tx3, cy + 60);
-          sn.textAlign = 'center'; sn.textBaseline = 'middle';
+          var big = ch >= 90;
+          sn.fillStyle = '#fff3e0'; sn.font = '800 ' + (big ? 30 : 22) + 'px ' + MONO; sn.shadowColor = 'rgba(0,0,0,0.9)'; sn.shadowBlur = 6;
+          sn.fillText(fmtHeureBoard(dd), cxx + 8, cy0 + ch - 9);
+          if (big) { sn.font = '700 15px ' + MONO; sn.fillStyle = '#ffd9a8'; sn.fillText(truncate(sn, String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), cww - 14), cxx + 8, cy0 + ch - 42); }
+          sn.shadowBlur = 0;
         });
+        if (extra > 0) { sn.fillStyle = '#ffb066'; sn.font = '800 18px ' + MONO; sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.fillText('+' + extra + ' autre' + (extra > 1 ? 's' : ''), cx0 + CW / 2, CBY + CBH - 16); }
       }
       if (cinPosterMat.map) cinPosterMat.map.needsUpdate = true;
     }
