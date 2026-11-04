@@ -5,8 +5,8 @@
    derrière soi. Deux tables (Table 1 et 2) de 2 à 4 joueurs, un joueur par côté du plateau : rouge à gauche, vert en haut, jaune à droite, bleu en
    bas. Le premier arrivé est le chef : il lance la partie. AUCUN argent n'est misé ni gagné.
    Les règles (api/ludo.js) : un 6 ou un 1 pour sortir un pion (3 essais si aucun pion n'est en jeu ; pas de sortie si un de nos pions est déjà sur la case de départ ;
-   en sortant on mange l'adversaire qui s'y trouve), un 6 ou une capture font rejouer (trois 6 d'affilée : le tour est
-   perdu), nombre EXACT pour arriver à la maison, on renvoie un adversaire à l'écurie en tombant sur lui (sauf sur les cases de départ et les
+   en sortant on mange l'adversaire qui s'y trouve), un 6, une capture ou un pion rentré à la maison font rejouer (trois 6 d'affilée : le tour est
+   perdu) ; un pion qui n'a pas quitté sa case de départ ne se mange pas (on ne peut pas s'y arrêter, on le saute), nombre EXACT pour arriver à la maison, on renvoie un adversaire à l'écurie en tombant sur lui (sauf sur les cases de départ et les
    étoiles), la partie continue quand quelqu'un finit : elle s'arrête quand tous sauf un ont rentré leurs 4 pions. Le serveur tire le dé et valide les coups ; ici on affiche le plateau, les pions qui sautent
    case par case, le dé qui roule, et on envoie « lancer » ou « jouer ce pion ».
    Fichiers liés : f3d-core.js, world3d.js, uno3d.js (l'ouverture d'entrée), api/ludo.js (serveur).
@@ -65,7 +65,7 @@
     var bg = x.createLinearGradient(0, 0, N, N); bg.addColorStop(0, '#f8f2e2'); bg.addColorStop(1, '#ece3cc'); x.fillStyle = bg; x.fillRect(0, 0, N, N);
     function cellRect(cx, cy, fill, stroke) {                      // une case : rectangle arrondi avec un léger relief
       var px = cx * cell + 3 * u, py = cy * cell + 3 * u, w = cell - 6 * u;
-      rr(x, px, py, w, w, cell * 0.12); x.fillStyle = fill; x.fill(); x.lineWidth = 4 * u; x.strokeStyle = stroke; x.stroke();
+      rr(x, px, py, w, w, cell * 0.12); x.fillStyle = fill; x.fill(); x.lineWidth = 7 * u; x.strokeStyle = stroke; x.stroke();
       var g2 = x.createLinearGradient(px, py, px, py + w); g2.addColorStop(0, 'rgba(255,255,255,0.35)'); g2.addColorStop(0.5, 'rgba(255,255,255,0)'); g2.addColorStop(1, 'rgba(0,0,0,0.10)'); rr(x, px, py, w, w, cell * 0.12); x.fillStyle = g2; x.fill();
     }
     // écuries
@@ -84,15 +84,15 @@
     for (i = 0; i < 15; i++) for (j = 0; j < 15; j++) {
       if ((i < 6 || i > 8) && (j < 6 || j > 8)) continue;
       if (i >= 6 && i <= 8 && j >= 6 && j <= 8) continue;
-      cellRect(j, i, '#fffdf6', '#8a8272');
+      cellRect(j, i, '#ffffff', '#141414');
     }
     // escaliers d'arrivée et cases de départ colorés, avec une flèche vers le centre
     for (k = 0; k < 4; k++) {
       for (j = 0; j < 5; j++) {
-        var hp = gridPos(k, 0, 51 + j); cellRect(hp[0] - 0.5, hp[1] - 0.5, CCSS[k], shade(CCSS[k], -0.3));
+        var hp = gridPos(k, 0, 51 + j); cellRect(hp[0] - 0.5, hp[1] - 0.5, CCSS[k], '#141414');
         var d2 = DIRS[k], ax = hp[0] * cell, ay = hp[1] * cell, ang = Math.atan2(-d2[1], -d2[0]); x.save(); x.translate(ax, ay); x.rotate(ang); x.fillStyle = 'rgba(255,255,255,0.75)'; x.beginPath(); x.moveTo(cell * 0.22, 0); x.lineTo(-cell * 0.12, -cell * 0.2); x.lineTo(-cell * 0.12, cell * 0.2); x.closePath(); x.fill(); x.restore();
       }
-      var sp = gridPos(k, 0, 0); cellRect(sp[0] - 0.5, sp[1] - 0.5, CCSS[k], shade(CCSS[k], -0.3));
+      var sp = gridPos(k, 0, 0); cellRect(sp[0] - 0.5, sp[1] - 0.5, CCSS[k], '#141414');
     }
     // étoiles sur les cases protégées (hors cases de départ)
     SAFE.forEach(function (idx) {
@@ -172,7 +172,8 @@
       [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]].forEach(function (l) { box(tg, 0.22, 0.72, 0.22, woodD, l[0], 0.36, l[1]); });
       var brd = new THREE.Mesh(new THREE.PlaneGeometry(BS, BS), new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.8, metalness: 0, emissive: 0xffffff, emissiveMap: boardTex, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); brd.rotation.x = -Math.PI / 2; brd.position.y = TOP_Y + 0.004; tg.add(brd);      // juste au-dessus du socle : plus de scintillement
       box(tg, BS + 0.12, 0.04, BS + 0.12, tblWood, 0, TOP_Y - 0.026, 0);
-      room.colliders.push({ x: T.x, z: T.z, r: 2.1 });
+      room.colliders.push({ x: T.x, z: T.z, r: 1.5 });
+      for (var cq = -1.8; cq <= 1.81; cq += 0.45) [[cq, -1.9], [cq, 1.9], [-1.9, cq], [1.9, cq]].forEach(function (cp) { room.colliders.push({ x: T.x + cp[0], z: T.z + cp[1], r: 0.5 }); });      // le tour de la table est plein : on ne passe plus dessous
       var T3 = { ti: ti, group: tg, pawns: [[], [], [], []], hits: [], dice: null, diceT: 99, diceFinal: null, diceSpin: null, sig: '', board: null };
       for (var c = 0; c < 4; c++) for (var j = 0; j < 4; j++) {
         var pm = new THREE.MeshStandardMaterial({ color: CHEX[c], roughness: 0.28, metalness: 0.12 }), pg = new THREE.Group();
@@ -210,7 +211,7 @@
 
     /* --- l'état de la table (serveur) --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null, S = null, off = 0, list = null, polling = false, listPolling = false, pollT = 0, listT = 0, busy = false, code = '', shownKey = '', flash = '', flashT = 0;
-    var topView = false, lastReady = false, epoch = 0, joined = false, joinedAt = 0, lastDiceAt = 0, lastMoves = -1, lastId = '', clockT = 0;
+    var topView = false, lastReady = false, epoch = 0, joined = false, joinedAt = 0, lastDiceAt = 0, lastMoves = -1, lastCapMove = -1, lastId = '', clockT = 0;
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (kk) { var r = world.remote[kk]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
     function nowS() { return Date.now() + off; }
     function api(body) {
@@ -271,6 +272,10 @@
       if (!s) return;
       var first = !S || s.id !== lastId, T3 = tables[seat ? seat.ti : 0];
       S = s; off = s.serverNow - Date.now(); lastId = s.id;
+      if (!first && s.last && s.last.captured && s.last.captured.length && s.moves !== lastCapMove) {           // un pion est mangé : le cri n'est joué que parfois (tirage lié au numéro du coup, donc le même pour toute la table)
+        lastCapMove = s.moves; var hv = (s.moves * 2654435761) >>> 0; hv ^= hv >>> 15; hv = (hv * 2246822519) >>> 0;
+        if (hv % 100 < 45 && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/ludo/manger.mp3', 0.45);
+      }
       if (seat && T3) {
         applyPawns(T3, s, first || s.status !== 'playing' && s.status !== 'finished');
         if (s.rollAt && s.rollAt !== lastDiceAt && s.dice > 0 && !first) { lastDiceAt = s.rollAt; T3.diceT = 0; T3.diceFinal = diceEuler(s.dice); T3.diceSpin = [(Math.random() + 1) * TAU * 1.3, (Math.random() + 1) * TAU * 1.1, (Math.random() + 1) * TAU]; var h = diceHome(s.turn >= 0 ? s.turn : 0); T3.diceFrom = [T3.dice.position.x, T3.dice.position.z]; T3.diceTo = h; }
@@ -389,7 +394,7 @@
     }
     room.forceStand = function () { stand(); };
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.12, z: 0.28 };
+    room.sitSpec = { y: -0.01, z: 0.28 };      // assise des chaises à 0,49 m
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-1.0, Math.min(1.0, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.35, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };
