@@ -108,7 +108,8 @@ function getDefaultTable(tableId) {
     history: [],
     forfeit: null,
     readyBets: {},
-    readyPlayers: {},
+    readyPlayers: {},   // « Prêt » : { joueur: nombre de joueurs assis annoncé à ce moment (1 ou 2) }
+    turnDeadline: 0,
     knownPlayers: {},
     host: null,
     hasPlayedRound: false,
@@ -172,6 +173,7 @@ async function saveSupabaseTables(tables) {
    Toutes les mises et tous les gains passent par ces fonctions. Chaque opération porte une
    clé unique : rejouée, elle ne s'applique jamais deux fois (pas de double paiement). */
 const BJ_MIN_BET = 10;   // pas de mise maximale : seul le solde limite (walletCharge refuse si le solde est insuffisant)
+export const BJ_TURN_MS = 10000;   // temps pour jouer (tous en même temps) ; chaque carte tirée relance ce délai, passé ce délai ceux qui n'ont pas joué restent automatiquement
 export const BJ_BET_COUNTDOWN_MS = 10000;   // dès qu'un joueur mise, les autres ont 10 s pour miser aussi : la manche est la même pour tous ceux qui ont misé à temps
 const clampBet = (v, fallback) => Math.max(BJ_MIN_BET, Math.floor(Number(v)) || fallback || 100);
 
@@ -201,12 +203,24 @@ export async function settleTable(table) {
 
 // vue envoyée aux navigateurs : jamais le paquet de cartes, jamais la carte cachée du croupier
 const BACK_CARD = { r: '?', v: 0, s: '♠', color: 'text-slate-900', type: 'suit-black' };
-export function publicTable(table) {
+export function publicTable(table, viewer) {
   const t = { ...table };
   delete t.deck;
   delete t.charged;
   t.bettingDuration = BJ_BET_COUNTDOWN_MS;
   t.serverNow = Date.now();   // pour que le compte à rebours s'affiche juste même si l'horloge du navigateur dérive
+  t.turnDuration = BJ_TURN_MS;
+  // « Prêt » : combien de joueurs sont prêts sur combien (ceux qui ont misé, ou les joueurs assis annoncés par un « Prêt »)
+  const bettors = Object.keys(table.readyBets || {}).filter((k) => (table.readyBets[k] || 0) >= BJ_MIN_BET);
+  const rp = table.readyPlayers || {};
+  t.readyCount = bettors.filter((k) => rp[k]).length;
+  t.readyTotal = Math.max(bettors.length, ...bettors.map((k) => Number(rp[k]) || 0), 0);
+  // le jeu est simultané : `turn` ne désigne plus qu'un joueur encore en train de jouer (le joueur qui regarde, sinon le premier), pour l'ancien blackjack 2D
+  if (t.status === 'playing' && table.players) {
+    const v = String(viewer || '').toLowerCase().trim();
+    const playing = Object.keys(table.players).filter((k) => table.players[k] && table.players[k].status === 'playing');
+    t.turn = (v && playing.includes(v)) ? v : (playing[0] || t.turn);
+  }
   if (t.dealer) {
     const hide = t.status === 'playing' || t.status === 'dealer_turn';
     t.dealer = { ...t.dealer };
@@ -254,7 +268,7 @@ async function tryAutoStart(tableId, table, now, force) {
   try {
     const participants = bettorKeys.map((k) => {
       const kp = (table.knownPlayers && table.knownPlayers[k]) || {};
-      return { username: kp.username || k, avatar: kp.avatar || '👤', bet: table.readyBets[k] };
+      return { username: kp.username || k, avatar: kp.avatar || '👤', bet: table.readyBets[k], spot: kp.spot === 1 ? 1 : 0 };
     });
     await startRound(table, participants, now);
     return true;
@@ -269,18 +283,11 @@ async function tryAutoStart(tableId, table, now, force) {
 
 function advanceTurnOrFinish(table) {
   const activeKeys = table.playerOrder || Object.keys(table.players);
-  let nextPlayer = null;
+  const stillPlaying = activeKeys.filter((k) => table.players[k] && table.players[k].status === 'playing');
 
-  for (const k of activeKeys) {
-    const p = table.players[k];
-    if (p && p.status === 'playing') {
-      nextPlayer = k;
-      break;
-    }
-  }
-
-  if (nextPlayer) {
-    table.turn = nextPlayer;
+  // jeu simultané : la manche continue tant qu'au moins un joueur n'a pas fini (les autres attendent)
+  if (stillPlaying.length) {
+    table.turn = stillPlaying[0];
     table.status = 'playing';
     return;
   }
@@ -349,7 +356,7 @@ function startServerDeal(table, participants, now) {
   participants.forEach(p => {
     const pKey = (p.username || '').toLowerCase().trim();
     if (!pKey) return;
-    table.knownPlayers[pKey] = { username: p.username, avatar: p.avatar || '👤' };
+    table.knownPlayers[pKey] = { ...(table.knownPlayers[pKey] || {}), username: p.username, avatar: p.avatar || '👤', spot: p.spot === 1 ? 1 : 0 };
     const hand = [table.deck.pop(), table.deck.pop()];
     const sc = calcScore(hand);
     const isBJ = sc === 21;
@@ -360,6 +367,7 @@ function startServerDeal(table, participants, now) {
     table.players[pKey] = {
       username: p.username,
       avatar: p.avatar || '👤',
+      spot: p.spot === 1 ? 1 : 0,   // place (0 ou 1) à la table 3D, pour que tout le monde pose les cartes au bon endroit
       bet: playerBet,
       cards: hand,
       score: sc,
@@ -371,8 +379,21 @@ function startServerDeal(table, participants, now) {
     table.playerOrder.push(pKey);
   });
 
+  table.turnDeadline = now + BJ_TURN_MS;
   advanceTurnOrFinish(table);
   table.updatedAt = now;
+}
+
+// temps écoulé : ceux qui n'ont pas joué restent automatiquement, puis le croupier joue
+function autoPlayTimeouts(table, now) {
+  if (table.status !== 'playing' || !table.turnDeadline || now < table.turnDeadline) return false;
+  Object.keys(table.players || {}).forEach((k) => {
+    const p = table.players[k];
+    if (p && p.status === 'playing') { p.status = 'stand'; p.auto = true; }
+  });
+  advanceTurnOrFinish(table);
+  table.updatedAt = now;
+  return true;
 }
 
 export default async function handler(req, res) {
@@ -457,39 +478,18 @@ export default async function handler(req, res) {
       if (await tryAutoStart(tableId, table, now, true)) modified = true;
     }
 
+    // 1ter. Les 10 s pour jouer sont écoulées : ceux qui n'ont pas joué restent, le croupier joue
+    if (autoPlayTimeouts(table, now)) modified = true;
+
     // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn') - Limite de 30s par tour
     if (table.status === 'playing' || table.status === 'dealer_turn') {
       const timeSinceUpdate = now - (table.updatedAt || table.roundId || now);
       if (timeSinceUpdate > 30000) {
-        const activeKeys = (table.playerOrder || Object.keys(table.players || {})).filter(k => table.players && table.players[k]);
-        const turnKey = (table.turn || '').toLowerCase().trim();
-        const otherKeys = activeKeys.filter(k => k !== turnKey);
-
-        if (otherKeys.length === 1 && table.players[turnKey]) {
-          // Le joueur dont c'était le tour n'a pas répondu sous 30s -> Forfait automatique, l'adversaire gagne la mise !
-          const winnerKey = otherKeys[0];
-          const winner = table.players[winnerKey];
-          let totalPot = 0;
-          Object.values(table.players).forEach(pl => { totalPot += (pl.bet || 0); });
-
-          winner.result = 'forfeit_win';
-          winner.payout = totalPot;
-          table.status = 'finished';
-          table.forfeit = {
-            loser: table.players[turnKey].username || turnKey,
-            winner: winner.username || winnerKey,
-            pot: totalPot
-          };
-          table.finishedAt = now;
-          table.updatedAt = now;
-          modified = true;
-        } else {
-          // Aucun adversaire ou table abandonnée depuis plus de 45s -> manche remboursée, puis remise à zéro totale
-          await settleTable(table);
-          table = getDefaultTable(tableId);
-          tables[tableId] = table;
-          modified = true;
-        }
+        // table abandonnée depuis plus de 30 s (plus personne ne sonde) -> manche remboursée, puis remise à zéro totale
+        await settleTable(table);
+        table = getDefaultTable(tableId);
+        tables[tableId] = table;
+        modified = true;
       }
     }
 
@@ -500,7 +500,7 @@ export default async function handler(req, res) {
       saveSupabaseTables(tables).catch(() => {});
     }
 
-    return res.status(200).json(publicTable(table));
+    return res.status(200).json(publicTable(table, req.query.me));
   }
 
   // POST
@@ -566,38 +566,42 @@ export default async function handler(req, res) {
     }
 
     const action = body.action;
+    const viewer = body.username;
+    autoPlayTimeouts(table, now);
  
     // S. ENREGISTRER MA MISE (SET_BET) : la 1re mise sur une table en attente lance les 10 s pour que les autres rejoignent
     if (action === 'set_bet' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const betVal = Math.max(10, parseInt(body.bet) || 100);
-      if (table.status !== 'waiting') return res.status(200).json({ ok: false, error: 'Une manche est déjà en cours sur cette table.', table: publicTable(table) });
+      if (table.status !== 'waiting') return res.status(200).json({ ok: false, error: 'Une manche est déjà en cours sur cette table.', table: publicTable(table, viewer) });
       if (!table.readyBets || typeof table.readyBets !== 'object') table.readyBets = {};
       // 2 places à cette table : un 3e joueur ne peut pas miser ici (mais je peux changer ma propre mise)
       if (!table.readyBets[pKey] && Object.keys(table.readyBets).length >= 2) {
-        return res.status(200).json({ ok: false, error: 'Cette table est déjà complète (2 joueurs).', table: publicTable(table) });
+        return res.status(200).json({ ok: false, error: 'Cette table est déjà complète (2 joueurs).', table: publicTable(table, viewer) });
       }
       table.readyBets[pKey] = betVal;
+      if (table.readyPlayers) delete table.readyPlayers[pKey];   // la mise change : il faut confirmer « Prêt » de nouveau
       if (!table.knownPlayers) table.knownPlayers = {};
-      table.knownPlayers[pKey] = { username: body.username, avatar: body.avatar || '👤' };
+      table.knownPlayers[pKey] = { username: body.username, avatar: body.avatar || '👤', spot: body.spot === 1 ? 1 : 0 };
       if (body.host && !table.host) table.host = body.host.toLowerCase().trim();
       if (!table.bettingStartTime) table.bettingStartTime = now;   // 1re mise de la manche : le compte à rebours démarre
       await tryAutoStart(tableId, table, now, false);
       table.updatedAt = now;
       memoryTables = tables;
       saveSupabaseTables(tables).catch(() => {});   // pour que les autres joueurs (autre instance serveur) voient ma mise tout de suite
-      return res.status(200).json({ ok: true, started: table.status === 'playing', readyBets: table.readyBets, table: publicTable(table) });
+      return res.status(200).json({ ok: true, started: table.status === 'playing', readyBets: table.readyBets, table: publicTable(table, viewer) });
     }
 
     // T. RETIRER MA MISE (UNSET_BET) : seulement avant que la manche ait démarré
     if (action === 'unset_bet' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       if (table.status === 'waiting' && table.readyBets) delete table.readyBets[pKey];
+      if (table.readyPlayers) delete table.readyPlayers[pKey];
       if (table.readyBets && !Object.keys(table.readyBets).length) table.bettingStartTime = 0;
       table.updatedAt = now;
       memoryTables = tables;
       saveSupabaseTables(tables).catch(() => {});
-      return res.status(200).json({ ok: true, table: publicTable(table) });
+      return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
     }
 
     // R. « PRÊT » : on arrête d'attendre les 10 s, la manche démarre tout de suite avec tous ceux qui ont déjà misé
@@ -607,41 +611,44 @@ export default async function handler(req, res) {
       if (table.status === 'playing' || table.status === 'dealer_turn') {
         table.updatedAt = now;
         memoryTables = tables;
-        return res.status(200).json({ ok: true, table: publicTable(table) });
+        return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
       }
-      if (body.ready !== false && table.readyBets && table.readyBets[pKey] >= BJ_MIN_BET) {
-        if (startingTables.has(tableId)) return res.status(200).json({ ok: true, table: publicTable(table) });
-        await tryAutoStart(tableId, table, now, true);   // n'échoue jamais : une mise refusée (solde insuffisant) est juste retirée, sans lancer d'erreur
+      if (table.readyBets && table.readyBets[pKey] >= BJ_MIN_BET) {
+        if (!table.readyPlayers || typeof table.readyPlayers !== 'object') table.readyPlayers = {};
+        if (body.ready === false) delete table.readyPlayers[pKey];
+        else table.readyPlayers[pKey] = body.seated === 2 ? 2 : 1;
+        // la manche part dès que tous les joueurs de la table sont prêts (seul à la table : tout de suite) ; sinon au bout des 10 s de mise
+        const pub = publicTable(table, viewer);
+        if (pub.readyTotal > 0 && pub.readyCount >= pub.readyTotal) {
+          if (startingTables.has(tableId)) return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
+          await tryAutoStart(tableId, table, now, true);   // n'échoue jamais : une mise refusée (solde insuffisant) est juste retirée, sans lancer d'erreur
+        }
       }
       table.updatedAt = now;
       memoryTables = tables;
-      if (table.status === 'playing') saveSupabaseTables(tables).catch(() => {});
-      return res.status(200).json({ ok: true, started: table.status === 'playing', table: publicTable(table) });
+      saveSupabaseTables(tables).catch(() => {});
+      return res.status(200).json({ ok: true, started: table.status === 'playing', table: publicTable(table, viewer) });
     }
 
     // A. DISTRIBUER (DEAL) : la manche démarre toute seule (mise = 10 s pour les autres, ou « Prêt » pour ne plus attendre)
     if (action === 'deal') {
-      return res.status(200).json({ ok: false, error: 'Place ta mise : la manche démarre toute seule.', table: publicTable(table) });
+      return res.status(200).json({ ok: false, error: 'Place ta mise : la manche démarre toute seule.', table: publicTable(table, viewer) });
     }
 
     // B. TIRER (HIT)
     else if (action === 'hit' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      const curTurn = (table.turn || '').toLowerCase().trim();
-      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
+      if (table.status === 'playing' && p && p.status === 'playing') {
         if (!Array.isArray(table.deck) || table.deck.length === 0) table.deck = createShuffledDeck();
         const card = table.deck.pop();
         p.cards.push(card);
         p.score = calcScore(p.cards);
 
-        if (p.score > 21) {
-          p.status = 'busted';
-          advanceTurnOrFinish(table);
-        } else if (p.score === 21) {
-          p.status = 'stand';
-          advanceTurnOrFinish(table);
-        }
+        if (p.score > 21) p.status = 'busted';
+        else if (p.score === 21) p.status = 'stand';
+        table.turnDeadline = now + BJ_TURN_MS;   // une carte tirée relance les 10 s pour tout le monde
+        advanceTurnOrFinish(table);
         table.updatedAt = now;
       }
     }
@@ -650,8 +657,7 @@ export default async function handler(req, res) {
     else if (action === 'stand' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      const curTurn = (table.turn || '').toLowerCase().trim();
-      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing') {
+      if (table.status === 'playing' && p && p.status === 'playing') {
         p.status = 'stand';
         advanceTurnOrFinish(table);
         table.updatedAt = now;
@@ -662,12 +668,11 @@ export default async function handler(req, res) {
     else if (action === 'double' && body.username) {
       const pKey = body.username.toLowerCase().trim();
       const p = table.players && table.players[pKey];
-      const curTurn = (table.turn || '').toLowerCase().trim();
-      if (table.status === 'playing' && curTurn === pKey && p && p.status === 'playing' && !p.double && p.cards.length === 2) {
+      if (table.status === 'playing' && p && p.status === 'playing' && !p.double && p.cards.length === 2) {
         try {
           await bjCharge(p.username, `d:${tableId}:${table.roundId}:${pKey}`, p.bet);
         } catch (e) {
-          return res.status(200).json({ ok: false, error: 'Solde insuffisant pour doubler.', table: publicTable(table) });
+          return res.status(200).json({ ok: false, error: 'Solde insuffisant pour doubler.', table: publicTable(table, viewer) });
         }
         if (table.charged) table.charged[pKey] = (table.charged[pKey] || 0) + p.bet;
         p.bet *= 2;
@@ -678,6 +683,7 @@ export default async function handler(req, res) {
         p.score = calcScore(p.cards);
 
         p.status = p.score > 21 ? 'busted' : 'stand';
+        table.turnDeadline = now + BJ_TURN_MS;
         advanceTurnOrFinish(table);
         table.updatedAt = now;
       }
@@ -752,7 +758,7 @@ export default async function handler(req, res) {
     memoryTables = tables;
     saveSupabaseTables(tables).catch(() => {});
 
-    return res.status(200).json({ ok: true, table: publicTable(table) });
+    return res.status(200).json({ ok: true, table: publicTable(table, viewer) });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

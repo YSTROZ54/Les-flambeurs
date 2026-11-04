@@ -317,7 +317,7 @@
     /* --- la manche (affichage + serveur) --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, bet = 100, view3 = false, meRig = null;
     // manche partagée : l'état vient du serveur (api/blackjack.js, une table par 'bj_pub_N'), identique pour les 2 joueurs assis à la table
-    var TBL = null, tblOff = 0, polling = false, pollT = 0, busy = false;
+    var TBL = null, tblOff = 0, polling = false, pollT = 0, busy = false, specT = 0, specIdx = 0, hudT = 0;
     var autoRebet = null;   // { amount, deadline } : remise automatiquement la même mise après une manche, comme avant (plus besoin de recliquer à chaque fois)
     var AUTO_REBET_MS = 8000;
     function tableIdOf(T) { return 'bj_pub_' + (T.i + 1); }
@@ -365,12 +365,11 @@
       T.scoreLabels[key] = { sp: sp, sc: sc };
     }
     function wake(T, tx, tz) { if (T && T.dealerO) { T.dealerO.awake = 1.1; T.dealerO.aimX = (tx === undefined ? T.x : tx) - T.x; T.dealerO.aimZ = (tz === undefined ? T.z + 0.7 : tz) - T.z; } }
-    // le croupier de la table annonce « Lancez vos paris ! » (bulle + son) dès que la table se remplit
+    // le croupier annonce « Lancez vos paris ! » (bulle + son) à celui qui s'assoit en premier à la table : personne d'autre n'entend
     function dealerSay(T, text) {
       if (T.dealer && T.dealer.say) T.dealer.say(text);
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/lancez-vos-paris.mp3', 1.4);
     }
-    function tableHasPlayer(T) { return T.spots.some(function (s) { return !s.bot && (s === seat || seatTaken(s)); }); }
     function showHand(T, s, cards, keep) {
       wake(T, s.x, s.z);
       T.handMeshes = T.handMeshes || {};
@@ -402,8 +401,8 @@
 
     function setMsg(t, col) { if (ui) { var m = ui.el.querySelector('.bj-msg'); m.textContent = t || ''; m.style.color = col || ''; } }
     var SUIT_CLASS = { '♥': 'fl-suit-h', '♦': 'fl-suit-d', '♣': 'fl-suit-c', '♠': 'fl-suit-s' };
-    // une petite pastille par carte : rang + logo du symbole (au lieu du caractère ♥♦♣♠ brut, qui rend mal selon la police)
-    function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="pip n">🂠</span>' : '<span class="pip ' + (red ? 'r' : 'n') + '">' + c.r + '<i class="fl-suit ' + SUIT_CLASS[c.s] + '"></i></span>'; }).join(''); }
+    // une petite carte par carte : rang + logo du symbole (au lieu du caractère ♥♦♣♠ brut, qui rend mal selon la police)
+    function handHtml(cards) { return cards.map(function (c) { var red = c.s === '♥' || c.s === '♦'; return c.r === '?' ? '<span class="pip back"></span>' : '<span class="pip ' + (red ? 'r' : 'n') + '">' + c.r + '<i class="fl-suit ' + SUIT_CLASS[c.s] + '"></i></span>'; }).join(''); }
     function setText(el, t) { if (el && el.textContent !== t) el.textContent = t; }
     function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
     var cardImgCache = {}, cardsEl = null;
@@ -425,52 +424,79 @@
       function row(cards) { return '<div class="bj-cr">' + cards.map(function (c) { return '<img src="' + cardImg(c) + '" alt="">'; }).join('') + '</div>'; }
       setHtml(cardsEl, '<div class="bj-cl">Croupier' + (dHidden ? '' : ' · ' + score(dCards)) + '</div>' + row(dCards) + '<div class="bj-cl">Toi · ' + mineP.score + '</div>' + row(mineP.cards));
     }
-    function refreshUi() {
-      if (!ui) return;
-      var me = F.me(), hd = ui.el.querySelector('.bj-hands'), mineP = TBL && TBL.players && TBL.players[me];
-      if (mineP) {
-        var dCards = (TBL.dealer && TBL.dealer.cards) || [], dHidden = !!(TBL.dealer && TBL.dealer.hidden);
-        var html = '<div>Croupier : ' + handHtml(dCards) + (dHidden ? '' : '<span class="tot">' + score(dCards) + '</span>') + '</div><div>Toi : ' + handHtml(mineP.cards) + '<span class="tot">' + mineP.score + '</span></div>';
-        var otherKey = Object.keys(TBL.players).filter(function (k) { return k !== me; })[0];
-        if (otherKey) {
-          var oP = TBL.players[otherKey], oName = (TBL.knownPlayers && TBL.knownPlayers[otherKey] && TBL.knownPlayers[otherKey].username) || otherKey;
-          html += '<div>' + esc(oName) + ' : ' + handHtml(oP.cards) + '<span class="tot">' + oP.score + '</span></div>';
-        }
-        setHtml(hd, html);
-      } else setHtml(hd, '');
-      refreshCards();
-      var q = function (s) { return ui.el.querySelector(s); };
-      setText(q('.bj-bal b'), fmtN(balance()) + ' 🪙'); setText(q('.bj-bet b'), fmtN(bet) + ' 🪙');   // on ne réécrit le texte que s'il change : sinon l'émoji clignote
-      var waiting = !TBL || TBL.status === 'waiting';
-      q('.bj-chips').style.display = waiting ? '' : 'none';
-      if (!waiting) { var cb = q('.bj-custom-bet'); if (cb) cb.hidden = true; }   // la manche a démarré : plus question de changer sa mise
-      var rdy = q('[data-a=ready]'); if (rdy) rdy.style.display = waiting && TBL && TBL.readyBets && TBL.readyBets[me] ? '' : 'none';
-      var mine = !busy && TBL && TBL.status === 'playing' && TBL.turn === me && mineP && mineP.status === 'playing';
-      ui.el.querySelectorAll('[data-a=hit],[data-a=stand],[data-a=double]').forEach(function (b) { b.style.display = (TBL && TBL.status === 'playing') ? '' : 'none'; b.disabled = !mine; });
-      var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = !mine || !mineP || mineP.cards.length !== 2;
-      var cnt = q('.bj-count');
-      if (cnt) {
-        if (waiting && TBL && TBL.bettingStartTime) setText(cnt, 'Manche dans ' + Math.max(0, Math.ceil((TBL.bettingStartTime + (TBL.bettingDuration || 10000) - bjNow()) / 1000)) + ' s');
+    function nameOf(t, k) { return (t.knownPlayers && t.knownPlayers[k] && t.knownPlayers[k].username) || (t.players && t.players[k] && t.players[k].username) || k; }
+    function doneCount(t) { var ks = Object.keys(t.players || {}); return { done: ks.filter(function (k) { return t.players[k].status !== 'playing'; }).length, total: ks.length }; }
+    // compte à rebours et barre de temps : rappelé plusieurs fois par seconde (refreshUi ne passe qu'à chaque nouvel état de la table)
+    function tickHud() {
+      if (!ui || !TBL) return;
+      var cnt = ui.el.querySelector('.bj-count'), bar = ui.el.querySelector('.bj-timer'), fill = bar.firstChild, st = TBL.status;
+      var waiting = st === 'waiting';
+      if (st === 'playing' && TBL.turnDeadline) {
+        var dur = TBL.turnDuration || 10000, left = Math.max(0, TBL.turnDeadline - bjNow()), mineP = TBL.players && TBL.players[F.me()];
+        bar.style.display = '';
+        var w = (left / dur * 100).toFixed(0) + '%'; if (fill.__w !== w) { fill.__w = w; fill.style.width = w; }
+        bar.classList.toggle('low', left < 3000);
+        setText(cnt, '⏱ ' + Math.ceil(left / 1000) + ' s' + (mineP && mineP.status === 'playing' ? '' : ' · jeu auto'));
+      } else {
+        bar.style.display = 'none';
+        if (waiting && TBL.bettingStartTime) setText(cnt, 'Manche dans ' + Math.max(0, Math.ceil((TBL.bettingStartTime + (TBL.bettingDuration || 10000) - bjNow()) / 1000)) + ' s');
         else if (waiting && autoRebet) setText(cnt, 'Prochaine manche dans ' + Math.max(0, Math.ceil((autoRebet.deadline - Date.now()) / 1000)) + ' s');
         else setText(cnt, '');
       }
     }
+    function refreshUi() {
+      if (!ui) return;
+      var me = F.me(), q = function (s) { return ui.el.querySelector(s); }, mineP = TBL && TBL.players && TBL.players[me];
+      var st = TBL ? TBL.status : 'waiting', waiting = !TBL || st === 'waiting';
+      var inRound = TBL && !waiting && TBL.players && Object.keys(TBL.players).length;
+      // mains : le croupier, moi, puis les autres joueurs de la table (jeu simultané : tout le monde joue en même temps)
+      if (inRound) {
+        var dCards = (TBL.dealer && TBL.dealer.cards) || [], dHidden = !!(TBL.dealer && TBL.dealer.hidden);
+        var html = '<div class="bj-h dealer"><span class="bj-n">Croupier</span>' + handHtml(dCards) + (dHidden ? '' : '<span class="tot">' + score(dCards) + '</span>') + '</div>';
+        html += Object.keys(TBL.players).sort(function (a, b) { return (a === me ? -1 : 0) - (b === me ? -1 : 0); }).map(function (k) {
+          var p = TBL.players[k], tag = p.status === 'busted' ? '<em class="bj-tag bad">Sauté</em>' : p.status === 'blackjack' ? '<em class="bj-tag ok">Blackjack</em>' : (p.status === 'stand' && st !== 'finished') ? '<em class="bj-tag">Reste</em>' : '';
+          return '<div class="bj-h' + (k === me ? ' me' : '') + '"><span class="bj-n">' + (k === me ? 'Toi' : esc(nameOf(TBL, k))) + '</span>' + handHtml(p.cards) + '<span class="tot' + (p.score > 21 ? ' bust' : '') + '">' + p.score + '</span>' + tag + '</div>';
+        }).join('');
+        setHtml(q('.bj-hands'), html);
+      } else setHtml(q('.bj-hands'), '');
+      q('.bj-hands').style.display = inRound ? '' : 'none';
+      refreshCards();
+      setText(q('.bj-bal b'), fmtN(balance())); setText(q('.bj-bet b'), fmtN(bet));   // on ne réécrit le texte que s'il change : sinon l'émoji clignote
+      q('.bj-chips').style.display = waiting ? '' : 'none';
+      if (!waiting) { var cb = q('.bj-custom-bet'); if (cb) cb.hidden = true; }   // la manche a démarré : plus question de changer sa mise
+      // « Prêt » : x/y joueurs prêts
+      var hasBet = !!(TBL && TBL.readyBets && TBL.readyBets[me] >= MIN_BET), rc = (TBL && TBL.readyCount) || 0, rt = Math.max((TBL && TBL.readyTotal) || 1, 1), mineReady = !!(TBL && TBL.readyPlayers && TBL.readyPlayers[me]);
+      var rrow = q('.bj-rdyrow'); rrow.style.display = waiting && hasBet ? '' : 'none';
+      var rb = q('[data-a=ready]'); rb.classList.toggle('on', mineReady); setText(rb, mineReady ? '✓ Prêt' : 'Prêt');
+      var segs = ''; for (var sg = 0; sg < rt; sg++) segs += '<i class="' + (sg < rc ? 'on' : '') + '"></i>';
+      setHtml(q('.bj-rdy'), '<span class="segs">' + segs + '</span><b>' + rc + '/' + rt + ' prêt' + (rc > 1 ? 's' : '') + '</b>');
+      // actions : chacun joue en même temps ; une fois fini on attend les autres
+      var playingNow = TBL && st === 'playing' && mineP && mineP.status === 'playing';
+      q('.bj-act').style.display = playingNow ? '' : 'none';
+      q('.bj-act').querySelectorAll('button').forEach(function (b) { b.disabled = busy; });
+      var dbl = q('[data-a=double]'); if (dbl) dbl.disabled = busy || !mineP || mineP.cards.length !== 2;
+      var wait = q('.bj-wait'), waitNow = TBL && mineP && (st === 'dealer_turn' || (st === 'playing' && mineP.status !== 'playing'));
+      wait.style.display = waitNow ? '' : 'none';
+      if (waitNow) { var dc = doneCount(TBL); setText(wait, st === 'dealer_turn' ? 'Le croupier joue…' : '⏳ En attente des autres joueurs · ' + dc.done + '/' + dc.total + ' ont joué'); }
+      tickHud();
+    }
 
-    // nouvel état de la table (reçu d'un POST ou d'un sondage) : place les cartes, affiche le résultat, met à jour les boutons
-    function applyTable(t) {
-      if (!t) return;
-      tblOff = (typeof t.serverNow === 'number' ? t.serverNow : Date.now()) - Date.now();
-      TBL = t;
-      if (!seat) { refreshUi(); return; }
-      var T = seat.table, me = F.me();
+    // place (0 ou 1) d'un joueur à la table : donnée par le serveur (chacun envoie la sienne en misant) ; sinon moi = ma place, l'autre = l'autre place
+    function spotOfPlayer(T, t, key) {
+      var p = t.players && t.players[key], kp = t.knownPlayers && t.knownPlayers[key], sp = p && typeof p.spot === 'number' ? p.spot : (kp && typeof kp.spot === 'number' ? kp.spot : -1);
+      if (sp < 0) sp = (seat && seat.table === T) ? (key === F.me() ? seat.i : 1 - seat.i) : Math.max(0, Object.keys(t.players || {}).indexOf(key)) % 2;
+      return T.spots[sp];
+    }
+    // pose les cartes, les totaux et les résultats sur la table 3D : pour ceux qui y sont assis comme pour ceux qui regardent
+    function renderTable(T, t) {
+      T.tbl = t;
+      if (t.status !== 'waiting') T._clearAt = 0; else if (T._roundId && !T._clearAt) T._clearAt = Date.now() + 7000;
       if (t.roundId && t.roundId !== T._roundId) { T._roundId = t.roundId; clearCards(T); T._dealerHidden = true; T._resultShown = -1; wake(T); }
-      // mes cartes, et celles de l'autre joueur assis à cette table (2 places : l'autre place = pas la mienne)
       Object.keys(t.players || {}).forEach(function (pKey) {
         var p = t.players[pKey]; if (!p || !Array.isArray(p.cards) || !p.cards.length) return;
-        var s = pKey === me ? seat : otherSeat(T);
-        if (s) showHand(T, s, p.cards);
+        var s = spotOfPlayer(T, t, pKey); if (s) showHand(T, s, p.cards);
       });
-      // le croupier : cartes masquées pendant qu'on joue, révélées (et complétées) d'un coup à la fin du tour
+      // le croupier : cartes masquées pendant qu'on joue, révélées (et complétées) d'un coup à la fin
       var dc = (t.dealer && t.dealer.cards) || [];
       if (dc.length) {
         if (!t.dealer.hidden && T._dealerHidden !== false) reveal(T, dc); else showDealer(T, dc);
@@ -480,14 +506,26 @@
       if (t.status === 'finished' && T._resultShown !== t.roundId) {
         T._resultShown = t.roundId;
         Object.keys(t.players || {}).forEach(function (pKey) {
-          var p = t.players[pKey], s = pKey === me ? seat : otherSeat(T); if (!s || !p || !p.result) return;
+          var p = t.players[pKey], s = spotOfPlayer(T, t, pKey); if (!s || !p || !p.result) return;
           var txt = (p.result === 'win' || p.result === 'forfeit_win') ? 'GAGNÉ' : p.result === 'push' ? 'ÉGALITÉ' : p.status === 'busted' ? 'SAUTÉ' : 'PERDU';
           var col = txt === 'GAGNÉ' ? '#7ee0a0' : txt === 'ÉGALITÉ' ? '#f3cf62' : '#ff8a80';
           var pp = spotPos(T, s, (p.cards.length - 1) / 2, p.cards.length);
           label(T, pp.x, pp.z, txt, col);
         });
-        var mine = t.players[me];
-        if (mine) {
+      }
+    }
+    // nouvel état d'une table (reçu d'un POST ou d'un sondage) : 3D pour tout le monde, boutons et messages pour moi seulement
+    function applyTable(t) {
+      if (!t || !t.tableId) return;
+      var T = tables[(parseInt(String(t.tableId).replace(/\D/g, ''), 10) || 1) - 1]; if (!T) return;
+      tblOff = (typeof t.serverNow === 'number' ? t.serverNow : Date.now()) - Date.now();
+      renderTable(T, t);
+      if (!seat || seat.table !== T) return;
+      TBL = t;
+      var me = F.me(), mine = t.players && t.players[me];
+      if (t.status === 'finished') {
+        if (mine && T._myResult !== t.roundId) {
+          T._myResult = t.roundId;
           if (mine.result === 'forfeit_win') setMsg('🏆 L\'autre joueur est parti : tu gagnes la cagnotte, +' + fmtN(mine.payout) + ' 🪙', '#7ee0a0');
           else if (mine.result === 'win') setMsg('🏆 Gagné ! ' + mine.score + ' contre ' + (t.dealer ? t.dealer.score : 0) + ' : +' + fmtN(mine.payout) + ' 🪙', '#7ee0a0');
           else if (mine.result === 'push') setMsg('🤝 Égalité : mise remboursée.', '#f3cf62');
@@ -496,15 +534,16 @@
           autoRebet = { amount: mine.bet, deadline: Date.now() + AUTO_REBET_MS };   // la manche suivante reprend la même mise, toute seule
         }
       } else if (t.status === 'waiting') {
-        if (!(t.readyBets && Object.keys(t.readyBets).length)) setMsg(loggedIn() ? 'Place ta mise : la manche démarre toute seule.' : 'Connecte-toi pour jouer.', '');
-        else if (t.readyBets[me]) setMsg('Mise prise en compte : la manche démarre toute seule.', '');
+        var hasBet = !!(t.readyBets && t.readyBets[me]);
+        if (!(t.readyBets && Object.keys(t.readyBets).length)) setMsg(loggedIn() ? 'Place ta mise, puis appuie sur Prêt.' : 'Connecte-toi pour jouer.', '');
+        else if (hasBet && t.readyPlayers && t.readyPlayers[me]) setMsg((t.readyCount || 0) < (t.readyTotal || 1) ? 'Tu es prêt : on attend l\'autre joueur…' : 'Tout le monde est prêt !', '#7ee0a0');
+        else if (hasBet) setMsg('Mise prise en compte : appuie sur Prêt pour lancer.', '');
         else setMsg('Un autre joueur mise : rejoins avant la fin du compte à rebours !', '#f3cf62');
       } else if (t.status === 'playing') {
-        autoRebet = null;   // la manche a démarré (par mon auto-remise ou celle de l'autre joueur) : plus rien à armer
-        var mineP = t.players && t.players[me];
-        if (t.turn === me) setMsg('À toi de jouer : ' + (mineP ? mineP.score : '') + '.', '');
-        else if (mineP && mineP.status !== 'playing') setMsg('Tu as ' + mineP.score + '. En attente…', '');
-        else setMsg('Distribution…', '');
+        autoRebet = null;   // la manche a démarré : plus rien à armer
+        if (mine && mine.status === 'playing') setMsg('À toi de jouer : ' + mine.score + '. Tire, reste ou double.', '');
+        else if (mine) setMsg(mine.status === 'busted' ? 'Sauté avec ' + mine.score + '…' : 'Tu restes à ' + mine.score + '.', mine.status === 'busted' ? '#ff8a80' : '');
+        else setMsg('Manche en cours : tu joues à la prochaine.', '');
       } else if (t.status === 'dealer_turn') {
         setMsg('Le croupier joue…', '');
       }
@@ -522,10 +561,18 @@
         return r;
       });
     }
+    function pollSpectate() {      // pas assis : on suit les 5 tables à tour de rôle pour voir les cartes et les totaux de tout le monde
+      var T = tables[specIdx++ % tables.length]; if (T._polling) return;
+      T._polling = true;
+      fetch('/api/blackjack?table=' + encodeURIComponent(tableIdOf(T)), { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (t) { T._polling = false; if (!seat) applyTable(t); })
+        .catch(function () { T._polling = false; });
+    }
     function pollNow() {
       if (polling || !seat) return;
       polling = true;
-      fetch('/api/blackjack?table=' + encodeURIComponent(tableIdOf(seat.table)), { cache: 'no-store' })
+      fetch('/api/blackjack?table=' + encodeURIComponent(tableIdOf(seat.table)) + '&me=' + encodeURIComponent(F.me()), { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (t) { polling = false; if (seat) applyTable(t); })
         .catch(function () { polling = false; });
@@ -534,15 +581,16 @@
     function setBet(v) {
       bet = Math.max(MIN_BET, Math.min(Math.floor(v), Math.max(MIN_BET, Math.floor(balance()))));
       refreshUi();
-      bjPost('set_bet', { bet: bet });
+      bjPost('set_bet', { bet: bet, spot: seat ? seat.i : 0 });
     }
     function clearBet() { bet = MIN_BET; refreshUi(); bjPost('unset_bet', {}); }
     function readyNow() {
-      if (!TBL || TBL.status !== 'waiting' || !(TBL.readyBets && TBL.readyBets[F.me()])) return;
-      bjPost('set_ready', { ready: true });
+      if (!seat || !TBL || TBL.status !== 'waiting' || !(TBL.readyBets && TBL.readyBets[F.me()])) return;
+      var other = otherSeat(seat.table), already = !!(TBL.readyPlayers && TBL.readyPlayers[F.me()]);
+      bjPost('set_ready', { ready: !already, seated: other && !other.bot && seatTaken(other) ? 2 : 1 });   // seul à la table : la manche part tout de suite
     }
     function act(action) {
-      if (busy || !TBL || TBL.status !== 'playing' || TBL.turn !== F.me()) return;
+      if (busy || !TBL || TBL.status !== 'playing') return;
       var mine = TBL.players && TBL.players[F.me()]; if (!mine || mine.status !== 'playing') return;
       busy = true; refreshUi();
       bjPost(action, {}).then(function () { busy = false; refreshUi(); });
@@ -552,30 +600,54 @@
     function injectCss() {
       if (document.getElementById('bj3d-css')) return;
       var s = document.createElement('style'); s.id = 'bj3d-css';
-      s.textContent = '.bj3d{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);width:min(560px,92%);background:rgba(8,5,12,.9);border:1px solid rgba(201,162,39,.6);border-radius:16px;padding:12px 14px;color:#f4e3b0;pointer-events:auto;display:flex;flex-direction:column;gap:8px;font-family:inherit;z-index:5}' +
-        '.bj3d .bj-hands{display:flex;justify-content:space-around;gap:10px;font-weight:800;font-size:15px;flex-wrap:wrap;align-items:center}' +
-        '.bj3d .bj-hands .pip{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:2px 7px 2px 8px;margin:0 2px;font-size:14px}' +
-        '.bj3d .bj-hands .pip.r{color:#ff7a86}.bj3d .bj-hands .pip.n{color:#fff}.bj3d .bj-hands .pip .fl-suit{width:.78em;height:.78em;vertical-align:-.08em}' +
-        '.bj3d .bj-hands .tot{color:#f3cf62;font-weight:900;margin-left:4px}' +
-        '.bj3d .bj-top{display:flex;justify-content:space-between;font-weight:800;font-size:13px}.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
-        '.bj3d .bj-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}.bj3d .bj-chip{padding:6px 10px;border-radius:999px;border:2px solid #f3cf62;background:#241218;color:#f3cf62;font-weight:900;font-size:13px;cursor:pointer}' +
-        '.bj3d .bj-chip.minus{border-color:#ff8a80;color:#ff8a80}.bj3d .bj-chip.custom{border-color:#9aa5c9;color:#c7cdea}.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}' +
-        '.bj3d .bj-custom-bet{display:flex;gap:6px;justify-content:center}.bj3d .bj-custom-bet input{width:140px;background:#1a1208;border:2px solid #f3cf62;border-radius:999px;padding:6px 12px;color:#f4e3b0;font-weight:800;font-family:inherit;text-align:center}' +
-        '.bj3d .bj-custom-bet input:focus{outline:none}.bj3d .bj-custom-bet button{padding:6px 14px;border-radius:999px;border:0;background:#f3cf62;color:#1a1208;font-weight:900;cursor:pointer}' +
-        '.bj3d button.bj-b{padding:10px 18px;border-radius:12px;border:0;font-weight:900;font-size:15px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +
-        '.bj3d button.bj-b.alt{background:#2a3b57;color:#e8f0ff}.bj3d button.bj-b.red{background:#8a1f2b;color:#ffe9ea}' +
-        '.bj3d-cards{position:absolute;left:14px;bottom:182px;z-index:5;pointer-events:none;display:none;flex-direction:column;gap:5px;padding:8px 10px;border-radius:12px;background:rgba(8,5,12,.8);border:1px solid rgba(201,162,39,.5);color:#f4e3b0;font-weight:800;font-size:12px}.bj3d-cards .bj-cr{display:flex;gap:5px}.bj3d-cards img{width:68px;height:auto;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.55)}' +
-        '.bj3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.bj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
-      s.textContent += '@media (max-height:520px){.bj3d{bottom:62px;width:min(560px,64%);padding:5px 8px;gap:3px}.bj3d .bj-msg,.bj3d .bj-hands{font-size:12px;min-height:14px}.bj3d .bj-top{font-size:11px}.bj3d .bj-chip{padding:3px 8px;font-size:11px}.bj3d button.bj-b{padding:6px 12px;font-size:12px}.bj3d-stand{bottom:auto;top:64px;display:flex;flex-direction:column;gap:4px}.bj3d-stand button{padding:5px 9px;font-size:12px}.bj3d-cards{display:none!important}}';
+      var GOLD = '#e8b923', INK = '#0c0a10', CREAM = '#f4e3b0';
+      s.textContent =
+        // panneau : aplat sombre, filet doré, collé en bas de l'écran pour libérer la table
+        '.bj3d{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:min(640px,94%);background:' + INK + ';border:1px solid #5d4c1f;border-radius:16px;padding:10px 12px 12px;color:' + CREAM + ';pointer-events:auto;display:flex;flex-direction:column;gap:8px;font-family:inherit;z-index:5}' +
+        '.bj3d .bj-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:800;font-size:13px}' +
+        '.bj3d .bj-bal,.bj3d .bj-bet{display:inline-flex;align-items:center;gap:7px;background:#1a1620;border-radius:999px;padding:5px 12px}.bj3d .bj-bal b,.bj3d .bj-bet b{font-weight:900;font-size:14px;color:#fff}' +
+        '.bj3d .bj-bal:before,.bj3d .bj-bet:after{content:"";width:12px;height:12px;border-radius:50%;background:' + GOLD + ';box-shadow:inset 0 0 0 3px #b98a0c;flex:none}.bj3d .bj-bet:after{order:3}.bj3d .bj-bet{color:#a79c78}' +
+        '.bj3d .bj-count{color:' + GOLD + ';font-weight:900;font-size:14px;text-align:center;flex:1;min-height:18px}' +
+        '.bj3d .bj-timer{height:6px;border-radius:3px;background:#251f2d;overflow:hidden}.bj3d .bj-timer i{display:block;height:100%;width:100%;background:' + GOLD + ';transition:width .25s linear}.bj3d .bj-timer.low i{background:#e5484d}' +
+        '.bj3d .bj-msg{min-height:20px;text-align:center;font-weight:800;font-size:15px}' +
+        // mains : une ligne par joueur, mini-cartes blanches
+        '.bj3d .bj-hands{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}' +
+        '.bj3d .bj-h{display:inline-flex;align-items:center;gap:4px;background:#1a1620;border-radius:10px;padding:5px 9px;font-weight:800;font-size:13px}.bj3d .bj-h.me{background:#2a2112;box-shadow:inset 0 0 0 1px #8a6d1d}' +
+        '.bj3d .bj-n{color:#a79c78;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-right:3px}.bj3d .bj-h.me .bj-n{color:' + GOLD + '}' +
+        '.bj3d .pip{display:inline-flex;align-items:center;gap:2px;background:#f6f1e4;border-radius:5px;padding:2px 5px;font-size:13px;font-weight:900;line-height:1.1}' +
+        '.bj3d .pip.r{color:#c8202f}.bj3d .pip.n{color:#15151a}.bj3d .pip.back{width:20px;height:21px;background:#7a0f1c;box-shadow:inset 0 0 0 2px #e8b923;padding:0}.bj3d .pip .fl-suit{width:.78em;height:.78em;vertical-align:-.08em}' +
+        '.bj3d .tot{background:' + GOLD + ';color:' + INK + ';border-radius:6px;padding:1px 7px;font-weight:900;margin-left:3px}.bj3d .tot.bust{background:#e5484d;color:#fff}' +
+        '.bj3d .bj-tag{font-style:normal;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#a79c78;margin-left:3px}.bj3d .bj-tag.bad{color:#ff8a80}.bj3d .bj-tag.ok{color:#7ee0a0}' +
+        // jetons : ronds, aplats, anneau intérieur
+        '.bj3d .bj-chips{display:flex;gap:7px;justify-content:center;align-items:center;flex-wrap:wrap}' +
+        '.bj3d .bj-chip{width:46px;height:46px;border-radius:50%;border:0;padding:0;font-weight:900;font-size:13px;cursor:pointer;color:#fff;background:var(--c);box-shadow:inset 0 0 0 3px var(--c),inset 0 0 0 5px rgba(255,255,255,.7);transition:transform .12s}.bj3d .bj-chip:hover{transform:translateY(-3px)}.bj3d .bj-chip:active{transform:scale(.94)}' +
+        '.bj3d .bj-pill{padding:9px 14px;border-radius:999px;border:2px solid #4a4056;background:transparent;color:' + CREAM + ';font-weight:800;font-size:13px;cursor:pointer}.bj3d .bj-pill:hover{background:#1a1620}.bj3d .bj-pill.minus{border-color:#a8444a;color:#ff8a80}.bj3d .bj-pill.custom{border-color:#6e7ab0;color:#c7cdea}' +
+        // montant libre : caché tant qu'on n'a pas cliqué sur « Perso » (l'attribut hidden ne suffisait pas face au display:flex)
+        '.bj3d .bj-custom-bet{display:flex;gap:6px;justify-content:center}.bj3d .bj-custom-bet[hidden]{display:none}' +
+        '.bj3d .bj-custom-bet input{width:150px;background:#1a1620;border:2px solid ' + GOLD + ';border-radius:999px;padding:8px 14px;color:' + CREAM + ';font-weight:800;font-family:inherit;text-align:center}.bj3d .bj-custom-bet input:focus{outline:none}' +
+        '.bj3d .bj-custom-bet button{padding:8px 16px;border-radius:999px;border:0;background:' + GOLD + ';color:' + INK + ';font-weight:900;cursor:pointer}' +
+        // boutons d'action et « Prêt »
+        '.bj3d .bj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center}' +
+        '.bj3d button.bj-b{padding:12px 26px;border-radius:12px;border:0;font-weight:900;font-size:16px;cursor:pointer;color:' + INK + ';background:' + GOLD + '}.bj3d button.bj-b:hover{filter:brightness(1.08)}.bj3d button.bj-b:disabled{opacity:.4;cursor:not-allowed}' +
+        '.bj3d button.bj-b.alt{background:#3d5f99;color:#fff}.bj3d button.bj-b.red{background:#a32635;color:#fff}.bj3d button.bj-b.ok{background:#2f8f5b;color:#fff}.bj3d button.bj-b.ok.on{background:#173d2a;color:#7ee0a0;box-shadow:inset 0 0 0 2px #2f8f5b}' +
+        '.bj3d .bj-rdy{display:inline-flex;align-items:center;gap:10px;background:#1a1620;border-radius:999px;padding:8px 14px;font-weight:900;font-size:13px}.bj3d .bj-rdy .segs{display:inline-flex;gap:4px}.bj3d .bj-rdy i{width:22px;height:8px;border-radius:4px;background:#3a3345}.bj3d .bj-rdy i.on{background:#43c07a}' +
+        '.bj3d .bj-wait{text-align:center;font-weight:800;font-size:14px;color:' + GOLD + ';background:#1a1620;border-radius:12px;padding:12px}' +
+        '.bj3d-cards{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:none;display:none;flex-direction:column;gap:5px;padding:8px 10px;border-radius:12px;background:rgba(12,10,16,.9);border:1px solid #5d4c1f;color:' + CREAM + ';font-weight:800;font-size:12px}.bj3d-cards .bj-cr{display:flex;gap:5px}.bj3d-cards img{width:68px;height:auto;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.55)}' +
+        '.bj3d-stand{position:absolute;left:14px;bottom:12px;z-index:5;pointer-events:auto;display:flex;gap:8px}.bj3d-stand button{padding:10px 14px;border-radius:12px;border:1px solid #5d4c1f;background:' + INK + ';color:' + CREAM + ';font-weight:800;cursor:pointer}';
+      s.textContent += '@media (max-height:520px){.bj3d{bottom:6px;width:min(620px,70%);padding:5px 8px;gap:4px}.bj3d .bj-msg,.bj3d .bj-count{font-size:12px;min-height:14px}.bj3d .bj-head{font-size:11px}.bj3d .bj-chip{width:34px;height:34px;font-size:11px}.bj3d .bj-pill{padding:5px 10px;font-size:11px}.bj3d button.bj-b{padding:7px 14px;font-size:13px}.bj3d .bj-h{padding:2px 6px}.bj3d-stand{bottom:auto;top:64px;flex-direction:column;gap:4px}.bj3d-stand button{padding:5px 9px;font-size:12px}.bj3d-cards{display:none!important}}';
       document.head.appendChild(s);
     }
+    var CHIP_COL = { 10: '#6b7280', 50: '#2f6fb5', 100: '#26242c', 500: '#7b3fa0', 1000: '#c79a12', 5000: '#b3262f' };
+    function chipTxt(c) { return c >= 1000 ? (c / 1000) + 'K' : String(c); }
     function buildUi(w) {
       injectCss();
       var el = document.createElement('div'); el.className = 'bj3d';
-      el.innerHTML = '<div class="bj-top"><span class="bj-bal">Solde : <b></b></span><span class="bj-count" style="color:#f3cf62"></span><span class="bj-bet">Mise : <b></b></span></div><div class="bj-hands"></div><div class="bj-msg"></div>' +
-        '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '">+' + fmtN(c) + '</button>'; }).join('') + '<button class="bj-chip minus" data-c="-1">Effacer</button><button class="bj-chip" data-c="max">Tout</button><button class="bj-chip custom" data-c="custom">✏️ Perso</button></div>' +
+      el.innerHTML = '<div class="bj-head"><span class="bj-bal"><b></b></span><span class="bj-count"></span><span class="bj-bet">Mise <b></b></span></div><div class="bj-timer" style="display:none"><i></i></div><div class="bj-hands"></div><div class="bj-msg"></div>' +
+        '<div class="bj-chips">' + CHIPS.map(function (c) { return '<button class="bj-chip" data-c="' + c + '" style="--c:' + (CHIP_COL[c] || '#6b7280') + '">' + chipTxt(c) + '</button>'; }).join('') + '<button class="bj-pill minus" data-c="-1">Effacer</button><button class="bj-pill" data-c="max">Tout</button><button class="bj-pill custom" data-c="custom">✏️ Perso</button></div>' +
         '<div class="bj-custom-bet" hidden><input type="number" min="10" step="10" placeholder="Montant…"><button data-c="custom-ok">✓ Valider</button></div>' +
-        '<div class="bj-row"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button><button class="bj-b" data-a="ready">✅ Prêt</button></div>';
+        '<div class="bj-row bj-rdyrow"><button class="bj-b ok" data-a="ready">Prêt</button><div class="bj-rdy"></div></div>' +
+        '<div class="bj-row bj-act"><button class="bj-b" data-a="hit">Tirer</button><button class="bj-b alt" data-a="stand">Rester</button><button class="bj-b red" data-a="double">Doubler</button></div>' +
+        '<div class="bj-wait" style="display:none"></div>';
       w.container.appendChild(el);
       var customRow = el.querySelector('.bj-custom-bet'), customInput = customRow.querySelector('input');
       function toggleCustomBet(open) {
@@ -621,6 +693,7 @@
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
       w.sitDown(room); seat = s; view.yaw = view.pitch = 0; view3 = false;
+      if (!s.table.spots.some(function (o) { return o !== s && !o.bot && seatTaken(o); })) dealerSay(s.table, '🎲 Lancez vos paris !');
       if ((F.createPlayer || F.createPerson) && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
         var nm0 = ''; try { nm0 = st().username || ''; } catch (e) { /* ok */ }
         meRig = (F.createPlayer || F.createPerson)(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
@@ -641,7 +714,7 @@
       var s = seat;
       bjPost('leave', {});   // retire ma mise si je n'avais pas encore joué, ou abandonne proprement (l'autre joueur gagne la cagnotte) si la manche est en cours
       seat = null; TBL = null; busy = false; autoRebet = null;
-      timers = []; anims.forEach(function (a) { a.t = a.dur; }); clearCards(s.table);
+      timers = []; anims.forEach(function (a) { a.t = a.dur; });
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
@@ -666,13 +739,13 @@
         var ox = s.x - s.tx, oz = s.z - s.tz, L = Math.hypot(ox, oz) || 1; ox /= L; oz /= L;
         var cs = Math.cos(view.yaw * 0.8), sn = Math.sin(view.yaw * 0.8), rx = ox * cs - oz * sn, rz = ox * sn + oz * cs;
         var sx = -rz * 0.55, sz = rx * 0.55;                           // un peu de côté (par-dessus l'épaule) : ma tête ne cache plus mes cartes
-        return { cx: s.x + rx * 1.2 + sx, cy: 2.5, cz: s.z + rz * 1.2 + sz, tx: s.tx + ox * 0.62, ty: 0.8, tz: s.tz + oz * 0.62, fov: 55 };
+        return { cx: s.x + rx * 1.2 + sx, cy: 2.7, cz: s.z + rz * 1.2 + sz, tx: s.tx + ox * 0.62, ty: 0.8, tz: s.tz + oz * 0.62, fov: 55 };
       }
       // vue assise : regard fixe sur le croupier et mes cartes, la souris ne bouge plus la caméra (seule la vue 3e personne tourne)
       // caméra plus haute et visée moins piquée vers le bas, pour garder le visage du croupier dans le cadre (pas seulement les cartes)
-      var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.74, ez = s.z + (cz0 - s.z) * 0.12;
+      var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.98, ez = s.z + (cz0 - s.z) * 0.12;
       var px = cx0 + (s.x - cx0) * 0.5, pz = cz0 + (s.z - cz0) * 0.5;
-      var a = Math.atan2(px - ex, -(pz - ez)), p = Math.atan2(1.22 - ey, Math.hypot(px - ex, pz - ez));
+      var a = Math.atan2(px - ex, -(pz - ez)), p = -0.62;   // visée fixe vers le bas : mes cartes au milieu de l'écran, celles du croupier et son visage au-dessus, le panneau en bas
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 64 };
     };
     room.syncHud = function () { refreshUi(); };
@@ -703,12 +776,9 @@
     room.update = function (dt) {
       clockT += dt;
       pollT += dt; if (seat && pollT > 1.1) { pollT = 0; pollNow(); }     // l'état de la table vient du serveur (api/blackjack.js) : sondé environ une fois par seconde
-      // le croupier annonce la manche dès qu'un premier vrai joueur s'assoit à une table vide
-      tables.forEach(function (T) {
-        var occ = tableHasPlayer(T);
-        if (occ && !T._hadPlayer) { T._hadPlayer = true; dealerSay(T, '🎲 Lancez vos paris !'); }
-        else if (!occ) T._hadPlayer = false;
-      });
+      specT += dt; if (!seat && specT > 0.45) { specT = 0; pollSpectate(); }     // pas assis : on suit les tables des autres
+      if (ui) { hudT += dt; if (hudT > 0.2) { hudT = 0; tickHud(); } }
+      tables.forEach(function (T) { if (T._clearAt && Date.now() > T._clearAt && T.tbl && T.tbl.status === 'waiting') { T._clearAt = 0; T._roundId = 0; clearCards(T); } });   // table vide depuis un moment : on range les cartes
       if (autoRebet && seat && TBL && TBL.status === 'waiting') {
         if (Date.now() >= autoRebet.deadline) { var amt = autoRebet.amount; autoRebet = null; setBet(amt); }
         else if (ui) { var cnt0 = ui.el.querySelector('.bj-count'); setText(cnt0, 'Prochaine manche dans ' + Math.max(0, Math.ceil((autoRebet.deadline - Date.now()) / 1000)) + ' s'); }

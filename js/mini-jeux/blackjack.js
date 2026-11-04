@@ -1250,7 +1250,7 @@
 
         // 1. Appel HTTP à /api/blackjack
         try {
-          const res = await fetch(`${getBjApiUrl()}?table=${encodeURIComponent(tableId)}`, { cache: 'no-store' });
+          const res = await fetch(`${getBjApiUrl()}?table=${encodeURIComponent(tableId)}&me=${encodeURIComponent(state.username || "")}`, { cache: 'no-store' });
           if (res.ok) {
             const data = await res.json();
             if (data && (data.status || data.players)) {
