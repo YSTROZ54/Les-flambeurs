@@ -186,9 +186,31 @@
     return m;
   }
 
+  // plafond premium : anneaux concentriques de petites tuiles dorées (texture dessinée une fois)
+  var ceilTex = null, pleat = null;
+  function ringCeilingTex() {
+    if (ceilTex) return ceilTex;
+    var N = 1024, cv = mkCanvas(N, N), x = cv.getContext('2d'); x.fillStyle = '#8c5a18'; x.fillRect(0, 0, N, N);
+    for (var r = 14; r < N * 0.72; r += 11) {
+      var n = Math.max(8, Math.round(TAU * r / 11)), tw = TAU * r / n * 0.78;
+      for (var k = 0; k < n; k++) {
+        var a = k / n * TAU + (r % 22 ? 0.07 : 0); x.save(); x.translate(N / 2 + Math.cos(a) * r, N / 2 + Math.sin(a) * r); x.rotate(a + Math.PI / 2);
+        var lt = 0.5 + 0.35 * Math.sin(a * 3 + r * 0.05); x.fillStyle = 'rgb(' + Math.round(205 * lt + 30) + ',' + Math.round(150 * lt + 25) + ',' + Math.round(55 * lt + 10) + ')'; x.fillRect(-tw / 2, -3.6, tw, 7.2); x.restore();
+      }
+    }
+    ceilTex = new THREE.CanvasTexture(cv); ceilTex.anisotropy = 8; return ceilTex;
+  }
+  function pleatTex() {                                    // velours bleu plissé : bandes verticales claires et sombres
+    if (pleat) return pleat;
+    var cv = mkCanvas(256, 64), x = cv.getContext('2d'), k;
+    for (k = 0; k < 16; k++) { var g2 = x.createLinearGradient(k * 16, 0, k * 16 + 16, 0); g2.addColorStop(0, '#0c2268'); g2.addColorStop(0.5, '#2a58c8'); g2.addColorStop(1, '#0b1f60'); x.fillStyle = g2; x.fillRect(k * 16, 0, 16, 64); }
+    pleat = new THREE.CanvasTexture(cv); pleat.wrapS = pleat.wrapT = THREE.RepeatWrapping; return pleat;
+  }
+
   /* ===================== LA SALLE ===================== */
-  function createCinemaRoom(world) {
-    var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">CINÉMA', subtitle: 'TROPI STREAM · PRÉSENTATION', topic: 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+  function createCinemaRoom(world, premium) {
+    var P = !!premium;                                   // salle « premium » : plafond doré en anneaux, murs de bois doré, fauteuils bleus, rideaux bleus (même séance partagée que le cinéma classique)
+    var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">' + (P ? 'CINÉMA PREMIUM' : 'CINÉMA'), subtitle: P ? 'ÉCRAN GÉANT · FAUTEUILS CLUB' : 'TROPI STREAM · PRÉSENTATION', topic: P ? 'flambeurs-cinemapremium-room' : 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, low = !!world.low;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 3.0, zMax: HZ - 0.7 };   // la scène (les 2,3 premiers mètres) reste hors d'atteinte
     room.groundY = cinemaGroundY;   // vrai sol en gradins : on marche réellement dessus (world3d.js lit cette fonction à chaque image)
@@ -196,15 +218,15 @@
 
     /* --- sol : moquette rouge sombre à losanges --- */
     var fc = mkCanvas(256, 256), fx = fc.getContext('2d');
-    fx.fillStyle = '#3a0c16'; fx.fillRect(0, 0, 256, 256);
-    fx.strokeStyle = '#561624'; fx.lineWidth = 6;
+    fx.fillStyle = P ? '#0a1636' : '#3a0c16'; fx.fillRect(0, 0, 256, 256);
+    fx.strokeStyle = P ? '#17317a' : '#561624'; fx.lineWidth = 6;
     for (var i = -1; i < 5; i++) { fx.beginPath(); fx.moveTo(i * 64, 0); fx.lineTo(i * 64 + 256, 256); fx.moveTo(i * 64 + 256, 0); fx.lineTo(i * 64, 256); fx.stroke(); }
-    fx.fillStyle = '#6a1a2a'; for (i = 0; i < 4; i++) for (var j = 0; j < 4; j++) { fx.beginPath(); fx.arc(i * 64 + 32, j * 64, 4, 0, TAU); fx.fill(); }
+    fx.fillStyle = P ? '#c9a227' : '#6a1a2a'; for (i = 0; i < 4; i++) for (var j = 0; j < 4; j++) { fx.beginPath(); fx.arc(i * 64 + 32, j * 64, 4, 0, TAU); fx.fill(); }
     var ftex = mkTex(fc); ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(HX * 2 / 2.5, HZ * 2 / 2.5);
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ map: ftex })); floor.rotation.x = -Math.PI / 2; g.add(floor);
 
     /* --- murs, plafond, panneaux acoustiques --- */
-    var wallM = std(0x24090f, 0.9, 0.05), panelM = std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
+    var wallM = P ? std(0x6e4214, 0.8, 0.1, 0x1a0e02) : std(0x24090f, 0.9, 0.05), panelM = P ? std(0xd69a42, 0.5, 0.15, 0x3a2308) : std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection, centrée (x = 0, y = 7 + BACK_H : remontée avec le palier du fond)
       var bw = new THREE.Shape(), hole = new THREE.Path(), hy = 6.6 + BACK_H, hy2 = 7.4 + BACK_H;
@@ -212,8 +234,11 @@
       hole.moveTo(-1.0, hy); hole.lineTo(1.0, hy); hole.lineTo(1.0, hy2); hole.lineTo(-1.0, hy2); hole.closePath(); bw.holes.push(hole);
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
     })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
-    for (i = -HZ + 1.4; i < HZ - 1; i += 1.3) {            // lattes verticales sur les deux murs de côté, chacune suit le relief du sol (gradins) sous elle
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? new THREE.MeshBasicMaterial({ map: ringCeilingTex() }) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    if (P) {                                                // lames de bois doré verticales, serrées, sur les deux murs de côté (sombres entre les lames)
+      for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
+    }
+    for (i = -HZ + 1.4; i < (P ? -HZ : HZ - 1); i += 1.3) {            // lattes verticales sur les deux murs de côté, chacune suit le relief du sol (gradins) sous elle
       box(g, 0.14, 4.8, 0.7, panelM, -HX + 0.07, 3.0 + cinemaGroundY(-HX + 0.07, i), i); box(g, 0.14, 4.8, 0.7, panelM, HX - 0.07, 3.0 + cinemaGroundY(HX - 0.07, i), i);
     }
     function wallStrip(x, y0, w, h, mat) {   // bande continue (filet, soubassement) le long d'un mur latéral : segmentée pour suivre les gradins
@@ -225,7 +250,7 @@
 
     /* --- scène, rampe de lumières, écran --- */
     var stageD = 2.4;
-    box(g, HX * 2, 0.3, stageD, std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
+    box(g, HX * 2, 0.3, stageD, P ? std(0x16244f, 0.7, 0.1) : std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
     for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
@@ -276,6 +301,10 @@
     img.src = POSTER_SRC;
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
+    if (P) {                                                // rideaux de velours bleu, plissés, de chaque côté de l'écran
+      var ct = pleatTex(); [-1, 1].forEach(function (sd) { box(g, 1.7, H, 0.55, new THREE.MeshLambertMaterial({ map: ct }), sd * (HX - 0.85), H / 2, -HZ + 0.5); box(g, 1.76, 0.12, 0.62, trimM, sd * (HX - 0.85), 0.06, -HZ + 0.5); });
+      box(g, HX * 2, 0.9, 0.5, new THREE.MeshLambertMaterial({ map: ct }), 0, H - 0.45, -HZ + 0.45);
+    }
     // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P
 
     /* --- petits haut-parleurs sur les murs latéraux, comme dans les vrais cinémas --- */
@@ -299,7 +328,7 @@
       cush: new THREE.BoxGeometry(0.74, 0.14, 0.62), back: new THREE.BoxGeometry(0.74, 0.7, 0.14), roll: new THREE.CylinderGeometry(0.075, 0.075, 0.74, 10),
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9)
     };
-    var velM = lam(VELVET), darkM = lam(0x180a0e), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var velM = lam(P ? 0x1f45a8 : VELVET), darkM = lam(P ? 0x0b1737 : 0x180a0e), hitM = new THREE.MeshBasicMaterial({ visible: false });
     function seat(x, z, elev) {
       var s = new THREE.Group(); s.position.set(x, elev, z); g.add(s);
       function put(geo, mat, px, py, pz, rx) { var m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); if (rx) m.rotation.x = rx; s.add(m); return m; }
@@ -319,7 +348,7 @@
     ROWS.forEach(function (rz, ri) { var elev = ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
 
     /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
-    var deckM = std(0x34101b, 0.85, 0.05);
+    var deckM = P ? std(0x0f1c44, 0.85, 0.05) : std(0x34101b, 0.85, 0.05);
     function deckBlock(xC, xW, zC, topY) { if (topY < 0.01) return; box(g, xW, topY, ROW_GAP, deckM, xC, topY / 2, zC); box(g, xW, 0.03, 0.05, trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
     ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = ri * ROW_H; deckBlock(-3.55, 4.3, rz, topY); deckBlock(3.55, 4.3, rz, topY); });
 
@@ -432,7 +461,7 @@
     ex.beginPath(); ex.moveTo(50, 36); ex.lineTo(66, 36); ex.moveTo(60, 30); ex.lineTo(66, 36); ex.lineTo(60, 42); ex.stroke();   // flèche vers la sortie
     ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 160, 42, 180);
     var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
-    var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinema' });
+    var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema' });
     exitDoor.g.position.y = BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
 
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
@@ -1368,5 +1397,6 @@
     document.head.appendChild(st);
   }
 
-  F.registerRoom('cinema', createCinemaRoom);
+  F.registerRoom('cinema', function (w) { return createCinemaRoom(w, false); });
+  F.registerRoom('cinemapremium', function (w) { return createCinemaRoom(w, true); });
 })();

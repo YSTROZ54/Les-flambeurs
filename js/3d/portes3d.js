@@ -278,6 +278,16 @@
         c.fillStyle = '#04040a'; c.save(); c.translate(W / 2, H * 0.78); c.scale(6.2, 6.2); c.translate(-12, -14); ICONS.wolf(c, '#04040a', '#f4e9b8'); c.restore();
       }
     },
+    cinemapremium: {
+      frame: 0xe8c75a, leaf: 0x0c1a48, rgb: '255, 215, 120', logo: 'cinema',
+      paint: function (c, W, H) {
+        for (var x = 0; x < W; x++) { var sh = 0.55 + 0.45 * Math.abs(Math.sin(x / W * TAU * 3)); c.fillStyle = 'rgb(' + Math.round(14 * sh + 8) + ',' + Math.round(40 * sh + 14) + ',' + Math.round(140 * sh + 20) + ')'; c.fillRect(x, 0, 1, H); }
+        border(c, W, H, '#ffd36a', 8); c.strokeStyle = 'rgba(255,211,106,0.55)'; c.lineWidth = 3; c.strokeRect(22, 22, W - 44, H - 44);
+        c.fillStyle = '#ffd36a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 ' + Math.round(W * 0.26) + 'px ' + SERIF; c.fillText('★', W / 2, H * 0.28);
+        c.font = '900 ' + Math.round(W * 0.15) + 'px ' + SERIF; c.fillText('PREMIUM', W / 2, H * 0.52, W - 40); c.font = '700 ' + Math.round(W * 0.085) + 'px ' + SERIF; c.fillStyle = '#f4e3b0'; c.fillText('CINÉMA', W / 2, H * 0.63, W - 40);
+        c.fillStyle = '#ffd36a'; c.font = '900 ' + Math.round(W * 0.26) + 'px ' + SERIF; c.fillText('★', W / 2, H * 0.84);
+      }
+    },
     cinema: {
       frame: 0xc9a227, leaf: 0x8c1a26, rgb: '255, 122, 26', logo: 'cinema', image: 'assets/cinema/tropistream-serveur.png',
       paint: function (c, W, H) {
@@ -320,6 +330,7 @@
   }
   T.exitBlackjack = exitTheme(0x6a0f1c, '255, 138, 138', '#f4e3b0', 0x7a1020);
   T.exitBlindtest = exitTheme(0x1d0f38, '217, 160, 255', '#e6d2ff', 0x3a1a6a);
+  T.exitCinemaPremium = exitTheme(0x0c1a48, '255, 215, 120', '#ffe7a8', 0x1c3a8a);
   T.exitCrash = exitTheme(0x0d1836, '110, 160, 255', '#cfe0ff', 0x1a3a86);
   T.exitSlots = exitTheme(0x0f3a3c, '255, 224, 138', '#ffe9a8', 0x0c3a3a);
   T.exitShop = exitTheme(0x4a2a12, '255, 210, 74', '#ffe9a8', 0x6b3d1a);
