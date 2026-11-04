@@ -323,9 +323,12 @@
         arms[0].rotation.set(-a0[1] * k, a0[2] * k, -a0[0] * k); arms[1].rotation.set(-a1[1] * k, -a1[2] * k, a1[0] * k);
         return true;
       },
-      setSeated: function (on) {
-        if (on === this.seated) return; this.seated = on;
-        g.position.y = on ? -0.3 : 0;                                   // hanches posées sur le tabouret
+      setSeated: function (on, spec) {
+        // spec.y = hauteur du dessus de l'assise moins 0,50 m (comme pour le vrai personnage) : le bas des cuisses se pose pile dessus (assise = 0,835 + hauteur du corps)
+        if (spec && typeof spec.y === 'number') this.sitY = spec.y;
+        var gy = typeof this.sitY === 'number' ? this.sitY - 0.335 : -0.3;
+        if (on === this.seated) { if (on) g.position.y = gy; return; } this.seated = on;
+        g.position.y = on ? gy : 0;                                     // hanches posées sur le tabouret
         hips.forEach(function (hp) { hp.rotation.x = on ? -Math.PI / 2 : 0; });
         knees.forEach(function (k) { k.rotation.x = on ? Math.PI / 2 : 0; });
         arms.forEach(function (a) { a.rotation.x = on ? -1.05 : 0; });

@@ -25,7 +25,7 @@
     for (n = 0; n < 4; n++) d.push('4W', '4F');
     return d;
   }
-  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '', said: {}, vuln: -1, pend: 0, pk: '' }; }
+  function unoNew() { return { ver: 0, org: '', ph: 'wait', seats: {}, hands: {}, deck: [], disc: [], turn: -1, dir: 1, col: 0, win: -1, drawn: '', msg: '', said: {}, vuln: -1, pend: 0, pk: '', wait: -1 }; }
   function unoOrder(st) { return Object.keys(st.hands).map(Number).sort(function (a, b) { return a - b; }); }
   function unoNext(st, from, dir) {
     var o = unoOrder(st), i = o.indexOf(from);
@@ -54,7 +54,7 @@
     if (st.ph === 'play') return 'Une partie est déjà en cours : attends sa fin pour jouer.';
     var o = Object.keys(st.seats).map(Number).sort(function (a, b) { return a - b; });
     if (o.length < 2) return 'Il faut au moins 2 joueurs.';
-    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1; st.said = {}; st.vuln = -1; st.pend = 0; st.pk = '';
+    st.deck = shuffle(unoDeck()); st.disc = []; st.hands = {}; st.win = -1; st.drawn = ''; st.dir = 1; st.said = {}; st.vuln = -1; st.pend = 0; st.pk = ''; st.wait = -1;
     o.forEach(function (n) { st.hands[n] = []; });
     o.forEach(function (n) { unoDraw(st, n, 7); });
     var first, guard = 0;
@@ -69,6 +69,7 @@
   function unoPlay(st, n, idx, color) {
     if (st.ph !== 'play') return 'La partie n\'a pas commencé.';
     if (st.turn !== n) return 'Ce n\'est pas ton tour.';
+    if (st.wait >= 0) return 'Un instant : les cartes arrivent…';
     var hand = st.hands[n], card = hand && hand[idx];
     if (!card) return 'Carte inconnue.';
     if (st.drawn && card !== st.drawn) return 'Tu peux seulement poser la carte piochée, ou passer.';
@@ -103,20 +104,27 @@
     if (st.ph !== 'play') return 'La partie n\'a pas commencé.';
     if (st.turn !== n) return 'Ce n\'est pas ton tour.';
     if (st.drawn) return 'Pose la carte piochée ou passe.';
+    if (st.wait >= 0) return 'Un instant : les cartes arrivent…';
     st.vuln = -1;
     if (st.pend > 0) {                                    // pénalité de +2 / +4 empilés : on pioche tout et on passe son tour
-      var k = st.pend; unoDraw(st, n, k); st.pend = 0; st.pk = ''; st.turn = unoNext(st, n);
+      var k = st.pend; unoDraw(st, n, k); st.pend = 0; st.pk = ''; st.wait = unoNext(st, n);      // le tour ne passe qu'une fois les cartes arrivées (unoAdvance)
       st.msg = nm(st, n) + ' pioche ' + k + ' cartes (pénalité) et passe son tour.'; return '';
     }
     var before = st.hands[n].length, found = '';
     for (var guard = 0; guard < 120 && !found; guard++) { var g = unoDraw(st, n, 1); if (!g.length) break; if (unoCanPlay(st, g[0])) found = g[0]; }     // on pioche jusqu'à avoir une carte jouable
     var cnt = st.hands[n].length - before;
     if (found) { st.drawn = found; st.msg = nm(st, n) + ' a pioché ' + cnt + ' carte' + (cnt > 1 ? 's' : '') + ' pour en avoir une jouable.'; }
-    else { st.turn = unoNext(st, n); st.msg = 'Plus de cartes à piocher : ' + nm(st, n) + ' passe.'; }
+    else { st.wait = unoNext(st, n); st.msg = 'Plus de cartes à piocher : ' + nm(st, n) + ' passe.'; }
+    return '';
+  }
+  // les cartes piochées sont arrivées : le tour passe au suivant
+  function unoAdvance(st) {
+    if (st.ph !== 'play' || !(st.wait >= 0)) return 'Rien à faire avancer.';
+    var n = st.turn; st.wait = -1; st.turn = unoNext(st, n); st.msg = 'Au tour de ' + nm(st, st.turn) + '.';
     return '';
   }
   function unoPass(st, n) {
-    if (st.ph !== 'play' || st.turn !== n || !st.drawn) return 'Tu ne peux pas passer maintenant.';
+    if (st.ph !== 'play' || st.turn !== n || !st.drawn || st.wait >= 0) return 'Tu ne peux pas passer maintenant.';
     st.vuln = -1; st.drawn = ''; st.turn = unoNext(st, n); st.msg = nm(st, n) + ' passe son tour.';
     return '';
   }
@@ -156,7 +164,7 @@
     delete st.seats[n];
     if (st.ph === 'play') {
       if (unoOrder(st).length < 2) { st.ph = 'wait'; st.hands = {}; st.drawn = ''; st.turn = -1; st.msg = 'Un joueur est parti : la partie s\'arrête.'; }
-      else if (was === n) { st.turn = nxt; st.drawn = ''; st.msg = 'Un joueur est parti. Au tour de ' + nm(st, st.turn) + '.'; }
+      else if (was === n) { st.turn = nxt; st.drawn = ''; st.wait = -1; st.msg = 'Un joueur est parti. Au tour de ' + nm(st, st.turn) + '.'; }
     } else if (st.ph === 'over' && !Object.keys(st.seats).length) { st.ph = 'wait'; st.msg = ''; }
     return '';
   }
@@ -212,7 +220,7 @@
 
   var API = {
     COLOR_NAMES: COLOR_NAMES, cardColor: cc, cardValue: cv,
-    unoNew: unoNew, unoStart: unoStart, unoPlay: unoPlay, unoDrawTurn: unoDrawTurn, unoPass: unoPass, unoJoin: unoJoin, unoLeave: unoLeave, unoSayUno: unoSayUno, unoCounter: unoCounter, unoCanPlay: unoCanPlay, unoDeck: unoDeck, unoOrder: unoOrder,
+    unoNew: unoNew, unoStart: unoStart, unoPlay: unoPlay, unoDrawTurn: unoDrawTurn, unoAdvance: unoAdvance, unoPass: unoPass, unoJoin: unoJoin, unoLeave: unoLeave, unoSayUno: unoSayUno, unoCounter: unoCounter, unoCanPlay: unoCanPlay, unoDeck: unoDeck, unoOrder: unoOrder,
     c4New: c4New, c4Start: c4Start, c4Drop: c4Drop, c4Join: c4Join, c4Leave: c4Leave
   };
   if (typeof window !== 'undefined') { window.F3D = window.F3D || {}; window.F3D.mj = API; }

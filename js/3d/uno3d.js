@@ -15,7 +15,7 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
   var HX = 15, HZ = 11, H = 5.6;
   var COLORS = ['#d6221e', '#f2c200', '#1f9d4a', '#1b63c9'];
-  var TBL_Z = [-6.4, 0, 6.4], UNO_X = -8.5, C4_X = 8.5;                    // tables bien espacées : les tapis ne se touchent plus
+  var TBL_Z = [-6.6, 0, 6.6], UNO_X = -8.5, C4_X = 8.5;                    // tables bien espacées : les tapis ne se touchent plus
   var C4_PITCH = 0.0935, C4_W = 0.75, C4_H = 0.69, C4_R = 0.0355, C4_Y0 = 0.105;       // grille de 7 colonnes x 6 lignes
 
   function box(p, w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); p.add(o); return o; }
@@ -204,7 +204,12 @@
     fxx.fillStyle = 'rgba(232,199,90,0.14)'; fxx.font = '900 130px ' + SERIF; fxx.textAlign = 'center'; fxx.textBaseline = 'middle'; fxx.fillText('UNO', 256, 256);
     COLORS.forEach(function (col, k) { fxx.fillStyle = col; fxx.globalAlpha = 0.85; var a = k / 4 * TAU + TAU / 8; fxx.beginPath(); fxx.arc(256 + Math.cos(a) * 186, 256 + Math.sin(a) * 186, 13, 0, TAU); fxx.fill(); }); fxx.globalAlpha = 1;
     var unoFelt = new THREE.MeshStandardMaterial({ map: mkTex(fe), roughness: 0.92 }), leatherM = new THREE.MeshStandardMaterial({ color: 0x6b1020, roughness: 0.45, metalness: 0.1 }), edgeM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5 });
-    var cardGeo = new THREE.PlaneGeometry(0.24, 0.36), bigCardGeo = new THREE.PlaneGeometry(0.31, 0.465), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
+    var UR = 1.7, USEAT = 2.62, UHR = 1.2, UARR = 1.28;                       // table d'UNO : rayon, rayon des fauteuils, rayon des mains posées, rayon des flèches
+    var arrowShape = new THREE.Shape(); arrowShape.moveTo(-0.26, -0.065); arrowShape.lineTo(0.05, -0.065); arrowShape.lineTo(0.05, -0.17); arrowShape.lineTo(0.28, 0); arrowShape.lineTo(0.05, 0.17); arrowShape.lineTo(0.05, 0.065); arrowShape.lineTo(-0.26, 0.065); arrowShape.closePath();
+    var arrowGeo = new THREE.ShapeGeometry(arrowShape), arrowM = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    var arrowOutM = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    var headArrowGeo = new THREE.ConeGeometry(0.13, 0.3, 18); headArrowGeo.rotateX(Math.PI); var headArrowM = new THREE.MeshBasicMaterial({ color: 0xffe35a });
+    var cardGeo = new THREE.PlaneGeometry(0.29, 0.435), bigCardGeo = new THREE.PlaneGeometry(0.37, 0.555), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
     var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.36, 40);
     function addChair(ch) {                                          // une place : le fauteuil, la zone cliquable pour s'asseoir et ses repères
       ch.yaw = Math.atan2(ch.tx - ch.x, -(ch.tz - ch.z)); ch.sx = ch.x + (ch.x - ch.tx) * 0.45; ch.sz = ch.z + (ch.z - ch.tz) * 0.45; chairs.push(ch);
@@ -213,30 +218,35 @@
     }
     TBL_Z.forEach(function (tz, ti) {
       var t = new THREE.Group(), tid = 'u' + ti; t.position.set(UNO_X, 0, tz); g.add(t);
-      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.5, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
-      cyl(t, 1.25, 1.25, 0.1, [edgeM, unoFelt, edgeM], 0, 0.8, 0, 48);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.095, 12, 64), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.86; t.add(rim);
-      cyl(t, 1.2, 1.2, 0.13, edgeM, 0, 0.72, 0, 48); var skirt = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.022, 8, 64), gold); skirt.rotation.x = Math.PI / 2; skirt.position.y = 0.655; t.add(skirt);
-      var inl = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.012, 6, 48), gold); inl.rotation.x = Math.PI / 2; inl.position.y = 0.915; t.add(inl);
-      lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.75]], woodM, 32);
-      [[0.5, 0.03, 0.028], [0.18, 0.22, 0.022]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
-      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.1, 0.465), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.32, 0.9, 0); pile.rotation.y = 0.15; t.add(pile);
-      var pt = new THREE.Mesh(bigCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.32, 0.952, 0); t.add(pt);
-      var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [] };
-      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.3, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
-      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.27, 0.866, 0.05); tv.top2.visible = false; t.add(tv.top2);
-      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.3, 0.873, 0); tv.top.visible = false; t.add(tv.top);
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(3.15, 56), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
+      cyl(t, UR, UR, 0.1, [edgeM, unoFelt, edgeM], 0, 0.8, 0, 64);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.105, 12, 80), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.86; t.add(rim);
+      cyl(t, UR - 0.05, UR - 0.05, 0.13, edgeM, 0, 0.72, 0, 64); var skirt = new THREE.Mesh(new THREE.TorusGeometry(UR - 0.05, 0.024, 8, 80), gold); skirt.rotation.x = Math.PI / 2; skirt.position.y = 0.655; t.add(skirt);
+      var inl = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.013, 6, 64), gold); inl.rotation.x = Math.PI / 2; inl.position.y = 0.915; t.add(inl);
+      lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.75]].map(function (q) { return [q[0] * 1.35, q[1]]; }), woodM, 32);
+      [[0.5 * 1.35, 0.03, 0.03], [0.18 * 1.35, 0.22, 0.024]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
+      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.1, 0.555), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.5, 0.9, 0); pile.rotation.y = 0.15; t.add(pile);
+      var pt = new THREE.Mesh(bigCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.5, 0.952, 0); t.add(pt);
+      var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [], heads: [], arrows: [] };
+      for (var aq = 0; aq < 4; aq++) {                                       // flèches de sens de jeu, dans les espaces entre les mains
+        var am = (aq + 0.5) / 4 * TAU + Math.PI / 4, ag = new THREE.Group(); ag.position.set(Math.cos(am) * UARR, 0.884, Math.sin(am) * UARR);
+        var ash0 = new THREE.Mesh(arrowGeo, arrowOutM); ash0.rotation.x = -Math.PI / 2; ash0.scale.set(1.3, 1.35, 1); ash0.renderOrder = 5; ag.add(ash0); var ash = new THREE.Mesh(arrowGeo, arrowM); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.002; ash.renderOrder = 6; ag.add(ash); ag.visible = false; t.add(ag); tv.arrows.push({ g: ag, am: am, phi: am + Math.PI / 2 });
+      }
+      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.5, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
+      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.47, 0.866, 0.06); tv.top2.visible = false; t.add(tv.top2);
+      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.5, 0.873, 0); tv.top.visible = false; t.add(tv.top);
       for (var s = 0; s < 4; s++) {
         var sa = s / 4 * TAU + Math.PI / 4, hg = [];
         for (var k = 0; k < 9; k++) { var hc = new THREE.Mesh(cardGeo, backM); hc.rotation.x = -Math.PI / 2; hc.visible = false; t.add(hc); hg.push(hc); }
         tv.hands.push({ cards: hg, sa: sa });
-        var lb = mkLabel(); lb.position.set(Math.cos(sa) * 1.0, 1.02, Math.sin(sa) * 1.0); t.add(lb); tv.labels.push(lb);
-        var cx = UNO_X + Math.cos(sa) * 1.95, cz = tz + Math.sin(sa) * 1.95;
+        var lb = mkLabel(); lb.position.set(Math.cos(sa) * (UR + 0.12), 1.02, Math.sin(sa) * (UR + 0.12)); t.add(lb); tv.labels.push(lb);
+        var hd = new THREE.Mesh(headArrowGeo, headArrowM); hd.position.set(Math.cos(sa) * USEAT, 1.95, Math.sin(sa) * USEAT); hd.visible = false; hd.renderOrder = 15; t.add(hd); tv.heads.push(hd);
+        var cx = UNO_X + Math.cos(sa) * USEAT, cz = tz + Math.sin(sa) * USEAT;
         makeChair(cx, cz, Math.atan2(-Math.cos(sa), -Math.sin(sa)), chairU, chairUD);
         addChair({ tid: tid, ti: ti, local: s, n: ti * 4 + s, x: cx, z: cz, tx: UNO_X, tz: tz });
       }
       pendant(g, UNO_X, tz);
-      room.colliders.push({ x: UNO_X, z: tz, r: 1.45 });
+      room.colliders.push({ x: UNO_X, z: tz, r: UR + 0.2 });
     });
 
     /* --- 3 tables de PUISSANCE 4 : grille bleue brillante aux vrais trous, jetons qui tombent, et on clique directement sur la colonne voulue --- */
@@ -323,15 +333,21 @@
     function mutate(tid, fn) {
       var before = G[tid], st = clone(getSt(tid)), err = fn(st);
       if (err) return err;
-      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st); fx3d(tid, before, st);
+      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st); fx3d(tid, before, st); schedAdvance(tid, st);
       if (seat && seat.tid === tid) refreshUi();
       return '';
     }
     function adopt(tid, st) {
       var cur = G[tid];
       if (cur && (st.ver < cur.ver || (st.ver === cur.ver && String(st.org || '') <= String(cur.org || '')))) return;
-      G[tid] = st; renderTable(tid); announce(tid, cur, st); fx3d(tid, cur, st);
+      G[tid] = st; renderTable(tid); announce(tid, cur, st); fx3d(tid, cur, st); schedAdvance(tid, st);
       if (seat && seat.tid === tid) { reconcile(); refreshUi(); }
+    }
+    // celui qui vient de piocher laisse les cartes arriver (1,7 s), puis le tour passe au suivant ; si son navigateur ne le fait pas, un autre joueur de la table s'en charge (4,5 s)
+    function schedAdvance(tid, st) {
+      if (kindOf(tid) !== 'u' || !(st.wait >= 0)) return;
+      var v = st.ver, go = function (onlyDrawer) { setTimeout(function () { var cur = G[tid]; if (!cur || cur.ver !== v || !(cur.wait >= 0) || !seat || seat.tid !== tid || (onlyDrawer && seat.local !== cur.turn)) return; mutate(tid, function (s2) { return MJ.unoAdvance(s2); }); }, onlyDrawer ? 1700 : 4500); };
+      go(true); go(false);
     }
     function joinFn(ch) { return function (st) { return (ch.tid.charAt(0) === 'u' ? MJ.unoJoin : MJ.c4Join)(st, ch.local, me(), myName()); }; }
     function reconcile() {              // si l'état reçu ne me connaît pas (deux joueurs arrivés en même temps), je me réinscris ; si ma place est prise, je me lève
@@ -358,7 +374,7 @@
           var cm = h.cards[k]; cm.visible = k < vis; if (k >= vis) continue;
           var off = k - (vis - 1) / 2;
           cm.rotation.z = -sa - Math.PI / 2 + off * 0.2;
-          cm.position.set(Math.cos(sa) * 0.86 + Math.cos(sa + Math.PI / 2) * off * 0.075, 0.872 + k * 0.003, Math.sin(sa) * 0.86 + Math.sin(sa + Math.PI / 2) * off * 0.075);
+          cm.position.set(Math.cos(sa) * UHR + Math.cos(sa + Math.PI / 2) * off * 0.1, 0.872 + k * 0.003, Math.sin(sa) * UHR + Math.sin(sa + Math.PI / 2) * off * 0.1);
         }
         lb.visible = !!e && !(seat && seat.tid === tid && seat.local === s);        // mon propre nom ne cache pas la table
         if (e) { var act = st.ph === 'play' && st.turn === s; var key = e.name + '|' + n + '|' + act + '|' + (st.win === s); if (lb.userData.key !== key) { lb.userData.key = key; setLabel(lb, (st.win === s ? '🏆 ' : act ? '▶ ' : '') + e.name, hand ? n + ' carte' + (n > 1 ? 's' : '') : (st.ph === 'play' ? 'spectateur' : 'prêt'), act || st.win === s); } }
@@ -400,6 +416,7 @@
         '.mj-toast{position:absolute;left:50%;top:16%;transform:translateX(-50%) scale(.6);opacity:0;padding:16px 34px;border-radius:20px;text-align:center;pointer-events:none;z-index:9;font-weight:900;font-size:30px;color:#fff;border:3px solid #fff;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1);max-width:90%}.mj-toast small{display:block;margin-top:4px;font-size:14px;font-weight:700;opacity:.92}.mj-toast.in{opacity:1;transform:translateX(-50%) scale(1)}' +
         '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
+      s.textContent += '.mj-badge{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:4;pointer-events:none;padding:4px 14px;border-radius:999px;background:rgba(8,5,12,.55);border:1px solid rgba(255,227,90,.55);color:#ffe9a0;font-weight:800;font-size:12px;letter-spacing:.04em;opacity:0;transition:opacity .35s}.mj-badge.on{opacity:.85}';
       s.textContent += '.mj-fxpop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:9;pointer-events:none;font-weight:900;font-size:clamp(54px,10vw,120px);color:#fff;text-shadow:0 5px 0 #000,0 0 34px currentColor;animation:mjFx 1.5s ease-out forwards}@keyframes mjFx{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}35%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.1)}}';
       s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}}';
       document.head.appendChild(s);
@@ -411,7 +428,7 @@
         seq.forEach(function (f, k) { var o = AC.createOscillator(), gn = AC.createGain(); o.type = 'sine'; o.frequency.value = f; gn.gain.setValueAtTime(0.0001, t0 + k * 0.14); gn.gain.exponentialRampToValueAtTime(0.05 * vol + 0.0001, t0 + k * 0.14 + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.14 + 0.26); o.connect(gn); gn.connect(AC.destination); o.start(t0 + k * 0.14); o.stop(t0 + k * 0.14 + 0.3); });
       } catch (e) { /* pas de son */ }
     }
-    var toastEl = null, toastT = 0;
+    var toastEl = null, toastT = 0, badgeEl = null;
     function toast(title, kind, sub) {
       if (!ui) return;
       if (!toastEl) { toastEl = document.createElement('div'); ui.el.parentNode.appendChild(toastEl); }
@@ -451,8 +468,8 @@
       var h = tv.hands[seatLocal]; if (!h) return;
       for (var q = 0; q < Math.min(n, 8); q++) (function (q) {
         var m = new THREE.Mesh(cardGeo, backM); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
-        var tx = Math.cos(h.sa) * 0.86, tz = Math.sin(h.sa) * 0.86;
-        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.18 + (tx + 0.18) * e, 0.95 + Math.sin(v * Math.PI) * 0.55, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
+        var tx = Math.cos(h.sa) * UHR, tz = Math.sin(h.sa) * UHR;
+        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.5 + (tx + 0.5) * e, 0.95 + Math.sin(v * Math.PI) * 0.6, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
       })(q);
     }
     var lastFxVer = {}, lastVoice = { f: '', t: 0 }, vq = [], vNow = null, COLOR_VOICE = ['rouge', 'jaune', 'vert', 'bleu'];
@@ -484,27 +501,28 @@
         // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour chaque +2, +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
         function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
         if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice(chance(5, 50) ? 'victoire' : 'gagner'); return; }
+        if (old.dir !== undefined && st.dir !== old.dir) voice('sens');                  // le sens du jeu change : la voix le dit (les flèches de la table se retournent)
         if (st.disc.length > old.disc.length) {
           var top = st.disc[st.disc.length - 1], v = top.slice(1);
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
-            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.2, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.2, 0);
+            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.5, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.5, 0);
             var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); plusVoice(pn);
             if (old.pend > 0 && st.pend > old.pend && (v === 'D' || v === 'F')) voice('quipioche');       // un +2 sur un +2, un +4 sur un +4 : qui va devoir piocher ?
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
-          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.2, 0);
+          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.5, 0);
           if (v === 'W' || v === 'F') {                                                  // changement de couleur : la même qu'avant -> Cléa ; sinon, parfois, « changement de couleur » puis la couleur choisie
             if (st.col === old.col) voice('clea'); else if (chance(2, 65)) { voice('changement'); voice(COLOR_VOICE[st.col]); }
           }
         }
         for (var s = 0; s < 4; s++) {
           var oh = old.hands[s], nh = st.hands[s]; if (!oh || !nh) continue;
-          if (nh.length >= oh.length + 2) fxFlyers(tv, s, nh.length - oh.length);
+          if (nh.length >= oh.length + 1) fxFlyers(tv, s, nh.length - oh.length);
           if (old.pend > 0 && st.pend === 0 && nh.length >= oh.length + 2 && seat && seat.local === s) voice('tupioche');      // celui qui paie la pénalité : « tu pioches »
           if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
           if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
             if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
-            fxText(tv, 'UNO !', '#ffe35a', Math.cos(hh.sa) * 0.9, Math.sin(hh.sa) * 0.9); fxRing(tv, 0xffe35a, Math.cos(hh.sa) * 0.8, Math.sin(hh.sa) * 0.8);
+            fxText(tv, 'UNO !', '#ffe35a', Math.cos(hh.sa) * (UHR + 0.1), Math.sin(hh.sa) * (UHR + 0.1)); fxRing(tv, 0xffe35a, Math.cos(hh.sa) * UHR, Math.sin(hh.sa) * UHR);
             if (seatNow) ding([660, 880, 1100]);
           }
         }
@@ -516,6 +534,7 @@
       injectCss();
       var el = document.createElement('div'); el.className = 'mj3d'; el.innerHTML = '<div class="mj-msg"></div><div class="mj-pl"></div><div class="mj-body"></div>';
       w.container.appendChild(el);
+      badgeEl = document.createElement('div'); badgeEl.className = 'mj-badge'; badgeEl.textContent = '👉 À toi de jouer'; w.container.appendChild(badgeEl);
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled || !seat) return;
         var a = b.dataset.a, tid = seat.tid, loc = seat.local, err = '';
@@ -543,9 +562,10 @@
     function dropCol(c) { var tid = seat.tid, loc = seat.local; return mutate(tid, function (st) { return MJ.c4Drop(st, loc, c); }); }
     function refreshUi() {
       if (!ui || !seat) return;
-      var st = getSt(seat.tid), u = kindOf(seat.tid) === 'u', mine = st.ph === 'play' && st.turn === seat.local;
+      var st = getSt(seat.tid), u = kindOf(seat.tid) === 'u', mine = st.ph === 'play' && st.turn === seat.local && !(st.wait >= 0);
       var msg = errT > 0 ? errMsg : (st.msg || (Object.keys(st.seats).length < 2 ? 'En attente d\'un autre joueur…' : 'Tout le monde est là : lance la partie !'));
       ui.el.classList.toggle('myturn', mine);
+      if (badgeEl) badgeEl.classList.toggle('on', mine);
       if (st.ph === 'play' && mine && errT <= 0) msg = '👉 À toi de jouer ! ' + (st.msg && st.msg.indexOf('Au tour') !== 0 ? '— ' + st.msg : '');
       var m = ui.el.querySelector('.mj-msg'); if (m.textContent !== msg) m.textContent = msg; m.style.color = errT > 0 ? '#ff8a80' : (st.ph === 'over' && st.win === seat.local ? '#7ee0a0' : '');
       var pl = Object.keys(st.seats).map(Number).sort().map(function (n) {
@@ -605,7 +625,7 @@
     }
     function stand(silent) {
       if (!seat) return;
-      var s = seat; seat = null; pendingWild = -1; if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl); toastEl = null; renderTable(s.tid);
+      var s = seat; seat = null; pendingWild = -1; if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl); toastEl = null; if (badgeEl && badgeEl.parentNode) badgeEl.parentNode.removeChild(badgeEl); badgeEl = null; renderTable(s.tid);
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
@@ -615,7 +635,7 @@
     room.forceStand = function () { stand(); };
     room.standKey = false;
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.12, z: 0.28 };
+    room.sitSpec = { y: 0.11, z: 0.28 };
     room.remotePose = function (r) { for (var k = 0; k < chairs.length; k++) if (chairs[k].n === r.seat) return { x: chairs[k].x, z: chairs[k].z, yaw: chairs[k].yaw }; return null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) {
@@ -626,7 +646,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? 0.14 : tc ? 0.1 : -0.35), ey = u ? 1.6 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.14 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? 0.12 : tc ? 0.1 : -0.35), ey = u ? 1.7 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.12 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
     };
@@ -678,7 +698,19 @@
     room._dbg = { adopt: adopt, toast: toast, renderTable: renderTable, seatOf: function () { return seat; } };
     room.dispose = function () { stand(); };
     var slow = { key: '', t: 0, done: false };
+    var arrowClock = 0;
     room.update = function (dt) {
+      arrowClock += dt;
+      TIDS.forEach(function (tid) {
+        var tv = TV[tid], st = G[tid]; if (!tv || tv.kind !== 'u') return;
+        var on = !!st && st.ph === 'play', dir = st && st.dir < 0 ? -1 : 1, pulse = 1 + 0.1 * Math.sin(arrowClock * 3.2);
+        tv.arrows.forEach(function (a) {
+          a.g.visible = on; if (!on) return;
+          var target = a.am + dir * Math.PI / 2, d = target - a.phi; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
+          a.phi += d * Math.min(1, dt * 5); a.g.rotation.y = -a.phi; a.g.scale.setScalar(pulse);
+        });
+        tv.heads.forEach(function (h, s2) { var act = on && st.turn === s2 && st.hands[s2] && !(st.wait >= 0 && false); h.visible = act; if (act) { h.position.y = 1.95 + 0.09 * Math.sin(arrowClock * 5); h.rotation.y += dt * 2; } });
+      });
       if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
         var sst = G[seat.tid], skey = sst && sst.ph === 'play' && Object.keys(sst.hands).length > 1 ? sst.turn + '|' + sst.disc.length + '|' + (sst.pend | 0) + '|' + (sst.drawn || '') : '';
         if (skey !== slow.key) { slow.key = skey; slow.t = 0; slow.done = false; } else if (skey && !slow.done && (slow.t += dt) > 22) { slow.done = true; lastVoice = { f: 'trop-long', t: performance.now() }; vq.push({ f: 'trop-long', t: performance.now() }); vPump(); }

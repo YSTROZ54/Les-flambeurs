@@ -305,7 +305,7 @@
         room.colliders.push({ x: sx0, z: sz0, r: 0.3 });
         if (s.bot) {
           var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = makeNpc(nm, F.persona ? F.persona.lookCode(F.persona.lookFromName(nm)) : '', false);
-          if (bp) { bp.group.position.set(sx0, 0, sz0); bp.group.rotation.y = Math.atan2(dx, dz); bp.setSeated(true, { y: 0.12, z: 0.28 }); g.add(bp.group); people.push({ p: bp, kind: 'bot', s: s }); s.bp = bp; s.name = nm; }
+          if (bp) { bp.group.position.set(sx0, 0, sz0); bp.group.rotation.y = Math.atan2(dx, dz); bp.setSeated(true, { y: 0.155, z: 0.28 }); g.add(bp.group); people.push({ p: bp, kind: 'bot', s: s }); s.bp = bp; s.name = nm; }
         } else {
           var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, sz0); g.add(hit);
           room.interactables.push({ hit: hit, x: sx0, z: sz0, radius: 1.5, enabled: function () { return !seat && !seatTaken(s); }, prompt: function () { return '🪑 S\'asseoir — Table ' + (ti + 1); }, use: function (w) { sit(w, s); } });
@@ -696,7 +696,7 @@
       if (!s.table.spots.some(function (o) { return o !== s && !o.bot && seatTaken(o); })) dealerSay(s.table, '🎲 Lancez vos paris !');
       if ((F.createPlayer || F.createPerson) && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
         var nm0 = ''; try { nm0 = st().username || ''; } catch (e) { /* ok */ }
-        meRig = (F.createPlayer || F.createPerson)(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
+        meRig = (F.createPlayer || F.createPerson)(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.155, z: 0.28 });
         g.add(meRig.group);
       }
       if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; }
@@ -725,7 +725,7 @@
     room.forceStand = function () { stand(); };
     room.standKey = false;
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.12, z: 0.28 };      // tabouret à 0,62 m (persona3d.js)
+    room.sitSpec = { y: 0.155, z: 0.28 };      // tabouret à 0,62 m (persona3d.js)
     room.remotePose = function (r) { var s = seats[r.seat]; return s && !s.bot ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) {
