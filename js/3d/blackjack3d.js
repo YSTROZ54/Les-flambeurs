@@ -215,6 +215,32 @@
       return q;
     }
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
+    // personnage : le vrai personnage animé s'il est actif, sinon le personnage en boîtes (persona3d.js désactive F.createPlayer)
+    var dressGeo = null;
+    function dressCroupier(p, female) {
+      var gp = p.group, torso = gp.children[1];
+      if (!dressGeo) dressGeo = {
+        vest: new THREE.CylinderGeometry(0.208, 0.178, 0.5, 14, 1, true, 0.5, TAU - 1.0),
+        bow: new THREE.ConeGeometry(0.035, 0.07, 4), knot: new THREE.SphereGeometry(0.018, 8, 6),
+        cap: new THREE.SphereGeometry(0.155, 16, 10, 0, TAU, 0, Math.PI * 0.58), long: new THREE.BoxGeometry(0.27, 0.38, 0.07)
+      };
+      if (torso && torso.material && torso.material.color) torso.material.color.set(0xf4f1ea);   // chemise blanche (manches comprises)
+      var vest = new THREE.Mesh(dressGeo.vest, new THREE.MeshLambertMaterial({ color: 0x15151a, side: THREE.DoubleSide })); vest.position.set(0, 1.3, 0); gp.add(vest);
+      [-1, 1].forEach(function (sd) { var b = new THREE.Mesh(dressGeo.bow, lam(0x9a1022)); b.rotation.z = sd * Math.PI / 2; b.position.set(sd * 0.035, 1.53, 0.19); gp.add(b); });
+      var kn = new THREE.Mesh(dressGeo.knot, lam(0x9a1022)); kn.position.set(0, 1.53, 0.195); gp.add(kn);
+      if (female) {
+        var hm = lam(0x3b2314);
+        var cap = new THREE.Mesh(dressGeo.cap, hm); cap.position.set(0, 1.76, -0.005); gp.add(cap);
+        var lg = new THREE.Mesh(dressGeo.long, hm); lg.position.set(0, 1.6, -0.1); gp.add(lg);
+      }
+    }
+    function makeNpc(name, look, croupier) {
+      if (F.createPlayer) return F.createPlayer(name, '', look);
+      if (!F.createPerson) return null;
+      var p = F.createPerson(name, '', look);
+      if (croupier) dressCroupier(p, look.charAt(0) === 'f');
+      return p;
+    }
     TABLES.forEach(function (td, ti) {
       var grp = new THREE.Group(); grp.position.set(td.x, 0, td.z); g.add(grp);
       // plateau en « D » : une seule pièce épaisse (feutre dessus, bois sur la tranche) et un rail rembourré qui suit exactement son contour
@@ -245,7 +271,7 @@
       var T = { i: ti, x: td.x, z: td.z, group: grp, hands: {}, dealerCards: [], spots: [] };
       tables.push(T);
       // croupier
-      var dl = F.createPlayer ? F.createPlayer('Croupier', '', ti % 2 ? 'h1010' : 'f1230') : null;
+      var dl = makeNpc('Croupier', ti % 2 ? 'h1010' : 'f1230', true);
       if (dl) {
         dl.group.position.set(td.x, 0, td.z - 0.75); dl.group.rotation.y = 0; dl.tag.scale.set(1.0, 0.22, 1); dl.setSeated(true, { y: 0.0, z: 0.28 }); g.add(dl.group); T.dealerO = { p: dl, kind: 'dealer', t: T, awake: 0, settled: false }; people.push(T.dealerO); T.dealer = dl;
         // la chaise du croupier : assise capitonnée et dossier, derrière la table
@@ -261,7 +287,7 @@
         makeChair(grp, sx0 - td.x, sz0 - td.z, Math.atan2(dx, dz), 0.6, false);
         room.colliders.push({ x: sx0, z: sz0, r: 0.3 });
         if (s.bot) {
-          var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = F.createPlayer ? F.createPlayer(nm, '', F.persona ? F.persona.lookCode(F.persona.lookFromName(nm)) : '') : null;
+          var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = makeNpc(nm, F.persona ? F.persona.lookCode(F.persona.lookFromName(nm)) : '', false);
           if (bp) { bp.group.position.set(sx0, 0, sz0); bp.group.rotation.y = Math.atan2(dx, dz); bp.setSeated(true, { y: 0.12, z: 0.28 }); g.add(bp.group); people.push({ p: bp, kind: 'bot', s: s }); s.bp = bp; s.name = nm; }
         } else {
           var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, sz0); g.add(hit);
@@ -272,8 +298,8 @@
       var pnjX = td.x + 2.4, pnjZ = td.z - 1.1, pnjAimX = td.x - pnjX, pnjAimZ = (td.z + 0.3) - pnjZ, pnjRy = Math.atan2(pnjAimX, pnjAimZ);
       makeChair(grp, pnjX - td.x, pnjZ - td.z, pnjRy, 0.6, false);
       room.colliders.push({ x: pnjX, z: pnjZ, r: 0.3 });
-      var pnj = F.createPlayer ? F.createPlayer('Public', '', ti % 2 ? 'f1230' : 'h1010') : null;
-      if (pnj) { pnj.group.position.set(pnjX, 0, pnjZ); pnj.group.rotation.y = pnjRy; pnj.tag.visible = false; pnj.setSeated(true, { y: 0.12, z: 0.28 }); g.add(pnj.group); people.push({ p: pnj, kind: 'pnj', s: null }); T.pnj = { x: pnjX, z: pnjZ }; }
+      var pnj = makeNpc('Public', ti % 2 ? 'f1230' : 'h1010', true);
+      if (pnj) { pnj.group.position.set(pnjX, 0, pnjZ); pnj.group.rotation.y = pnjRy; pnj.tag.visible = false; pnj.setSeated(true, { y: 0.12, z: 0.28 }); g.add(pnj.group); people.push({ p: pnj, kind: 'pnj', s: null }); T.pnj = { x: pnjX, z: pnjZ, p: pnj }; }
     });
     function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); p.add(o); return o; }
 
@@ -331,10 +357,7 @@
     // le spectateur de la table crie « Lancez vos paris ! » (bulle + son) dès que la table se remplit
     function pnjSay(T, text) {
       if (!T.pnj) return;
-      var cv = mkCanvas(420, 110), c = cv.getContext('2d'); roundRect(c, 4, 4, 412, 102, 30); c.fillStyle = 'rgba(8,5,12,0.88)'; c.fill(); c.strokeStyle = '#f3cf62'; c.lineWidth = 5; c.stroke();
-      c.fillStyle = '#f3cf62'; c.font = '900 42px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 210, 55, 400);
-      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false })); sp.scale.set(1.1, 0.29, 1); sp.position.set(T.pnj.x, 1.95, T.pnj.z); g.add(sp);
-      later(3.2, function () { g.remove(sp); sp.material.map.dispose(); sp.material.dispose(); });
+      if (T.pnj.p.say) T.pnj.p.say(text);
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/lancez-vos-paris.mp3', 1.4);
     }
     function tableHasPlayer(T) { return T.spots.some(function (s) { return !s.bot && (s === seat || seatTaken(s)); }); }
@@ -588,9 +611,9 @@
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
       w.sitDown(room); seat = s; view.yaw = view.pitch = 0; view3 = false;
-      if (F.createPlayer && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
+      if ((F.createPlayer || F.createPerson) && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
         var nm0 = ''; try { nm0 = st().username || ''; } catch (e) { /* ok */ }
-        meRig = F.createPlayer(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
+        meRig = (F.createPlayer || F.createPerson)(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.12, z: 0.28 });
         g.add(meRig.group);
       }
       if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; }
