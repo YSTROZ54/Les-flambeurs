@@ -245,7 +245,7 @@
     var stoneM = new THREE.MeshStandardMaterial({ color: 0x1b1519, roughness: 0.45, metalness: 0.3 }), neonM = new THREE.MeshBasicMaterial({ color: col });
     [-1, 1].forEach(function (sd) {
       var px2 = sd * (w / 2 + 0.17);
-      box(0.26, h + 0.1, 0.24, px2, (h + 0.1) / 2, 0.1, stoneM);
+      box(0.26, h + 0.06, 0.24, px2, (h + 0.06) / 2, 0.1, stoneM);   // dessus sous celui du chapiteau : pas de faces superposées (scintillement)
       box(0.36, 0.2, 0.3, px2, 0.1, 0.12); box(0.36, 0.14, 0.3, px2, h + 0.03, 0.12);
       box(0.03, h - 0.3, 0.012, px2 - sd * 0.07, h / 2 + 0.05, 0.226); box(0.03, h - 0.3, 0.012, px2 + sd * 0.07, h / 2 + 0.05, 0.226);
       box(0.035, h, 0.03, sd * (w / 2 + 0.02), h / 2, 0.23, neonM);
@@ -279,9 +279,9 @@
       var tc = mkCanvas(640, 160), ttex = mkTex(tc);
       F.paintDoorSign(tc, spec, th, function () { ttex.needsUpdate = true; });
       var tsign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.75), new THREE.MeshBasicMaterial({ map: ttex }));
-      tsign.position.set(0, h + 0.72, 0.235); g.add(tsign);
-      box(3.2, 0.9, 0.08, 0, h + 0.72, 0.19, stoneM); box(3.26, 0.05, 0.1, 0, h + 1.2, 0.2); box(3.26, 0.04, 0.1, 0, h + 0.25, 0.2); box(0.05, 0.9, 0.1, -1.6, h + 0.72, 0.2); box(0.05, 0.9, 0.1, 1.6, h + 0.72, 0.2);
-      box(3.0, 0.03, 0.012, 0, h + 1.12, 0.236, neonM);
+      tsign.position.set(0, h + 0.72, 0.262); g.add(tsign);   // 3 cm devant le fond : plus de scintillement
+      box(3.2, 0.9, 0.08, 0, h + 0.72, 0.19, stoneM); box(3.26, 0.05, 0.14, 0, h + 1.2, 0.2); box(3.26, 0.04, 0.14, 0, h + 0.25, 0.2); box(0.05, 0.9, 0.14, -1.6, h + 0.72, 0.2); box(0.05, 0.9, 0.14, 1.6, h + 0.72, 0.2);   // faces avant à 0,27 : devant la corniche (0,25)
+      box(3.0, 0.03, 0.012, 0, h + 1.12, 0.268, neonM);
       if (th.deco) th.deco(g, w, h);
     }
     var sc = mkCanvas(512, 128), sx = sc.getContext('2d');

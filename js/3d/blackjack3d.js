@@ -518,6 +518,7 @@
     function applyTable(t) {
       if (!t || !t.tableId) return;
       var T = tables[(parseInt(String(t.tableId).replace(/\D/g, ''), 10) || 1) - 1]; if (!T) return;
+      if (T.tbl && (t.updatedAt || 0) < (T.tbl.updatedAt || 0)) return;   // réponse plus ancienne que ce qu'on affiche déjà (autre instance du serveur, requête en retard) : on l'ignore
       tblOff = (typeof t.serverNow === 'number' ? t.serverNow : Date.now()) - Date.now();
       renderTable(T, t);
       if (!seat || seat.table !== T) return;
