@@ -741,9 +741,9 @@
       var ex = p.x + Math.sin(p.yaw) * dd, ez = p.z - Math.cos(p.yaw) * dd;
       ex = Math.max(bd.xMin + 0.3, Math.min(bd.xMax - 0.3, ex)); ez = Math.max(bd.zMin + 0.3, Math.min(bd.zMax - 0.3, ez));
       if (Math.hypot(ex - p.x, ez - p.z) < 1.4) { ex = p.x - Math.sin(p.yaw) * dd; ez = p.z + Math.cos(p.yaw) * dd; ex = Math.max(bd.xMin + 0.3, Math.min(bd.xMax - 0.3, ex)); ez = Math.max(bd.zMin + 0.3, Math.min(bd.zMax - 0.3, ez)); }   // un mur derrière : on se place de l'autre côté
-      var ey2 = Math.max(0.6, Math.min(2.8, 1.55 - p.pitch * 1.8));
+      var ey2 = Math.max(0.6, Math.min(2.8, 1.55 - p.pitch * 1.8)) + groundH;   // + hauteur du sol : sur les gradins la caméra ne passe plus sous le plancher
       cx += (ex - cx) * ek; cy += (ey2 - cy) * ek; cz += (ez - cz) * ek;
-      tx += (p.x - tx) * ek; ty += (1.05 - ty) * ek; tz += (p.z - tz) * ek;
+      tx += (p.x - tx) * ek; ty += (1.05 + groundH - ty) * ek; tz += (p.z - tz) * ek;
     }
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     this.camera.position.set(cx, cy, cz);
@@ -790,7 +790,7 @@
     var p = this.player, sp = this.selfPerson;
     this.emoYaw0 = p.yaw;                                    // le personnage garde son cap, la caméra peut tourner autour de lui
     sp.clearEmote();
-    sp.group.position.set(p.x, 0, p.z); sp.group.rotation.y = Math.PI - p.yaw;
+    sp.group.position.set(p.x, this.room && this.room.groundY ? this.room.groundY(p.x, p.z) : 0, p.z); sp.group.rotation.y = Math.PI - p.yaw;   // sur le sol de la salle (gradins du cinéma), pas à y = 0
     sp.startEmote(id);
     this.emoId = id; this.emoN++;
     this.keys = {}; this.stick.x = this.stick.y = 0;
@@ -812,7 +812,7 @@
     if (this.emoK !== tk) this.emoK = Math.max(0, Math.min(1, this.emoK + Math.sign(tk - this.emoK) * dt * (tk ? 3.2 : 4)));
     if (!sp) return;
     if (this.emoId) {
-      sp.group.position.y = 0;
+      sp.group.position.y = this.room && this.room.groundY ? this.room.groundY(this.player.x, this.player.z) : 0;
       if (!sp.playEmote(dt)) this.stopEmote();               // une emote courte se termine d'elle-même
     }
     sp.group.visible = this.emoK > 0.02;
