@@ -408,7 +408,7 @@
     function ding(seq) {                                            // petits sons (sans fichier) pour attirer l'attention
       try {
         var A = F.audio, vol = A && typeof A.sfxVol === 'number' ? A.sfxVol : 0.7; AC = AC || new (window.AudioContext || window.webkitAudioContext)(); var t0 = AC.currentTime;
-        seq.forEach(function (f, k) { var o = AC.createOscillator(), gn = AC.createGain(); o.type = 'sine'; o.frequency.value = f; gn.gain.setValueAtTime(0.0001, t0 + k * 0.14); gn.gain.exponentialRampToValueAtTime(0.2 * vol + 0.0001, t0 + k * 0.14 + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.14 + 0.26); o.connect(gn); gn.connect(AC.destination); o.start(t0 + k * 0.14); o.stop(t0 + k * 0.14 + 0.3); });
+        seq.forEach(function (f, k) { var o = AC.createOscillator(), gn = AC.createGain(); o.type = 'sine'; o.frequency.value = f; gn.gain.setValueAtTime(0.0001, t0 + k * 0.14); gn.gain.exponentialRampToValueAtTime(0.05 * vol + 0.0001, t0 + k * 0.14 + 0.02); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.14 + 0.26); o.connect(gn); gn.connect(AC.destination); o.start(t0 + k * 0.14); o.stop(t0 + k * 0.14 + 0.3); });
       } catch (e) { /* pas de son */ }
     }
     var toastEl = null, toastT = 0;
@@ -460,7 +460,7 @@
     function vPump() {
       if (vNow || !vq.length) return;
       var o = vq.shift(); if (performance.now() - o.t > 9000) { vPump(); return; }
-      var vol = Math.min(1, masterVol() * 1.6); if (vol <= 0) { vPump(); return; }
+      var vol = Math.min(1, masterVol() * 0.45);      // voix du jeu : très basses if (vol <= 0) { vPump(); return; }
       try {
         var a = new Audio('assets/sons/' + (o.f.indexOf('/') >= 0 ? o.f : 'uno/' + o.f) + '.mp3'); a.volume = vol; vNow = a;
         var done = function () { if (vNow === a) { vNow = null; vPump(); } };

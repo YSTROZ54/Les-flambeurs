@@ -274,7 +274,7 @@
       S = s; off = s.serverNow - Date.now(); lastId = s.id;
       if (!first && s.last && s.last.captured && s.last.captured.length && s.moves !== lastCapMove) {           // un pion est mangé : le cri n'est joué que parfois (tirage lié au numéro du coup, donc le même pour toute la table)
         lastCapMove = s.moves; var hv = (s.moves * 2654435761) >>> 0; hv ^= hv >>> 15; hv = (hv * 2246822519) >>> 0;
-        if (hv % 100 < 45 && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/ludo/manger.mp3', 1.6);
+        if (hv % 100 < 45 && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/ludo/manger.mp3', 0.45);
       }
       if (seat && T3) {
         applyPawns(T3, s, first || s.status !== 'playing' && s.status !== 'finished');
