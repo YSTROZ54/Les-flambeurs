@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    On y entre par la grande porte « Cinéma » du hall (hall3d.js) et on en ressort vers le hall.
    Décor : grand écran entouré de rideaux de velours rouge, scène avec rampe de lumières, cinq rangées de fauteuils
-   (deux blocs de quatre, allée au milieu), appliques, cabine de projection, comptoir à pop-corn, citrouilles d'Halloween.
+   (deux blocs de quatre, allée au milieu), appliques, cabine de projection, comptoir à pop-corn.
    - On s'assoit sur n'importe quel fauteuil libre (F ou clic) : la caméra passe à hauteur d'yeux, face à l'écran, et on
      garde le HUD du joueur (téléphone, emotes). Les autres joueurs nous voient assis (canal temps réel du monde).
    - Le film est partagé par le serveur (api/cinema.js) : seuls le Patron et le Co Fondateur choisissent le lien et lancent/
@@ -434,20 +434,6 @@
     var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; g.add(exit);
     var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinema' });
     exitDoor.g.position.y = BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
-
-    /* --- citrouilles d'Halloween de chaque côté de la scène --- */
-    var pc = mkCanvas(256, 256), px = pc.getContext('2d');
-    px.fillStyle = '#e8741a'; px.fillRect(0, 0, 256, 256);
-    px.strokeStyle = '#b0520e'; px.lineWidth = 5; for (i = 0; i < 8; i++) { px.beginPath(); px.moveTo(i * 32 + 16, 0); px.lineTo(i * 32 + 16, 256); px.stroke(); }
-    px.fillStyle = '#ffd24a';
-    [[88, 96], [168, 96]].forEach(function (e) { px.beginPath(); px.moveTo(e[0] - 20, e[1] + 18); px.lineTo(e[0], e[1] - 18); px.lineTo(e[0] + 20, e[1] + 18); px.closePath(); px.fill(); });
-    px.beginPath(); px.moveTo(78, 156); px.lineTo(96, 170); px.lineTo(112, 160); px.lineTo(128, 174); px.lineTo(144, 160); px.lineTo(160, 170); px.lineTo(178, 156); px.lineTo(168, 188); px.lineTo(128, 198); px.lineTo(88, 188); px.closePath(); px.fill();
-    var pumpM = new THREE.MeshLambertMaterial({ map: mkTex(pc), emissive: 0x6a2a00 });
-    [[-6.6, -HZ + 1.2], [6.6, -HZ + 1.2], [-5.6, -HZ + 1.9]].forEach(function (p, k) {
-      var pu = new THREE.Group(); pu.position.set(p[0], 0.3, p[1]); pu.rotation.y = Math.atan2(-(5 - p[1]), -p[0]); g.add(pu);
-      var b = sph(pu, 0.38, pumpM, 0, 0.32, 0); b.scale.set(1.15, 0.9, 1.0); cyl(pu, 0.04, 0.07, 0.16, lam(0x3a5a1a), 0, 0.68, 0, 8);
-      var gl = new THREE.Sprite(glowM); gl.scale.set(1.5, 1.5, 1); gl.position.set(0, 0.34, 0.1); pu.add(gl); lampGlow.push(gl);
-    });
 
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
@@ -1109,6 +1095,7 @@
       if (cur || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (taken(s)) { w.flash('Ce fauteuil est occupé.'); return; }
       w.sitDown(room); cur = seat_.cur = s; view.yaw = view.pitch = 0;
+      if (w.container) w.container.classList.add('cin-seated');
       standEl = document.createElement('div'); standEl.className = 'cin-stand';
       standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button>';
       standEl.addEventListener('click', function (e) { var a = e.target && e.target.closest ? e.target.closest('button') : null; if (!a) return; if (a.getAttribute('data-a') === 'stand') stand(); });
@@ -1119,6 +1106,7 @@
     function stand() {
       if (!cur) return;
       var s = cur; cur = seat_.cur = null;
+      if (world.container) world.container.classList.remove('cin-seated');
       window.removeEventListener('keydown', onSeatKey, true);
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl);
       standEl = null;
@@ -1162,7 +1150,7 @@
     function leave() {
       stand(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
       music.stop(); unmountEye(); unmountConsole();
-      if (world.container) world.container.classList.remove('cin-in-cinema');
+      if (world.container) world.container.classList.remove('cin-in-cinema', 'cin-seated');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
       window.removeEventListener('keydown', onKeyL, true);
       clearTimeout(seanceCardT); if (seanceCardEl && seanceCardEl.parentNode) seanceCardEl.parentNode.removeChild(seanceCardEl); seanceCardEl = null;
@@ -1181,6 +1169,7 @@
         setLoading(stallT > 1.0);
         if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
       }
+      Object.keys(w.remote).forEach(function (k) { var r = w.remote[k]; if (r && r.person && r.person.tag) r.person.tag.visible = !hudHidden; });   // interface masquée : plus de pseudos au-dessus des joueurs
       if (cur || remotesHid) {   // assis : on masque les autres joueurs (têtes, pseudos) qui gêneraient la vue de l'écran
         Object.keys(w.remote).forEach(function (k) { var r = w.remote[k]; if (r && r.person && r.person.group) r.person.group.visible = !cur; });
         remotesHid = !!cur;
@@ -1218,7 +1207,10 @@
     if (document.getElementById('cin-css')) return;
     var st = document.createElement('style'); st.id = 'cin-css';
     st.textContent =
-      /* Général : le curseur normal du site (pas de viseur maison), visible sauf interface masquée (bouton œil ou touche L) */
+      /* Général : le curseur normal du site, caché quand on est assis ou interface masquée (bouton œil ou touche L) */
+      '.cin-in-cinema.cin-seated,.cin-in-cinema.cin-seated canvas,.cin-in-cinema.cin-seated .s3d-hud{cursor:none!important}' +
+      '.cin-in-cinema.cin-seated.s3d-ui-open,.cin-in-cinema.cin-seated.s3d-ui-open canvas,.cin-in-cinema.cin-seated.s3d-ui-open .s3d-hud,.cin-console{cursor:auto!important}' +
+      '.cin-hud-hidden .cin-seance,.cin-hud-hidden .cin-stand{display:none!important}' +
       '.cin-in-cinema.cin-hud-hidden,.cin-in-cinema.cin-hud-hidden canvas,.cin-in-cinema.cin-hud-hidden .s3d-hud{cursor:none!important}' +
       '.cin-in-cinema.cin-hud-hidden.s3d-ui-open,.cin-in-cinema.cin-hud-hidden.s3d-ui-open canvas,.cin-in-cinema.cin-hud-hidden.s3d-ui-open .s3d-hud{cursor:auto!important}' +   // inventaire (I), téléphone ou pause ouverts : curseur visible même interface masquée
       '.cin-title-logo{display:inline-block;width:.95em;height:.95em;margin-right:.3em;vertical-align:-.12em;border-radius:50%;object-fit:cover;border:.05em solid rgba(255,122,26,.8)}' +
