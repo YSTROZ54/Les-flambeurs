@@ -350,7 +350,7 @@
       '<div class="s3d-title" data-s3d="title"></div>' +
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none"></button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
-      (this.touch ? '<button class="s3d-tbtn s3d-tjump s3d-room-only" data-s3d="jump" aria-label="Sauter"><i class="fa-solid fa-angles-up"></i></button><button class="s3d-tbtn s3d-trun s3d-room-only" data-s3d="run" aria-label="Courir"><i class="fa-solid fa-person-running"></i></button>' : '') +
+      (this.touch ? '<button class="s3d-tbtn s3d-tjump s3d-room-only" data-s3d="jump" aria-label="Sauter"><i class="fa-solid fa-angles-up"></i></button>' : '') +
       '<div data-s3d="roombottom" style="display:contents"></div>' +
       '<div class="s3d-fade" data-s3d="fade"></div>';
     if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small></div>'); }
