@@ -668,7 +668,7 @@
           autoRebet = null;   // on touche sa mise à la main : on n'écrase plus avec la remise automatique
           if (b.dataset.c === '-1') { toggleCustomBet(false); clearBet(); return; }
           if (b.dataset.c === 'max') { toggleCustomBet(false); setBet(Math.max(MIN_BET, Math.floor(balance()))); return; }
-          if (b.dataset.c === 'custom') { toggleCustomBet(!customRow.hidden); return; }
+          if (b.dataset.c === 'custom') { toggleCustomBet(customRow.hidden); return; }
           toggleCustomBet(false); setBet(bet + parseInt(b.dataset.c, 10)); return;
         }
         var a = b.dataset.a;
@@ -745,8 +745,8 @@
       // caméra plus haute et visée moins piquée vers le bas, pour garder le visage du croupier dans le cadre (pas seulement les cartes)
       var cx0 = s.tx, cz0 = s.tz + 0.25, ex = s.x + (cx0 - s.x) * 0.12, ey = 1.98, ez = s.z + (cz0 - s.z) * 0.12;
       var px = cx0 + (s.x - cx0) * 0.5, pz = cz0 + (s.z - cz0) * 0.5;
-      var a = Math.atan2(px - ex, -(pz - ez)), p = -0.62;   // visée fixe vers le bas : mes cartes au milieu de l'écran, celles du croupier et son visage au-dessus, le panneau en bas
-      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 64 };
+      var a = Math.atan2(px - ex, -(pz - ez)), p = -0.52;   // visée fixe vers le bas : mes cartes au milieu de l'écran, celles du croupier et son visage au-dessus, le panneau en bas
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 70 };
     };
     room.syncHud = function () { refreshUi(); };
 
