@@ -19,7 +19,7 @@
   var TABLE_R = 1.9, SEAT_R = 2.5, TOP_Y = 0.86;
   var TABLES = [{ x: -6.5, z: -4.6, bots: [] }, { x: 6.5, z: -4.6, bots: [] }, { x: -6.5, z: 2.6, bots: [] }, { x: 6.5, z: 2.6, bots: [] }, { x: 0, z: -1.0, bots: [] }];
   var PHI = [-0.55, 0.55];                                  // angle des deux places de jeu, autour de la table (le croupier est assis en face)
-  var DEALER_NAMES = ['Inès Moreau', 'Karim Benali', 'Léa Fontaine', 'Hugo Marchand', 'Sofia Laurent'];   // un par table : femme aux tables 1, 3, 5, homme aux tables 2 et 4
+  var DEALER_NAMES = ['Jade', 'Enzo', 'Lina', 'Nathan', 'Chloé'];   // un par table : femme aux tables 1, 3, 5, homme aux tables 2 et 4
   var BOT_NAMES = ['Léo', 'Nina', 'Karim', 'Zoé', 'Yann', 'Lola', 'Max', 'Inès', 'Hugo', 'Maya', 'Sam', 'Éva'];
   var SUIT_COL = { '♥': '#c8202f', '♦': '#c8202f', '♠': '#15151a', '♣': '#15151a' };
   var CHIPS = [10, 50, 100, 500, 1000, 5000];
