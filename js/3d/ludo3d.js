@@ -4,9 +4,10 @@
    On y entre par l'ouverture à droite de la Chambre Forte, au fond de la salle des mini jeux (uno3d.js), et on en ressort par l'ouverture
    derrière soi. Deux tables (Table 1 et 2) de 2 à 4 joueurs, un joueur par côté du plateau : rouge à gauche, vert en haut, jaune à droite, bleu en
    bas. Le premier arrivé est le chef : il lance la partie. AUCUN argent n'est misé ni gagné.
-   Les règles (api/ludo.js) : un 6 pour sortir un pion (3 essais si aucun pion n'est en jeu), un 6 fait rejouer (trois 6 d'affilée : le tour est
+   Les règles (api/ludo.js) : un 6 ou un 1 pour sortir un pion (3 essais si aucun pion n'est en jeu ; pas de sortie si un de nos pions est déjà sur la case de départ ;
+   en sortant on mange l'adversaire qui s'y trouve), un 6 ou une capture font rejouer (trois 6 d'affilée : le tour est
    perdu), nombre EXACT pour arriver à la maison, on renvoie un adversaire à l'écurie en tombant sur lui (sauf sur les cases de départ et les
-   étoiles), le premier qui rentre ses 4 pions gagne. Le serveur tire le dé et valide les coups ; ici on affiche le plateau, les pions qui sautent
+   étoiles), la partie continue quand quelqu'un finit : elle s'arrête quand tous sauf un ont rentré leurs 4 pions. Le serveur tire le dé et valide les coups ; ici on affiche le plateau, les pions qui sautent
    case par case, le dé qui roule, et on envoie « lancer » ou « jouer ce pion ».
    Fichiers liés : f3d-core.js, world3d.js, uno3d.js (l'ouverture d'entrée), api/ludo.js (serveur).
    ===================================================================== */
@@ -57,42 +58,58 @@
   function wrapPi(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
   function seatSpot(ti, c) { var T = TABLES[ti], d = DIRS[c]; return { x: T.x + d[0] * 2.75, z: T.z + d[1] * 2.75, yaw: Math.atan2(-d[0], d[1]) }; }
 
-  // le plateau dessiné en haute définition
-  function boardTexture() {
-    var N = 2048, cell = N / 15, cv = mkCanvas(N, N), x = cv.getContext('2d'), i, j, k;
-    x.fillStyle = '#f5efdf'; x.fillRect(0, 0, N, N);
+  // le plateau dessiné en très haute définition (4096 px, 2048 sur les petites machines) : cases arrondies, écuries à pastilles, flèches et étoiles
+  function boardTexture(N) {
+    N = N || 4096;
+    var cell = N / 15, u = N / 2048, cv = mkCanvas(N, N), x = cv.getContext('2d'), i, j, k;
+    var bg = x.createLinearGradient(0, 0, N, N); bg.addColorStop(0, '#f8f2e2'); bg.addColorStop(1, '#ece3cc'); x.fillStyle = bg; x.fillRect(0, 0, N, N);
+    function cellRect(cx, cy, fill, stroke) {                      // une case : rectangle arrondi avec un léger relief
+      var px = cx * cell + 3 * u, py = cy * cell + 3 * u, w = cell - 6 * u;
+      rr(x, px, py, w, w, cell * 0.12); x.fillStyle = fill; x.fill(); x.lineWidth = 4 * u; x.strokeStyle = stroke; x.stroke();
+      var g2 = x.createLinearGradient(px, py, px, py + w); g2.addColorStop(0, 'rgba(255,255,255,0.35)'); g2.addColorStop(0.5, 'rgba(255,255,255,0)'); g2.addColorStop(1, 'rgba(0,0,0,0.10)'); rr(x, px, py, w, w, cell * 0.12); x.fillStyle = g2; x.fill();
+    }
     // écuries
     for (k = 0; k < 4; k++) {
       var y0 = YARD[k][0] * cell, x0 = YARD[k][1] * cell, g = x.createLinearGradient(x0, y0, x0 + 6 * cell, y0 + 6 * cell);
-      g.addColorStop(0, CCSS[k]); g.addColorStop(1, shade(CCSS[k], -0.22)); x.fillStyle = g; x.fillRect(x0, y0, 6 * cell, 6 * cell);
-      x.fillStyle = 'rgba(255,255,255,0.92)'; rr(x, x0 + cell * 0.9, y0 + cell * 0.9, cell * 4.2, cell * 4.2, cell * 0.5); x.fill();
-      for (j = 0; j < 4; j++) { var gp = gridPos(k, j, -1); x.fillStyle = CCSS[k]; x.globalAlpha = 0.28; x.beginPath(); x.arc(gp[0] * cell, gp[1] * cell, cell * 0.7, 0, TAU); x.fill(); x.globalAlpha = 1; x.lineWidth = 6; x.strokeStyle = CCSS[k]; x.stroke(); }
+      g.addColorStop(0, shade(CCSS[k], 0.06)); g.addColorStop(1, shade(CCSS[k], -0.22)); x.fillStyle = g; x.fillRect(x0, y0, 6 * cell, 6 * cell);
+      x.lineWidth = 6 * u; x.strokeStyle = shade(CCSS[k], -0.32); x.strokeRect(x0 + 3 * u, y0 + 3 * u, 6 * cell - 6 * u, 6 * cell - 6 * u);
+      x.fillStyle = 'rgba(255,255,255,0.94)'; rr(x, x0 + cell * 0.9, y0 + cell * 0.9, cell * 4.2, cell * 4.2, cell * 0.55); x.fill(); x.lineWidth = 5 * u; x.strokeStyle = 'rgba(0,0,0,0.18)'; x.stroke();
+      for (j = 0; j < 4; j++) {
+        var gp = gridPos(k, j, -1), rg = x.createRadialGradient(gp[0] * cell, gp[1] * cell, cell * 0.1, gp[0] * cell, gp[1] * cell, cell * 0.72);
+        rg.addColorStop(0, shade(CCSS[k], 0.18)); rg.addColorStop(1, shade(CCSS[k], -0.1)); x.fillStyle = rg; x.beginPath(); x.arc(gp[0] * cell, gp[1] * cell, cell * 0.68, 0, TAU); x.fill();
+        x.lineWidth = 7 * u; x.strokeStyle = shade(CCSS[k], -0.3); x.stroke(); x.fillStyle = 'rgba(255,255,255,0.9)'; x.font = '900 ' + Math.round(cell * 0.5) + 'px ' + SERIF; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(j + 1), gp[0] * cell, gp[1] * cell + cell * 0.03);
+      }
     }
     // cases de la croix
-    x.lineWidth = 4;
     for (i = 0; i < 15; i++) for (j = 0; j < 15; j++) {
       if ((i < 6 || i > 8) && (j < 6 || j > 8)) continue;
       if (i >= 6 && i <= 8 && j >= 6 && j <= 8) continue;
-      x.fillStyle = '#fffdf6'; x.fillRect(j * cell, i * cell, cell, cell); x.strokeStyle = '#8a8272'; x.strokeRect(j * cell + 2, i * cell + 2, cell - 4, cell - 4);
+      cellRect(j, i, '#fffdf6', '#8a8272');
     }
-    // escaliers d'arrivée et cases de départ colorés
+    // escaliers d'arrivée et cases de départ colorés, avec une flèche vers le centre
     for (k = 0; k < 4; k++) {
-      for (j = 0; j < 5; j++) { var hp = gridPos(k, 0, 51 + j); x.fillStyle = CCSS[k]; x.fillRect((hp[0] - 0.5) * cell + 2, (hp[1] - 0.5) * cell + 2, cell - 4, cell - 4); x.strokeStyle = shade(CCSS[k], -0.3); x.strokeRect((hp[0] - 0.5) * cell + 2, (hp[1] - 0.5) * cell + 2, cell - 4, cell - 4); }
-      var sp = gridPos(k, 0, 0); x.fillStyle = CCSS[k]; x.fillRect((sp[0] - 0.5) * cell + 2, (sp[1] - 0.5) * cell + 2, cell - 4, cell - 4); x.strokeStyle = shade(CCSS[k], -0.3); x.strokeRect((sp[0] - 0.5) * cell + 2, (sp[1] - 0.5) * cell + 2, cell - 4, cell - 4);
+      for (j = 0; j < 5; j++) {
+        var hp = gridPos(k, 0, 51 + j); cellRect(hp[0] - 0.5, hp[1] - 0.5, CCSS[k], shade(CCSS[k], -0.3));
+        var d2 = DIRS[k], ax = hp[0] * cell, ay = hp[1] * cell, ang = Math.atan2(-d2[1], -d2[0]); x.save(); x.translate(ax, ay); x.rotate(ang); x.fillStyle = 'rgba(255,255,255,0.75)'; x.beginPath(); x.moveTo(cell * 0.22, 0); x.lineTo(-cell * 0.12, -cell * 0.2); x.lineTo(-cell * 0.12, cell * 0.2); x.closePath(); x.fill(); x.restore();
+      }
+      var sp = gridPos(k, 0, 0); cellRect(sp[0] - 0.5, sp[1] - 0.5, CCSS[k], shade(CCSS[k], -0.3));
     }
-    // étoiles sur les cases protégées (hors cases de départ) et flèches d'entrée
+    // étoiles sur les cases protégées (hors cases de départ)
     SAFE.forEach(function (idx) {
       if (START.indexOf(idx) >= 0) return;
-      var c2 = LOOP[idx], cx = (c2[1] + 0.5) * cell, cy = (c2[0] + 0.5) * cell; x.fillStyle = '#c9a227'; x.beginPath();
-      for (var s = 0; s < 10; s++) { var a = -Math.PI / 2 + s * Math.PI / 5, r = s % 2 ? cell * 0.18 : cell * 0.4; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); x.fill();
+      var c2 = LOOP[idx], cx = (c2[1] + 0.5) * cell, cy = (c2[0] + 0.5) * cell; x.fillStyle = '#d4a52a'; x.strokeStyle = '#8a6a14'; x.lineWidth = 3 * u; x.beginPath();
+      for (var s2 = 0; s2 < 10; s2++) { var a = -Math.PI / 2 + s2 * Math.PI / 5, r = s2 % 2 ? cell * 0.17 : cell * 0.38; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); x.fill(); x.stroke();
     });
-    START.forEach(function (idx, k2) { var c3 = LOOP[idx], cx = (c3[1] + 0.5) * cell, cy = (c3[0] + 0.5) * cell; x.fillStyle = 'rgba(255,255,255,0.9)'; x.beginPath(); x.arc(cx, cy, cell * 0.2, 0, TAU); x.fill(); });
+    START.forEach(function (idx) { var c3 = LOOP[idx], cx = (c3[1] + 0.5) * cell, cy = (c3[0] + 0.5) * cell; x.fillStyle = 'rgba(255,255,255,0.92)'; x.beginPath(); x.arc(cx, cy, cell * 0.2, 0, TAU); x.fill(); x.lineWidth = 3 * u; x.strokeStyle = 'rgba(0,0,0,0.25)'; x.stroke(); });
     // centre : quatre triangles
     var cx0 = 6 * cell, cy0 = 6 * cell, m = 7.5 * cell, ee = 9 * cell;
     [[[cx0, cy0], [cx0, ee], [m, m]], [[cx0, cy0], [ee, cy0], [m, m]], [[ee, cy0], [ee, ee], [m, m]], [[cx0, ee], [ee, ee], [m, m]]].forEach(function (tri, k3) {
-      x.fillStyle = CCSS[k3]; x.beginPath(); x.moveTo(tri[0][0], tri[0][1]); x.lineTo(tri[1][0], tri[1][1]); x.lineTo(tri[2][0], tri[2][1]); x.closePath(); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 5; x.stroke();
+      var tg = x.createLinearGradient(tri[0][0], tri[0][1], m, m); tg.addColorStop(0, shade(CCSS[k3], 0.08)); tg.addColorStop(1, shade(CCSS[k3], -0.18));
+      x.fillStyle = tg; x.beginPath(); x.moveTo(tri[0][0], tri[0][1]); x.lineTo(tri[1][0], tri[1][1]); x.lineTo(tri[2][0], tri[2][1]); x.closePath(); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 6 * u; x.stroke();
     });
-    var t = new THREE.CanvasTexture(cv); t.anisotropy = 16; t.minFilter = THREE.LinearMipMapLinearFilter; t.generateMipmaps = true; return t;
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(m, m, cell * 0.22, 0, TAU); x.fill(); x.lineWidth = 4 * u; x.strokeStyle = '#b8a878'; x.stroke();
+    x.lineWidth = 10 * u; x.strokeStyle = '#6b4a22'; x.strokeRect(5 * u, 5 * u, N - 10 * u, N - 10 * u);            // liseré du plateau
+    var t = new THREE.CanvasTexture(cv); t.anisotropy = 16; t.minFilter = THREE.LinearMipMapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true; return t;
   }
   function shade(hex, f) { var c = new THREE.Color(hex); c.offsetHSL(0, 0, f); return '#' + c.getHexString(); }
 
@@ -138,21 +155,28 @@
     box(g, OG * 2, OPH, 0.05, new THREE.MeshBasicMaterial({ color: 0x3a0c18 }), 0, OPH / 2, HZ + CL);
 
     /* --- les deux tables avec leur plateau, leurs pions, leur dé et leurs quatre chaises --- */
-    var boardTex = boardTexture();
-    var pawnGeo = new THREE.LatheGeometry([[0.001, 0], [0.075, 0], [0.08, 0.018], [0.06, 0.05], [0.036, 0.1], [0.03, 0.13], [0.045, 0.15], [0.05, 0.18], [0.04, 0.215], [0.02, 0.235], [0.001, 0.24]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 28);
+    var boardTex = boardTexture(low ? 2048 : 4096);
+    var tw = mkCanvas(512, 512), twx = tw.getContext('2d'), twg = twx.createLinearGradient(0, 0, 0, 512); twg.addColorStop(0, '#6a4222'); twg.addColorStop(1, '#58351a'); twx.fillStyle = twg; twx.fillRect(0, 0, 512, 512);
+    for (var wq = 0; wq < 120; wq++) { twx.strokeStyle = 'rgba(' + (wq % 2 ? '30,16,6' : '140,96,52') + ',' + (0.08 + Math.random() * 0.12) + ')'; twx.lineWidth = 0.8 + Math.random() * 1.6; twx.beginPath(); var wy = Math.random() * 512; twx.moveTo(0, wy); twx.bezierCurveTo(150, wy + (Math.random() - 0.5) * 26, 350, wy + (Math.random() - 0.5) * 26, 512, wy + (Math.random() - 0.5) * 14); twx.stroke(); }
+    var tblTex = new THREE.CanvasTexture(tw); tblTex.wrapS = tblTex.wrapT = THREE.RepeatWrapping; tblTex.anisotropy = 16; tblTex.repeat.set(2, 2);
+    var tblWood = new THREE.MeshStandardMaterial({ map: tblTex, roughness: 0.45, metalness: 0.05 });
+    var pawnGeo = new THREE.LatheGeometry([[0.001, 0], [0.072, 0], [0.08, 0.008], [0.081, 0.018], [0.07, 0.034], [0.052, 0.06], [0.04, 0.09], [0.033, 0.12], [0.03, 0.14], [0.042, 0.152], [0.05, 0.168], [0.05, 0.185], [0.042, 0.208], [0.028, 0.228], [0.012, 0.239], [0.001, 0.242]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), low ? 32 : 64);
+    var shadowTex = (function () { var sc = mkCanvas(64, 64), sx = sc.getContext('2d'), sg = sx.createRadialGradient(32, 32, 2, 32, 32, 30); sg.addColorStop(0, 'rgba(0,0,0,0.5)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); sx.fillStyle = sg; sx.fillRect(0, 0, 64, 64); return mkTex(sc); })();
+    var shadowGeo = new THREE.PlaneGeometry(0.26, 0.26);
     var ringGeo = new THREE.TorusGeometry(0.11, 0.012, 8, 32), faces = [3, 4, 1, 6, 2, 5].map(diceFaceTex);
     var diceMats = faces.map(function (t) { return new THREE.MeshStandardMaterial({ map: t, roughness: 0.35 }); });
     var tables = [], seats = [];
     TABLES.forEach(function (T, ti) {
       var tg = new THREE.Group(); tg.position.set(T.x, 0, T.z); g.add(tg);
-      var top = box(tg, 3.7, 0.12, 3.7, woodM, 0, 0.74, 0); box(tg, 3.82, 0.05, 3.82, brass, 0, 0.8, 0); box(tg, 3.2, 0.05, 3.2, woodD, 0, 0.8, 0);
+      var top = box(tg, 3.7, 0.12, 3.7, tblWood, 0, 0.74, 0); box(tg, 3.82, 0.05, 3.82, brass, 0, 0.8, 0); box(tg, 3.2, 0.054, 3.2, woodD, 0, 0.8015, 0);
       [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]].forEach(function (l) { box(tg, 0.22, 0.72, 0.22, woodD, l[0], 0.36, l[1]); });
-      var brd = new THREE.Mesh(new THREE.PlaneGeometry(BS, BS), new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.5, metalness: 0.02 })); brd.rotation.x = -Math.PI / 2; brd.position.y = TOP_Y; tg.add(brd);
-      box(tg, BS + 0.12, 0.04, BS + 0.12, woodM, 0, TOP_Y - 0.021, 0);
+      var brd = new THREE.Mesh(new THREE.PlaneGeometry(BS, BS), new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.8, metalness: 0, emissive: 0xffffff, emissiveMap: boardTex, emissiveIntensity: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); brd.rotation.x = -Math.PI / 2; brd.position.y = TOP_Y + 0.004; tg.add(brd);      // juste au-dessus du socle : plus de scintillement
+      box(tg, BS + 0.12, 0.04, BS + 0.12, tblWood, 0, TOP_Y - 0.026, 0);
       room.colliders.push({ x: T.x, z: T.z, r: 2.1 });
       var T3 = { ti: ti, group: tg, pawns: [[], [], [], []], hits: [], dice: null, diceT: 99, diceFinal: null, diceSpin: null, sig: '', board: null };
       for (var c = 0; c < 4; c++) for (var j = 0; j < 4; j++) {
         var pm = new THREE.MeshStandardMaterial({ color: CHEX[c], roughness: 0.28, metalness: 0.12 }), pg = new THREE.Group();
+        var shd = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); shd.rotation.x = -Math.PI / 2; shd.position.y = 0.008; shd.renderOrder = 2; pg.add(shd);
         var body = new THREE.Mesh(pawnGeo, pm); pg.add(body);
         var ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.012; ring.visible = false; pg.add(ring);
         var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.45, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.y = 0.2; hit.userData = { c: c, i: j, ti: ti }; pg.add(hit); T3.hits.push(hit);
@@ -168,7 +192,7 @@
       bm.position.set(T.x, 3.3, T.z - 2.9); g.add(bm); box(g, 3.5, 1.45, 0.08, woodD, T.x, 3.3, T.z - 2.97);
       T3.board = { cv: bc, c: bc.getContext('2d'), tex: bt, sig: '' };
       if (!low) { var pl = new THREE.PointLight(0xffe2b0, 1.0, 9); pl.position.set(T.x, 3.4, T.z); g.add(pl); }
-      var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.35, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a1008, side: THREE.DoubleSide })); lamp.position.set(T.x, 3.9, T.z); g.add(lamp); box(g, 0.03, 2.3, 0.03, woodD, T.x, 5.1, T.z);
+      var lamp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.35, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x1a1008, side: THREE.DoubleSide })); lamp.position.set(T.x, 3.9, T.z); g.add(lamp); T3.lampObjs = [lamp, box(g, 0.03, 2.3, 0.03, woodD, T.x, 5.1, T.z)];
       for (var cc = 0; cc < 4; cc++) {
         (function (cc) {
           var sp = seatSpot(ti, cc), d = DIRS[cc], n = ti * 4 + cc, s = { n: n, ti: ti, c: cc, x: sp.x, z: sp.z, yaw: sp.yaw, sx: sp.x + d[0] * 1.0, sz: sp.z + d[1] * 1.0 };
@@ -186,7 +210,7 @@
 
     /* --- l'état de la table (serveur) --- */
     var seat = null, view = { yaw: 0, pitch: 0 }, ui = null, standEl = null, S = null, off = 0, list = null, polling = false, listPolling = false, pollT = 0, listT = 0, busy = false, code = '', shownKey = '', flash = '', flashT = 0;
-    var lastReady = false, epoch = 0, joined = false, joinedAt = 0, lastDiceAt = 0, lastMoves = -1, lastId = '', clockT = 0;
+    var topView = false, lastReady = false, epoch = 0, joined = false, joinedAt = 0, lastDiceAt = 0, lastMoves = -1, lastId = '', clockT = 0;
     function seatTaken(s) { var now = performance.now(); return Object.keys(world.remote).some(function (kk) { var r = world.remote[kk]; return r.seat === s.n && now - (r.recv || 0) < 4000; }); }
     function nowS() { return Date.now() + off; }
     function api(body) {
@@ -238,6 +262,10 @@
       else if (v === 2) q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2); else if (v === 5) q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
       var yq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * TAU); q.premultiply(yq); e.setFromQuaternion(q); return e;
     }
+    function parkPawns(T3) {                                           // tous les pions à l'écurie (table libre, ou après s'être levé)
+      var fresh = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]];
+      applyPawns(T3, { pawns: fresh, last: null }, true); var hh0 = diceHome(0); T3.dice.position.set(hh0[0], TOP_Y + 0.09, hh0[1]); T3.diceT = 99;
+    }
     function diceHome(c) { var d = DIRS[c]; return [d[0] * 1.66 - d[1] * 1.05, d[1] * 1.66 + d[0] * 1.05]; }
     function applyState(s) {
       if (!s) return;
@@ -281,17 +309,17 @@
     function refreshUi() {
       if (!ui || !seat || !S) return;
       var s = S, y = s.you || {}, el = ui.el, body = el.querySelector('.ld-body'), host = !!y.host;
-      var key = JSON.stringify([s.status, s.phase, s.turn, s.dice, s.players.map(function (p) { return [p.name, p.color, p.left, p.host]; }), s.pawns, y.canRoll, y.canMove, y.legal, s.winner, s.log.length, flash, host, rollReady()]);
+      var key = JSON.stringify([s.status, s.phase, s.turn, s.dice, s.done, s.players.map(function (p) { return [p.name, p.color, p.left, p.host]; }), s.pawns, y.canRoll, y.canMove, y.legal, s.winner, s.log.length, flash, host, rollReady()]);
       if (key !== shownKey) {
         shownKey = key;
         var h = '', colsHome = function (c) { return s.pawns[c].filter(function (p) { return p === HOME; }).length; };
-        h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
+        h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + ((s.done || []).indexOf(p.color) >= 0 ? ' ✅ ' + ((s.done.indexOf(p.color)) + 1) + 'e' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
         if (s.status === 'lobby') {
-          h += '<div class="ld-note">' + s.players.length + ' joueur' + (s.players.length > 1 ? 's' : '') + ' (de 2 à 4). Il faut un 6 pour sortir un pion. Aucun argent n’est en jeu.</div>';
+          h += '<div class="ld-note">' + s.players.length + ' joueur' + (s.players.length > 1 ? 's' : '') + ' (de 2 à 4). Il faut un 6 ou un 1 pour sortir un pion. Aucun argent n’est en jeu.</div>';
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="start"' + (s.players.length >= s.min ? '' : ' disabled') + '>▶ Lancer la partie</button></div>' : '<div class="ld-note">En attente du chef (' + esc(s.hostName) + ')…</div>';
         } else if (s.status === 'finished') {
           var wn = s.players.filter(function (p) { return p.color === s.winner; })[0];
-          h += '<div class="ld-msg" style="color:#ffd98a;font-size:17px">🏆 ' + (wn ? esc(wn.name) : '?') + ' (' + COLORS[s.winner] + ') gagne la partie !</div>';
+          h += '<div class="ld-msg" style="color:#ffd98a;font-size:17px">🏆 ' + (wn ? esc(wn.name) : '?') + ' (' + COLORS[s.winner] + ') gagne la partie !</div><div class="ld-note">' + (s.rank || []).map(function (r, q) { var pp = s.players.filter(function (p) { return p.color === r.c; })[0]; return (q + 1) + '. ' + (pp ? esc(pp.name) : COLORS[r.c]) + ' (' + r.home + '/4)'; }).join(' · ') + '</div>';
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="again">🔁 Rejouer</button></div>' : '<div class="ld-note">En attente du chef…</div>';
         } else {
           var tp = s.players.filter(function (p) { return p.color === s.turn; })[0], mine = y.color === s.turn;
@@ -319,10 +347,16 @@
       if (b.dataset.a === 'start') act('start'); else if (b.dataset.a === 'again') act('again'); else if (b.dataset.a === 'roll') act('roll');
       else if (b.dataset.m !== undefined) act('move', { pawn: parseInt(b.dataset.m, 10) });
     }
+    function toggleTop() {
+      topView = !topView; view.yaw = view.pitch = 0;
+      if (seat && tables[seat.ti].lampObjs) tables[seat.ti].lampObjs.forEach(function (o) { o.visible = !topView; });       // la lampe ne cache plus la table vue de dessus
+      if (standEl) { var b = standEl.querySelector('[data-b=top]'); if (b) b.innerHTML = (topView ? '🪑 Vue assise' : '🔭 Vue du dessus') + ' <kbd>V</kbd>'; }
+    }
     function onSeatKey(e) {
       if (!seat) return;
       var tag = e.target && e.target.tagName;
       if (e.code === 'Escape' || (e.code === 'KeyF' && tag !== 'INPUT')) { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
+      else if (e.code === 'KeyV' && tag !== 'INPUT') { e.stopImmediatePropagation(); e.preventDefault(); toggleTop(); }
       else if (e.code === 'Space' && S && S.you && S.you.canRoll && rollReady()) { e.stopImmediatePropagation(); e.preventDefault(); act('roll'); }
       else if (/^(Digit|Numpad)[1-4]$/.test(e.code) && S && S.you && S.you.canMove) { var j = +e.code.slice(-1) - 1; if (S.you.legal.indexOf(j) >= 0) { e.stopImmediatePropagation(); e.preventDefault(); act('move', { pawn: j }); } }
     }
@@ -330,12 +364,12 @@
       if (seat || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (!loggedIn()) { w.flash('Connecte-toi pour jouer au Ludo.'); return; }
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
-      epoch++; joined = false; w.sitDown(room); seat = s; view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false; code = String(s.ti + 1); flash = ''; lastId = ''; lastDiceAt = 0;
+      epoch++; joined = false; w.sitDown(room); seat = s; topView = false; view.yaw = view.pitch = 0; S = null; shownKey = ''; busy = false; code = String(s.ti + 1); flash = ''; lastId = ''; lastDiceAt = 0;
       injectCss();
       var el = document.createElement('div'); el.className = 'ld3d';
       el.innerHTML = '<div class="ld-top"><b class="ld-ph"></b><span class="ld-time"></span></div><div class="ld-bar"><i></i></div><div class="ld-body"></div>';
       w.container.appendChild(el); ui = { el: el }; el.addEventListener('click', onClick);
-      standEl = document.createElement('div'); standEl.className = 'ld3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.querySelector('button').addEventListener('click', function () { stand(); });
+      standEl = document.createElement('div'); standEl.className = 'ld3d-stand'; standEl.innerHTML = '<button data-b="stand">🪑 Se lever <kbd>F</kbd></button> <button data-b="top">🔭 Vue du dessus <kbd>V</kbd></button>'; standEl.querySelector('[data-b=stand]').addEventListener('click', function () { stand(); }); standEl.querySelector('[data-b=top]').addEventListener('click', function () { toggleTop(); });
       w.container.appendChild(standEl); window.addEventListener('keydown', onSeatKey, true);
       api({ action: 'join', seat: s.c, avatar: F.cleanAvatar(st() && st().avatarEmoji, st() && st().username, '🧑‍🎤') }).then(function (r) {
         if (!seat || seat !== s) return;
@@ -345,12 +379,12 @@
     }
     function stand() {
       if (!seat) return;
-      var s = seat, c = code; seat = null; S = null; code = ''; epoch++; joined = false; polling = false;
+      var s = seat, c = code; seat = null; S = null; code = ''; epoch++; joined = false; polling = false; topView = false; tables.forEach(function (T3) { (T3.lampObjs || []).forEach(function (o) { o.visible = true; }); });
       try { world.post('/api/ludo', { action: 'leave', code: c }); } catch (e) { /* ok */ }
       window.removeEventListener('keydown', onSeatKey, true);
       [ui && ui.el, standEl].forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); ui = null; standEl = null;
       Object.keys(world.remote).forEach(function (kk) { var r = world.remote[kk]; if (r && r.person && r.person.look) { r.person.look(0); r.person.poseStep(0.5); } });
-      tables.forEach(function (T3) { T3.pawns.forEach(function (row) { row.forEach(function (P) { P.p = -2; P.ring.visible = false; P.num.visible = false; }); }); });
+      tables.forEach(function (T3) { T3.pawns.forEach(function (row) { row.forEach(function (P) { P.p = -2; P.ring.visible = false; P.num.visible = false; }); }); parkPawns(T3); });
       world.standUp(s.sx, s.sz, s.yaw);
     }
     room.forceStand = function () { stand(); };
@@ -362,7 +396,12 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.7; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.2; }
-      var T = TABLES[s.ti], d = DIRS[s.c], ex = T.x + d[0] * 2.45, ez = T.z + d[1] * 2.45, ey = 1.95, touch = world.touch;
+      var T = TABLES[s.ti], d = DIRS[s.c], touch = world.touch;
+      if (topView) {                                                      // vue du dessus : tout le plateau, les cases et les pions ; le plateau est décalé vers le haut de l'écran (le panneau est en bas)
+        var tx0 = T.x + d[0] * 1.0, tz0 = T.z + d[1] * 1.0, hgt = touch ? 5.5 : 5.2;
+        return { cx: tx0 + d[0] * 0.25, cy: hgt, cz: tz0 + d[1] * 0.25, tx: tx0, ty: TOP_Y, tz: tz0, fov: touch ? 58 : 62 };
+      }
+      var ex = T.x + d[0] * 2.45, ez = T.z + d[1] * 2.45, ey = 1.95;
       var a = Math.atan2(T.x - ex, -(T.z - ez)) + view.yaw, p = Math.atan2(TOP_Y - ey, 2.1) + view.pitch + (touch ? -0.2 : 0);
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 6, ty: ey + Math.sin(p) * 6, tz: ez - Math.cos(a) * Math.cos(p) * 6, fov: touch ? 54 : 58 };
     };
@@ -391,7 +430,7 @@
             P.g.position.set(P.x, TOP_Y + P.y, P.z);
             // pions qui peuvent jouer : anneau + numéro
             var can = !!(live && S.you && S.you.canMove && S.you.color === c && S.you.legal.indexOf(j) >= 0);
-            P.ring.visible = can; P.num.visible = can; if (can) { var pu = 0.5 + 0.5 * Math.sin(clockT * 6); P.ring.material.opacity = 0.5 + 0.5 * pu; P.ring.scale.setScalar(1 + 0.12 * pu); P.g.children[0].position.y = 0.02 * pu; } else P.g.children[0].position.y = 0;
+            P.ring.visible = can; P.num.visible = can; if (can) { var pu = 0.5 + 0.5 * Math.sin(clockT * 6); P.ring.material.opacity = 0.5 + 0.5 * pu; P.ring.scale.setScalar(1 + 0.12 * pu); P.g.children[1].position.y = 0.02 * pu; } else P.g.children[1].position.y = 0;
           });
         });
         // dé : roule puis se pose sur la bonne face, près du joueur dont c'est le tour
@@ -413,6 +452,7 @@
       }
     }
 
+    tables.forEach(parkPawns);
     room.spawn = function () { return { x: 0, z: HZ - 2.6, yaw: 0 }; };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche une chaise pour t’asseoir à une table · derrière toi : retour aux mini jeux' : 'ZQSD / flèches : marcher · Maj : courir · avance vers une chaise (F ou clic) : tu rejoins la table de cette couleur · assis : Espace lance le dé, 1 à 4 ou clic joue un pion · F : se lever · derrière toi : retour aux mini jeux'; };
     room.onEnter = function () { pollList(); };

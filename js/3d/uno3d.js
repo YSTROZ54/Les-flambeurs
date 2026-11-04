@@ -222,7 +222,7 @@
       [[0.5, 0.03, 0.028], [0.18, 0.22, 0.022]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
       var pile = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.1, 0.465), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.32, 0.9, 0); pile.rotation.y = 0.15; t.add(pile);
       var pt = new THREE.Mesh(bigCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.32, 0.952, 0); t.add(pt);
-      var tv = TV[tid] = { kind: 'u', hands: [], labels: [] };
+      var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [] };
       tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.3, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
       tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.27, 0.866, 0.05); tv.top2.visible = false; t.add(tv.top2);
       tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.3, 0.873, 0); tv.top.visible = false; t.add(tv.top);
@@ -323,14 +323,14 @@
     function mutate(tid, fn) {
       var before = G[tid], st = clone(getSt(tid)), err = fn(st);
       if (err) return err;
-      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st);
+      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st); fx3d(tid, before, st);
       if (seat && seat.tid === tid) refreshUi();
       return '';
     }
     function adopt(tid, st) {
       var cur = G[tid];
       if (cur && (st.ver < cur.ver || (st.ver === cur.ver && String(st.org || '') <= String(cur.org || '')))) return;
-      G[tid] = st; renderTable(tid); announce(tid, cur, st);
+      G[tid] = st; renderTable(tid); announce(tid, cur, st); fx3d(tid, cur, st);
       if (seat && seat.tid === tid) { reconcile(); refreshUi(); }
     }
     function joinFn(ch) { return function (st) { return (ch.tid.charAt(0) === 'u' ? MJ.unoJoin : MJ.c4Join)(st, ch.local, me(), myName()); }; }
@@ -392,7 +392,7 @@
       var s = document.createElement('style'); s.id = 'mj3d-css';
       s.textContent = '.mj3d{position:absolute;left:50%;bottom:62px;transform:translateX(-50%);width:min(700px,94%);background:rgba(8,5,12,.9);border:1px solid rgba(201,162,39,.6);border-radius:14px;padding:8px 12px;color:#f4e3b0;pointer-events:auto;display:flex;flex-direction:column;gap:6px;font-family:inherit;z-index:5}' +
         '.mj3d .mj-msg{min-height:18px;text-align:center;font-weight:800;font-size:14px}.mj3d .mj-pl{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-weight:800;font-size:12px;color:#c9b88a}.mj3d .mj-pl b{color:#ffe35a}' +
-        '.mj3d .mj-hand{display:flex;gap:4px;justify-content:center;overflow-x:auto;padding:2px 0}.mj3d .mj-hand button{flex:none;border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;opacity:.45}.mj3d .mj-hand button.ok{opacity:1;border-color:#ffe35a}.mj3d .mj-hand img{display:block;width:58px;height:auto;border-radius:6px}' +
+        '.mj3d .mj-hand{display:flex;justify-content:center;padding:12px 0 2px}.mj3d .mj-hand button{flex:none;position:relative;border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;opacity:.55;transition:transform .12s,opacity .12s;box-shadow:-3px 0 7px rgba(0,0,0,.55)}.mj3d .mj-hand button:hover{transform:translateY(-14px);z-index:30!important;opacity:1}.mj3d .mj-hand button.ok{opacity:1;border-color:#ffe35a;transform:translateY(-8px)}.mj3d .mj-hand button.ok:hover{transform:translateY(-18px)}.mj3d .mj-hand img{display:block;width:64px;height:auto;border-radius:6px}' +
         '.mj3d .mj-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.mj3d .mj-b{padding:8px 16px;border-radius:12px;border:0;font-weight:900;font-size:14px;cursor:pointer;color:#1a1208;background:linear-gradient(90deg,#f5a623,#e07b00)}.mj3d .mj-b:disabled{opacity:.4;cursor:not-allowed}.mj3d .mj-b.alt{background:#2a3b57;color:#e8f0ff}.mj3d .mj-b.uno{background:linear-gradient(90deg,#ff5a5a,#d6221e);color:#fff}.mj3d .mj-b.red{background:linear-gradient(90deg,#7c3aed,#c026d3);color:#fff;animation:mjGlow .5s ease-in-out infinite alternate}.mj3d kbd{opacity:.75;font-size:11px;margin-left:4px}' +
         '.mj3d .mj-col{width:54px;padding:8px 0;border-radius:10px;border:2px solid #6a7bff;background:#1c2556;color:#fff;font-weight:900;font-size:15px;cursor:pointer}.mj3d .mj-col:disabled{opacity:.35;cursor:not-allowed}' +
         '.mj3d .mj-clr{width:64px;height:40px;border-radius:10px;border:3px solid #fff;cursor:pointer}' +
@@ -400,6 +400,7 @@
         '.mj-toast{position:absolute;left:50%;top:16%;transform:translateX(-50%) scale(.6);opacity:0;padding:16px 34px;border-radius:20px;text-align:center;pointer-events:none;z-index:9;font-weight:900;font-size:30px;color:#fff;border:3px solid #fff;transition:opacity .25s,transform .35s cubic-bezier(.2,1.6,.4,1);max-width:90%}.mj-toast small{display:block;margin-top:4px;font-size:14px;font-weight:700;opacity:.92}.mj-toast.in{opacity:1;transform:translateX(-50%) scale(1)}' +
         '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
+      s.textContent += '.mj-fxpop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:9;pointer-events:none;font-weight:900;font-size:clamp(54px,10vw,120px);color:#fff;text-shadow:0 5px 0 #000,0 0 34px currentColor;animation:mjFx 1.5s ease-out forwards}@keyframes mjFx{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}35%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.1)}}';
       s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}}';
       document.head.appendChild(s);
     }
@@ -433,6 +434,55 @@
         if (st.org !== me() && /Le sens change|Sens inversé/.test(msg) && !mine) toast('🔄 Le sens du jeu change', 'info');
       }
       if (mine && (old.ph !== 'play' || old.turn !== loc)) toast('👉 À toi de jouer', 'turn');
+    }
+    /* --- animations des cartes spéciales : +2, +4, UNO (visibles de toute la salle, dessinées sur la table) --- */
+    var fxs = [];
+    function fxAdd(o) { o.t = 0; fxs.push(o); }
+    function fxText(tv, text, col, x, z) {
+      var cv = mkCanvas(512, 256), c = cv.getContext('2d'); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 170px ' + SERIF; c.lineJoin = 'round'; c.lineWidth = 26; c.strokeStyle = '#000'; c.strokeText(text, 256, 130, 480); c.fillStyle = col; c.fillText(text, 256, 130, 480);
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthTest: false })); sp.position.set(x, 1.3, z); sp.scale.set(0.01, 0.005, 1); sp.renderOrder = 20; tv.group.add(sp);
+      fxAdd({ dur: 1.9, upd: function (u) { var k = u < 0.2 ? 1.25 * Math.sin(u / 0.2 * Math.PI / 2) : 1.25 - Math.min(0.25, (u - 0.2) * 0.4); sp.scale.set(1.05 * k, 0.525 * k, 1); sp.position.y = 1.25 + u * 0.4; sp.material.opacity = u > 0.7 ? 1 - (u - 0.7) / 0.3 : 1; }, end: function () { tv.group.remove(sp); sp.material.map.dispose(); sp.material.dispose(); } });
+    }
+    function fxRing(tv, col, x, z) {
+      var m = new THREE.Mesh(new THREE.RingGeometry(0.26, 0.34, 48), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.9, z); tv.group.add(m);
+      fxAdd({ dur: 1.0, upd: function (u) { m.scale.setScalar(1 + u * 7); m.material.opacity = 0.9 * (1 - u); }, end: function () { tv.group.remove(m); m.geometry.dispose(); m.material.dispose(); } });
+    }
+    function fxFlyers(tv, seatLocal, n) {                          // des cartes volent de la pioche vers la main de celui qui pioche
+      var h = tv.hands[seatLocal]; if (!h) return;
+      for (var q = 0; q < Math.min(n, 8); q++) (function (q) {
+        var m = new THREE.Mesh(cardGeo, backM); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
+        var tx = Math.cos(h.sa) * 0.86, tz = Math.sin(h.sa) * 0.86;
+        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.18 + (tx + 0.18) * e, 0.95 + Math.sin(v * Math.PI) * 0.55, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
+      })(q);
+    }
+    function fx3d(tid, old, st) {
+      try {
+        var tv = TV[tid]; if (!tv || tv.kind !== 'u' || !old || !old.hands || !st || (st.ph !== 'play' && st.ph !== 'over') || old.ph !== 'play' || old.ver >= st.ver) return;
+        var seatNow = seat && seat.tid === tid, said = {};
+        // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
+        function voice(file) { if (seatNow && F.audio && F.audio.playFile) F.audio.playFile('assets/sons/uno/' + file + '.mp3', 1.6); }
+        if (st.ph === 'over') { if (st.win === (seat && seat.local) && seatNow) voice('gagner'); return; }
+        if (st.disc.length > old.disc.length) {
+          var top = st.disc[st.disc.length - 1], v = top.slice(1);
+          if (v === 'D' || v === 'F') {
+            var col = v === 'D' ? '#ff6a4a' : '#d946ef';
+            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.2, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.2, 0);
+            var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); voice('plus' + pn);
+            if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
+          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.2, 0);
+        }
+        for (var s = 0; s < 4; s++) {
+          var oh = old.hands[s], nh = st.hands[s]; if (!oh || !nh) continue;
+          if (nh.length >= oh.length + 2) fxFlyers(tv, s, nh.length - oh.length);
+          if (nh.length === oh.length + 2 && st.disc.length === old.disc.length) voice('plus2');           // pénalité « contre UNO » : +2 cartes
+          if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
+          if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
+            if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
+            fxText(tv, 'UNO !', '#ffe35a', Math.cos(hh.sa) * 0.9, Math.sin(hh.sa) * 0.9); fxRing(tv, 0xffe35a, Math.cos(hh.sa) * 0.8, Math.sin(hh.sa) * 0.8);
+            if (seatNow) ding([660, 880, 1100]);
+          }
+        }
+      } catch (e) { /* animation seulement */ }
     }
     function setHtml(el, h) { if (el && el.__h !== h) { el.__h = h; el.innerHTML = h; } }
     function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -482,7 +532,10 @@
         var hand = st.hands[seat.local] || [];
         if (pendingWild >= 0) body = '<div class="mj-row">' + COLORS.map(function (c, k) { return '<button class="mj-clr" data-a="color" data-c="' + k + '" style="background:' + c + '"></button>'; }).join('') + '<button class="mj-b alt" data-a="nocolor">Annuler</button></div>';
         else {
-          if (hand.length) body += '<div class="mj-hand">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';
+          if (hand.length) {                                  // toute la main tient sur la largeur : plus il y a de cartes, plus elles se chevauchent
+            var bw = (window.matchMedia && window.matchMedia('(max-height:520px)').matches ? 36 : 64) + 4, availW = Math.max(240, ui.el.clientWidth - 30), step = hand.length > 1 ? Math.min(bw + 6, (availW - bw) / (hand.length - 1)) : 0;
+            body += '<div class="mj-hand">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" style="' + (i ? 'margin-left:' + Math.round(step - bw) + 'px;' : '') + 'z-index:' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';
+          }
           body += '<div class="mj-row">';
           if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher' + (st.pend > 0 ? ' ' + st.pend : '') + '</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
             + ((st.vuln === seat.local || (mine && hand.length === 2 && !(st.said && st.said[seat.local]) && hand.some(function (c) { return MJ.unoCanPlay(st, c); }))) ? '<button class="mj-b uno" data-a="uno">📣 UNO ! <kbd>U</kbd></button>' : '')
@@ -599,6 +652,7 @@
     room._dbg = { adopt: adopt, toast: toast, renderTable: renderTable, seatOf: function () { return seat; } };
     room.dispose = function () { stand(); };
     room.update = function (dt) {
+      for (var fi = fxs.length - 1; fi >= 0; fi--) { var fo = fxs[fi]; fo.t += dt; var fu = Math.min(1, fo.t / fo.dur); fo.upd(fu, fo.t); if (fu >= 1) { fo.end(); fxs.splice(fi, 1); } }
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('ludo') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x - (LO_A + LO_B) / 2) < (LO_B - LO_A) / 2 - 0.2) world.goRoom('ludo', 'uno');     // 2e ouverture : le Ludo
       if (world.mode === 'room' && !world.trans && world.blend === 0 && world.hasRoom('vault') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x) < OG - 0.2) world.goRoom('vault', 'uno');     // on franchit l'ouverture : fondu vers la Chambre Forte
       else if (world.touch && world.mode === 'room' && !world.hasRoom('vault') && world.player.z < -HZ + 1.15 && Math.abs(world.player.x) < OG - 0.2 && performance.now() - (room._vf || 0) > 4000) { room._vf = performance.now(); world.flash('🔐 Chambre Forte', 'Bientôt sur téléphone'); }
