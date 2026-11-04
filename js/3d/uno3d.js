@@ -268,6 +268,7 @@
     var stackR = stackMat(0xd8262b), stackY = stackMat(0xf0cb14);
     var TT = 0.8;                                                   // hauteur du dessus de table
     TBL_Z.forEach(function (tz, ti) {
+      if (ti === 1) return;                                          // la table du milieu est retirée : il ne reste que deux tables de Puissance 4
       var t = new THREE.Group(), tid = 'c' + ti; t.position.set(C4_X, 0, tz); g.add(t);
       var rug = new THREE.Mesh(new THREE.CircleGeometry(2.5, 48), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
       // table ovale : plateau de feutre, rebord de cuir et filet doré, jupe de bois, piètement tourné

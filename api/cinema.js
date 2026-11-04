@@ -8,7 +8,8 @@ import { getRowExact, putRow, updateAccount, GameError } from './_store.js';
 // la limite par défaut ; sans effet sur un plan qui ne l'autorise pas.
 export const config = { maxDuration: 60 };
 
-const ROW = '__cinema_state__';
+const ROW0 = '__cinema_state__';
+const rowOf = (room) => (room === 'premium' ? '__cinema_premium_state__' : ROW0);      // le cinéma premium a sa propre séance, indépendante du cinéma classique
 const PATRONS = ['ystroz', 'alex'];
 const CO_FONDATEURS = ['yohan81'];
 const CAN_CONTROL = PATRONS.concat(CO_FONDATEURS);
@@ -60,7 +61,7 @@ async function extractFromTropistream(embedUrl) {
   }
 }
 
-async function ensureRow() {
+async function ensureRow(ROW = ROW0) {
   const r = await getRowExact(ROW);
   if (!r || !r.data || !r.data.cinema) {
     const st = initialState();
@@ -71,8 +72,8 @@ async function ensureRow() {
 }
 
 // modifie l'état de façon atomique ; mutate(st, now) peut lancer GameError
-async function mutateState(mutate) {
-  await ensureRow();
+async function mutateState(mutate, ROW = ROW0) {
+  await ensureRow(ROW);
   const { result } = await updateAccount(ROW, (d) => {
     const st = d.data.cinema;
     const out = mutate(st, Date.now());
@@ -94,7 +95,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const st = await ensureRow();
+      const st = await ensureRow(rowOf(String((req.query && req.query.room) || '')));
       return res.status(200).json(publicState(st, Date.now()));
     }
 
@@ -109,6 +110,8 @@ export default async function handler(req, res) {
     if (!CAN_CONTROL.includes(actor)) return fail(res, 403, 'Réservé au Patron et au Co Fondateur.');
 
     const action = body.action;
+    const ROW = rowOf(String(body.room || ''));
+    const mutate = (fn) => mutateState(fn, ROW);
 
     // ---- CHARGER UN LIEN ----
     if (action === 'set') {
@@ -123,14 +126,14 @@ export default async function handler(req, res) {
         finalUrl = extracted.url; finalType = extracted.type;
       }
 
-      await mutateState((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
+      await mutate((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
     // ---- LANCER LA SÉANCE ----
     if (action === 'play') {
-      await mutateState((s, now) => {
+      await mutate((s, now) => {
         if (!s.url) throw new GameError(400, 'Charge un lien avant de lancer la séance.');
         if (s.status !== 'playing') { s.status = 'playing'; s.updatedAt = now; s.updatedBy = actor; }
       });
@@ -140,7 +143,7 @@ export default async function handler(req, res) {
 
     // ---- METTRE EN PAUSE ----
     if (action === 'pause') {
-      await mutateState((s, now) => {
+      await mutate((s, now) => {
         if (s.status === 'playing') s.position = positionAt(s, now);
         s.status = 'paused'; s.updatedAt = now; s.updatedBy = actor;
       });
@@ -150,7 +153,7 @@ export default async function handler(req, res) {
 
     // ---- COUPER LA SÉANCE ----
     if (action === 'stop') {
-      await mutateState((s, now) => { s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
+      await mutate((s, now) => { s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
@@ -165,7 +168,7 @@ export default async function handler(req, res) {
       if (!title || !url) return fail(res, 400, 'Choisis un film.');
       if (!isFinite(at) || at <= Date.now()) return fail(res, 400, 'Choisis une date dans le futur.');
 
-      await mutateState((s) => {
+      await mutate((s) => {
         if (!Array.isArray(s.schedule)) s.schedule = [];
         s.schedule.push({ id: String(Date.now()) + Math.random().toString(36).slice(2, 7), title, url, type, poster, at, addedBy: actor });
         s.schedule.sort((a, b) => a.at - b.at);
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
     if (action === 'schedule-remove') {
       const id = String(body.id || '');
       if (!id) return fail(res, 400, 'Séance introuvable.');
-      await mutateState((s) => { s.schedule = (s.schedule || []).filter((it) => it.id !== id); });
+      await mutate((s) => { s.schedule = (s.schedule || []).filter((it) => it.id !== id); });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }

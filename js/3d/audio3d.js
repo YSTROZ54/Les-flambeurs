@@ -277,7 +277,7 @@
   }
   function start(id) {
     stopSong(); M.id = id;
-    if (id === 'cinema') return;                                   // le cinéma a sa propre musique (cinema3d.js)
+    if (id === 'cinema' || id === 'cinemapremium') return;          // le cinéma a sa propre musique (cinema3d.js)
     var b = getBus(); if (!b) return;
     if (b.c.state !== 'running') { M.pending = true; return; }     // pas encore de geste : la musique démarrera au premier clic ou à la première touche
     A.update();
@@ -298,7 +298,7 @@
     id = id || '';
     if (id === A.room && (M.song || M.el || !(STYLES[id] || (PL && PL[id])))) return;
     A.room = id; M.pending = false;
-    if (!id || id === 'cinema' || id === 'slots') { stopSong(); return; }      // pas de musique au cinéma ni dans la salle des machines
+    if (!id || id === 'cinema' || id === 'cinemapremium' || id === 'slots') { stopSong(); return; }      // pas de musique au cinéma ni dans la salle des machines
     start(id);
   };
   A.withPlaylist = function (fn) { withPlaylist(function () { fn(PL || {}); }); };   // pour le cinéma, qui joue sa musique lui-même
