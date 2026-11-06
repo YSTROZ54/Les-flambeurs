@@ -250,6 +250,9 @@
 
     /* --- petites lumières blanches (fibre optique) : plafond, murs et sol ; elles s'éteignent quand le film commence --- */
     var starMats = [], starCache = {}, starTile = null;
+    var tintU = { value: new THREE.Color(0, 0, 0) };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
+    function tintize(m) { m.onBeforeCompile = function (sh) { sh.uniforms.uTint = tintU; sh.fragmentShader = 'uniform vec3 uTint;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb += uTint;\n#include <dithering_fragment>'); }; return m; }
+    var brassM = new THREE.MeshBasicMaterial({ color: 0x7a5f26 }), aisleM = new THREE.MeshBasicMaterial({ color: 0x8a7a5a }); starMats.push(aisleM);   // laiton discret : plus de barres blanches
     function starTileTex() {
       if (starTile) return starTile;
       var N = 512, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#050507'; x.fillRect(0, 0, N, N);
@@ -261,12 +264,12 @@
       tile = tile || 5; var key = Math.round(w * 2) + 'x' + Math.round(d * 2) + 'x' + tile;
       if (starCache[key]) return starCache[key];
       var t = starTileTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, w / tile), Math.max(1, d / tile));
-      var m = new THREE.MeshBasicMaterial({ map: t }); starMats.push(m); return (starCache[key] = m);
+      var m = tintize(new THREE.MeshBasicMaterial({ map: t })); starMats.push(m); return (starCache[key] = m);
     }
     function starMatUV() {                               // pour les formes dont les UV sont en mètres
       if (starCache.uv) return starCache.uv;
       var t = starTileTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / 5, 1 / 5);
-      var m = new THREE.MeshBasicMaterial({ map: t }); starMats.push(m); return (starCache.uv = m);
+      var m = tintize(new THREE.MeshBasicMaterial({ map: t })); starMats.push(m); return (starCache.uv = m);
     }
 
     /* --- sol : moquette rouge sombre à losanges --- */
@@ -288,21 +291,10 @@
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), P ? starMatUV() : wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
     })(); if (!P) { wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2); }   // (premium : murs latéraux percés, construits avec l'étage VIP)
     var ceilM = null, starLedM = null;
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? (ceilM = new THREE.MeshBasicMaterial({ map: starCeilingTex() })) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? (ceilM = tintize(new THREE.MeshBasicMaterial({ map: starCeilingTex() }))) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     if (P) {                                                // quelques petites lumières blanches au plafond : elles s'éteignent quand le film commence
       starLedM = new THREE.MeshBasicMaterial({ color: 0xffffff });
       [-21, -14, -7, 0, 7, 14, 21].forEach(function (lx) { [-12, -2, 8, 17].forEach(function (lz) { var sp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), starLedM); sp.position.set(lx, H - 0.04, lz); sp.scale.y = 0.4; g.add(sp); }); });
-    }
-    if (P) {
-      [[1, [-17.9, -13.8, -4.6, -0.8, 3.0, 6.8, 14.6, 18.2]], [-1, [-4.6, -0.8, 3.0, 6.8, 14.6, 18.2]]].forEach(function (sp2) {
-        var sd = sp2[0];
-        sp2[1].forEach(function (pz, pi) {
-          var gx = sd * (HX - 0.2), gy = Math.min(cinemaGroundY(gx, pz - 1.4), cinemaGroundY(gx, pz + 1.4)), ph = H - gy, pw = 2.8;
-          var wt = waveTex((pi + (sd > 0 ? 1 : 0)) % 2);
-          var pm = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-          pm.position.set(sd * (HX - 0.04), gy + ph / 2, pz); pm.rotation.y = -sd * Math.PI / 2; g.add(pm);
-        });
-      });
     }
     if (false) {
       for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
@@ -428,7 +420,7 @@
     /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
     var deckM = P ? std(0x0d0d11, 0.9, 0.05) : std(0x34101b, 0.85, 0.05);
     function deckFor(w, d) { return P ? starMat(w, d) : deckM; }   // premium : gradins noirs semés de points blancs
-    function deckBlock(xC, xW, zC, topY, base) { base = base || 0; if (topY - base < 0.01) return; box(g, xW, topY - base, ROW_GAP, deckFor(xW, ROW_GAP), xC, base + (topY - base) / 2, zC); box(g, xW, 0.03, 0.05, P ? bas(0xcfd8ff) : trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
+    function deckBlock(xC, xW, zC, topY, base) { base = base || 0; if (topY - base < 0.01) return; box(g, xW, topY - base, ROW_GAP, deckFor(xW, ROW_GAP), xC, base + (topY - base) / 2, zC); if (!P) box(g, xW, 0.03, 0.05, trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
     ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = G0.elev ? G0.elev(ri) : ri * ROW_H, base = G0.elev && ri >= G0.nLow ? G0.HB : 0; G0.blocks.forEach(function (b) { deckBlock((b.x0 + b.x1) / 2, b.x1 - b.x0, rz, topY, base); }); });
 
     /* --- allées (centrale + deux latérales) : un escalier continu, construit en échantillonnant cinemaGroundY --- */
@@ -449,7 +441,7 @@
     box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
-    ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, bas(P ? 0xcfd8ff : 0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
+    ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, P ? aisleM : bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
 
     /* --- fond de salle : appliques, cabine de projection, comptoir à pop-corn, porte de sortie --- */
     var glowC = mkCanvas(64, 64), gx = glowC.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -559,8 +551,8 @@
       // la dalle de l'étage, avec une marche pour chaque rangée de fauteuils
       box(g, vw * 2, 0.7, vz1 - vz0, starMat(vw * 2, vz1 - vz0), 0, VY - 0.35, (vz0 + vz1) / 2);
       box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
-      box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.2, T1 + 0.025);
-      box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.4, T2 + 0.025);
+      box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.2, T1 + 0.025);
+      box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.4, T2 + 0.025);
       // piliers sous le bord avant, dans les allées du bas
       [-13.4, -2.9, 2.9, 13.4].forEach(function (px) { cyl(g, 0.2, 0.2, VY - 0.7, pill, px, (VY - 0.7) / 2, vz0 + 0.25, 16); cyl(g, 0.26, 0.26, 0.1, trimM, px, VY - 0.74, vz0 + 0.25, 16); room.colliders.push({ x: px, z: vz0 + 0.25, r: 0.3 }); });
       // garde-corps de verre le long du bord
@@ -600,7 +592,7 @@
         box(g, SW, 0.1, ZS0 - SZ0, stepM, xs, -0.05, (SZ0 + ZS0) / 2);                                              // palier du bas
         for (z2 = ZS0; z2 < ZT; z2 += 0.45) {                                                                       // marches
           var zc = Math.min(z2 + 0.225, ZT), top = slope * (zc - ZS0);
-          if (top > 0.02) { box(g, SW, top, 0.47, stepM, xs, top / 2, zc); box(g, SW, 0.03, 0.06, bas(0xcfd8ff), xs, top + 0.005, z2 + 0.03); }
+          if (top > 0.02) { box(g, SW, top, 0.47, stepM, xs, top / 2, zc); box(g, SW, 0.03, 0.06, brassM, xs, top + 0.005, z2 + 0.03); }
         }
         box(g, SW, VY, SZ1 - ZT, stepM, xs, VY / 2, (ZT + SZ1) / 2);                                                // palier du haut
         if (!low) [[2.4, -9.2], [VY / 2 + 1.7, 0.5], [VY + 2.2, 11.0]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a0, 0.8, 10); pl.position.set(xs, p[0], p[1]); g.add(pl); vipLights.push(pl); });
@@ -621,9 +613,12 @@
       room.resetVip = function () { setVip(false); lz = null; };
       function vipGround(x, z, up) {
         var ax = Math.abs(x);
-        if (ax > HX) return z <= ZS0 ? 0 : z <= ZT ? slope * (z - ZS0) : VY;                          // dans le puits : marches, puis palier du haut
-        if (up && z > vz0 - 0.05 && z < vz1 + 0.2 && ax < vw + 0.2) return VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4);   // le balcon
-        return baseGround(x, z);
+        var room0 = function (xx) { return (up && z > vz0 - 0.05 && z < vz1 + 0.2 && Math.abs(xx) < vw + 0.2) ? VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4) : baseGround(xx, z); };   // le balcon, ou les gradins
+        if (ax > HX) {                                                                                  // dans le puits : marches, puis palier du haut, en se raccordant en douceur au sol de la salle
+          var inside = z <= ZS0 ? 0 : z <= ZT ? slope * (z - ZS0) : VY, k = smoothT((ax - HX) / 0.8);
+          return room0(x < 0 ? -HX : HX) * (1 - k) + inside * k;
+        }
+        return room0(x);
       }
       room.groundY = function (x, z) { return vipGround(x, z, vipUp); };
       room.vipTrack = function (x, z) {                // en haut dès qu'on a monté toutes les marches, en bas dès qu'on repasse en dessous
@@ -1338,19 +1333,10 @@
       if (!cur) return;
       if (e.code === 'Escape' || e.code === 'Space' || e.code === 'KeyF' || e.code === 'KeyS') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
     }
-    var zeroM = new THREE.Matrix4().makeScale(0, 0, 0), keepM = new THREE.Matrix4();
-    function hideFront(s, on) {                          // assis, on ne voit plus les fauteuils placés devant soi (chez soi seulement) : vue totalement dégagée
-      seats.forEach(function (o) {
-        if (o === s || o.z >= s.z - 0.4 || Math.abs(o.x - s.x) > 1.7 || Math.abs((o.y || 0) - (s.y || 0)) > 3 || o.hid === on) return;
-        o.hid = on;
-        if (inst && o.idx >= 0) inst.meshes.forEach(function (im) { if (on) { im.getMatrixAt(o.idx, keepM); o.keep = o.keep || []; o.keep[inst.meshes.indexOf(im)] = keepM.clone(); im.setMatrixAt(o.idx, zeroM); } else if (o.keep) im.setMatrixAt(o.idx, o.keep[inst.meshes.indexOf(im)]); im.instanceMatrix.needsUpdate = true; });
-        else if (o.grp) o.grp.visible = !on;
-      });
-    }
     function sit(w, s) {
       if (cur || w.mode !== 'room' || w.blend > 0 || w.trans) return;
       if (taken(s)) { w.flash('Ce fauteuil est occupé.'); return; }
-      w.sitDown(room); cur = seat_.cur = s; view.yaw = view.pitch = 0; hideFront(s, true);
+      w.sitDown(room); cur = seat_.cur = s; view.yaw = view.pitch = 0;
       if (w.container) w.container.classList.add('cin-seated');
       standEl = document.createElement('div'); standEl.className = 'cin-stand';
       standEl.innerHTML = '<button data-a="stand">🪑 Se lever <kbd>Échap</kbd></button>';
@@ -1361,7 +1347,7 @@
     }
     function stand() {
       if (!cur) return;
-      var s = cur; cur = seat_.cur = null; hideFront(s, false);
+      var s = cur; cur = seat_.cur = null;
       if (world.container) world.container.classList.remove('cin-seated');
       window.removeEventListener('keydown', onSeatKey, true);
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl);
@@ -1382,8 +1368,8 @@
     room.seatPose = function (dt, ctx) {
       if (!cur) return null;
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.9; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.3; }
-      var ex = cur.x, ey = 1.34 + (cur.y || 0), ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
-      var a = Math.atan2(0 - ex, -(tz0 - ez)) + view.yaw, p = Math.atan2(ty0 - ey, Math.hypot(ex, tz0 - ez)) + view.pitch;
+      var ex = cur.x, ey = (P ? 1.78 : 1.34) + (cur.y || 0), ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
+      var a = Math.atan2(0 - ex, -(tz0 - ez)) + view.yaw, p = Math.atan2(ty0 - ey, Math.hypot(ex, tz0 - ez)) + view.pitch + (P ? 0.08 : 0);
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: P ? 70 : 66 };
     };
 
@@ -1464,30 +1450,19 @@
       }
     };
     /* ===================== LUMIÈRE DE L'ÉCRAN ===================== */
-    // Pendant le film, on lit l'image toutes les 0,1 s : la couleur des bords gauche / droite / haut / bas de l'écran éclaire le mur, le plafond et le sol voisins.
-    // Une explosion à gauche de l'image = une lumière rouge-orangée à gauche seulement. Couleurs lissées, un peu plus franches, jamais de gris sale ; image sombre = aucune lumière.
+    // Pendant le film, l'image est lue 10 fois par seconde. Ses couleurs les plus vives (une explosion, un ciel, une scène de nuit bleutée…) éclairent TOUTE la salle :
+    // une teinte s'ajoute aux murs, au plafond, au sol et aux gradins, et des lumières colorées éclairent les fauteuils. Couleurs lissées, un peu plus franches, jamais de gris sale ;
+    // image sombre = aucune lumière. Un léger penchant vers le côté de l'image où ça se passe, sans jamais couper la lumière ailleurs.
     (function buildAmbilight() {
       var cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
-      function gradTex(horizontal, hiAtEnd) {
-        var cv = mkCanvas(horizontal ? 256 : 4, horizontal ? 4 : 256), x = cv.getContext('2d'), N = 256, i, a, u;
-        for (i = 0; i < N; i++) { u = i / (N - 1); u = hiAtEnd ? u : 1 - u; a = Math.pow(u, 2.2); x.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; if (horizontal) x.fillRect(i, 0, 1, 4); else x.fillRect(0, i, 4, 1); }
-        return new THREE.CanvasTexture(cv);
-      }
-      function mat(tex) { return new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }); }
-      var lenZ = Math.min(HZ * 1.1, 22), lenC = 16, lenF = 12, stageEnd = -HZ + 2.4;
-      var mL = mat(gradTex(true, true)), mR = mat(gradTex(true, false)), mT = mat(gradTex(false, false)), mB = mat(gradTex(false, true));
-      var pl = new THREE.Mesh(new THREE.PlaneGeometry(lenZ, H), mL); pl.rotation.y = Math.PI / 2; pl.position.set(-(HX - 0.04), H / 2, -HZ + lenZ / 2); g.add(pl);
-      var pr = new THREE.Mesh(new THREE.PlaneGeometry(lenZ, H), mR); pr.rotation.y = -Math.PI / 2; pr.position.set(HX - 0.04, H / 2, -HZ + lenZ / 2); g.add(pr);
-      var pt = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, lenC), mT); pt.rotation.x = Math.PI / 2; pt.position.set(0, H - 0.04, -HZ + lenC / 2); g.add(pt);
-      var pb = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, lenF), mB); pb.rotation.x = -Math.PI / 2; pb.position.set(0, 0.04, stageEnd + lenF / 2); g.add(pb);
-      var mats = [mL, mR, mT, mB], cur = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], tgt = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], lights2 = [];
-      if (!low) [-1, 1].forEach(function (sd) { var l = new THREE.PointLight(0xffffff, 0, 34); l.position.set(sd * (HX - 3), SCR_Y + SCR_H * 0.4, -HZ + 5); g.add(l); lights2.push(l); });
+      var ambL = new THREE.AmbientLight(0xffffff, 0); g.add(ambL);
+      var pts = [], spots = [[-1, -HZ + 5, SCR_Y + SCR_H * 0.3], [1, -HZ + 5, SCR_Y + SCR_H * 0.3], [-1, 0, 7], [1, 0, 7], [-1, HZ - 6, 9], [1, HZ - 6, 9]];
+      if (!low) spots.forEach(function (sp0) { var l = new THREE.PointLight(0xffffff, 0, 46); l.position.set(sp0[0] * (HX - 4), sp0[2], sp0[1]); g.add(l); pts.push({ l: l, side: sp0[0] }); });
+      var glob = [0, 0, 0], left = [0, 0, 0], right = [0, 0, 0], gS = [0, 0, 0], lS = [0, 0, 0], rS = [0, 0, 0], str = 0, strS = 0;
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
-      function nice(r, gg, b) {                         // une couleur « belle » à partir de la moyenne d'une zone de l'image
-        var mx = Math.max(r, gg, b);
-        if (mx < 0.08) return [0, 0, 0];
-        var k = smooth(0.08, 0.5, mx), m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.4), g2 = Math.max(0, m + (gg - m) * 1.4), bb = Math.max(0, m + (b - m) * 1.4), mm = Math.max(rr, g2, bb) || 1;
-        return [rr / mm * k * 0.7, g2 / mm * k * 0.7, bb / mm * k * 0.7];
+      function vivid(r, gg, b) {                         // couleur « belle » : plus franche, normalisée
+        var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1;
+        return [rr / mm, g2 / mm, bb / mm];
       }
       room.ambiUpdate = function (dt, on) {
         tAcc += dt;
@@ -1495,27 +1470,27 @@
           tAcc = 0;
           try {
             cxS.drawImage(video, 0, 0, 64, 36);
-            var d = cxS.getImageData(0, 0, 64, 36).data, acc = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], xx, yy, i, q, o;
-            for (yy = 0; yy < 36; yy++) for (xx = 0; xx < 64; xx++) {
-              i = (yy * 64 + xx) * 4;
-              if (xx < 16) { o = acc[0]; o[0] += d[i]; o[1] += d[i + 1]; o[2] += d[i + 2]; o[3]++; }
-              else if (xx >= 48) { o = acc[1]; o[0] += d[i]; o[1] += d[i + 1]; o[2] += d[i + 2]; o[3]++; }
-              else if (yy < 9) { o = acc[2]; o[0] += d[i]; o[1] += d[i + 1]; o[2] += d[i + 2]; o[3]++; }
-              else if (yy >= 27) { o = acc[3]; o[0] += d[i]; o[1] += d[i + 1]; o[2] += d[i + 2]; o[3]++; }
+            var d = cxS.getImageData(0, 0, 64, 36).data, i, lum, w2, sw = 0, sr = 0, sg = 0, sb = 0, ml = 0, lw = 0, lr = 0, lg = 0, lb = 0, rw = 0, rr0 = 0, rg = 0, rb = 0, px = 0;
+            for (i = 0; i < d.length; i += 4, px++) {
+              lum = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255; ml += lum; w2 = lum * lum * lum + 0.0005;
+              sw += w2; sr += d[i] / 255 * w2; sg += d[i + 1] / 255 * w2; sb += d[i + 2] / 255 * w2;
+              if (px % 64 < 24) { lw += w2; lr += d[i] / 255 * w2; lg += d[i + 1] / 255 * w2; lb += d[i + 2] / 255 * w2; }
+              else if (px % 64 >= 40) { rw += w2; rr0 += d[i] / 255 * w2; rg += d[i + 1] / 255 * w2; rb += d[i + 2] / 255 * w2; }
             }
-            for (q = 0; q < 4; q++) { o = acc[q]; tgt[q] = o[3] ? nice(o[0] / o[3] / 255, o[1] / o[3] / 255, o[2] / o[3] / 255) : [0, 0, 0]; }
+            ml /= px; var peak = sr / sw * 0.3 + sg / sw * 0.59 + sb / sw * 0.11;
+            gS = vivid(sr / sw, sg / sw, sb / sw); lS = lw ? vivid(lr / lw, lg / lw, lb / lw) : gS; rS = rw ? vivid(rr0 / rw, rg / rw, rb / rw) : gS;
+            strS = smooth(0.06, 0.5, peak) * (0.45 + 0.55 * smooth(0.04, 0.35, ml));      // image sombre : pas de lumière ; scène vive : lumière pleine
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
         }
-        if (!on || bad) for (var z = 0; z < 4; z++) tgt[z] = [0, 0, 0];
-        for (var q2 = 0; q2 < 4; q2++) {
-          var up = tgt[q2][0] + tgt[q2][1] + tgt[q2][2] > cur[q2][0] + cur[q2][1] + cur[q2][2], kk = Math.min(1, dt * (up ? 8 : 2.6));
-          for (var ch2 = 0; ch2 < 3; ch2++) cur[q2][ch2] += (tgt[q2][ch2] - cur[q2][ch2]) * kk;
-          mats[q2].color.setRGB(cur[q2][0], cur[q2][1], cur[q2][2]);
-          mats[q2].visible = cur[q2][0] + cur[q2][1] + cur[q2][2] > 0.004;
-        }
-        lights2.forEach(function (l, li) { var c2 = cur[li]; l.color.setRGB(c2[0] || 0.001, c2[1] || 0.001, c2[2] || 0.001); l.intensity = Math.max(c2[0], c2[1], c2[2]) * 2.2; });
+        if (!on || bad) strS = 0;
+        var kk = Math.min(1, dt * (strS > str ? 9 : 2.4)), kc = Math.min(1, dt * 5), q;
+        str += (strS - str) * kk;
+        for (q = 0; q < 3; q++) { glob[q] += (gS[q] - glob[q]) * kc; left[q] += (lS[q] - left[q]) * kc; right[q] += (rS[q] - right[q]) * kc; }
+        tintU.value.setRGB(glob[0] * str * 0.3, glob[1] * str * 0.3, glob[2] * str * 0.3);       // toutes les surfaces étoilées : une teinte, partout
+        ambL.color.setRGB(glob[0], glob[1], glob[2]); ambL.intensity = str * 1.0;
+        pts.forEach(function (o) { var sc = o.side < 0 ? left : right; o.l.color.setRGB(glob[0] * 0.65 + sc[0] * 0.35, glob[1] * 0.65 + sc[1] * 0.35, glob[2] * 0.65 + sc[2] * 0.35); o.l.intensity = str * 1.5; });
       };
-      room._ambi = { cur: cur, tgt: tgt };
+      room._ambi = { force: function (c) { gS = lS = rS = c; strS = 1; bad = false; } };
     })();
     room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } if (vAudio.ctx) { try { vAudio.ctx.close(); } catch (e) { /* ok */ } } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;
