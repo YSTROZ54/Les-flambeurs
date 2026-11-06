@@ -1,4 +1,9 @@
+import { Buffer } from 'node:buffer';
 import { PassThrough, Readable } from 'node:stream';
+
+if (!globalThis.Buffer) {
+  globalThis.Buffer = Buffer;
+}
 
 import accountsHandler from './api/accounts.js';
 import blackjackHandler from './api/blackjack.js';
