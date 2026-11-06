@@ -69,6 +69,9 @@
       c.fillStyle = col; c.beginPath(); c.moveTo(1.5, 9); c.lineTo(12, 2.5); c.lineTo(22.5, 9); c.closePath(); c.fill();
       [3.6, 8.2, 12.8, 17.4].forEach(function (x) { c.fillRect(x, 10.5, 3, 7.5); }); c.fillRect(2, 19, 20, 2.2); c.fillRect(0.8, 21.4, 22.4, 1.6);
     },
+    stairs: function (c, col, bg) {                        // un escalier qui monte
+      c.fillStyle = col; c.beginPath(); c.moveTo(2, 21); c.lineTo(2, 17); c.lineTo(7, 17); c.lineTo(7, 12.5); c.lineTo(12, 12.5); c.lineTo(12, 8); c.lineTo(17, 8); c.lineTo(17, 3.5); c.lineTo(22, 3.5); c.lineTo(22, 21); c.closePath(); c.fill();
+    },
     connect4: function (c, col, bg) {                      // grille de Puissance 4 : trous vides et jetons
       c.fillStyle = col; rr(c, 2, 2.5, 20, 19, 3); c.fill();
       for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) { c.fillStyle = bg; c.beginPath(); c.arc(7 + j * 5, 8 + i * 5, 1.9, 0, TAU); c.fill(); }
@@ -252,6 +255,14 @@
         c.save(); c.translate(W / 2, H * 0.5); c.rotate(-0.3); c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, W * 0.34, H * 0.28, 0, 0, TAU); c.fill();
         c.fillStyle = '#ffd400'; c.strokeStyle = '#111'; c.lineWidth = 8; c.font = '900 92px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
         [['#1f9d4a', 0.14, 0.1], ['#1b63c9', 0.86, 0.1], ['#f2c200', 0.14, 0.9], ['#1f9d4a', 0.86, 0.9]].forEach(function (q) { c.fillStyle = q[0]; rr(c, W * q[1] - 22, H * q[2] - 28, 44, 56, 8); c.fill(); });
+      }
+    },
+    cinemavip: {
+      frame: 0xc9a227, leaf: 0x0c1a48, rgb: '255, 215, 120', logo: 'stairs',
+      paint: function (c, W, H) {                              // battants bleu nuit et or : grand panneau mouluré avec un escalier doré
+        var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#13296b'); g0.addColorStop(1, '#091238'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+        border(c, W, H, '#ffd24a', 6); c.strokeStyle = 'rgba(255,210,74,0.45)'; c.lineWidth = 2; c.strokeRect(22, 22, W - 44, H - 44);
+        c.save(); c.translate(W / 2, H * 0.5); c.scale(W * 0.5 / 24, W * 0.5 / 24); c.translate(-12, -12); ICONS.stairs(c, '#ffd86b', '#091238'); c.restore();
       }
     },
     puissance4: {

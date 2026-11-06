@@ -235,6 +235,7 @@
         px.shadowBlur = 0; px.strokeStyle = '#fff'; px.lineWidth = 1 + 1.5 * (1 - k);   // filament blanc au cœur du tube
         px.strokeRect((PW - rw) / 2, (PH - rh) / 2, rw, rh);
       }
+      if (spec.portalDraw) spec.portalDraw(px, PW, PH, t);
       px.globalAlpha = 1; ptex.needsUpdate = true;
     }
     paintPortal(0);
@@ -306,7 +307,7 @@
     for (var i = 0; i < room.doors.length; i++) {
       var d = room.doors[i], s = d.spec, dx = p.x - s.x, dz = p.z - s.z;
       var dn = dx * s.nx + dz * s.nz, lat = dx * s.nz - dz * s.nx;
-      var near = this.mode === 'room' && this.blend === 0 && !this.trans && Math.abs(lat) < (s.w || 1.7) / 2 + 0.5 && dn > -0.4 && dn < 2.6;
+      var near = this.mode === 'room' && this.blend === 0 && !this.trans && (!s.enabled || s.enabled()) && Math.abs(lat) < (s.w || 1.7) / 2 + 0.5 && dn > -0.4 && dn < 2.6;
       d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt * 5);
       if (d.open > 0.02 && d.paint) d.paint(performance.now() / 1000);       // néons animés derrière la porte, seulement tant qu'elle est entrouverte
       var a = d.open * 1.5;
@@ -315,13 +316,14 @@
     }
   };
   // se déplacer dans la même salle derrière un fondu au noir (portes entre deux salons d'une même salle)
-  World.prototype.teleport = function (x, z, yaw) {
+  World.prototype.teleport = function (x, z, yaw, mid) {
     var self = this;
     if (this.trans) return;
     this.trans = true; this.elFade.classList.add('on');
     setTimeout(function () {
       if (self.dead) return;
       var p = self.player;
+      if (mid) mid();   // appelé pile quand la position change (le sol sous les pieds peut changer d'étage)
       p.x = x; p.z = z; p.yaw = yaw; p.pitch = -0.04; p.jy = 0; p.air = false; p.vy = 0; self.pv.x = self.pv.z = 0;
       setTimeout(function () { self.elFade.classList.remove('on'); self.trans = false; }, 120);
     }, 380);
@@ -981,7 +983,7 @@
       // Si le joueur ne bouge plus et qu'on n'a pas reçu de paquet récent, on coupe net l'animation de marche
       if (silence > 380 && actualSp < 0.12) sp = 0;
 
-      var groundH = room.groundY ? room.groundY(g.position.x, g.position.z) : 0;   // gradins, estrade… : même fonction que pour soi-même
+      var groundH = room.remoteGroundY ? room.remoteGroundY(r, g.position.x, g.position.z) : room.groundY ? room.groundY(g.position.x, g.position.z) : 0;   // gradins, estrade… : même fonction que pour soi-même (la salle peut avoir un étage de plus)
       if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = groundH + 4 * 0.6 * u * (1 - u); }
       else g.position.y = groundH;
 
