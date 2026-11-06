@@ -29,7 +29,7 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 16, HZ: 17, H: 16.5, SCR_W: 25, SCR_Y: 1.3, SCR_H: 25 * 9 / 16, ROW_H: 0.2, ROWS: [], COLS: [-10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2],
+      HX: 16, HZ: 17, H: 19.5, SCR_W: 30.4, SCR_Y: 1.3, SCR_H: 30.4 * 9 / 16, ROW_H: 0.2, ROWS: [], COLS: [-10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2],
       blocks: [{ x0: -10.95, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 10.95 }], lanes: [], aisleLights: [-10.95, -3.65, -2.2, 2.2, 3.65, 10.95],
       nLow: 7, HB: 3.4, zb: 5.6, zs0: -6.2, railX: 11.75
     } : {
@@ -256,7 +256,7 @@
     var P = !!premium, G0 = P ? GEO.premium : GEO.classic;
     var HX = G0.HX, HZ = G0.HZ, H = G0.H, SCR_W = G0.SCR_W, SCR_Y = G0.SCR_Y, SCR_H = G0.SCR_H, ROWS = G0.ROWS, COLS = G0.COLS, ROW_H = G0.ROW_H, ROW_GAP = G0.ROW_GAP, BACK_H = G0.BACK_H, cinemaGroundY = G0.ground;
     // salle « premium » : plafond doré en anneaux, murs de bois doré, fauteuils bleus, rideaux bleus (même séance partagée que le cinéma classique)
-    var room = { title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">' + (P ? 'CINÉMA PREMIUM' : 'CINÉMA'), subtitle: P ? 'ÉCRAN GÉANT · FAUTEUILS CLUB' : 'TROPI STREAM · PRÉSENTATION', topic: P ? 'flambeurs-cinemapremium-room' : 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+    var room = { noHand: true, title: '<img class="cin-title-logo" src="assets/cinema/tropistream-serveur.png" alt="">' + (P ? 'CINÉMA PREMIUM' : 'CINÉMA'), subtitle: P ? 'ÉCRAN GÉANT · FAUTEUILS CLUB' : 'TROPI STREAM · PRÉSENTATION', topic: P ? 'flambeurs-cinemapremium-room' : 'flambeurs-cinema-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, low = !!world.low;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 3.0, zMax: HZ - 0.7 };   // la scène (les 2,3 premiers mètres) reste hors d'atteinte
     room.groundY = cinemaGroundY;   // vrai sol en gradins : on marche réellement dessus (world3d.js lit cette fonction à chaque image)
@@ -280,8 +280,8 @@
       hole.moveTo(-1.0, hy); hole.lineTo(1.0, hy); hole.lineTo(1.0, hy2); hole.lineTo(-1.0, hy2); hole.closePath(); bw.holes.push(hole);
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
     })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? new THREE.MeshBasicMaterial({ map: starCeilingTex() }) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
-    if (P) {                                                // grands panneaux de fibres lumineuses sur les murs de côté, rubans violets en haut, points blancs au plafond
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? new THREE.MeshBasicMaterial({ color: 0x050507 }) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    if (P) {                                                // grands panneaux de fibres lumineuses sur les murs de côté, plafond noir uni
       [-14.2, -10, -5.8, -1.6, 2.6, 6.8, 11, 15.2].forEach(function (pz, pi) {
         [-1, 1].forEach(function (sd) {
           var gy = cinemaGroundY(sd * (HX - 0.2), pz), bot = gy + 1.1, top = H - 1.4, ph = top - bot, pm = new THREE.Mesh(new THREE.PlaneGeometry(1.35, ph), new THREE.MeshBasicMaterial({ map: waveTex((pi + (sd > 0 ? 1 : 0)) % 2), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
@@ -289,9 +289,6 @@
           [-1, 1].forEach(function (e) { box(g, 0.06, ph + 0.1, 0.06, trimM, sd * (HX - 0.05), bot + ph / 2, pz + e * 0.7); }); [bot, top].forEach(function (yy) { box(g, 0.06, 0.06, 1.46, trimM, sd * (HX - 0.05), yy, pz); });
         });
       });
-      [-1, 1].forEach(function (sd) { box(g, 0.1, 0.1, HZ * 2 - 0.4, bas(0xb878ff), sd * (HX - 0.06), H - 0.45, 0); });
-      box(g, HX * 2 - 0.4, 0.1, 0.1, bas(0xb878ff), 0, H - 0.45, -HZ + 0.06); box(g, HX * 2 - 0.4, 0.1, 0.1, bas(0xb878ff), 0, H - 0.45, HZ - 0.06);
-      [[-11, -9], [-5.5, -9], [0, -9], [5.5, -9], [11, -9], [-11, 0], [-5.5, 0], [0, 0], [5.5, 0], [11, 0], [-8, 9], [0, 9], [8, 9], [0, 14]].forEach(function (p) { var sp = sph(g, 0.13, bas(0xffffff), p[0], H - 0.04, p[1]); sp.scale.y = 0.4; });
     }
     if (false) {
       for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
@@ -357,8 +354,7 @@
     img.src = POSTER_SRC;
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
-    if (P) {                                                // écran géant : fin cadre doré, halo violet doux autour, rien d'autre
-      var halo2 = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W + 1.4, SCR_H + 1.4), new THREE.MeshBasicMaterial({ color: 0x8a4cff, transparent: true, opacity: 0.35, depthWrite: false })); halo2.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.1); g.add(halo2);
+    if (P) {                                                // écran géant : fin cadre doré, rien d'autre
       var frm = 0.12; box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y + SCR_H + 0.07, -HZ + 0.2); box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y - 0.07, -HZ + 0.2); [-1, 1].forEach(function (sd) { box(g, frm, SCR_H + 0.3, 0.1, trimM, sd * (SCR_W / 2 + 0.07), SCR_Y + SCR_H / 2, -HZ + 0.2); });
     }
     // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P

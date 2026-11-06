@@ -753,7 +753,7 @@
   /* ---------- ta main et l'objet tenu ---------- */
   // La main s'affiche en vue à la première personne (pas assis, pas pendant une danse ni un changement de salle), dessinée après la salle, par-dessus.
   World.prototype._drawHand = function (dt) {
-    var vm = this.vm, nm = '', ok = this.mode === 'room' && this.blend === 0 && !this.trans && this.emoK < 0.02 && !!this.room && !this.dead && this.hasHand !== false;
+    var vm = this.vm, nm = '', ok = this.mode === 'room' && this.blend === 0 && !this.trans && this.emoK < 0.02 && !!this.room && !this.dead && this.hasHand !== false && !this.room.noHand;
     if (!ok) return;
     try { nm = state.username || ''; } catch (e) { /* pas connecté */ }
     vm.update(dt, { speed: Math.hypot(this.pv.x, this.pv.z), air: !!this.player.air, held: this.heldId, name: nm });
