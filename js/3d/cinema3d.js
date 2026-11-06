@@ -660,7 +660,9 @@
         box(g, 0.9, 0.025, 0.28, darkK, DX, gy0 + 0.81, DZ - 0.12);                                                                   // clavier
         for (var kk = 0; kk < 24; kk++) box(g, 0.055, 0.012, 0.055, std(0x34343c, 0.5, 0.2), DX - 0.4 + (kk % 12) * 0.073, gy0 + 0.83, DZ - 0.2 + Math.floor(kk / 12) * 0.09);
         box(g, 0.09, 0.03, 0.14, darkK, DX + 0.6, gy0 + 0.81, DZ - 0.1);                                                              // souris
-        cyl(g, 0.3, 0.3, 0.5, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.25, DZ - 1.0, 16); box(g, 0.6, 0.7, 0.1, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.85, DZ - 0.72);   // fauteuil
+        cyl(g, 0.3, 0.3, 0.5, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.25, DZ - 0.8, 16); box(g, 0.6, 0.7, 0.1, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.85, DZ - 1.12);   // fauteuil tourné vers le bureau et l'écran
+        for (var dcx2 = DX - 1.5; dcx2 <= DX + 1.51; dcx2 += 0.5) room.colliders.push({ x: dcx2, z: DZ, r: 0.55 });   // on ne passe plus à travers le bureau
+        room.colliders.push({ x: DX, z: DZ - 0.85, r: 0.35 });   // fauteuil
         // le grand écran au mur, derrière le bureau
         var SWm = 4.4, SHm = 2.48, wc = mkCanvas(1280, 720), wx = wc.getContext('2d'), wtex = mkTex(wc);
         var wscr = new THREE.Mesh(new THREE.PlaneGeometry(SWm, SHm), new THREE.MeshBasicMaterial({ map: wtex })); wscr.rotation.y = Math.PI; wscr.position.set(DX, gy0 + 2.22, HZ - 0.06); g.add(wscr);
@@ -668,37 +670,50 @@
         var posterCache = {};
         function img(url) { if (!url) return null; if (posterCache[url]) return posterCache[url]; var im = new Image(); im.crossOrigin = 'anonymous'; im.src = url; posterCache[url] = im; return im; }
         function fmt(t) { t = Math.max(0, Math.floor(t || 0)); var h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (sec < 10 ? '0' : '') + sec; }
+        function rrect(x, x0, y0, w0, h0, r0) { x.beginPath(); x.moveTo(x0 + r0, y0); x.lineTo(x0 + w0 - r0, y0); x.quadraticCurveTo(x0 + w0, y0, x0 + w0, y0 + r0); x.lineTo(x0 + w0, y0 + h0 - r0); x.quadraticCurveTo(x0 + w0, y0 + h0, x0 + w0 - r0, y0 + h0); x.lineTo(x0 + r0, y0 + h0); x.quadraticCurveTo(x0, y0 + h0, x0, y0 + h0 - r0); x.lineTo(x0, y0 + r0); x.quadraticCurveTo(x0, y0, x0 + r0, y0); x.closePath(); }
+        function mmss(t) { t = Math.max(0, Math.floor(t || 0)); var m = Math.floor(t / 60), sec = t % 60; return m + ':' + (sec < 10 ? '0' : '') + sec; }
         function paintWall() {
-          var x = wx; x.fillStyle = '#07070a'; x.fillRect(0, 0, 1280, 720);
-          x.fillStyle = '#c9a227'; x.font = '800 34px ' + SERIF; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillText('ÉCRAN STAFF — RÉGIE', 40, 44);
-          // l'image du film (en direct), ou l'affiche
-          var vx0 = 40, vy0 = 86, vw0 = 800, vh0 = 450;
-          x.fillStyle = '#000'; x.fillRect(vx0, vy0, vw0, vh0);
-          var f2 = filmOfTitle(net.title), drew = false;
-          if ((net.status === 'playing' || net.status === 'paused') && video.readyState >= 2 && video.videoWidth) { try { x.drawImage(video, vx0, vy0, vw0, vh0); drew = true; } catch (e) { /* ok */ } }
-          if (!drew && f2 && f2.poster) { var pim = img(f2.poster); if (pim && pim.complete && pim.naturalWidth) { var ph = vh0, pw = ph * pim.naturalWidth / pim.naturalHeight; x.drawImage(pim, vx0 + (vw0 - pw) / 2, vy0, pw, ph); drew = true; } }
-          if (!drew) { x.fillStyle = '#5a5a66'; x.font = '600 30px ' + MONO; x.textAlign = 'center'; x.fillText('Aucun film chargé', vx0 + vw0 / 2, vy0 + vh0 / 2); x.textAlign = 'left'; }
-          x.strokeStyle = '#c9a227'; x.lineWidth = 3; x.strokeRect(vx0, vy0, vw0, vh0);
-          // infos à droite
-          var ix = 880, st2 = net.status === 'playing' ? '● EN COURS' : net.status === 'paused' ? '❚❚ EN PAUSE' : (net.url && net.title ? '✓ FILM CHARGÉ, PRÊT' : '— AUCUNE SÉANCE');
-          x.fillStyle = net.status === 'playing' ? '#4ade80' : net.status === 'paused' ? '#facc15' : '#9ca3af'; x.font = '800 30px ' + MONO; x.fillText(st2, ix, 110);
-          x.fillStyle = '#f5ecd2'; x.font = '800 32px ' + SERIF;
-          var title = (net.title || '').replace(/\s*\[(VF|VO)\]\s*$/, '') || '—', words = title.split(' '), line = '', ly = 170;
-          words.forEach(function (wd) { var t2 = line ? line + ' ' + wd : wd; if (x.measureText(t2).width > 360 && line) { x.fillText(line, ix, ly); ly += 40; line = wd; } else line = t2; }); if (line) x.fillText(line, ix, ly);
-          var ver = verOfTitle(net.title); if (ver) { x.fillStyle = '#c9b46a'; x.font = '700 24px ' + MONO; x.fillText('Version : ' + ver, ix, ly + 44); }
-          if (f2 && f2.annee) { x.fillStyle = '#9d8a53'; x.font = '600 22px ' + MONO; x.fillText(String(f2.annee) + (f2.genres ? ' · ' + f2.genres.slice(0, 2).join(', ') : ''), ix, ly + 78); }
-          // progression
-          var dur = video.duration, pos = netPosNow();
-          if (isFinite(dur) && dur > 0) {
-            x.fillStyle = '#26262e'; x.fillRect(vx0, vy0 + vh0 + 24, vw0, 12); x.fillStyle = '#c9a227'; x.fillRect(vx0, vy0 + vh0 + 24, vw0 * Math.min(1, pos / dur), 12);
-            x.fillStyle = '#d9c88f'; x.font = '700 24px ' + MONO; x.fillText(fmt(pos) + ' / ' + fmt(dur), vx0, vy0 + vh0 + 64);
-          }
+          var x = wx, playing = net.status === 'playing', paused = net.status === 'paused', f2 = filmOfTitle(net.title), ver = verOfTitle(net.title);
+          x.fillStyle = '#0b0a0e'; x.fillRect(0, 0, 1280, 720);
+          // en-tête comme la régie
+          x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillStyle = '#e9c66b'; x.font = '800 30px ' + MONO; x.fillText('☰  RÉGIE DU CINÉMA', 34, 42);
+          x.textAlign = 'right'; x.fillStyle = '#c9b46a'; x.font = '700 22px ' + MONO; x.fillText('Tropi Stream', 1246, 42); x.textAlign = 'left';
+          // carte du film en cours
+          rrect(x, 30, 80, 1220, 300, 22); x.fillStyle = '#16121a'; x.fill(); x.strokeStyle = 'rgba(233,198,107,0.55)'; x.lineWidth = 3; x.stroke();
+          var px0 = 54, py0 = 100, ph0 = 260, pw0 = 173, pim = f2 && f2.poster ? img(f2.poster) : null;
+          rrect(x, px0, py0, pw0, ph0, 12); x.fillStyle = '#231d26'; x.fill();
+          if (pim && pim.complete && pim.naturalWidth) { x.save(); rrect(x, px0, py0, pw0, ph0, 12); x.clip(); x.drawImage(pim, px0, py0, pw0, ph0); x.restore(); }
+          else { x.fillStyle = '#4b4452'; x.font = '700 60px ' + MONO; x.textAlign = 'center'; x.fillText('🎬', px0 + pw0 / 2, py0 + ph0 / 2); x.textAlign = 'left'; }
+          var ix = 260, badge = playing ? ['● En cours', '#22c55e'] : paused ? ['❚❚ En pause', '#eab308'] : (net.url && net.title ? ['✓ Film chargé, prêt à lancer', '#38bdf8'] : ['■ Aucune séance en cours', '#9ca3af']);
+          x.font = '800 24px ' + MONO; var bw = x.measureText(badge[0]).width + 36; rrect(x, ix, 104, bw, 42, 10); x.fillStyle = 'rgba(255,255,255,0.07)'; x.fill(); x.fillStyle = badge[1]; x.fillText(badge[0], ix + 18, 126);
+          var title = (net.title || '').replace(/\s*\[(VF|VO)\]\s*$/, '') || 'Choisis un film dans la playlist', fs2 = 46;
+          x.font = '800 ' + fs2 + 'px ' + SERIF; while (x.measureText(title).width > 820 && fs2 > 26) { fs2 -= 2; x.font = '800 ' + fs2 + 'px ' + SERIF; }
+          x.fillStyle = '#f5ecd2'; x.fillText(title, ix, 188);
+          var tw = x.measureText(title).width;
+          if (ver) { x.font = '800 22px ' + MONO; rrect(x, ix + tw + 16, 172, 56, 32, 6); x.fillStyle = '#ea580c'; x.fill(); x.fillStyle = '#fff'; x.fillText(ver, ix + tw + 26, 189); }
+          if (f2) { x.fillStyle = '#a8a29e'; x.font = '600 24px ' + MONO; x.fillText((f2.annee ? f2.annee + '  ·  ' : '') + (f2.genres || []).slice(0, 3).join(' · '), ix, 236); }
+          var dur = video.duration, pos = paused ? net.position : netPosNow(), hasDur = !!net.title && isFinite(dur) && dur > 0;
+          rrect(x, ix, 276, 960, 14, 7); x.fillStyle = '#2a2530'; x.fill();
+          if (hasDur) { rrect(x, ix, 276, Math.max(14, 960 * Math.min(1, pos / dur)), 14, 7); x.fillStyle = '#f97316'; x.fill(); }
+          x.fillStyle = '#d6d3d1'; x.font = '700 26px ' + MONO; x.fillText(net.title ? mmss(pos) : '—', ix, 328);
+          if (hasDur) { x.textAlign = 'right'; x.fillText('-' + mmss(dur - pos) + '  ·  ' + mmss(dur), ix + 960, 328); x.textAlign = 'left'; }
+          // image du film en direct
+          x.fillStyle = '#c9a227'; x.font = '800 22px ' + MONO; x.fillText('IMAGE EN DIRECT', 34, 412);
+          var vx0 = 30, vy0 = 430, vw0 = 480, vh0 = 270; x.fillStyle = '#000'; x.fillRect(vx0, vy0, vw0, vh0);
+          var drew = false;
+          if ((playing || paused) && video.readyState >= 2 && video.videoWidth) { try { x.drawImage(video, vx0, vy0, vw0, vh0); drew = true; } catch (e) { /* ok */ } }
+          if (!drew) { x.fillStyle = '#5a5a66'; x.font = '600 24px ' + MONO; x.textAlign = 'center'; x.fillText(net.url ? 'Pas encore lancé' : 'Aucun film chargé', vx0 + vw0 / 2, vy0 + vh0 / 2); x.textAlign = 'left'; }
+          x.strokeStyle = 'rgba(233,198,107,0.6)'; x.lineWidth = 2; x.strokeRect(vx0, vy0, vw0, vh0);
           // prochaines séances
-          x.fillStyle = '#c9a227'; x.font = '800 24px ' + MONO; x.fillText('PROCHAINES SÉANCES', ix, 420);
-          x.fillStyle = '#e5dcc3'; x.font = '600 21px ' + MONO;
-          var sch = (net.schedule || []).slice(0, 5);
-          if (!sch.length) { x.fillStyle = '#6b6b75'; x.fillText('Aucune séance programmée', ix, 460); }
-          sch.forEach(function (it, i2) { var d0 = new Date(it.at), hh = (d0.getHours() < 10 ? '0' : '') + d0.getHours() + 'h' + (d0.getMinutes() < 10 ? '0' : '') + d0.getMinutes(); var tt = String(it.title || '').replace(/\s*\[(VF|VO)\]\s*$/, ''); if (tt.length > 24) tt = tt.slice(0, 23) + '…'; x.fillText(hh + '  ' + tt, ix, 460 + i2 * 34); });
+          var sx0 = 560; x.fillStyle = '#c9a227'; x.font = '800 22px ' + MONO; x.fillText('PROCHAINES SÉANCES', sx0, 412);
+          var sch = (net.schedule || []).slice(0, 6);
+          if (!sch.length) { x.fillStyle = '#6b6b75'; x.font = '600 22px ' + MONO; x.fillText('Aucune séance programmée', sx0, 460); }
+          sch.forEach(function (it, i2) {
+            var d0 = new Date(it.at), hh = (d0.getHours() < 10 ? '0' : '') + d0.getHours() + 'h' + (d0.getMinutes() < 10 ? '0' : '') + d0.getMinutes(), y2 = 448 + i2 * 44;
+            rrect(x, sx0, y2 - 18, 690, 38, 8); x.fillStyle = 'rgba(255,255,255,0.05)'; x.fill();
+            var tt = String(it.title || '').replace(/\s*\[(VF|VO)\]\s*$/, ''); if (tt.length > 38) tt = tt.slice(0, 37) + '…';
+            x.fillStyle = '#e9c66b'; x.font = '800 21px ' + MONO; x.fillText(hh, sx0 + 14, y2 + 1); x.fillStyle = '#e5dcc3'; x.font = '600 21px ' + MONO; x.fillText(tt, sx0 + 110, y2 + 1);
+          });
           wtex.needsUpdate = true;
         }
         var wallT = 0;
