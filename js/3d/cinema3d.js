@@ -561,6 +561,7 @@
     ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 160, 42, 180);
     var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); if (P) { exit.position.set(-HX + 0.06, 4.9, EXZ); exit.rotation.y = Math.PI / 2; } else { exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; } g.add(exit);
     var exitDoor = world.addDoor(room, { x: P ? -HX : 0, z: P ? EXZ : HZ, nx: P ? 1 : 0, nz: P ? 0 : -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema' });
+    if (P) exit.visible = false;   // (premium : pas de panneau vert au-dessus de la porte)
     exitDoor.g.position.y = P ? 0 : BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
 
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
@@ -724,13 +725,22 @@
           if (!playlist && !playlistLoading) loadPlaylist();       // pour afficher l'affiche et les infos du film
           wallT += dt; if (wallT > 0.12) { wallT = 0; paintWall(); }
         };
-        room.interactables.push({ x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl(); }, prompt: function () { return '🎛️ Bureau staff — choisir le film  [F]'; }, use: function () { if (isCinemaCtrl()) toggleConsole(); } });
+        var deskHit = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.8, 2.4), hitM); deskHit.position.set(DX, gy0 + 1.9, DZ + 0.3); g.add(deskHit);   // clic gauche sur le bureau ou l'écran
+        room._deskInfo = { DX: DX, DZ: DZ, EY: gy0 + 1.35, WY: gy0 + 2.22, WZ: HZ - 0.06, SW: SWm, SH: SHm };
+        room.interactables.push({ hit: deskHit, x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl(); }, prompt: function () { return '🎛️ Bureau staff — la régie sur le grand écran  [F / clic]'; }, use: function (w) { deskEnter(w || world); } });
       })();
       var wallPush = [], gate = [], edge = [], zc2;
       [-1, 1].forEach(function (sd) {
         holeWall(sd); frame(sd, BH); frame(sd, TH);
-        sign(sd, '▲ ÉTAGE VIP', 'ESCALIER · FAUTEUILS DE LUXE', 3.55, (BH.z0 + BH.z1) / 2);
-        sign(sd, '▼ ESCALIER', 'DESCENDRE', VY + 3.55, (TH.z0 + TH.z1) / 2);
+        [BH, TH].forEach(function (h) {                  // le trou est un portail lumineux : on entre dedans et on est téléporté
+          var pc = mkCanvas(256, 256), px2 = pc.getContext('2d'), gr2 = px2.createRadialGradient(128, 128, 6, 128, 128, 180);
+          gr2.addColorStop(0, '#fff6dc'); gr2.addColorStop(0.18, '#d9b8ff'); gr2.addColorStop(0.5, '#5a2ab0'); gr2.addColorStop(1, '#0a0614'); px2.fillStyle = gr2; px2.fillRect(0, 0, 256, 256);
+          for (var rk = 0; rk < 5; rk++) { px2.strokeStyle = 'rgba(255,230,170,' + (0.35 - rk * 0.06) + ')'; px2.lineWidth = 3; px2.beginPath(); px2.arc(128, 128, 30 + rk * 22, 0, TAU); px2.stroke(); }
+          var po = new THREE.Mesh(new THREE.PlaneGeometry(h.z1 - h.z0, h.y1 - h.y0), new THREE.MeshBasicMaterial({ map: mkTex(pc) }));
+          po.position.set(sd * (HX + 0.5), (h.y0 + h.y1) / 2, (h.z0 + h.z1) / 2); po.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(po);
+        });
+        sign(sd, '▲ ÉTAGE VIP', 'TÉLÉPORTATION · FAUTEUILS DE LUXE', 3.55, (BH.z0 + BH.z1) / 2);
+        sign(sd, '▼ DESCENDRE', 'TÉLÉPORTATION', VY + 3.55, (TH.z0 + TH.z1) / 2);
         // l'escalier : un puits derrière le mur, des marches pleines, un palier en bas et un palier en haut
         var xs = sd * (HX + SW / 2 + 0.05), stepM = std(0x5a1020, 0.9, 0.05, 0x2e0a12);
         box(g, 0.15, SH, SZ1 - SZ0, wallV, sd * (HX + SW + 0.1), SH / 2, (SZ0 + SZ1) / 2);                         // mur du fond du puits
@@ -777,7 +787,14 @@
         return room0(x);
       }
       room.groundY = function (x, z) { return vipGround(x, z, vipUp); };
-      room.vipTrack = function (x, z) {                // en haut dès qu'on a monté toutes les marches, en bas dès qu'on repasse en dessous
+      var tpLock = 0;
+      room.vipTrack = function (x, z, w) {
+        // on passe le trou du bas → on arrive en haut sur le balcon ; le trou du haut → on redescend devant le trou du bas
+        if (w && !w.trans && performance.now() > tpLock && Math.abs(x) > HX + 0.35) {
+          var sd3 = x < 0 ? -1 : 1, up2 = z < 0; tpLock = performance.now() + 1500;
+          w.teleport(sd3 * (HX - 2.2), up2 ? (TH.z0 + TH.z1) / 2 : (BH.z0 + BH.z1) / 2, F.yawFor(-sd3, 0), function () { setVip(up2); lz = null; });
+          return;
+        }                // en haut dès qu'on a monté toutes les marches, en bas dès qu'on repasse en dessous
         if (lz !== null && Math.abs(x) > HX) { if (lz < ZT && z >= ZT && !vipUp) setVip(true); else if (lz >= ZT && z < ZT && vipUp) setVip(false); }
         lz = z;
       };
@@ -1326,6 +1343,7 @@
             '<span class="cin-seek-l"><i class="fa-solid fa-clock"></i> Choisir le moment du film</span>' +
             '<div class="cin-seek-f"><input class="cin-sk" data-k="h" type="number" min="0" max="23" value="0" aria-label="heures"><b>h</b><input class="cin-sk" data-k="m" type="number" min="0" max="59" value="0" aria-label="minutes"><b>min</b><input class="cin-sk" data-k="s" type="number" min="0" max="59" value="0" aria-label="secondes"><b>s</b></div>' +
             '<div class="cin-seek-b"><button data-a="seek" title="Se placer à ce moment, sans changer lecture / pause"><i class="fa-solid fa-forward"></i> Aller à ce moment</button><button data-a="seek-play" title="Se placer à ce moment et lancer la lecture"><i class="fa-solid fa-play"></i> Lancer à ce moment</button></div>' +
+            '<div class="cin-seek-q"><button data-a="seek-rel" data-d="-600">−10 min</button><button data-a="seek-rel" data-d="-10">−10 s</button><button data-a="seek-rel" data-d="10">+10 s</button><button data-a="seek-rel" data-d="600">+10 min</button><button data-a="seek-rel" data-d="1800">+30 min</button></div>' +
           '</div>' +
         '</div>' +
         '<div class="cin-cn-tabs">' +
@@ -1411,6 +1429,12 @@
           return;
         }
         if (a === 'play' || a === 'pause' || a === 'stop') { cinemaAction(a); return; }
+        if (a === 'seek-rel') {                          // saut rapide à partir du moment actuel du film
+          if (!net.url) { world.flash('🎬 Charge d\'abord un film.'); return; }
+          var base = net.status === 'playing' ? netPosNow() : (net.position || 0), dd2 = parseInt(b.getAttribute('data-d'), 10) || 0, maxT = isFinite(video.duration) && video.duration > 0 ? video.duration - 2 : 86400;
+          cinemaAction('seek', { position: Math.max(0, Math.min(maxT, Math.round(base + dd2))) });
+          return;
+        }
         if (a === 'seek' || a === 'seek-play') {                       // aller à l'heure / minute / seconde choisie
           if (!net.url) { world.flash('🎬 Charge d\'abord un film.'); return; }
           var gv = function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); return Math.max(0, parseInt(el && el.value, 10) || 0); };
@@ -1572,7 +1596,38 @@
       if (drag.mouse) view.pitch = clamp(drag.seat.pitch - dy * 0.004, -0.5, 0.5);
     };
     // caméra : à hauteur des yeux d'une personne assise, tournée vers le milieu de l'écran ; on regarde autour à la souris
+    // assis au bureau du staff : la caméra regarde le grand écran du mur, et la régie y est affichée (posée exactement sur l'écran)
+    var deskMode = false;
+    function onDeskKey(e) { if (deskMode && e.code === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); deskLeave(); } }
+    function deskEnter(w) {
+      if (deskMode || cur || !isCinemaCtrl() || !room._deskInfo || w.mode !== 'room' || w.blend > 0 || w.trans) return;
+      deskMode = true; w.sitDown(room);
+      window.addEventListener('keydown', onDeskKey, true);
+      mountConsole(); if (!consoleEl) return;
+      consoleEl.classList.add('cin-wall');
+      if (consoleEl.classList.contains('hid')) toggleConsole();
+    }
+    function deskLeave() {
+      if (!deskMode) return;
+      deskMode = false; window.removeEventListener('keydown', onDeskKey, true);
+      if (consoleEl) { consoleEl.classList.remove('cin-wall'); consoleEl.style.left = consoleEl.style.top = consoleEl.style.transform = ''; closeConsole(); }
+      var di = room._deskInfo; if (di) world.standUp(di.DX, di.DZ - 1.7, Math.PI);
+    }
+    var deskV = new THREE.Vector3();
+    function deskPlaceConsole() {                     // la régie suit exactement le grand écran (projection de ses 4 coins à l'écran du joueur)
+      if (!deskMode || !consoleEl) return;
+      if (consoleEl.classList.contains('hid')) { deskLeave(); return; }
+      var di = room._deskInfo, cam = world.camera, rc = world.renderer.domElement.getBoundingClientRect(), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) {
+        deskV.set(di.DX + c[0] * di.SW / 2, di.WY + c[1] * di.SH / 2, di.WZ).project(cam);
+        var px = rc.left + (deskV.x + 1) / 2 * rc.width, py = rc.top + (1 - deskV.y) / 2 * rc.height;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+      });
+      var sc = Math.min((x1 - x0) / 1100, (y1 - y0) / 619);
+      consoleEl.style.left = (x0 + ((x1 - x0) - 1100 * sc) / 2) + 'px'; consoleEl.style.top = (y0 + ((y1 - y0) - 619 * sc) / 2) + 'px'; consoleEl.style.transform = 'scale(' + sc.toFixed(4) + ')';
+    }
     room.seatPose = function (dt, ctx) {
+      if (deskMode && room._deskInfo) { var dI = room._deskInfo; return { cx: dI.DX, cy: dI.EY + 0.25, cz: dI.DZ - 2.3, tx: dI.DX, ty: dI.WY, tz: dI.WZ, fov: 50 }; }
       if (!cur) return null;
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.9; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.3; }
       var ex = cur.x, ey = (P ? 1.78 : 1.34) + (cur.y || 0), ez = cur.z - 0.04, ty0 = SCR_Y + SCR_H * 0.48, tz0 = -HZ + 0.16;
@@ -1597,7 +1652,7 @@
       pollCinema();
     };
     function leave() {
-      stand(); if (room.resetVip) room.resetVip(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
+      deskLeave(); stand(); if (room.resetVip) room.resetVip(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
       music.stop(); unmountEye(); unmountConsole();
       if (world.container) world.container.classList.remove('cin-in-cinema', 'cin-seated');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
@@ -1613,9 +1668,10 @@
     var clock = 0, netT = 0, remotesHid = false;
     room.update = function (dt, w) {
       clock += dt;
-      if (room.vipTrack) room.vipTrack(w.player.x, w.player.z);
+      if (room.vipTrack) room.vipTrack(w.player.x, w.player.z, w);
       if (room.glassCheck) room.glassCheck(w);
       if (room.staffWall) room.staffWall(dt);
+      deskPlaceConsole();
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       var adOn = applyAd();   // pub : elle prend la main sur l'écran à chaque image (et passe au film pile à 0:00)
@@ -1923,10 +1979,13 @@
       '.cin-np-bar{height:6px;border-radius:3px;background:#2a1f24;overflow:hidden;margin-top:2px}.cin-np-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-np-time{display:flex;justify-content:space-between;font-size:11px;color:#9d8a53;font-variant-numeric:tabular-nums;min-height:14px}' +
       '.cin-cn-row button:disabled{opacity:.35;cursor:not-allowed}' +
+      '.cin-console.cin-wall{left:0;top:0;transform-origin:0 0;width:1100px!important;max-width:none!important;height:619px!important;max-height:none!important;display:grid!important;grid-template-columns:470px 1fr;grid-template-rows:auto auto 1fr;column-gap:18px;overflow:hidden!important;border-radius:4px}' +
+      '.cin-console.cin-wall .cin-cn-head{grid-column:1 / 3}.cin-console.cin-wall .cin-cn-playback{grid-column:1;grid-row:2 / 4;overflow:auto;min-height:0}.cin-console.cin-wall .cin-cn-tabs{grid-column:2;grid-row:2}.cin-console.cin-wall .cin-pane{grid-column:2;grid-row:3;overflow:auto;min-height:0}' +
       '.cin-cn-seek{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}' +
       '.cin-seek-l{font-size:11.5px;font-weight:700;color:#e9c66b;letter-spacing:.03em;width:100%}' +
       '.cin-seek-f{display:flex;align-items:center;gap:5px}.cin-seek-f b{font-size:12px;color:#c9b8e8;font-weight:600;margin-right:6px}' +
       '.cin-sk{width:58px;padding:7px 6px;border-radius:8px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);color:#fff;font:700 15px inherit;text-align:center}.cin-sk:focus{outline:2px solid #e9c66b}' +
+      '.cin-seek-q{display:flex;gap:6px;width:100%}.cin-seek-q button{flex:1;padding:8px 4px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#e5dcc3;font:700 12px inherit;cursor:pointer}.cin-seek-q button:hover{background:rgba(233,198,107,.22);color:#fff}' +
       '.cin-seek-b{display:flex;gap:8px;flex:1;min-width:210px}.cin-seek-b button{flex:1;padding:9px 8px;border-radius:9px;border:1px solid rgba(233,198,107,.45);background:rgba(233,198,107,.12);color:#f3d98a;font:700 12px inherit;cursor:pointer}.cin-seek-b button:hover{background:rgba(233,198,107,.28)}' +
       '.cin-cn-row button{padding:10px 6px;font-size:12.5px}' +
       '.cin-pl-item{padding:7px 9px}.cin-pl-thumb{width:44px;height:66px}.cin-pl-title{font-size:13px}' +

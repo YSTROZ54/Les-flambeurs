@@ -23,10 +23,10 @@
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
+    { x: -HX, z: 0, nx: 1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · P4 · LUDO · PMU · COFFRES…', color: 0xffd400, target: 'minijeux', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)
-    { x: HX, z: 5, nx: -1, nz: 0, label: '🎬 CINÉMA PREMIUM', sub: 'ÉCRAN GÉANT · FAUTEUILS CLUB', color: 0xffd36a, target: 'cinemapremium', theme: 'cinemapremium' },
-    { x: HX, z: 0, nx: -1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' }   // la banque est maintenant l'appli Tropi Bank du téléphone
+    { x: HX, z: 0, nx: -1, nz: 0, label: '🎬 CINÉMA PREMIUM', sub: 'ÉCRAN GÉANT · FAUTEUILS CLUB', color: 0xffd36a, target: 'cinemapremium', theme: 'cinemapremium' }   // la banque est maintenant l'appli Tropi Bank du téléphone
   ];
 
   function createHallRoom(world, cfg) {
@@ -119,14 +119,16 @@
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
     neon(WALL.entree, -4.75, 4.2, 'assets/bannieres/tropistream-2.jpg', 4.95, 2.475, 0xff7a1a);   // nouvelle bannière (2 pour 1)
+    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
+    // un panneau « à l'affiche » par cinéma : celui de Tropi Stream (mur d'entrée) et celui du cinéma premium (à droite de sa porte, en noir et or)
+    function makeCinemaBoard(P2) {
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
     sn.fillStyle = '#12080f'; sn.fillRect(0, 0, 1280, 720);
-    sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 30; sn.fillStyle = '#ffb066';
-    sn.font = '900 130px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 270, 1200);
-    sn.shadowBlur = 0; sn.fillStyle = '#f8e7d0'; sn.font = '700 52px ' + MONO; sn.fillText('CINÉMA TROPI STREAM', 640, 440);
+    sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = P2.c1; sn.shadowBlur = 30; sn.fillStyle = P2.c2;
+    sn.font = '900 130px ' + SERIF; sn.fillText(P2.head, 640, 270, 1200);
+    sn.shadowBlur = 0; sn.fillStyle = '#f8e7d0'; sn.font = '700 52px ' + MONO; sn.fillText(P2.name, 640, 440);
     sn.fillStyle = '#c98a55'; sn.font = '600 30px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 520);
-    var cinPosterMat = neon(WALL.entree, 4.5, 4.2, '', 4.4, 2.475, 0xff7a1a, soon);
-    world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
+    var cinPosterMat = neon(P2.mur, P2.along, P2.ay, '', 4.4, 2.475, P2.hex, soon);
 
     // panneau « à l'affiche » tenu à jour : séance en cours (avec l'heure de début) et prochaines séances programmées depuis la régie (cinema3d.js),
     // affiches des films chargées depuis la playlist / la programmation, logo Tropi Stream en en-tête
@@ -214,13 +216,13 @@
         sn.save(); sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.clip();
         if (logo) sn.drawImage(logo, LX - LR, LY - LR, LR * 2, LR * 2); else { sn.fillStyle = '#2a1208'; sn.fillRect(LX - LR, LY - LR, LR * 2, LR * 2); }
         sn.restore();
-        sn.strokeStyle = 'rgba(255,122,26,0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
+        sn.strokeStyle = 'rgba(' + P2.rgb + ',0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
       });
-      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = '#ff7a1a'; sn.shadowBlur = 26; sn.fillStyle = '#ffb066';
-      sn.font = '900 80px ' + SERIF; sn.fillText('À L\'AFFICHE', 640, 92, 860);
+      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = P2.c1; sn.shadowBlur = 26; sn.fillStyle = P2.c2;
+      sn.font = '900 80px ' + SERIF; sn.fillText(P2.head, 640, 92, 860);
       sn.shadowBlur = 0;
-      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 146, 1140, 2);
-      sn.fillStyle = 'rgba(255,122,26,0.2)'; sn.fillRect(70, 151, 1140, 1);
+      sn.fillStyle = 'rgba(' + P2.rgb + ',0.45)'; sn.fillRect(70, 146, 1140, 2);
+      sn.fillStyle = 'rgba(' + P2.rgb + ',0.2)'; sn.fillRect(70, 151, 1140, 1);
 
       // en haut : la séance en cours de lecture (ou « ouvert » quand rien ne passe)
       var BX = 70, BY = 164, BW = 104, BH = 152, tx = BX + BW + 28;
@@ -235,15 +237,15 @@
         sn.fillStyle = '#4ade80'; sn.font = '800 23px ' + MONO; sn.fillText('●  EN COURS DE LECTURE', tx + 10, BY + 30);
         sn.fillStyle = '#f8e7d0'; sn.font = '800 44px ' + SERIF;
         wrapLines(sn, titre, 1040, 1).forEach(function (ln) { sn.fillText(ln, tx, BY + 92); });
-        sn.fillStyle = '#ffb066'; sn.font = '700 23px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '   ·   ' + f.annee : '') + (f && f.genres && f.genres[0] ? '   ·   ' + f.genres[0] : ''), tx, BY + 136);
+        sn.fillStyle = P2.c2; sn.font = '700 23px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '   ·   ' + f.annee : '') + (f && f.genres && f.genres[0] ? '   ·   ' + f.genres[0] : ''), tx, BY + 136);
       } else {
         var ban = getImg('assets/bannieres/tropistream-2.jpg'), BWI = 304;      // la nouvelle bannière (2 pour 1) à gauche
         poster(ban, BX, BY, BWI, BH, 10);
         var tx4 = BX + BWI + 28;
         sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
-        sn.fillStyle = 'rgba(255,122,26,0.14)'; sn.fillRect(tx4 - 2, BY + 6, 160, 34);
+        sn.fillStyle = 'rgba(' + P2.rgb + ',0.14)'; sn.fillRect(tx4 - 2, BY + 6, 160, 34);
         sn.fillStyle = '#ff9a4a'; sn.font = '800 23px ' + MONO; sn.fillText('●  OUVERT', tx4 + 10, BY + 30);
-        sn.fillStyle = '#f8e7d0'; sn.font = '800 42px ' + SERIF; sn.fillText('CINÉMA TROPI STREAM', tx4, BY + 88, 840);
+        sn.fillStyle = '#f8e7d0'; sn.font = '800 42px ' + SERIF; sn.fillText(P2.name, tx4, BY + 88, 840);
         sn.fillStyle = '#c98a55'; sn.font = '600 22px ' + MONO; sn.fillText('Aucune séance en cours.', tx4, BY + 124, 840); sn.fillText('La prochaine commence dès que la régie lance un film.', tx4, BY + 150, 840);
       }
 
@@ -256,17 +258,17 @@
         var nxt = sched.filter(function (it) { return it.at >= monEnd.getTime(); })[0];
         if (nxt) mon = weekOf(nxt.at);
       }
-      sn.fillStyle = 'rgba(255,122,26,0.45)'; sn.fillRect(70, 328, 1140, 2);
+      sn.fillStyle = 'rgba(' + P2.rgb + ',0.45)'; sn.fillRect(70, 328, 1140, 2);
       var JRS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'], CG = 8, CW = (1140 - CG * 6) / 7, HY = 338, HH = 42, CBY = HY + HH + 6, CBH = 698 - CBY, PAD = 6;
       for (var di = 0; di < 7; di++) {
         var day = new Date(mon.getTime()); day.setDate(day.getDate() + di);
         var dayEnd = new Date(day.getTime()); dayEnd.setDate(dayEnd.getDate() + 1);
         var cx0 = 70 + di * (CW + CG), isToday = day.getTime() === today0.getTime(), isPast = day.getTime() < today0.getTime();
-        sn.fillStyle = isToday ? '#ff7a1a' : 'rgba(255,255,255,0.07)'; F.roundRectPath(sn, cx0, HY, CW, HH, 9); sn.fill();
+        sn.fillStyle = isToday ? P2.c1 : 'rgba(255,255,255,0.07)'; F.roundRectPath(sn, cx0, HY, CW, HH, 9); sn.fill();
         sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '800 23px ' + MONO;
-        sn.fillStyle = isToday ? '#1a0a04' : (isPast ? '#7a6446' : '#ffb066'); sn.fillText(JRS[di] + ' ' + day.getDate(), cx0 + CW / 2, HY + HH / 2 + 1, CW - 10);
+        sn.fillStyle = isToday ? '#1a0a04' : (isPast ? '#7a6446' : P2.c2); sn.fillText(JRS[di] + ' ' + day.getDate(), cx0 + CW / 2, HY + HH / 2 + 1, CW - 10);
         sn.fillStyle = 'rgba(255,255,255,0.035)'; F.roundRectPath(sn, cx0, CBY, CW, CBH, 9); sn.fill();
-        sn.strokeStyle = isToday ? 'rgba(255,122,26,0.8)' : 'rgba(201,162,39,0.18)'; sn.lineWidth = isToday ? 2.5 : 1.5; F.roundRectPath(sn, cx0, CBY, CW, CBH, 9); sn.stroke();
+        sn.strokeStyle = isToday ? 'rgba(' + P2.rgb + ',0.8)' : 'rgba(201,162,39,0.18)'; sn.lineWidth = isToday ? 2.5 : 1.5; F.roundRectPath(sn, cx0, CBY, CW, CBH, 9); sn.stroke();
         var items = sched.filter(function (it) { return it.at >= day.getTime() && it.at < dayEnd.getTime(); });
         var MAXC = 5, shown = items.slice(0, MAXC), extra = items.length - shown.length;
         if (!shown.length) continue;
@@ -290,7 +292,7 @@
           if (big) { sn.font = '700 15px ' + MONO; sn.fillStyle = '#ffd9a8'; sn.fillText(truncate(sn, String(it.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), cww - 14), cxx + 8, cy0 + ch - 42); }
           sn.shadowBlur = 0;
         });
-        if (extra > 0) { sn.fillStyle = '#ffb066'; sn.font = '800 18px ' + MONO; sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.fillText('+' + extra + ' autre' + (extra > 1 ? 's' : ''), cx0 + CW / 2, CBY + CBH - 16); }
+        if (extra > 0) { sn.fillStyle = P2.c2; sn.font = '800 18px ' + MONO; sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.fillText('+' + extra + ' autre' + (extra > 1 ? 's' : ''), cx0 + CW / 2, CBY + CBH - 16); }
       }
       if (cinPosterMat.map) cinPosterMat.map.needsUpdate = true;
     }
@@ -298,8 +300,15 @@
     function pollCinemaBoard() {
       if (cinBoardBusy) return;
       cinBoardBusy = true;
-      fetch('/api/cinema', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinBoardBusy = false; paintCinemaBoard(st); }).catch(function () { cinBoardBusy = false; });
+      fetch(P2.api, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinBoardBusy = false; paintCinemaBoard(st); }).catch(function () { cinBoardBusy = false; });
     }
+
+      return { poll: pollCinemaBoard };
+    }
+    var boards = [
+      makeCinemaBoard({ mur: WALL.entree, along: 4.5, ay: 4.2, hex: 0xff7a1a, c1: '#ff7a1a', c2: '#ffb066', rgb: '255,122,26', name: 'CINÉMA TROPI STREAM', head: 'À L\'AFFICHE', api: '/api/cinema' }),
+      makeCinemaBoard({ mur: WALL.droite, along: 4.8, ay: 2.6, hex: 0xd4af37, c1: '#d4af37', c2: '#f3d98a', rgb: '212,175,55', name: 'CINÉMA PREMIUM', head: "À L'AFFICHE", api: '/api/cinema?room=premium' })
+    ];
 
     // guirlandes de néons qui s'enroulent autour des colonnes (même LED lumineuses que la table des chevaux)
     var ledTex = (function () {
@@ -544,7 +553,7 @@
     };
     var hallT = 0, cinBoardT = 999;   // 999 : on interroge /api/cinema dès l'entrée dans le hall, pas seulement 20 s après
     room.update = function (dt) {
-      cinBoardT += dt; if (cinBoardT > 20) { cinBoardT = 0; pollCinemaBoard(); }
+      cinBoardT += dt; if (cinBoardT > 20) { cinBoardT = 0; boards.forEach(function (bd) { bd.poll(); }); }
       garlandsUpdate(dt);
       arm.rotation.y += dt * 0.6; arm.rotation.x += dt * 0.2;
       hallT += dt; waterT.value = hallT; simStep(dt);
