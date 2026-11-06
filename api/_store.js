@@ -21,7 +21,8 @@ async function sb(path, opts = {}) {
   const url = process.env.SUPABASE_URL || SUPABASE_URL;
   return fetch(`${url}/rest/v1/${path}`, {
     ...opts,
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+    // les clés « sb_secret_… » / « sb_publishable_… » ne sont pas des jetons JWT : elles vont seulement dans apikey (Authorization n'est ajouté que pour l'ancienne clé service_role « eyJ… »)
+    headers: { apikey: key, ...(String(key).startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}), 'Content-Type': 'application/json', ...(opts.headers || {}) }
   });
 }
 
