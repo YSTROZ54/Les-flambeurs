@@ -29,8 +29,8 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 24, HZ: 20, H: 31, SCR_W: 46.4, SCR_Y: 2.6, SCR_H: 46.4 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
-      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-16.575, 14.25], [16.575, 14.25]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45]
+      HX: 26, HZ: 20, H: 31, SCR_W: 46.4, SCR_Y: 2.6, SCR_H: 46.4 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
+      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-17.575, 16.25], [17.575, 16.25]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45], mini: true
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
@@ -42,8 +42,12 @@
     G0.BACK_H = (G0.ROWS.length - 1) * G0.ROW_H;
     G0.inAisle = function (x) { for (var q = 0; q < G0.blocks.length; q++) if (x >= G0.blocks[q].x0 && x <= G0.blocks[q].x1) return false; return true; };
     G0.ground = function (x, z) {                         // hauteur du sol à (x,z) : marche nette sous les fauteuils, rampe d'escalier dans les allées
-      var width = G0.inAisle(x) ? G0.ROW_GAP : 0.35, h = 0;
-      for (var i = 0; i < G0.BND.length; i++) { var b = G0.BND[i]; h += G0.ROW_H * smoothT((z - (b - width / 2)) / width); }
+      var aisle = G0.inAisle(x), width = aisle ? G0.ROW_GAP : 0.35, h = 0, gp = G0.ROW_GAP / 3;
+      for (var i = 0; i < G0.BND.length; i++) {
+        var b = G0.BND[i];
+        if (G0.mini && aisle) { for (var j = -1; j <= 1; j++) h += G0.ROW_H / 3 * smoothT((z - (b + j * gp - 0.07)) / 0.14); }   // allées : trois petites marches par rangée
+        else h += G0.ROW_H * smoothT((z - (b - width / 2)) / width);
+      }
       return h;
     };
     return G0;
@@ -210,7 +214,7 @@
   var starTex = null;
   function starCeilingTex() {
     if (starTex) return starTex;
-    var N = 2048, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#03030a'; x.fillRect(0, 0, N, N);
+    var N = 2048, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#000000'; x.fillRect(0, 0, N, N);
     for (k = 0; k < 2600; k++) { var r = 0.9 + Math.random() * Math.random() * 2.6, a = 0.45 + Math.random() * 0.55; x.fillStyle = 'rgba(255,255,255,' + a + ')'; x.beginPath(); x.arc(Math.random() * N, Math.random() * N, r, 0, TAU); x.fill(); }
     for (k = 0; k < 90; k++) { var px = Math.random() * N, py = Math.random() * N, gr = x.createRadialGradient(px, py, 0, px, py, 9); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(180,170,255,0)'); x.fillStyle = gr; x.fillRect(px - 9, py - 9, 18, 18); }
     starTex = new THREE.CanvasTexture(cv); starTex.anisotropy = 8; return starTex;
@@ -250,12 +254,20 @@
 
     /* --- petites lumières blanches (fibre optique) : plafond, murs et sol ; elles s'éteignent quand le film commence --- */
     var starMats = [], starCache = {}, starTile = null;
-    var tintU = { value: new THREE.Color(0, 0, 0) };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
-    function tintize(m) { m.onBeforeCompile = function (sh) { sh.uniforms.uTint = tintU; sh.fragmentShader = 'uniform vec3 uTint;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb += uTint;\n#include <dithering_fragment>'); }; return m; }
-    var brassM = new THREE.MeshBasicMaterial({ color: 0x7a5f26 }), aisleM = new THREE.MeshBasicMaterial({ color: 0x8a7a5a }); starMats.push(aisleM);   // laiton discret : plus de barres blanches
+    var tintU = { uL: { value: new THREE.Color(0, 0, 0) }, uR: { value: new THREE.Color(0, 0, 0) }, uC: { value: new THREE.Color(0, 0, 0) }, uHX: { value: HX }, uZ0: { value: -HZ }, uZR: { value: HZ * 1.7 } };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
+    function tintize(m) {                              // lumière de l'écran sur les surfaces étoilées : plus forte près de l'écran, plus douce au fond, et la couleur du côté gauche / droit de l'image de chaque côté de la salle
+      m.onBeforeCompile = function (sh) {
+        Object.keys(tintU).forEach(function (k) { sh.uniforms[k] = tintU[k]; });
+        sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = 'varying vec3 vWp;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); gl_FragColor.rgb += mix(sd, uC, 0.3) * nr;\n#include <dithering_fragment>');
+      };
+      return m;
+    }
+    var nosingM = new THREE.MeshBasicMaterial({ color: 0x3f3318 }); nosingM._base = new THREE.Color(0x3f3318); starMats.push(nosingM);   // (_base : couleur de départ, assombrie avec la salle)
+    var brassM = new THREE.MeshBasicMaterial({ color: 0x7a5f26 }), aisleM = new THREE.MeshBasicMaterial({ color: 0x8a7a5a }); aisleM._base = new THREE.Color(0x8a7a5a); starMats.push(aisleM);   // laiton discret : plus de barres blanches
     function starTileTex() {
       if (starTile) return starTile;
-      var N = 512, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#050507'; x.fillRect(0, 0, N, N);
+      var N = 512, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#000000'; x.fillRect(0, 0, N, N);
       for (k = 0; k < 64; k++) { x.fillStyle = 'rgba(255,255,255,' + (0.45 + Math.random() * 0.55).toFixed(2) + ')'; x.beginPath(); x.arc(Math.random() * N, Math.random() * N, 0.9 + Math.random() * 1.1, 0, TAU); x.fill(); }
       for (k = 0; k < 8; k++) { var px = Math.random() * N, py = Math.random() * N, gr = x.createRadialGradient(px, py, 0, px, py, 5); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(px - 5, py - 5, 10, 10); }
       starTile = new THREE.CanvasTexture(cv); starTile.wrapS = starTile.wrapT = THREE.RepeatWrapping; starTile.anisotropy = 4; return starTile;
@@ -362,7 +374,6 @@
     var screenM = new THREE.MeshBasicMaterial({ map: posterTex });
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), screenM); screen.position.set(0, SCR_Y + SCR_H / 2, -HZ + 0.16); g.add(screen);
     if (P) {                                                // écran géant : fin cadre doré, rien d'autre
-      var frm = 0.12; box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y + SCR_H + 0.07, -HZ + 0.2); box(g, SCR_W + 0.3, frm, 0.1, trimM, 0, SCR_Y - 0.07, -HZ + 0.2); [-1, 1].forEach(function (sd) { box(g, frm, SCR_H + 0.3, 0.1, trimM, sd * (SCR_W / 2 + 0.07), SCR_Y + SCR_H / 2, -HZ + 0.2); });
     }
     // lecture / pause : uniquement depuis la régie (console), plus de clic sur l'écran ni de touche P
 
@@ -411,7 +422,10 @@
         hit: hit, x: x, z: z, radius: 0.95,
         enabled: function () { return !seat_.cur && !taken(st) && (!st.vip || vipUp); },   // un fauteuil d'étage ne se prend que depuis l'étage
         prompt: function () { return '🎬 S\'asseoir  [F]'; },
-        use: function (w) { sit(w, st); }
+        use: function (w) {
+          if (Math.hypot(w.player.x - x, w.player.z - z) > 2.4 || (st.vip && !vipUp) || (!st.vip && P && vipUp)) { w.flash('Approche-toi du fauteuil pour t\'asseoir.'); return; }   // clic de loin : rien
+          sit(w, st);
+        }
       });
     }
     var seat_ = { cur: null }, vipLights = [];
@@ -428,6 +442,17 @@
     (function buildStairs() {
       var sideW = (HX - 0.7) - 5.7, sideX = 5.7 + sideW / 2;   // allée latérale : de x=5,7 jusqu'au bord de la salle
       var lanes = G0.lanes, step = 0.38;
+      if (G0.mini) {                                   // premium : de vraies petites marches (trois par rangée), pas une rampe
+        var gp3 = G0.ROW_GAP / 3, risers = [];
+        G0.BND.forEach(function (b) { [-1, 0, 1].forEach(function (j) { risers.push(b + j * gp3); }); });
+        lanes.forEach(function (ln) {
+          for (var m = 0; m < risers.length; m++) {
+            var z0 = risers[m], z1 = m + 1 < risers.length ? risers[m + 1] : ROWS[ROWS.length - 1], top = (m + 1) * G0.ROW_H / 3;
+            if (z1 - z0 > 0.01) { box(g, ln[1], top, z1 - z0, deckFor(ln[1], z1 - z0), ln[0], top / 2, (z0 + z1) / 2); box(g, ln[1], 0.02, 0.035, nosingM, ln[0], top + 0.01, z0 + 0.0175); }   // un liseré de laiton très discret au bord de chaque marche
+          }
+        });
+        lanes = [];
+      }
       lanes.forEach(function (ln) {
         var xC = ln[0], xW = ln[1];
         for (var z = ROWS[0]; z < ROWS[ROWS.length - 1]; z += step) {
@@ -439,7 +464,7 @@
     /* --- palier du fond : régie, pop-corn et sortie sont de plain-pied avec la dernière rangée (jusqu'au mur du fond, sinon la régie flotte au-dessus du vide) --- */
     var backZ0 = ROWS[ROWS.length - 1], backZC = (backZ0 + HZ) / 2;
     box(g, HX * 2, BACK_H, HZ - backZ0 + 0.1, deckFor(HX * 2, HZ - backZ0), 0, BACK_H / 2, backZC);
-    box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
+    if (!P) box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
     if (!P) ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, P ? aisleM : bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
@@ -565,7 +590,10 @@
       // murs latéraux percés de deux trous (en bas : l'entrée de l'escalier ; en haut : la sortie sur le balcon)
       function holeWall(sd) {                       // mur latéral en morceaux autour des deux trous (aucune découpe en triangles : plus de fente ni de ligne dans le mur)
         var ry = sd < 0 ? Math.PI / 2 : -Math.PI / 2;
-        function quad(z0, z1, y0, y1) { var m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), starMat(z1 - z0, y1 - y0)); m.position.set(sd * HX, (y0 + y1) / 2, (z0 + z1) / 2); m.rotation.y = ry; g.add(m); }
+        function quad(z0, z1, y0, y1) {
+          var m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), starMat(z1 - z0, y1 - y0)); m.position.set(sd * HX, (y0 + y1) / 2, (z0 + z1) / 2); m.rotation.y = ry; g.add(m);
+          var m2 = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), wallV); m2.position.set(sd * (HX + 0.03), (y0 + y1) / 2, (z0 + z1) / 2); m2.rotation.y = ry + Math.PI; g.add(m2);   // face intérieure du puits : le mur est plein des deux côtés
+        }
         quad(-HZ, BH.z0, 0, H); quad(BH.z0, BH.z1, BH.y1, H); quad(BH.z1, TH.z0, 0, H);
         quad(TH.z0, TH.z1, 0, TH.y0); quad(TH.z0, TH.z1, TH.y1, H); quad(TH.z1, HZ, 0, H);
       }
@@ -694,7 +722,7 @@
       }
     }
     video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
-    var endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null;
+    var endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null, lastSeekAt = 0;
     // fin du film : chez tout le monde on revient à l'écran de base (aucune séance), et le Patron/Co Fondateur coupe la séance pour tout le monde
     video.addEventListener('ended', function () { endedUrl = net.url; if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); if (lastSt) applyNet(lastSt); });
     // écran de chargement tant que le flux met en mémoire tampon (extraction Tropi Stream + démarrage du flux, parfois plusieurs secondes)
@@ -708,37 +736,14 @@
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       try {
         var c = vAudio.ctx = new AC(), src = c.createMediaElementSource(video);
-        // son de cinéma : trois enceintes derrière l'écran (gauche, centre, droite), deux sur les murs latéraux et deux au fond (ambiance et effets
-        // qui tournent autour de toi), un caisson de graves qui fait vibrer la salle et une réverbération de grande salle ; rendu 3D réaliste (HRTF)
+        // deux enceintes virtuelles de chaque côté de l'écran (voie gauche à gauche, voie droite à droite), rendu 3D réaliste (HRTF) : le même son dans les deux salles
         var pre = c.createGain(); pre.channelCount = 2; pre.channelCountMode = 'explicit'; pre.channelInterpretation = 'speakers';
         var sp = c.createChannelSplitter(2); vAudio.lp = c.createBiquadFilter(); vAudio.lp.type = 'lowpass'; vAudio.lp.frequency.value = 18000;
         vAudio.gain = c.createGain(); vAudio.gain.gain.value = 1;
-        var comp = c.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 18; comp.ratio.value = 3.5; comp.attack.value = 0.004; comp.release.value = 0.25;   // les explosions restent puissantes sans saturer
-        function gn(v) { var n = c.createGain(); n.gain.value = v; return n; }
-        function lpf(f) { var n = c.createBiquadFilter(); n.type = 'lowpass'; n.frequency.value = f; return n; }
-        function dly(t) { var n = c.createDelay(0.2); n.delayTime.value = t; return n; }
-        function spk(x, y, z, ref, roll) { var p = c.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref; p.maxDistance = 200; p.rolloffFactor = roll; if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z); return p; }
-        var yF = 5, zF = -HZ + 0.6;
-        vAudio.pl = spk(-SCR_W * 0.36, yF, zF, 16, 0.35); vAudio.pr = spk(SCR_W * 0.36, yF, zF, 16, 0.35);
-        var fc = spk(0, yF, zF, 16, 0.35), sl = spk(-(HX - 0.6), 5.5, -HZ * 0.05, 10, 0.3), sr = spk(HX - 0.6, 5.5, -HZ * 0.05, 10, 0.3), rl = spk(-HX * 0.5, 6, HZ - 0.8, 10, 0.3), rr = spk(HX * 0.5, 6, HZ - 0.8, 10, 0.3);
-        var bus = gn(1);
-        src.connect(pre); pre.connect(sp);
-        var gL = gn(1), gR = gn(1), gC = gn(0.8);                            // avant : gauche, droite, et un centre (les dialogues) fait des deux voies
-        sp.connect(gL, 0); sp.connect(gR, 1); sp.connect(gC, 0); sp.connect(gC, 1);
-        gL.connect(vAudio.pl); gR.connect(vAudio.pr); gC.connect(fc);
-        var invR = gn(-1), invL = gn(-1), mixSL = gn(1), mixSR = gn(1);      // ambiance : ce qui diffère entre les deux voies (L-R, R-L) + un peu des voies avant
-        sp.connect(mixSL, 0); sp.connect(invR, 1); invR.connect(mixSL); sp.connect(mixSR, 1); sp.connect(invL, 0); invL.connect(mixSR);
-        var sLg = gn(0.45), sRg = gn(0.45); sp.connect(sLg, 0); sp.connect(sRg, 1); sLg.connect(mixSL); sRg.connect(mixSR);
-        var cl = lpf(8000), cr = lpf(8000), dl1 = dly(0.016), dr1 = dly(0.016), dl2 = dly(0.034), dr2 = dly(0.034), gSurr = gn(1.0), gRear = gn(0.7), gSurr2 = gn(1.0), gRear2 = gn(0.7);
-        mixSL.connect(cl); cl.connect(dl1); dl1.connect(gSurr); gSurr.connect(sl); dl1.connect(dl2); dl2.connect(gRear); gRear.connect(rl);
-        mixSR.connect(cr); cr.connect(dr1); dr1.connect(gSurr2); gSurr2.connect(sr); dr1.connect(dr2); dr2.connect(gRear2); gRear2.connect(rr);
-        [vAudio.pl, vAudio.pr, fc, sl, sr, rl, rr].forEach(function (n) { n.connect(bus); });
-        bus.connect(vAudio.lp); vAudio.lp.connect(comp);
-        var sub = gn(1.15), subLp = lpf(110); sp.connect(sub, 0); sp.connect(sub, 1); sub.connect(subLp); subLp.connect(comp);   // caisson de graves : les basses sont ressenties, pas localisées
-        var ir = c.createBuffer(2, Math.floor(c.sampleRate * 2.4), c.sampleRate);                                          // réverbération d'une grande salle (bruit qui s'éteint en 2,4 s)
-        for (var ch = 0; ch < 2; ch++) { var d0 = ir.getChannelData(ch); for (var iq = 0; iq < d0.length; iq++) d0[iq] = (Math.random() * 2 - 1) * Math.pow(1 - iq / d0.length, 2.6) * (iq < 900 ? iq / 900 : 1); }
-        var conv = c.createConvolver(); conv.buffer = ir; var wetIn = lpf(5500), wet = gn(0.2); pre.connect(wetIn); wetIn.connect(conv); conv.connect(wet); wet.connect(comp);
-        comp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
+        function spk(x) { var yy = P ? 6 : SCR_Y + SCR_H / 2; var p = c.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 9; p.maxDistance = 100; p.rolloffFactor = 0.45; if (p.positionX) { p.positionX.value = x; p.positionY.value = yy; p.positionZ.value = -HZ + 0.5; } else p.setPosition(x, yy, -HZ + 0.5); return p; }
+        vAudio.pl = spk(P ? -9.5 : -SCR_W * 0.38); vAudio.pr = spk(P ? 9.5 : SCR_W * 0.38);
+        src.connect(pre); pre.connect(sp); sp.connect(vAudio.pl, 0); sp.connect(vAudio.pr, 1);
+        vAudio.pl.connect(vAudio.lp); vAudio.pr.connect(vAudio.lp); vAudio.lp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
     }
@@ -791,8 +796,9 @@
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
         ensureVideoAudio();
-        var drift = netPosNow() - video.currentTime;
-        if (Math.abs(drift) > 2.5) video.currentTime = Math.max(0, netPosNow());       // gros écart seulement : un saut en arrière-plan coupe la lecture, on évite
+        var drift = netPosNow() - video.currentTime, nowT = performance.now();
+        if (video.seeking || video.readyState < 3) { /* recherche ou chargement en cours : surtout pas une 2e recherche par-dessus (c'est ce qui bloquait tout) */ }
+        else if (Math.abs(drift) > 2.5) { if (nowT - lastSeekAt > 4000) { lastSeekAt = nowT; video.currentTime = Math.max(0, netPosNow() + 1.0); } }   // gros écart : une seule recherche, un peu en avance pour compenser le chargement
         else if (Math.abs(drift) > 0.4) video.playbackRate = drift > 0 ? 1.06 : 0.94;  // petit écart : on rattrape en douceur
         else if (video.playbackRate !== 1) video.playbackRate = 1;
         if (video.readyState >= 3) showVideo(true);
@@ -801,7 +807,7 @@
         setLoading(false); stallT = 0;
         if (!video.paused) video.pause();
         if (video.playbackRate !== 1) video.playbackRate = 1;
-        if (net.status === 'paused') { showVideo(true); if (Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
+        if (net.status === 'paused') { showVideo(true); if (!video.seeking && Math.abs(video.currentTime - net.position) > 0.4) video.currentTime = net.position; }
         else {
           showVideo(false);
           var sub = nextSeanceSub();
@@ -1457,7 +1463,7 @@
       var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
-      if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); starMats.forEach(function (m) { m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
+      if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); starMats.forEach(function (m) { if (m._base) m.color.copy(m._base).multiplyScalar(dim); else m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
       var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
       amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
@@ -1478,47 +1484,90 @@
       }
     };
     /* ===================== LUMIÈRE DE L'ÉCRAN ===================== */
-    // Pendant le film, l'image est lue 10 fois par seconde. Ses couleurs les plus vives (une explosion, un ciel, une scène de nuit bleutée…) éclairent TOUTE la salle :
-    // une teinte s'ajoute aux murs, au plafond, au sol et aux gradins, et des lumières colorées éclairent les fauteuils. Couleurs lissées, un peu plus franches, jamais de gris sale ;
-    // image sombre = aucune lumière. Un léger penchant vers le côté de l'image où ça se passe, sans jamais couper la lumière ailleurs.
+    // Pendant le film, l'image est lue 10 fois par seconde. Deux barres lumineuses de chaque côté de l'écran reprennent, tronçon par tronçon, les couleurs du bord de l'image
+    // (comme un éclairage de salon derrière une télé) et leur halo déborde sur les murs. Toute la salle baigne dans une lumière douce de la même couleur : forte près de l'écran,
+    // légère au fond, la couleur du côté gauche de l'image à gauche et celle du côté droit à droite. Couleurs lissées, un peu plus franches ; image sombre = aucune lumière.
     (function buildAmbilight() {
-      var cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
+      var N = 14, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0, i;
+      var segCur = { L: [], R: [] }, segTgt = { L: [], R: [] };
+      for (i = 0; i < N; i++) { segCur.L.push([0, 0, 0]); segCur.R.push([0, 0, 0]); segTgt.L.push([0, 0, 0]); segTgt.R.push([0, 0, 0]); }
+      function barCanvas(w) { var cv = mkCanvas(w, N); return { w: w, cx: cv.getContext('2d'), tex: new THREE.CanvasTexture(cv) }; }
+      var halo = { L: barCanvas(64), R: barCanvas(64) }, core = { L: barCanvas(4), R: barCanvas(4) };
+      function lmat(t) { return new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); }
+      var bx = SCR_W / 2 + 0.55, bz = -HZ + 0.1, bh = SCR_H, by = SCR_Y + SCR_H / 2;
+      if (P) [-1, 1].forEach(function (sd) {
+        var key = sd < 0 ? 'L' : 'R';
+        var h = new THREE.Mesh(new THREE.PlaneGeometry(7, bh * 1.04), lmat(halo[key])); h.position.set(sd * bx, by, bz); g.add(h);                 // halo doux (derrière l'écran, déborde sur le mur)
+        var c = new THREE.Mesh(new THREE.PlaneGeometry(0.42, bh), lmat(core[key])); c.position.set(sd * bx, by, bz + 0.12); g.add(c);          // le tube lumineux
+      });
+      function paint(t, arr, wide) {
+        var cx = t.cx, k, col, gr;
+        cx.clearRect(0, 0, t.w, N);
+        for (k = 0; k < N; k++) {
+          col = Math.round(arr[k][0] * 255) + ',' + Math.round(arr[k][1] * 255) + ',' + Math.round(arr[k][2] * 255);
+          if (wide) { gr = cx.createLinearGradient(0, 0, t.w, 0); gr.addColorStop(0, 'rgba(' + col + ',0)'); gr.addColorStop(0.5, 'rgba(' + col + ',0.85)'); gr.addColorStop(1, 'rgba(' + col + ',0)'); cx.fillStyle = gr; }
+          else cx.fillStyle = 'rgba(' + col + ',1)';
+          cx.fillRect(0, k, t.w, 1);
+        }
+        t.tex.needsUpdate = true;
+      }
       var ambL = new THREE.AmbientLight(0xffffff, 0); g.add(ambL);
       var pts = [], spots = [[-1, -HZ + 5, SCR_Y + SCR_H * 0.3], [1, -HZ + 5, SCR_Y + SCR_H * 0.3], [-1, 0, 7], [1, 0, 7], [-1, HZ - 6, 9], [1, HZ - 6, 9]];
       if (!low) spots.forEach(function (sp0) { var l = new THREE.PointLight(0xffffff, 0, 46); l.position.set(sp0[0] * (HX - 4), sp0[2], sp0[1]); g.add(l); pts.push({ l: l, side: sp0[0] }); });
-      var glob = [0, 0, 0], left = [0, 0, 0], right = [0, 0, 0], gS = [0, 0, 0], lS = [0, 0, 0], rS = [0, 0, 0], str = 0, strS = 0;
+      var gC = [0, 0, 0], gL = [0, 0, 0], gR = [0, 0, 0], tC = [0, 0, 0], tL = [0, 0, 0], tR = [0, 0, 0], str = 0, strT = 0;
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
-      function vivid(r, gg, b) {                         // couleur « belle » : plus franche, normalisée
-        var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1;
-        return [rr / mm, g2 / mm, bb / mm];
-      }
+      function vivid(r, gg, b) { var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1; return [rr / mm, g2 / mm, bb / mm]; }
       room.ambiUpdate = function (dt, on) {
         tAcc += dt;
         if (on && !bad && tAcc > 0.1 && video.readyState >= 2 && video.videoWidth > 0) {
           tAcc = 0;
           try {
             cxS.drawImage(video, 0, 0, 64, 36);
-            var d = cxS.getImageData(0, 0, 64, 36).data, i, lum, w2, sw = 0, sr = 0, sg = 0, sb = 0, ml = 0, lw = 0, lr = 0, lg = 0, lb = 0, rw = 0, rr0 = 0, rg = 0, rb = 0, px = 0;
-            for (i = 0; i < d.length; i += 4, px++) {
-              lum = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255; ml += lum; w2 = lum * lum * lum + 0.0005;
-              sw += w2; sr += d[i] / 255 * w2; sg += d[i + 1] / 255 * w2; sb += d[i + 2] / 255 * w2;
-              if (px % 64 < 24) { lw += w2; lr += d[i] / 255 * w2; lg += d[i + 1] / 255 * w2; lb += d[i + 2] / 255 * w2; }
-              else if (px % 64 >= 40) { rw += w2; rr0 += d[i] / 255 * w2; rg += d[i + 1] / 255 * w2; rb += d[i + 2] / 255 * w2; }
+            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, lum, w2, k, q, sw = 0, sr = 0, sg = 0, sb = 0, ml = 0, lw = 0, lr = 0, lg = 0, lb = 0, rw = 0, rr0 = 0, rg = 0, rb = 0;
+            var sa = { L: [], R: [] };
+            for (q = 0; q < N; q++) { sa.L.push([0, 0, 0, 0]); sa.R.push([0, 0, 0, 0]); }
+            for (y = 0; y < 36; y++) for (x = 0; x < 64; x++) {
+              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255; ml += lum; w2 = lum * lum * lum + 0.0005;
+              sw += w2; sr += d[p] / 255 * w2; sg += d[p + 1] / 255 * w2; sb += d[p + 2] / 255 * w2;
+              if (x < 24) { lw += w2; lr += d[p] / 255 * w2; lg += d[p + 1] / 255 * w2; lb += d[p + 2] / 255 * w2; }
+              else if (x >= 40) { rw += w2; rr0 += d[p] / 255 * w2; rg += d[p + 1] / 255 * w2; rb += d[p + 2] / 255 * w2; }
+              k = Math.min(N - 1, Math.floor(y * N / 36));
+              if (x < 8) { q = sa.L[k]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              else if (x >= 56) { q = sa.R[k]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
             }
-            ml /= px; var peak = sr / sw * 0.3 + sg / sw * 0.59 + sb / sw * 0.11;
-            gS = vivid(sr / sw, sg / sw, sb / sw); lS = lw ? vivid(lr / lw, lg / lw, lb / lw) : gS; rS = rw ? vivid(rr0 / rw, rg / rw, rb / rw) : gS;
-            strS = smooth(0.06, 0.5, peak) * (0.45 + 0.55 * smooth(0.04, 0.35, ml));      // image sombre : pas de lumière ; scène vive : lumière pleine
+            ml /= 2304; var peak = sr / sw * 0.3 + sg / sw * 0.59 + sb / sw * 0.11;
+            tC = vivid(sr / sw, sg / sw, sb / sw); tL = lw ? vivid(lr / lw, lg / lw, lb / lw) : tC; tR = rw ? vivid(rr0 / rw, rg / rw, rb / rw) : tC;
+            strT = smooth(0.06, 0.5, peak) * (0.45 + 0.55 * smooth(0.04, 0.35, ml));
+            ['L', 'R'].forEach(function (sk) {
+              for (var s2 = 0; s2 < N; s2++) {
+                var a = sa[sk][s2], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, l0 = r0 * 0.3 + g0 * 0.59 + b0 * 0.11, v = vivid(r0, g0, b0), kk2 = smooth(0.05, 0.5, l0);
+                segTgt[sk][s2] = [v[0] * kk2, v[1] * kk2, v[2] * kk2];
+              }
+            });
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
         }
-        if (!on || bad) strS = 0;
-        var kk = Math.min(1, dt * (strS > str ? 9 : 2.4)), kc = Math.min(1, dt * 5), q;
-        str += (strS - str) * kk;
-        for (q = 0; q < 3; q++) { glob[q] += (gS[q] - glob[q]) * kc; left[q] += (lS[q] - left[q]) * kc; right[q] += (rS[q] - right[q]) * kc; }
-        tintU.value.setRGB(glob[0] * str * 0.3, glob[1] * str * 0.3, glob[2] * str * 0.3);       // toutes les surfaces étoilées : une teinte, partout
-        ambL.color.setRGB(glob[0], glob[1], glob[2]); ambL.intensity = str * 1.0;
-        pts.forEach(function (o) { var sc = o.side < 0 ? left : right; o.l.color.setRGB(glob[0] * 0.65 + sc[0] * 0.35, glob[1] * 0.65 + sc[1] * 0.35, glob[2] * 0.65 + sc[2] * 0.35); o.l.intensity = str * 1.5; });
+        if (!on || bad) { strT = 0; for (i = 0; i < N; i++) { segTgt.L[i] = [0, 0, 0]; segTgt.R[i] = [0, 0, 0]; } }
+        var kk = Math.min(1, dt * (strT > str ? 9 : 2.4)), kc = Math.min(1, dt * 5), q2, c3;
+        str += (strT - str) * kk;
+        for (c3 = 0; c3 < 3; c3++) { gC[c3] += (tC[c3] - gC[c3]) * kc; gL[c3] += (tL[c3] - gL[c3]) * kc; gR[c3] += (tR[c3] - gR[c3]) * kc; }
+        for (i = 0; i < N; i++) for (c3 = 0; c3 < 3; c3++) {
+          var up = segTgt.L[i][c3] > segCur.L[i][c3], upR = segTgt.R[i][c3] > segCur.R[i][c3];
+          segCur.L[i][c3] += (segTgt.L[i][c3] - segCur.L[i][c3]) * Math.min(1, dt * (up ? 12 : 3));
+          segCur.R[i][c3] += (segTgt.R[i][c3] - segCur.R[i][c3]) * Math.min(1, dt * (upR ? 12 : 3));
+        }
+        paint(halo.L, segCur.L, true); paint(halo.R, segCur.R, true); paint(core.L, segCur.L, false); paint(core.R, segCur.R, false);
+        tintU.uL.value.setRGB(gL[0] * str * 0.3, gL[1] * str * 0.3, gL[2] * str * 0.3);
+        tintU.uR.value.setRGB(gR[0] * str * 0.3, gR[1] * str * 0.3, gR[2] * str * 0.3);
+        tintU.uC.value.setRGB(gC[0] * str * 0.3, gC[1] * str * 0.3, gC[2] * str * 0.3);
+        ambL.color.setRGB(gC[0], gC[1], gC[2]); ambL.intensity = str * 0.45;
+        pts.forEach(function (o) { var sc = o.side < 0 ? gL : gR; o.l.color.setRGB(gC[0] * 0.5 + sc[0] * 0.5, gC[1] * 0.5 + sc[1] * 0.5, gC[2] * 0.5 + sc[2] * 0.5); o.l.intensity = str * 0.8; });
       };
-      room._ambi = { force: function (c) { gS = lS = rS = c; strS = 1; bad = false; } };
+      room._ambi = {
+        force: function (cl, cr) {                       // (test) couleurs imposées à gauche / à droite
+          strT = 1; bad = false; tC = [(cl[0] + cr[0]) / 2, (cl[1] + cr[1]) / 2, (cl[2] + cr[2]) / 2]; tL = cl; tR = cr;
+          for (var z = 0; z < N; z++) { segTgt.L[z] = cl; segTgt.R[z] = cr; }
+        }
+      };
     })();
     room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } if (vAudio.ctx) { try { vAudio.ctx.close(); } catch (e) { /* ok */ } } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;
