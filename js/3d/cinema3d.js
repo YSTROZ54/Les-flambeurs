@@ -259,7 +259,7 @@
       m.onBeforeCompile = function (sh) {
         Object.keys(tintU).forEach(function (k) { sh.uniforms[k] = tintU[k]; });
         sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-        sh.fragmentShader = 'varying vec3 vWp;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); gl_FragColor.rgb += mix(sd, uC, 0.3) * nr;\n#include <dithering_fragment>');
+        sh.fragmentShader = 'varying vec3 vWp;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n#include <dithering_fragment>');
       };
       return m;
     }
@@ -399,7 +399,7 @@
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9),
       pCush: new THREE.BoxGeometry(0.8, 0.2, 0.74), pBase: new THREE.BoxGeometry(0.6, 0.34, 0.5), pBack: new THREE.BoxGeometry(0.8, 0.98, 0.2), pHead: new THREE.BoxGeometry(0.52, 0.26, 0.15), pArm: new THREE.BoxGeometry(0.2, 0.22, 0.78), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: new THREE.BoxGeometry(0.56, 0.74, 0.05), pCap: new THREE.BoxGeometry(0.22, 0.035, 0.8)
     };
-    var velM = P ? std(0xa8142a, 0.72, 0.04, 0x1f0408) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0xc41e38, 0.6, 0.05, 0x260509) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var velM = P ? std(0x86101f, 0.78, 0.04, 0x140305) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0x9e1628, 0.68, 0.05, 0x180406) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
       var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 1.0, 0.23], rx: 0.16 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.5, 0.77, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.5, 0.77, 0.0] }];
@@ -580,7 +580,13 @@
       box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.2, T1 + 0.025);
       box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.4, T2 + 0.025);
       // piliers sous le bord avant, dans les allées du bas
-      [-13.4, -2.9, 2.9, 13.4].forEach(function (px) { cyl(g, 0.2, 0.2, VY - 0.7, pill, px, (VY - 0.7) / 2, vz0 + 0.25, 16); cyl(g, 0.26, 0.26, 0.1, trimM, px, VY - 0.74, vz0 + 0.25, 16); room.colliders.push({ x: px, z: vz0 + 0.25, r: 0.3 }); });
+      [-13.4, -2.9, 2.9, 13.4].forEach(function (px) {
+        var pz = vz0 + 0.25, gy = cinemaGroundY(px, pz), top = VY - 0.7, hh = top - gy;
+        cyl(g, 0.22, 0.22, hh, pill, px, gy + hh / 2, pz, 20);                                   // le fût, posé sur le sol (plus rien sous le plancher)
+        cyl(g, 0.34, 0.38, 0.22, pill, px, gy + 0.11, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, gy + 0.24, pz, 20);   // socle
+        cyl(g, 0.34, 0.26, 0.2, pill, px, top - 0.1, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, top - 0.22, pz, 20);   // chapiteau
+        room.colliders.push({ x: px, z: pz, r: 0.65 });                                         // on ne peut plus rentrer dedans
+      });
       // garde-corps de verre le long du bord
       box(g, vw * 2, 0.04, 0.08, trimM, 0, VY + 0.02, vz0 + 0.06);                      // juste un liseré doré au ras du sol : rien devant l'écran (la barrière invisible empêche de tomber)
       // fauteuils de luxe : trois rangées de douze
@@ -1459,8 +1465,8 @@
       if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); starMats.forEach(function (m) { if (m._base) m.color.copy(m._base).multiplyScalar(dim); else m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
       var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
-      amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
-      lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; }); vipLights.forEach(function (l) { l.intensity = 0.7 * dv; });
+      amb.intensity = (P ? 0.3 : 0.95) * dv; key.intensity = (P ? 0.12 : 0.3) * dv;
+      lights.forEach(function (l) { l.intensity = (P ? 0.2 : 0.55) * dv; }); vipLights.forEach(function (l) { l.intensity = 0.7 * dv; });
       wash.intensity = playing ? 0.5 : 0;
       lampGlow.forEach(function (s, i) { s.scale.setScalar(1.8 + Math.sin(clock * 3 + i) * 0.06); });
       // musique : elle se tait pendant le film (qui a son propre son)
@@ -1472,35 +1478,78 @@
       }
     };
     /* ===================== LUMIÈRE DE L'ÉCRAN (salle premium) ===================== */
-    // Quatre tubes lumineux encadrent l'écran (gauche, droite, haut, bas). Chaque tube est découpé en tronçons qui reprennent la couleur du bord de l'image juste à côté,
-    // comme un éclairage de salon derrière une télé. La lumière reste DANS les tubes : la salle elle-même n'est pas éclairée. Couleurs lissées ; image sombre = tube éteint.
+    // Un seul néon continu fait le tour de l'écran, collé à son bord (coins arrondis, aucune coupure). Chaque point du néon prend, en direct, la couleur du bord de l'image
+    // juste à côté. Un halo doux l'entoure, et les murs, le plafond et le sol tout près de l'écran prennent un léger reflet de ces couleurs (vite atténué : la salle reste sombre).
     (function buildAmbilight() {
       if (!P) { room.ambiUpdate = function () {}; return; }
       var NV = 14, NH = 24, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
-      function side(n, rev) { var cur = [], tgt = [], k; for (k = 0; k < n; k++) { cur.push([0, 0, 0]); tgt.push([0, 0, 0]); } var cv = mkCanvas(2, n); return { n: n, rev: rev, cur: cur, tgt: tgt, cx: cv.getContext('2d'), tex: new THREE.CanvasTexture(cv) }; }
-      var S = { L: side(NV, false), R: side(NV, false), T: side(NH, true), B: side(NH, true) };     // tubes horizontaux : la texture va de droite à gauche
-      var ex = SCR_W / 2 + 0.45, yb = SCR_Y - 0.45, yt = SCR_Y + SCR_H + 0.45, tz = -HZ + 0.35, capM = std(0x1a1a1f, 0.4, 0.6);
-      function tube(sd, len, x, y, horiz) {
-        var m = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, len, 16, 1, false), new THREE.MeshBasicMaterial({ map: sd.tex }));
-        m.position.set(x, y, tz); if (horiz) m.rotation.z = -Math.PI / 2; g.add(m);
-        [-1, 1].forEach(function (e) { var c = cyl(g, 0.2, 0.2, 0.14, capM, horiz ? x + e * len / 2 : x, horiz ? y : y + e * len / 2, tz, 16); if (horiz) c.rotation.z = Math.PI / 2; });   // embouts
-      }
-      tube(S.L, yt - yb, -ex, (yt + yb) / 2, false); tube(S.R, yt - yb, ex, (yt + yb) / 2, false);
-      tube(S.T, ex * 2 - 0.3, 0, yt, true); tube(S.B, ex * 2 - 0.3, 0, yb, true);
-      function paint(sd) {
-        for (var k = 0; k < sd.n; k++) {
-          var c = sd.cur[sd.rev ? sd.n - 1 - k : k], r = Math.max(c[0], 0.05), gg = Math.max(c[1], 0.05), b = Math.max(c[2], 0.06);   // éteint : tube de verre sombre
-          sd.cx.fillStyle = 'rgb(' + Math.round(r * 255) + ',' + Math.round(gg * 255) + ',' + Math.round(b * 255) + ')'; sd.cx.fillRect(0, k, 2, 1);
+      function seg(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0]); return a; }
+      var E = { L: { n: NV, cur: seg(NV), tgt: seg(NV) }, R: { n: NV, cur: seg(NV), tgt: seg(NV) }, T: { n: NH, cur: seg(NH), tgt: seg(NH) }, B: { n: NH, cur: seg(NH), tgt: seg(NH) } };
+      var TR = 0.16, RAD = 0.5, hx = SCR_W / 2 + TR, y0 = SCR_Y - TR, y1 = SCR_Y + SCR_H + TR, tz = -HZ + 0.3;   // collé au bord de l'écran
+      // le parcours du néon : un rectangle à coins arrondis, dans le sens bas-gauche → haut-gauche → haut-droit → bas-droit → retour
+      var path = new THREE.CurvePath(), V = function (x, y) { return new THREE.Vector3(x, y, tz); };
+      path.add(new THREE.LineCurve3(V(-hx, y0 + RAD), V(-hx, y1 - RAD)));
+      path.add(new THREE.QuadraticBezierCurve3(V(-hx, y1 - RAD), V(-hx, y1), V(-hx + RAD, y1)));
+      path.add(new THREE.LineCurve3(V(-hx + RAD, y1), V(hx - RAD, y1)));
+      path.add(new THREE.QuadraticBezierCurve3(V(hx - RAD, y1), V(hx, y1), V(hx, y1 - RAD)));
+      path.add(new THREE.LineCurve3(V(hx, y1 - RAD), V(hx, y0 + RAD)));
+      path.add(new THREE.QuadraticBezierCurve3(V(hx, y0 + RAD), V(hx, y0), V(hx - RAD, y0)));
+      path.add(new THREE.LineCurve3(V(hx - RAD, y0), V(-hx + RAD, y0)));
+      path.add(new THREE.QuadraticBezierCurve3(V(-hx + RAD, y0), V(-hx, y0), V(-hx, y0 + RAD)));
+      var lens = path.getCurveLengths(), Ltot = lens[lens.length - 1];
+      var W = 512, cv = mkCanvas(W, 2), cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.wrapS = THREE.RepeatWrapping;
+      var neon = new THREE.Mesh(new THREE.TubeGeometry(path, 900, TR, 12, true), new THREE.MeshBasicMaterial({ map: tex })); g.add(neon);
+      // halo doux tout autour (pas de rectangle : il s'efface vers l'extérieur et derrière l'écran)
+      var hcv = mkCanvas(W, 16), hcx = hcv.getContext('2d'), htex = new THREE.CanvasTexture(hcv); htex.wrapS = THREE.RepeatWrapping;
+      function ribbon(w, M, z) {                        // bande plate qui suit le néon, posée derrière l'écran : seule la moitié extérieure se voit, sur le mur
+        var pos = [], uv = [], idx = [], i;
+        for (i = 0; i <= M; i++) {
+          var u = Math.min(i / M, 1), p = path.getPointAt(u), t = path.getTangentAt(u), nx = -t.y, ny = t.x;
+          pos.push(p.x - nx * w, p.y - ny * w, z, p.x + nx * w, p.y + ny * w, z); uv.push(u, 0, u, 1);
+          if (i < M) { var a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
         }
-        sd.tex.needsUpdate = true;
+        var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); return geo;
+      }
+      var halo = new THREE.Mesh(ribbon(0.9, 600, -HZ + 0.1), new THREE.MeshBasicMaterial({ map: htex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(halo);
+      // position le long du néon → côté de l'écran et place sur ce côté (0..1)
+      var segLen = [lens[0], lens[1] - lens[0], lens[2] - lens[1], lens[3] - lens[2], lens[4] - lens[3], lens[5] - lens[4], lens[6] - lens[5], lens[7] - lens[6]];
+      function colorAt(u) {                             // u : 0..1 le long du néon
+        var d = u * Ltot, k = 0; while (k < 7 && d > lens[k]) k++;
+        var t = (d - (k ? lens[k - 1] : 0)) / segLen[k];
+        function pick(e, f) { var n = e.n, x = Math.min(n - 1, Math.max(0, f * (n - 1))), a = Math.floor(x), b = Math.min(n - 1, a + 1), w = x - a, ca = e.cur[a], cb = e.cur[b]; return [ca[0] + (cb[0] - ca[0]) * w, ca[1] + (cb[1] - ca[1]) * w, ca[2] + (cb[2] - ca[2]) * w]; }
+        function mixc(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+        switch (k) {
+          case 0: return pick(E.L, 1 - t);                          // gauche, de bas en haut (les tronçons vont du haut vers le bas)
+          case 1: return mixc(pick(E.L, 0), pick(E.T, 0));           // coin haut-gauche
+          case 2: return pick(E.T, t);                              // haut, de gauche à droite
+          case 3: return mixc(pick(E.T, 1), pick(E.R, 0));
+          case 4: return pick(E.R, t);                              // droite, de haut en bas
+          case 5: return mixc(pick(E.R, 1), pick(E.B, 1));
+          case 6: return pick(E.B, 1 - t);                          // bas, de droite à gauche
+          default: return mixc(pick(E.B, 0), pick(E.L, 1));
+        }
+      }
+      var nImg = cx.createImageData(W, 2), hImg = hcx.createImageData(W, 16), prof = [];
+      for (var jj = 0; jj < 16; jj++) { var sa = Math.sin(Math.PI * (jj + 0.5) / 16); prof.push(0.42 * sa * sa); }
+      function paint() {
+        var nd = nImg.data, hd = hImg.data, i, j, o;
+        for (i = 0; i < W; i++) {
+          var c = colorAt((i + 0.5) / W), r = Math.round(c[0] * 255), gg = Math.round(c[1] * 255), b = Math.round(c[2] * 255);
+          for (j = 0; j < 2; j++) { o = (j * W + i) * 4; nd[o] = Math.max(r, 13); nd[o + 1] = Math.max(gg, 13); nd[o + 2] = Math.max(b, 15); nd[o + 3] = 255; }   // éteint : verre sombre
+          for (j = 0; j < 16; j++) { o = (j * W + i) * 4; hd[o] = r; hd[o + 1] = gg; hd[o + 2] = b; hd[o + 3] = Math.round(prof[j] * 255); }
+        }
+        cx.putImageData(nImg, 0, 0); hcx.putImageData(hImg, 0, 0);
+        tex.needsUpdate = true; htex.needsUpdate = true;
       }
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
       function vivid(r, gg, b) { var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1; return [rr / mm, g2 / mm, bb / mm]; }
-      function setTgt(sd, acc) { for (var k = 0; k < sd.n; k++) { var a = acc[k], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, v = vivid(r0, g0, b0), kk = smooth(0.05, 0.5, r0 * 0.3 + g0 * 0.59 + b0 * 0.11); sd.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk]; } }
+      function setTgt(e, acc) { for (var k = 0; k < e.n; k++) { var a = acc[k], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, v = vivid(r0, g0, b0), kk = smooth(0.04, 0.45, r0 * 0.3 + g0 * 0.59 + b0 * 0.11); e.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk]; } }
       function zeros(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0, 0]); return a; }
+      function avg(e) { var s0 = [0, 0, 0]; e.cur.forEach(function (c) { s0[0] += c[0]; s0[1] += c[1]; s0[2] += c[2]; }); return [s0[0] / e.n, s0[1] / e.n, s0[2] / e.n]; }
+      var paintT = 0;
       room.ambiUpdate = function (dt, on) {
-        tAcc += dt;
-        if (on && !bad && tAcc > 0.1 && video.readyState >= 2 && video.videoWidth > 0) {
+        tAcc += dt; paintT += dt;
+        if (on && !bad && tAcc > 0.05 && video.readyState >= 2 && video.videoWidth > 0) {     // 20 lectures par seconde : les couleurs suivent le film en direct
           tAcc = 0;
           try {
             cxS.drawImage(video, 0, 0, 64, 36);
@@ -1512,19 +1561,25 @@
               if (y < 6) { q = aT[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
               if (y >= 30) { q = aB[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
             }
-            setTgt(S.L, aL); setTgt(S.R, aR); setTgt(S.T, aT); setTgt(S.B, aB);
+            setTgt(E.L, aL); setTgt(E.R, aR); setTgt(E.T, aT); setTgt(E.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
         }
         ['L', 'R', 'T', 'B'].forEach(function (key) {
-          var sd = S[key], k, c3;
-          for (k = 0; k < sd.n; k++) for (c3 = 0; c3 < 3; c3++) {
-            var tg = (!on || bad) ? 0 : sd.tgt[k][c3], up = tg > sd.cur[k][c3];
-            sd.cur[k][c3] += (tg - sd.cur[k][c3]) * Math.min(1, dt * (up ? 12 : 3));
+          var e = E[key], k, c3;
+          for (k = 0; k < e.n; k++) for (c3 = 0; c3 < 3; c3++) {
+            var tg = (!on || bad) ? 0 : e.tgt[k][c3], up = tg > e.cur[k][c3];
+            e.cur[k][c3] += (tg - e.cur[k][c3]) * Math.min(1, dt * (up ? 30 : 9));      // réaction quasi immédiate, sans clignoter
           }
-          paint(sd);
         });
+        if (paintT > 0.033) { paintT = 0; paint(); }
+        // léger reflet sur les murs, le plafond et le sol près de l'écran (s'efface en quelques mètres)
+        var aL2 = avg(E.L), aR2 = avg(E.R), aT2 = avg(E.T), aB2 = avg(E.B), K = 0.22;
+        tintU.uL.value.setRGB(aL2[0] * K, aL2[1] * K, aL2[2] * K);
+        tintU.uR.value.setRGB(aR2[0] * K, aR2[1] * K, aR2[2] * K);
+        tintU.uC.value.setRGB((aT2[0] + aB2[0]) / 2 * K, (aT2[1] + aB2[1]) / 2 * K, (aT2[2] + aB2[2]) / 2 * K);
       };
-      room._ambi = { force: function (c) { bad = false; ['L', 'R', 'T', 'B'].forEach(function (key) { for (var k = 0; k < S[key].n; k++) S[key].tgt[k] = c(key, k / (S[key].n - 1)); }); } };
+      paint();
+      room._ambi = { force: function (c) { bad = false; ['L', 'R', 'T', 'B'].forEach(function (key) { for (var k = 0; k < E[key].n; k++) E[key].tgt[k] = c(key, k / (E[key].n - 1)); }); } };
     })();
     room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } if (vAudio.ctx) { try { vAudio.ctx.close(); } catch (e) { /* ok */ } } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;

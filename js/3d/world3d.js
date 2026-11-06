@@ -99,7 +99,7 @@
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x07050c);
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 80);
-    this.vm = F.createViewModel ? F.createViewModel('') : null; this.heldId = '';   // ta main à la première personne (hand3d.js) et l'objet que tu tiens
+    this.vm = null; this.heldId = '';   // plus de main à la première personne (elle gênait la vue)   // ta main à la première personne (hand3d.js) et l'objet que tu tiens
 
     this.rooms = {}; this.room = null; this.roomIds = opts.rooms || [];
     this.player = { x: 0, z: 9, yaw: 0, pitch: -0.04 };
