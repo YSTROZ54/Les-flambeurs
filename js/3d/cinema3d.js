@@ -29,8 +29,8 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 28, HZ: 20, H: 34, SCR_W: 51.2, SCR_Y: 2.6, SCR_H: 51.2 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
-      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-18.575, 18.25], [18.575, 18.25]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45], mini: true
+      HX: 28, HZ: 20, H: 34, SCR_W: 51.2, SCR_Y: 2.6, SCR_H: 51.2 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65],
+      blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-20.05, 15.3], [20.05, 15.3]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
@@ -567,7 +567,7 @@
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     /* --- étage VIP : dans chaque mur latéral, un trou donne sur un escalier tout simple (dans le mur) qui monte jusqu'à un second trou, au niveau d'un balcon de fauteuils de luxe --- */
-    var vipUp = false, VY = 9.0, vipLights = [];
+    var vipUp = false, VY = 7.6, vipLights = [];
     (function buildVip() {
       if (!P) return;
       var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.1, ZS0 = -8.4, ZT = 9.0, slope = VY / (ZT - ZS0), SW = 2.3, SZ0 = -10.6, SZ1 = 12.8, SH = VY + 3.4;
@@ -580,14 +580,6 @@
       box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
       box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.2, T1 + 0.025);
       box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.4, T2 + 0.025);
-      // piliers sous le bord avant, dans les allées du bas
-      [-20, -11, 11, 20].forEach(function (px) {
-        var pz = vz0 + 0.55, gy = cinemaGroundY(px, pz), top = VY - 0.7, hh = top - gy;
-        cyl(g, 0.22, 0.22, hh, pill, px, gy + hh / 2, pz, 20);                                   // le fût, posé sur le sol (plus rien sous le plancher)
-        cyl(g, 0.34, 0.38, 0.22, pill, px, gy + 0.11, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, gy + 0.24, pz, 20);   // socle
-        cyl(g, 0.34, 0.26, 0.2, pill, px, top - 0.1, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, top - 0.22, pz, 20);   // chapiteau
-        room.colliders.push({ x: px, z: pz, r: 0.6 });                                         // on ne peut plus rentrer dedans
-      });
       // garde-corps de verre le long du bord
       box(g, vw * 2, 0.04, 0.08, trimM, 0, VY + 0.02, vz0 + 0.06);                      // juste un liseré doré au ras du sol : rien devant l'écran (la barrière invisible empêche de tomber)
       // fauteuils de luxe : trois rangées de douze
@@ -616,12 +608,39 @@
       }
       // vitre sans tain : côté salle, un miroir sombre (on ne voit pas derrière) ; côté intérieur, une vitre claire (on voit toute la salle)
       var GZ = vz0 - 0.1, gy0 = BACK_H, gy1 = VY - 0.7, gH = gy1 - gy0, glassColl = [], glassOn = null;
-      var gOut = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, gH), new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.08, metalness: 0.95 })); gOut.rotation.y = Math.PI; gOut.position.set(0, gy0 + gH / 2, GZ); g.add(gOut);
-      var gIn = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, gH), new THREE.MeshBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.08, depthWrite: false })); gIn.position.set(0, gy0 + gH / 2, GZ + 0.02); g.add(gIn);
-      for (var mx = -HX + 4; mx < HX - 1; mx += 4) box(g, 0.06, gH, 0.06, trimM, mx, gy0 + gH / 2, GZ + 0.01);              // fins montants dorés
-      box(g, HX * 2, 0.06, 0.08, trimM, 0, gy0 + 0.03, GZ + 0.01);
-      for (var cxg = -HX + 0.3; cxg <= HX - 0.3; cxg += 0.5) glassColl.push({ x: cxg, z: GZ, r: 0.4 });
-      room.glassCheck = function () { var on = !isCinemaCtrl(); if (on !== glassOn) { glassOn = on; setColl(glassColl, on); } };   // seuls le Patron et le Co Fondateur passent
+      var dW = 1.4, dH = 2.5, dx0 = -HX + 1.2, dx1 = dx0 + dW, dcx = (dx0 + dx1) / 2;            // la porte, tout à gauche
+      var outM = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.08, metalness: 0.95 }), inM = new THREE.MeshBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.08, depthWrite: false });
+      function pane(x0, x1, y0, y1) {                  // un morceau de vitre : miroir sombre côté salle, vitre claire côté salon
+        var w0 = x1 - x0, h0 = y1 - y0, cx0 = (x0 + x1) / 2, cy0 = (y0 + y1) / 2;
+        var a = new THREE.Mesh(new THREE.PlaneGeometry(w0, h0), outM); a.rotation.y = Math.PI; a.position.set(cx0, cy0, GZ); g.add(a);
+        var b = new THREE.Mesh(new THREE.PlaneGeometry(w0, h0), inM); b.position.set(cx0, cy0, GZ + 0.02); g.add(b);
+      }
+      pane(-HX, dx0, gy0, gy1); pane(dx0, dx1, gy0 + dH, gy1); pane(dx1, HX, gy0, gy1);
+      var doorM = std(0x0b0b0f, 0.45, 0.35), frameM = std(0x050507, 0.5, 0.4);
+      box(g, 0.08, dH, 0.12, frameM, dx0 - 0.04, gy0 + dH / 2, GZ); box(g, 0.08, dH, 0.12, frameM, dx1 + 0.04, gy0 + dH / 2, GZ); box(g, dW + 0.16, 0.08, 0.12, frameM, dcx, gy0 + dH + 0.04, GZ);
+      var hinge = new THREE.Group(); hinge.position.set(dx0, gy0, GZ); g.add(hinge);
+      box(hinge, dW, dH - 0.02, 0.05, doorM, dW / 2, dH / 2, 0);                                // le battant noir
+      box(hinge, 0.04, 0.3, 0.06, std(0x9a9aa2, 0.3, 0.8), dW - 0.15, dH * 0.47, -0.05); box(hinge, 0.04, 0.3, 0.06, std(0x9a9aa2, 0.3, 0.8), dW - 0.15, dH * 0.47, 0.05);   // poignées
+      var stC = mkCanvas(512, 128), stx = stC.getContext('2d'); stx.fillStyle = '#08080b'; stx.fillRect(0, 0, 512, 128); stx.strokeStyle = '#c9a227'; stx.lineWidth = 5; stx.strokeRect(4, 4, 504, 120);
+      stx.textAlign = 'center'; stx.textBaseline = 'middle'; stx.fillStyle = '#f3d98a'; stx.font = '800 54px ' + SERIF; stx.fillText('ESPACE STAFF', 256, 66, 480);
+      var stS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: mkTex(stC) })); stS.rotation.y = Math.PI; stS.position.set(dcx, gy0 + dH + 0.35, GZ - 0.03); g.add(stS);
+      var stS2 = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: mkTex(stC) })); stS2.position.set(dcx, gy0 + dH + 0.35, GZ + 0.05); g.add(stS2);
+      var wallColl = [], doorColl = [], cxg, doorA = 0;
+      for (cxg = -HX + 0.3; cxg <= HX - 0.3; cxg += 0.5) { if (cxg > dx0 - 0.15 && cxg < dx1 + 0.15) continue; wallColl.push({ x: cxg, z: GZ, r: 0.4 }); }
+      for (cxg = dx0 + 0.25; cxg <= dx1 - 0.2; cxg += 0.4) doorColl.push({ x: cxg, z: GZ, r: 0.4 });
+      wallColl.forEach(function (c2) { room.colliders.push(c2); });
+      // seuls le Patron et le Co Fondateur passent, et seulement par la porte ; elle s'ouvre toute seule devant eux (sans téléportation)
+      room.glassCheck = function (w) {
+        var staff = isCinemaCtrl(), on = !staff;
+        if (on !== glassOn) { glassOn = on; setColl(doorColl, on); }
+        var near = staff && w && Math.hypot(w.player.x - dcx, w.player.z - GZ) < 2.6;
+        doorA += ((near ? -1.45 : 0) - doorA) * 0.12; hinge.rotation.y = doorA;
+      };
+      // le salon : sol et plafond qui prennent la lumière, plafonniers
+      var salonF = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x17141c, 0.9, 0.05)); salonF.rotation.x = -Math.PI / 2; salonF.position.set(0, gy0 + 0.006, (GZ + HZ) / 2); g.add(salonF);
+      var salonC = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x1e1a24, 0.9, 0.05)); salonC.rotation.x = Math.PI / 2; salonC.position.set(0, gy1 - 0.006, (GZ + HZ) / 2); g.add(salonC);
+      [-21, -14, -7, 0, 7, 14, 21].forEach(function (lx) { [12.5, 16.8].forEach(function (lz) { cyl(g, 0.28, 0.28, 0.04, bas(0xfff2d6), lx, gy1 - 0.03, lz, 18); }); });
+      if (!low) [-18, -6, 6, 18].forEach(function (lx) { var pl = new THREE.PointLight(0xffe7c4, 0.9, 11); pl.position.set(lx, gy1 - 0.5, 14.6); g.add(pl); });
       var wallPush = [], gate = [], edge = [], zc2;
       [-1, 1].forEach(function (sd) {
         holeWall(sd); frame(sd, BH); frame(sd, TH);
@@ -1458,7 +1477,7 @@
     room.update = function (dt, w) {
       clock += dt;
       if (room.vipTrack) room.vipTrack(w.player.x, w.player.z);
-      if (room.glassCheck) room.glassCheck();
+      if (room.glassCheck) room.glassCheck(w);
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
