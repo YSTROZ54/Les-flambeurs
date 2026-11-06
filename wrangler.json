@@ -10,5 +10,6 @@
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
-  }
+  },
+  "keep_vars": true
 }
