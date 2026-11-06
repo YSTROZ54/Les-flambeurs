@@ -26,12 +26,21 @@ async function sb(path, opts = {}) {
   });
 }
 
+// erreur Supabase détaillée : statut, début de la réponse et « signalement » de la clé utilisée (type, longueur, espaces) — jamais la clé elle-même
+async function supaError(res) {
+  let body = ''; try { body = (await res.text()).slice(0, 160); } catch (e) { /* ok */ }
+  const k = String(process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || '');
+  const kind = k.startsWith('eyJ') ? 'ancienne clé eyJ' : k.startsWith('sb_secret_') ? 'clé sb_secret_' : k.startsWith('sb_publishable_') ? 'clé publique sb_publishable_ (pas la clé secrète !)' : k ? 'format inconnu' : 'AUCUNE clé reçue';
+  const hint = res.status === 401 ? ' (vérifiez SUPABASE_SERVICE_KEY — ' + kind + ', longueur ' + k.length + (k !== k.trim() ? ', ESPACE en trop' : '') + ')' : '';
+  return new Error('Supabase ' + res.status + hint + (body ? ' : ' + body : ''));
+}
+
 const clone = (o) => JSON.parse(JSON.stringify(o == null ? {} : o));
 
 export async function listRows() {
   if (MEMORY_ONLY) return Object.values(memory.rows).map((r) => ({ ...r }));
   const res = await sb('accounts?select=*');
-  if (!res.ok) throw new Error('Supabase ' + res.status + (res.status === 401 ? ' (vérifiez SUPABASE_SERVICE_KEY)' : ''));
+  if (!res.ok) throw await supaError(res);
   const rows = await res.json();
   return Array.isArray(rows) ? rows : [];
 }
@@ -39,7 +48,7 @@ export async function listRows() {
 export async function getRowExact(username) {
   if (MEMORY_ONLY) { const r = memory.rows[String(username).toLowerCase()]; return r ? { ...r, data: clone(r.data) } : null; }
   const res = await sb(`accounts?username=eq.${encodeURIComponent(username)}&select=*`);
-  if (!res.ok) throw new Error('Supabase ' + res.status + (res.status === 401 ? ' (vérifiez SUPABASE_SERVICE_KEY)' : ''));
+  if (!res.ok) throw await supaError(res);
   const rows = await res.json();
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
