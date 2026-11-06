@@ -720,8 +720,56 @@
     var video = document.createElement('video');
     video.crossOrigin = 'anonymous'; video.preload = 'auto';   // on charge le film d'avance, même avant le lancement video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;
     var vtex = new THREE.VideoTexture(video); vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '', schedule: [] };
+    var net = { url: '', type: 'mp4', status: 'idle', position: 0, recvAt: performance.now(), busy: false, lastSrc: '', title: '', schedule: [], ad: null };
     function showVideo(on) { screenM.map = on ? vtex : posterTex; screenM.needsUpdate = true; }
+    /* --- pub avant le film (cinéma gratuit) : le serveur tire la pub et met la séance à -durée ; tant que la position est négative,
+       l'écran montre la pub (2e lecteur) et le film attend, chargé, à 0:00. --- */
+    var adVideo = document.createElement('video');
+    adVideo.crossOrigin = 'anonymous'; adVideo.preload = 'auto'; adVideo.playsInline = true; adVideo.setAttribute('playsinline', '');
+    var adTex = new THREE.VideoTexture(adVideo); adTex.minFilter = THREE.LinearFilter; adTex.magFilter = THREE.LinearFilter; adTex.generateMipmaps = false;
+    var adHls = null, adSrc = '';
+    function showAd() { if (screenM.map !== adTex) { screenM.map = adTex; screenM.needsUpdate = true; } }
+    function inAd() { return !!(net.ad && (net.status === 'playing' || net.status === 'paused') && netPosNow() < 0); }
+    function setAdSource(url, type) {
+      adSrc = url;
+      if (adHls) { try { adHls.destroy(); } catch (e) { /* ok */ } adHls = null; }
+      // hls.js dès que le navigateur a MediaSource : Chrome répond « maybe » à canPlayType HLS sans toujours savoir le lire ; lecture native seulement sans MediaSource (iPhone)
+      if (url && type === 'hls' && (window.MediaSource || window.ManagedMediaSource || !adVideo.canPlayType('application/vnd.apple.mpegurl'))) {
+        loadHlsLib(function (Hls) {
+          if (!Hls || adSrc !== url) return;
+          adHls = new Hls({ maxBufferLength: 60 });
+          adHls.on(Hls.Events.ERROR, function (ev, data) { if (data && data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) { try { adHls.startLoad(); } catch (e) { /* ok */ } } });
+          adHls.loadSource(url); adHls.attachMedia(adVideo);
+        });
+      } else { adVideo.src = url || ''; try { adVideo.load(); } catch (e) { /* ok */ } }
+    }
+    var adWas = false;
+    function stopAd() {
+      if (!adVideo.paused) adVideo.pause();
+      if (adWas && net.status === 'playing') {          // fin de la pub : le film part tout de suite (sans attendre le prochain relevé du serveur) ;
+        adWas = false;                                  // la dernière image de la pub reste à l'écran jusqu'à la 1re image du film (évènement « playing »)
+        try { if (video.currentTime > 0.5) video.currentTime = 0; } catch (e) { /* ok */ }
+        var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis */ });
+        return;
+      }
+      adWas = false;
+      if (screenM.map === adTex) showVideo(net.status === 'paused');
+    }
+    // applique la pub : true si elle occupe l'écran (le film ne doit alors rien faire)
+    function applyAd() {
+      if (!inAd()) { stopAd(); return false; }
+      if (adSrc !== net.ad.url) setAdSource(net.ad.url, net.ad.type);
+      setLoading(false); stallT = 0;
+      if (!video.paused) video.pause();                            // le film attend à 0:00, déjà chargé
+      if (video.readyState >= 1 && video.currentTime > 0.5 && !video.seeking) { try { video.currentTime = 0; } catch (e) { /* ok */ } }
+      var t = net.ad.dur + netPosNow();
+      if (adVideo.readyState >= 1 && !adVideo.seeking && Math.abs(adVideo.currentTime - t) > (net.status === 'playing' ? 1.5 : 0.4)) { try { adVideo.currentTime = Math.max(0, t); } catch (e) { /* ok */ } }
+      if (net.status === 'playing') { ensureVideoAudio(); if (adVideo.paused) { var p = adVideo.play(); if (p && p.catch) p.catch(function () { /* geste requis */ }); } }
+      else if (!adVideo.paused) adVideo.pause();
+      if (adVideo.readyState >= 2) showAd();
+      adWas = true;
+      return true;
+    }
     function netPosNow() {
       var p = net.position;
       if (net.status === 'playing') p += (performance.now() - net.recvAt) / 1000;
@@ -794,6 +842,7 @@
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
     var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false, pl: null, pr: null };
     room._ensureAudio = ensureVideoAudio; room._vAudio = vAudio; room._video = video;   // (pour les tests)
+    room._adVideo = adVideo; room._screen = function () { return screenM.map === adTex ? 'pub' : screenM.map === vtex ? 'film' : 'affiche'; };
     function filmVol() { var mv = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.5; return 2.3 * mv; }   // volume général du site : 50 % = volume normal du film
     function ensureVideoAudio() {
       if (vAudio.ctx || !(navigator.userActivation && navigator.userActivation.hasBeenActive)) return;
@@ -807,6 +856,7 @@
         vAudio.gain = c.createGain(); vAudio.gain.gain.value = filmVol();
         var lim = c.createDynamicsCompressor(); lim.threshold.value = -1.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.15;
         src.connect(pre); pre.connect(comp); comp.connect(vAudio.gain); vAudio.gain.connect(lim); lim.connect(c.destination);
+        try { c.createMediaElementSource(adVideo).connect(pre); adVideo.volume = 1; } catch (e) { /* la pub garde adVideo.volume */ }   // la pub passe par le même son que le film
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
     }
@@ -852,10 +902,12 @@
       lastSt = st;
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.position = st.position || 0; net.recvAt = performance.now();
       net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
+      net.ad = st.ad && st.ad.url ? st.ad : null;
       if (st.status !== 'playing') endedUrl = '';
       net.status = (st.status === 'playing' && net.url && net.url === endedUrl) ? 'idle' : (st.status || 'idle');   // film terminé chez moi : écran de base, même si le serveur n'a pas encore coupé
       if (net.url !== net.lastSrc) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
+      if (applyAd()) { refreshConsole(); renderSchedule(); return; }   // pub en cours : le film attend
       if (net.status === 'playing') {
         ensureVideoAudio();
         var drift = netPosNow() - video.currentTime, nowT = performance.now();
@@ -1469,8 +1521,8 @@
       clearTimeout(seanceCardT); if (seanceCardEl && seanceCardEl.parentNode) seanceCardEl.parentNode.removeChild(seanceCardEl); seanceCardEl = null;
     }
     room.onLeave = leave;
-    room.onPause = function () { video.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); window.removeEventListener('keydown', onKeyL, true); };
-    room.onPageHide = function () { video.pause(); };
+    room.onPause = function () { video.pause(); adVideo.pause(); music.stop(); unmountEye(); if (world.container) world.container.classList.remove('cin-in-cinema'); window.removeEventListener('keydown', onKeyL, true); };
+    room.onPageHide = function () { video.pause(); adVideo.pause(); };
     room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
     var clock = 0, netT = 0, remotesHid = false;
@@ -1480,8 +1532,9 @@
       if (room.glassCheck) room.glassCheck(w);
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
-      if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
-        stallT = (video.readyState < 3 || video.seeking) ? stallT + dt : 0;
+      var adOn = applyAd();   // pub : elle prend la main sur l'écran à chaque image (et passe au film pile à 0:00)
+      if (net.status === 'playing' && !adOn) {   // chargement : seulement si le film manque de données depuis plus d'une seconde
+        stallT =(video.readyState < 3 || video.seeking) ? stallT + dt : 0;
         if (stallT > 12) { stallT = 0; recoverVideo(); }                // bloqué depuis 12 s : on relance le chargement au bon moment
         setLoading(!started && stallT > 1.0);          // écran « chargement » seulement avant le début du film ; ensuite l'image reste figée le temps de recharger
         if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
@@ -1514,6 +1567,7 @@
       if (playing || net.status === 'paused') {
         if (vAudio.ok) vAudio.gain.gain.setTargetAtTime(filmVol(), vAudio.ctx.currentTime, 0.1);
         else video.volume = Math.min(1, filmVol() / 2.3);
+        if (!vAudio.ok) adVideo.volume = Math.min(1, filmVol() / 2.3);
       }
     };
     /* ===================== LUMIÈRE DE L'ÉCRAN (salle premium) ===================== */

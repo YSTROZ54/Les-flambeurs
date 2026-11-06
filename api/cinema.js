@@ -19,9 +19,17 @@ const TROPISTREAM = 'https://tropistream.fr';
 const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '', schedule: [] });
 const MAX_SCHEDULE = 20;
 
+// Pubs du cinéma classique (gratuit) : une des deux, tirée au hasard, passe avant chaque film lancé depuis le début.
+// Découpées en HLS (morceaux de 6 s) : Cloudflare refuse les fichiers de plus de 25 Mo, et la pub Tropi Site en fait 44.
+// dur = durée exacte en secondes (ffprobe), sert d'horloge : pendant la pub la position de la séance est négative (-dur → 0).
+const ADS = [
+  { url: 'video/pub/tropi-site/index.m3u8', type: 'hls', dur: 58.233 },
+  { url: 'video/pub/tropi-backup/index.m3u8', type: 'hls', dur: 44.467 }
+];
+
 function positionAt(st, now) {
-  if (st.status === 'playing') return Math.max(0, st.position + (now - st.updatedAt) / 1000);
-  return Math.max(0, st.position || 0);
+  const p = st.status === 'playing' ? st.position + (now - st.updatedAt) / 1000 : (st.position || 0);
+  return st.ad ? p : Math.max(0, p);                  // avec une pub en cours, la position peut être négative
 }
 
 // séances programmées : on garde les futures, et celles de moins de 3h (encore utile à afficher comme « en cours » / tout juste passées)
@@ -31,8 +39,10 @@ function visibleSchedule(st, now) {
 
 // ce que les navigateurs ont le droit de voir
 export function publicState(st, now) {
+  const position = positionAt(st, now);
   return {
-    url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position: positionAt(st, now), serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '',
+    url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position, serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '',
+    ad: st.ad && position < 0 ? { url: st.ad.url, type: st.ad.type, dur: st.ad.dur } : null,
     schedule: visibleSchedule(st, now).map((it) => ({ id: it.id, title: it.title, poster: it.poster || '', at: it.at }))
   };
 }
@@ -126,7 +136,7 @@ export default async function handler(req, res) {
         finalUrl = extracted.url; finalType = extracted.type;
       }
 
-      await mutate((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
+      await mutate((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.ad = null; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
@@ -135,7 +145,14 @@ export default async function handler(req, res) {
     if (action === 'play') {
       await mutate((s, now) => {
         if (!s.url) throw new GameError(400, 'Charge un lien avant de lancer la séance.');
-        if (s.status !== 'playing') { s.status = 'playing'; s.updatedAt = now; s.updatedBy = actor; }
+        if (s.status !== 'playing') {
+          // cinéma gratuit, film lancé depuis le début (pas une reprise après pause) : une pub au hasard d'abord
+          if (ROW === ROW0 && s.status === 'idle' && !(s.position > 0)) {
+            const ad = ADS[Math.floor(Math.random() * ADS.length)];
+            s.ad = { url: ad.url, type: ad.type, dur: ad.dur }; s.position = -ad.dur;
+          }
+          s.status = 'playing'; s.updatedAt = now; s.updatedBy = actor;
+        }
       });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
@@ -146,7 +163,7 @@ export default async function handler(req, res) {
       const pos = Math.max(0, Math.min(86400, Math.floor(Number(body.position) || 0)));
       await mutate((s, now) => {
         if (!s.url) throw new GameError(400, 'Charge un film avant de choisir le moment.');
-        s.position = pos;                                   // en lecture, l'horloge repart de cette position à l'instant présent (updatedAt)
+        s.position = pos; s.ad = null;                      // en lecture, l'horloge repart de cette position à l'instant présent (updatedAt) ; un saut passe la pub
         if (body.play === true) s.status = 'playing';
         s.updatedAt = now; s.updatedBy = actor;
       });
@@ -166,7 +183,7 @@ export default async function handler(req, res) {
 
     // ---- COUPER LA SÉANCE ----
     if (action === 'stop') {
-      await mutate((s, now) => { s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
+      await mutate((s, now) => { s.status = 'idle'; s.position = 0; s.ad = null; s.updatedAt = now; s.updatedBy = actor; });
       const st = (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
