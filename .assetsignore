@@ -20,5 +20,8 @@ scripts
 scripts/**
 supabase
 supabase/**
-*.json
+accounts.json
+crash_state.json
+poker_state.json
+blackjack_state.json
 
