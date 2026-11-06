@@ -29,14 +29,14 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 20, HZ: 20, H: 24.5, SCR_W: 38.4, SCR_Y: 1.3, SCR_H: 38.4 * 9 / 16, ROW_H: 0.28, ROWS: [], COLS: [-14.55, -13.1, -11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65, 13.1, 14.55],
-      blocks: [{ x0: -15.3, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 15.3 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-16.35, 2.1], [16.35, 2.1]], aisleLights: [-15.3, -3.65, -2.2, 2.2, 3.65, 15.3]
+      HX: 20, HZ: 18, H: 26, SCR_W: 38.4, SCR_Y: 2.6, SCR_H: 38.4 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
+      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-13.4, 7.9], [13.4, 7.9]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45]
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
     };
     var k;
-    if (P) { for (k = 0; k < 11; k++) G0.ROWS.push(-6.2 + k * 1.75); }      // 11 rangées sur un seul niveau de gradins
+    if (P) { for (k = 0; k < 8; k++) G0.ROWS.push(-6.2 + k * 1.9); }      // 8 rangées, chacune 55 cm plus haute : on voit l'écran par-dessus la tête de devant
     G0.ROW_GAP = G0.ROWS[1] - G0.ROWS[0];
     G0.BND = []; for (k = 0; k < G0.ROWS.length - 1; k++) G0.BND.push((G0.ROWS[k] + G0.ROWS[k + 1]) / 2);
     G0.BACK_H = (G0.ROWS.length - 1) * G0.ROW_H;
@@ -270,7 +270,20 @@
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? (ceilM = new THREE.MeshBasicMaterial({ map: starCeilingTex() })) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     if (P) {                                                // quelques petites lumières blanches au plafond : elles s'éteignent quand le film commence
       starLedM = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      [-14, -7, 0, 7, 14].forEach(function (lx) { [-12, -2, 8, 17].forEach(function (lz) { var sp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), starLedM); sp.position.set(lx, H - 0.04, lz); sp.scale.y = 0.4; g.add(sp); }); });
+      [-14, -7, 0, 7, 14].forEach(function (lx) { [-12, -2, 8, 16].forEach(function (lz) { var sp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), starLedM); sp.position.set(lx, H - 0.04, lz); sp.scale.y = 0.4; g.add(sp); }); });
+    }
+    if (P) {
+      [[1, [-16.3, -11.7, 12.9, 16.3]], [-1, [12.9, 16.3]]].forEach(function (sp2) {
+        var sd = sp2[0];
+        sp2[1].forEach(function (pz, pi) {
+          var gx = sd * (HX - 0.2), gy = Math.min(cinemaGroundY(gx, pz - 1.4), cinemaGroundY(gx, pz + 1.4)), ph = H - gy, pw = 2.8;
+          var wt = waveTex((pi + (sd > 0 ? 1 : 0)) % 2).clone(); wt.needsUpdate = true; wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(1, ph / (pw * 4));
+          var pm = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshBasicMaterial({ map: wt, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+          pm.position.set(sd * (HX - 0.04), gy + ph / 2, pz); pm.rotation.y = -sd * Math.PI / 2; g.add(pm);
+          [-1, 1].forEach(function (e) { box(g, 0.1, ph, 0.1, trimM, sd * (HX - 0.06), gy + ph / 2, pz + e * (pw / 2 + 0.05)); });
+          [gy + 0.05, H - 0.05].forEach(function (yy) { box(g, 0.1, 0.1, pw + 0.2, trimM, sd * (HX - 0.06), yy, pz); });
+        });
+      });
     }
     if (false) {
       for (i = -HZ + 0.5; i < HZ - 0.3; i += 0.62) { box(g, 0.12, 9.6, 0.5, panelM, -HX + 0.06, 4.9 + cinemaGroundY(-HX + 0.06, i), i); box(g, 0.12, 9.6, 0.5, panelM, HX - 0.06, 4.9 + cinemaGroundY(HX - 0.06, i), i); }
@@ -514,59 +527,71 @@
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
-    /* --- étage VIP : deux grands escaliers (un de chaque côté, le long des murs) qu'on monte à pied jusqu'à un balcon de fauteuils de luxe tout en haut --- */
-    var vipUp = false, VY = 8.0, vipLights = [];
+    /* --- étage VIP : dans chaque mur latéral, un trou avec un escalier fermé dedans qu'on monte à pied jusqu'à un balcon de fauteuils de luxe tout en haut --- */
+    var vipUp = false, VY = 9.0, vipLights = [];
     (function buildVip() {
       if (!P) return;
-      var vz0 = 10.0, vz1 = HZ - 0.15, vw = HX - 0.3, LX0 = 17.4, ZL0 = -9.0, ZL1 = vz0 - 0.05, slope = VY / (ZL1 - ZL0);
-      var VROWS = [12.0, 13.8, 15.6], VCOLS = [-11.6, -10.15, -8.7, -7.25, -5.8, -4.35, -2.9, 2.9, 4.35, 5.8, 7.25, 8.7, 10.15, 11.6], T1 = 12.9, T2 = 14.7;
-      var vdeck = std(0x3a0a14, 0.9, 0.05), pill = std(0x1b1519, 0.4, 0.4), gl2 = new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+      var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.3, LX0 = 17.4, ZL0 = -9.0, ZL1 = vz0 - 0.05, slope = VY / (ZL1 - ZL0), HR = 3.0;
+      var VROWS = [11.5, 13.3, 15.1], VCOLS = [-10.15, -8.7, -7.25, -5.8, -4.35, -2.9, 2.9, 4.35, 5.8, 7.25, 8.7, 10.15], T1 = 12.4, T2 = 14.2;
+      var vdeck = std(0x3a0a14, 0.9, 0.05), pill = std(0x1b1519, 0.4, 0.4), wallV = std(0x14101c, 0.85, 0.1), gl2 = new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
       // la dalle de l'étage, avec une marche pour chaque rangée de fauteuils
       box(g, vw * 2, 0.7, vz1 - vz0, vdeck, 0, VY - 0.35, (vz0 + vz1) / 2);
       box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
       box(g, vw * 2, 0.2, vz1 - T1, vdeck, 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.2, T1 + 0.025);
       box(g, vw * 2, 0.2, vz1 - T2, vdeck, 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.4, T2 + 0.025);
       // piliers sous le bord avant, dans les allées du bas
-      [-16.35, -2.9, 2.9, 16.35].forEach(function (px) { cyl(g, 0.2, 0.2, VY - 0.7, pill, px, (VY - 0.7) / 2, vz0 + 0.25, 16); cyl(g, 0.26, 0.26, 0.1, trimM, px, VY - 0.74, vz0 + 0.25, 16); room.colliders.push({ x: px, z: vz0 + 0.25, r: 0.3 }); });
-      // garde-corps de verre le long du bord (les deux escaliers débouchent de chaque côté)
-      var rw = LX0 - 0.2, rail = new THREE.Mesh(new THREE.PlaneGeometry(rw * 2, 0.95), gl2); rail.position.set(0, VY + 0.5, vz0 + 0.3); g.add(rail);
+      [-13.4, -2.9, 2.9, 13.4].forEach(function (px) { cyl(g, 0.2, 0.2, VY - 0.7, pill, px, (VY - 0.7) / 2, vz0 + 0.25, 16); cyl(g, 0.26, 0.26, 0.1, trimM, px, VY - 0.74, vz0 + 0.25, 16); room.colliders.push({ x: px, z: vz0 + 0.25, r: 0.3 }); });
+      // garde-corps de verre le long du bord
+      var rw = LX0 - 0.1, rail = new THREE.Mesh(new THREE.PlaneGeometry(rw * 2, 0.95), gl2); rail.position.set(0, VY + 0.5, vz0 + 0.3); g.add(rail);
       box(g, rw * 2, 0.06, 0.08, trimM, 0, VY + 1.0, vz0 + 0.3); for (var kx = -rw; kx <= rw + 0.01; kx += 2.9) box(g, 0.05, 1.0, 0.05, trimM, kx, VY + 0.5, vz0 + 0.3);
-      // fauteuils de luxe : trois rangées de quatorze
+      // fauteuils de luxe : trois rangées de douze
       VROWS.forEach(function (rz, ri) { VCOLS.forEach(function (cx3) { seat(cx3, rz, VY + ri * 0.2); seats[seats.length - 1].vip = true; }); });
       if (!low) [[-9, 13.5], [9, 13.5]].forEach(function (p) { var pl = new THREE.PointLight(0xffe2b8, 0.5, 16); pl.position.set(p[0], VY + 3.5, p[1]); g.add(pl); vipLights.push(pl); });
-      // les deux escaliers : marches, nez lumineux, rampe dorée inclinée, barrière invisible côté salle
+      // les deux escaliers fermés, avec une ouverture dans le mur du bas
+      var ang = Math.atan2(VY, ZL1 - ZL0), len = Math.hypot(ZL1 - ZL0, VY) + 0.4, z2;
       [-1, 1].forEach(function (sd) {
-        var xC = sd * (LX0 + HX - 0.3) / 2, xW = HX - 0.3 - LX0, z2;
-        for (z2 = ZL0; z2 < ZL1; z2 += 0.45) {
+        var xC = sd * (LX0 + HX - 0.3) / 2, xW = HX - 0.3 - LX0;
+        for (z2 = ZL0; z2 < ZL1; z2 += 0.45) {                                               // marches pleines + nez blanc
           var zc = Math.min(z2 + 0.225, ZL1), top = slope * (zc - ZL0);
           if (top > 0.02) { box(g, xW, top, 0.47, vdeck, xC, top / 2, zc); box(g, xW, 0.03, 0.06, bas(0xcfd8ff), xC, top + 0.005, z2 + 0.03); }
         }
-        var len = Math.hypot(ZL1 - ZL0, VY), ang = Math.atan2(VY, ZL1 - ZL0), rl = box(g, 0.07, 0.07, len, trimM, sd * (LX0 + 0.05), VY / 2 + 1.0, (ZL0 + ZL1) / 2); rl.rotation.x = -ang;
-        for (z2 = ZL0 + 1.0; z2 < ZL1; z2 += 2.2) box(g, 0.05, 1.0, 0.05, trimM, sd * (LX0 + 0.05), slope * (z2 - ZL0) + 0.5, z2);
-        for (z2 = ZL0 + 0.3; z2 < ZL1 + 0.3; z2 += 0.6) room.colliders.push({ x: sd * (LX0 - 0.1), z: z2, r: 0.4 });
-        // panneau au pied de l'escalier
+        // mur côté salle : un grand triangle plein, du sol jusqu'au plafond de l'escalier
+        var sh = new THREE.Shape(); sh.moveTo(-ZL0, 0); sh.lineTo(-ZL1, 0); sh.lineTo(-ZL1, VY + HR); sh.lineTo(-ZL0, HR); sh.closePath();
+        var iw = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: false }), wallV); iw.rotation.y = Math.PI / 2; iw.position.set(sd * LX0 - (sd > 0 ? 0.15 : 0), 0, 0); g.add(iw);
+        // plafond incliné au-dessus des marches, avec un liseré doré
+        var roof = box(g, xW, 0.14, len, wallV, xC, VY / 2 + HR + 0.07, (ZL0 + ZL1) / 2); roof.rotation.x = -ang;
+        var trimR = box(g, 0.06, 0.06, len, trimM, sd * (LX0 + 0.03), VY / 2 + HR - 0.02, (ZL0 + ZL1) / 2); trimR.rotation.x = -ang;
+        // entrée : un trou dans un mur plein, avec cadre doré et enseigne
+        var fz = ZL0 - 0.1, ox0 = sd * 17.75, ox1 = sd * 19.35, pxs = [[sd * 17.575, 0.35], [sd * 19.525, 0.35]];
+        pxs.forEach(function (p) { box(g, p[1], HR + 0.2, 0.2, wallV, p[0], (HR + 0.2) / 2, fz); });
+        box(g, xW, 0.6, 0.2, wallV, xC, 2.9, fz);
+        box(g, Math.abs(ox1 - ox0) + 0.1, 0.06, 0.24, trimM, (ox0 + ox1) / 2, 2.55, fz); [ox0, ox1].forEach(function (ox) { box(g, 0.06, 2.6, 0.24, trimM, ox, 1.3, fz); });
         var sc2 = mkCanvas(512, 128), sx2 = sc2.getContext('2d'); sx2.fillStyle = '#0c1a48'; sx2.fillRect(0, 0, 512, 128); sx2.strokeStyle = '#ffd24a'; sx2.lineWidth = 6; sx2.strokeRect(4, 4, 504, 120);
         sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.fillStyle = '#ffe9a8'; sx2.font = '800 48px ' + SERIF; sx2.fillText('▲ ÉTAGE VIP', 256, 52, 470); sx2.fillStyle = '#c9b46a'; sx2.font = '700 24px ' + MONO; sx2.fillText('FAUTEUILS DE LUXE', 256, 96, 470);
-        var sg = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); sg.position.set(sd * (HX - 0.05), 3.4, ZL0 - 0.8); sg.rotation.y = -sd * Math.PI / 2; g.add(sg);
+        var sg = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.575), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); sg.position.set(xC, HR + 0.55, fz - 0.14); sg.rotation.y = Math.PI; g.add(sg);
+        if (!low) [-2.0, 6.0].forEach(function (zl) { var pl = new THREE.PointLight(0xffd9a0, 0.7, 9); pl.position.set(sd * 18.6, slope * (zl - ZL0) + 2.0, zl); g.add(pl); vipLights.push(pl); });
+        // collisions : mur côté salle, et deux montants de chaque côté de l'ouverture
+        for (z2 = ZL0; z2 < ZL1 + 0.25; z2 += 0.5) room.colliders.push({ x: sd * (LX0 - 0.05), z: z2, r: 0.35 });
+        room.colliders.push({ x: sd * 17.55, z: ZL0 - 0.1, r: 0.3 }, { x: sd * 19.5, z: ZL0 - 0.1, r: 0.3 });
       });
-      // barrière temporaire : on ne peut pas entrer dans l'escalier par le haut depuis le palier du bas, ni tomber du bord de l'étage
+      // barrières qui changent avec l'étage : en bas on n'entre pas dans l'escalier par le haut ; en haut on ne tombe pas du bord
       var gate = [], edge = [], gx, ex2;
-      for (gx = LX0 + 0.2; gx < HX; gx += 0.5) { gate.push({ x: gx, z: vz0 + 0.3, r: 0.5 }, { x: -gx, z: vz0 + 0.3, r: 0.5 }); }
-      for (ex2 = -(LX0 - 0.4); ex2 <= LX0 - 0.35; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });
+      for (gx = LX0 + 0.1; gx < HX - 0.5; gx += 0.45) gate.push({ x: gx, z: ZL1 + 2.3, r: 0.5 }, { x: -gx, z: ZL1 + 2.3, r: 0.5 });
+      for (ex2 = -(LX0 - 0.5); ex2 <= LX0 - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });
       function setColl(list, on) { list.forEach(function (c2) { var ix = room.colliders.indexOf(c2); if (on && ix < 0) room.colliders.push(c2); else if (!on && ix >= 0) room.colliders.splice(ix, 1); }); }
       function setVip(v) { vipUp = v; setColl(edge, v); setColl(gate, !v); }
+      var baseGround = room.groundY, lz = null;
       setVip(false);
       room.resetVip = function () { setVip(false); lz = null; };
-      var baseGround = room.groundY, lz = null;
       function vipGround(x, z, up) {
         var ax = Math.abs(x);
-        if (ax > LX0 && z > ZL0 && z <= ZL1) return slope * (z - ZL0);                                  // la rampe des escaliers
-        if (ax > LX0 && z > ZL1 && z <= ZL1 + 0.6) return VY;      // juste en haut de l escalier : toujours à l étage (aucun saut d une image à l autre)
+        if (ax > LX0 && z > ZL0 && z <= ZL1) return slope * (z - ZL0);                                  // les marches de l'escalier
+        if (ax > LX0 && z > ZL1 && z <= ZL1 + 0.6) return VY;                                           // le haut de l'escalier : toujours à l'étage, pas de saut
         if (up && z > ZL1 && z < vz1 + 0.2 && ax < vw + 0.2) return VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4);   // le balcon
         return baseGround(x, z);
       }
       room.groundY = function (x, z) { return vipGround(x, z, vipUp); };
-      room.vipTrack = function (x, z) {                // on est « en haut » dès qu'on a franchi le haut de l'escalier, « en bas » dès qu'on repasse en dessous
+      room.vipTrack = function (x, z) {                // en haut dès qu'on a franchi le haut de l'escalier, en bas dès qu'on repasse en dessous
         if (lz !== null && Math.abs(x) > LX0) { if (lz < ZL1 && z >= ZL1 && !vipUp) setVip(true); else if (lz >= ZL1 && z < ZL1 && vipUp) setVip(false); }
         lz = z;
       };
