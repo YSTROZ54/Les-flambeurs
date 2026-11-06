@@ -30,70 +30,84 @@ const ROUTE_HANDLERS = {
 
 function createResponseAdapter() {
   let resolveResponse;
-  const promise = new Promise((resolve) => {
+  const responsePromise = new Promise((resolve) => {
     resolveResponse = resolve;
   });
 
-  const passThrough = new PassThrough();
   let statusCode = 200;
   const headers = new Headers();
-  let responseResolved = false;
+  const chunks = [];
+  let resolved = false;
 
-  const emitResponse = () => {
-    if (responseResolved) return;
-    responseResolved = true;
-    resolveResponse(
-      new Response(Readable.toWeb(passThrough), {
-        status: statusCode,
-        headers,
-      })
-    );
+  const finish = (body) => {
+    if (resolved) return;
+    resolved = true;
+    resolveResponse(new Response(body, { status: statusCode, headers }));
   };
 
-  const res = passThrough;
+  const res = new PassThrough();
   res.statusCode = statusCode;
+
   res.status = (code) => {
     statusCode = code;
     res.statusCode = code;
     return res;
   };
+
   res.setHeader = (k, v) => {
     headers.set(k, v);
     return res;
   };
+
   res.getHeader = (k) => headers.get(k);
+
   res.type = (t) => {
     headers.set('Content-Type', t);
     return res;
   };
+
   res.json = (obj) => {
     headers.set('Content-Type', 'application/json; charset=utf-8');
-    emitResponse();
-    res.end(JSON.stringify(obj));
+    finish(JSON.stringify(obj));
     return res;
   };
+
   res.send = (data) => {
     if (typeof data === 'object' && !Buffer.isBuffer(data) && !(data instanceof Uint8Array)) {
       return res.json(data);
     }
-    emitResponse();
-    res.end(data);
+    finish(data);
     return res;
   };
 
-  const origWrite = res.write.bind(res);
-  res.write = (chunk, encoding, cb) => {
-    emitResponse();
-    return origWrite(chunk, encoding, cb);
-  };
+  res.on('data', (chunk) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+
+  res.on('finish', () => {
+    if (!resolved) {
+      const body = chunks.length > 0 ? Buffer.concat(chunks) : null;
+      finish(body);
+    }
+  });
 
   const origEnd = res.end.bind(res);
   res.end = (chunk, encoding, cb) => {
-    emitResponse();
-    return origEnd(chunk, encoding, cb);
+    if (chunk !== undefined && typeof chunk !== 'function') {
+      if (typeof chunk === 'string' && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'text/plain; charset=utf-8');
+      }
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    origEnd(typeof chunk === 'function' ? chunk : undefined, encoding, cb);
+    if (!resolved) {
+      const body = chunks.length > 0 ? Buffer.concat(chunks) : null;
+      finish(body);
+    }
+    return res;
   };
 
-  return { res, responsePromise: promise };
+  return { res, responsePromise };
 }
 
 export default {

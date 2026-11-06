@@ -30,7 +30,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o == null ? {} : o));
 export async function listRows() {
   if (MEMORY_ONLY) return Object.values(memory.rows).map((r) => ({ ...r }));
   const res = await sb('accounts?select=*');
-  if (!res.ok) throw new Error('Supabase ' + res.status);
+  if (!res.ok) throw new Error('Supabase ' + res.status + (res.status === 401 ? ' (vérifiez SUPABASE_SERVICE_KEY)' : ''));
   const rows = await res.json();
   return Array.isArray(rows) ? rows : [];
 }
@@ -38,7 +38,7 @@ export async function listRows() {
 export async function getRowExact(username) {
   if (MEMORY_ONLY) { const r = memory.rows[String(username).toLowerCase()]; return r ? { ...r, data: clone(r.data) } : null; }
   const res = await sb(`accounts?username=eq.${encodeURIComponent(username)}&select=*`);
-  if (!res.ok) throw new Error('Supabase ' + res.status);
+  if (!res.ok) throw new Error('Supabase ' + res.status + (res.status === 401 ? ' (vérifiez SUPABASE_SERVICE_KEY)' : ''));
   const rows = await res.json();
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }

@@ -545,7 +545,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'Requête non reconnue.' });
   } catch (e) {
     console.warn('Erreur /api/accounts:', e && e.message);
-    return res.status(500).json({ ok: false, error: 'Erreur serveur.' });
+    const err = e && e.message ? e.message : 'Erreur serveur.';
+    return res.status(500).json({ ok: false, error: err });
   }
 }
 
