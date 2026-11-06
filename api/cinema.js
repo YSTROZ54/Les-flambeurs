@@ -24,7 +24,7 @@ const MAX_SCHEDULE = 20;
 // dur = durée exacte en secondes (ffprobe), sert d'horloge : pendant la pub la position de la séance est négative (-dur → 0).
 const ADS = [
   { url: 'video/pub/tropi-site/index.m3u8', type: 'hls', dur: 58.233 },
-  { url: 'video/pub/tropi-backup/index.m3u8', type: 'hls', dur: 44.467 }
+  { url: 'video/pub/tropi-backup-hd/index.m3u8', type: 'hls', dur: 44.133 }
 ];
 
 function positionAt(st, now) {
