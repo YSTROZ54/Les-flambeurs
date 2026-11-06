@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "deploy": "wrangler deploy",
     "playlist": "node scripts/generer-playlist.mjs",
     "cinema-playlist": "node scripts/generer-cinema-playlist.mjs"
   },
   "devDependencies": {
-    "vite": "^7.3.7"
+    "vite": "^7.3.7",
+    "wrangler": "^4.158.0"
   }
 }

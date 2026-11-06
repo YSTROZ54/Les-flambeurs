@@ -32,9 +32,10 @@ const store = {
 };
 
 function sbHeaders(extra = {}) {
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || SUPABASE_KEY;
   return {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
+    apikey: key,
+    Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
     ...extra

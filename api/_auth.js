@@ -5,7 +5,8 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 function authSecret() {
   if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
-  if (SERVICE_KEY) return 'flambeurs-auth|' + SERVICE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY || SERVICE_KEY;
+  if (serviceKey) return 'flambeurs-auth|' + serviceKey;
   return 'flambeurs-secret-par-defaut-A-CHANGER';
 }
 

@@ -67,13 +67,16 @@ function synchroGit() {
   return {
     name: 'flambeurs-synchro-git',
     configureServer(server) {
-      const secondes = Number(process.env.SYNCHRO_GIT ?? 30);
+      const secondes = Number(process.env.SYNCHRO_GIT !== undefined ? process.env.SYNCHRO_GIT : 30);
       if (!secondes) return;
       const log = server.config.logger;
-      const git = (...args) => new Promise((resolve, reject) => {
-        execFile('git', args, { cwd: server.config.root, windowsHide: true, timeout: 60_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
-          (err, stdout, stderr) => (err ? reject(Object.assign(err, { detail: String(stderr || stdout || err.message).trim() })) : resolve(stdout.trim())));
-      });
+      const git = function() {
+        const args = Array.prototype.slice.call(arguments);
+        return new Promise((resolve, reject) => {
+          execFile('git', args, { cwd: server.config.root, windowsHide: true, timeout: 60000, env: Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0' }) },
+            (err, stdout, stderr) => (err ? reject(Object.assign(err, { detail: String(stderr || stdout || err.message).trim() })) : resolve(stdout.trim())));
+        });
+      };
       let enCours = false;
       let dernierAvertissement = '';
       const avertir = (cle, message) => {
@@ -124,7 +127,9 @@ function synchroGit() {
 
       synchroniser();
       const minuteur = setInterval(synchroniser, secondes * 1000);
-      server.httpServer?.on('close', () => clearInterval(minuteur));
+      if (server.httpServer) {
+        server.httpServer.on('close', () => clearInterval(minuteur));
+      }
     }
   };
 }

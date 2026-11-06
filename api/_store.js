@@ -17,9 +17,11 @@ export class GameError extends Error {
 }
 
 async function sb(path, opts = {}) {
-  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || SERVICE_KEY || 'sb_publishable_C-_jBp_AqrW42qshWYufXA_XG_t9Xee';
+  const url = process.env.SUPABASE_URL || SUPABASE_URL;
+  return fetch(`${url}/rest/v1/${path}`, {
     ...opts,
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
   });
 }
 
