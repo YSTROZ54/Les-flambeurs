@@ -47,16 +47,14 @@
     rx.textAlign = 'center'; rx.textBaseline = 'middle'; rx.fillStyle = '#f4e3b0'; rx.font = '900 70px ' + SERIF; rx.fillText('MINI', 256, 214); rx.fillText('JEUX', 256, 298);
     var rug = new THREE.Mesh(new THREE.CircleGeometry(3.4, 64), new THREE.MeshStandardMaterial({ map: mkTex(rc), roughness: 0.9 })); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; g.add(rug);
 
-    /* murs : papier peint bordeaux à losanges, lambris de noyer, filets dorés */
-    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#4a1422'; wx.fillRect(0, 0, 256, 256);
-    wx.strokeStyle = 'rgba(224,186,92,0.28)'; wx.lineWidth = 2; for (i = -1; i < 5; i++) { wx.beginPath(); wx.moveTo(i * 64, 0); wx.lineTo(i * 64 + 256, 256); wx.moveTo(i * 64 + 256, 0); wx.lineTo(i * 64, 256); wx.stroke(); }
+    /* murs : tenture bleu nuit à fines rayures verticales et reflet de velours, sans lambris ni filet qui traverse les portes */
+    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'), wg = wx.createLinearGradient(0, 0, 0, 256); wg.addColorStop(0, '#1d2347'); wg.addColorStop(0.5, '#232b55'); wg.addColorStop(1, '#1a1f3e'); wx.fillStyle = wg; wx.fillRect(0, 0, 256, 256);
+    for (i = 0; i < 8; i++) { wx.fillStyle = i % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.12)'; wx.fillRect(i * 32, 0, 32, 256); wx.fillStyle = 'rgba(214,180,255,0.16)'; wx.fillRect(i * 32, 0, 2, 256); }
     var wallTex = new THREE.CanvasTexture(wc); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.anisotropy = 16;
     function wall(len, px, pz, ry) { var t = wallTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2.2, H / 2.2); var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, metalness: 0.05 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), wood = new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 });
     function box(w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); g.add(o); return o; }
-    box(HX * 2, 1.2, 0.08, wood, 0, 0.6, -HZ + 0.04); box(HX * 2, 1.2, 0.08, wood, 0, 0.6, HZ - 0.04); box(0.08, 1.2, HZ * 2, wood, -HX + 0.04, 0.6, 0); box(0.08, 1.2, HZ * 2, wood, HX - 0.04, 0.6, 0);
-    box(HX * 2, 0.1, 0.12, gold, 0, 1.2, -HZ + 0.06); box(HX * 2, 0.1, 0.12, gold, 0, 1.2, HZ - 0.06); box(0.12, 0.1, HZ * 2, gold, -HX + 0.06, 1.2, 0); box(0.12, 0.1, HZ * 2, gold, HX - 0.06, 1.2, 0);
     box(HX * 2, 0.2, 0.2, gold, 0, H - 0.1, -HZ + 0.1); box(HX * 2, 0.2, 0.2, gold, 0, H - 0.1, HZ - 0.1); box(0.2, 0.2, HZ * 2, gold, -HX + 0.1, H - 0.1, 0); box(0.2, 0.2, HZ * 2, gold, HX - 0.1, H - 0.1, 0);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0608 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
