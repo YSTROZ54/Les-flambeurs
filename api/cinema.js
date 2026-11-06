@@ -141,6 +141,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
+    // ---- ALLER À UN MOMENT PRÉCIS (heures / minutes / secondes), avec ou sans lancer la lecture ----
+    if (action === 'seek') {
+      const pos = Math.max(0, Math.min(86400, Math.floor(Number(body.position) || 0)));
+      await mutate((s, now) => {
+        if (!s.url) throw new GameError(400, 'Charge un film avant de choisir le moment.');
+        s.position = pos;                                   // en lecture, l'horloge repart de cette position à l'instant présent (updatedAt)
+        if (body.play === true) s.status = 'playing';
+        s.updatedAt = now; s.updatedBy = actor;
+      });
+      const st = (await getRowExact(ROW)).data.cinema;
+      return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
+    }
+
     // ---- METTRE EN PAUSE ----
     if (action === 'pause') {
       await mutate((s, now) => {

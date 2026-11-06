@@ -248,6 +248,27 @@
     room.groundY = cinemaGroundY;   // vrai sol en gradins : on marche réellement dessus (world3d.js lit cette fonction à chaque image)
     injectCss();
 
+    /* --- petites lumières blanches (fibre optique) : plafond, murs et sol ; elles s'éteignent quand le film commence --- */
+    var starMats = [], starCache = {}, starTile = null;
+    function starTileTex() {
+      if (starTile) return starTile;
+      var N = 512, cv = mkCanvas(N, N), x = cv.getContext('2d'), k; x.fillStyle = '#050507'; x.fillRect(0, 0, N, N);
+      for (k = 0; k < 64; k++) { x.fillStyle = 'rgba(255,255,255,' + (0.45 + Math.random() * 0.55).toFixed(2) + ')'; x.beginPath(); x.arc(Math.random() * N, Math.random() * N, 0.9 + Math.random() * 1.1, 0, TAU); x.fill(); }
+      for (k = 0; k < 8; k++) { var px = Math.random() * N, py = Math.random() * N, gr = x.createRadialGradient(px, py, 0, px, py, 5); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(px - 5, py - 5, 10, 10); }
+      starTile = new THREE.CanvasTexture(cv); starTile.wrapS = starTile.wrapT = THREE.RepeatWrapping; starTile.anisotropy = 4; return starTile;
+    }
+    function starMat(w, d, tile) {                       // noir semé de points blancs, un point tous les ~1 m, sur une surface de w x d mètres
+      tile = tile || 5; var key = Math.round(w * 2) + 'x' + Math.round(d * 2) + 'x' + tile;
+      if (starCache[key]) return starCache[key];
+      var t = starTileTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, w / tile), Math.max(1, d / tile));
+      var m = new THREE.MeshBasicMaterial({ map: t }); starMats.push(m); return (starCache[key] = m);
+    }
+    function starMatUV() {                               // pour les formes dont les UV sont en mètres
+      if (starCache.uv) return starCache.uv;
+      var t = starTileTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / 5, 1 / 5);
+      var m = new THREE.MeshBasicMaterial({ map: t }); starMats.push(m); return (starCache.uv = m);
+    }
+
     /* --- sol : moquette rouge sombre à losanges --- */
     var fc = mkCanvas(256, 256), fx = fc.getContext('2d');
     fx.fillStyle = P ? '#3a0710' : '#3a0c16'; fx.fillRect(0, 0, 256, 256);
@@ -255,17 +276,17 @@
     for (var i = -1; i < 5; i++) { fx.beginPath(); fx.moveTo(i * 64, 0); fx.lineTo(i * 64 + 256, 256); fx.moveTo(i * 64 + 256, 0); fx.lineTo(i * 64, 256); fx.stroke(); }
     fx.fillStyle = P ? '#5a1220' : '#6a1a2a'; for (i = 0; i < 4; i++) for (var j = 0; j < 4; j++) { fx.beginPath(); fx.arc(i * 64 + 32, j * 64, 4, 0, TAU); fx.fill(); }
     var ftex = mkTex(fc); ftex.wrapS = ftex.wrapT = THREE.RepeatWrapping; ftex.repeat.set(HX * 2 / 2.5, HZ * 2 / 2.5);
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ map: ftex })); floor.rotation.x = -Math.PI / 2; g.add(floor);
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? starMat(HX * 2, HZ * 2) : new THREE.MeshLambertMaterial({ map: ftex })); floor.rotation.x = -Math.PI / 2; g.add(floor);
 
     /* --- murs, plafond, panneaux acoustiques --- */
     var wallM = P ? std(0x0c0a14, 0.9, 0.05) : std(0x24090f, 0.9, 0.05), panelM = P ? std(0xc4852e, 0.55, 0.1, 0x241503) : std(0x3b0f1a, 0.85, 0.05), trimM = std(0xc9a227, 0.3, 0.6, 0x2a1d00);
-    function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
+    function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), P ? starMat(w, h) : wallM); m.position.set(px, py, pz); m.rotation.y = ry; g.add(m); }
     wall(HX * 2, H, 0, H / 2, -HZ, 0); (function () {          // mur du fond : une fenêtre de 2 m x 0,8 m est percée pour la cabine de projection, centrée (x = 0, y = 7 + BACK_H : remontée avec le palier du fond)
       var bw = new THREE.Shape(), hole = new THREE.Path(), hy = 6.6 + BACK_H, hy2 = 7.4 + BACK_H;
       bw.moveTo(-HX, 0); bw.lineTo(HX, 0); bw.lineTo(HX, H); bw.lineTo(-HX, H); bw.closePath();
       hole.moveTo(-1.0, hy); hole.lineTo(1.0, hy); hole.lineTo(1.0, hy2); hole.lineTo(-1.0, hy2); hole.closePath(); bw.holes.push(hole);
-      var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
-    })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);
+      var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), P ? starMatUV() : wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
+    })(); if (!P) { wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2); }   // (premium : murs latéraux percés, construits avec l'étage VIP)
     var ceilM = null, starLedM = null;
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? (ceilM = new THREE.MeshBasicMaterial({ map: starCeilingTex() })) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     if (P) {                                                // quelques petites lumières blanches au plafond : elles s'éteignent quand le film commence
@@ -273,7 +294,7 @@
       [-14, -7, 0, 7, 14].forEach(function (lx) { [-12, -2, 8, 16].forEach(function (lz) { var sp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), starLedM); sp.position.set(lx, H - 0.04, lz); sp.scale.y = 0.4; g.add(sp); }); });
     }
     if (P) {
-      [[1, [-16.3, -11.7, 12.9, 16.3]], [-1, [12.9, 16.3]]].forEach(function (sp2) {
+      [[1, [-16.3, -11.7, -4.6, -0.8, 3.0, 6.8, 14.6]], [-1, [-4.6, -0.8, 3.0, 6.8, 14.6]]].forEach(function (sp2) {
         var sd = sp2[0];
         sp2[1].forEach(function (pz, pi) {
           var gx = sd * (HX - 0.2), gy = Math.min(cinemaGroundY(gx, pz - 1.4), cinemaGroundY(gx, pz + 1.4)), ph = H - gy, pw = 2.8;
@@ -300,7 +321,7 @@
 
     /* --- scène, rampe de lumières, écran --- */
     var stageD = 2.4;
-    box(g, HX * 2, 0.3, stageD, P ? std(0x1a0a10, 0.7, 0.1) : std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
+    box(g, HX * 2, 0.3, stageD, P ? starMat(HX * 2, stageD) : std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
     for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
@@ -374,12 +395,12 @@
     var seats = room.seats = [], seatGeo = {
       cush: new THREE.BoxGeometry(0.74, 0.14, 0.62), back: new THREE.BoxGeometry(0.74, 0.7, 0.14), roll: new THREE.CylinderGeometry(0.075, 0.075, 0.74, 10),
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9),
-      pCush: new THREE.BoxGeometry(0.8, 0.2, 0.74), pBase: new THREE.BoxGeometry(0.6, 0.34, 0.5), pBack: new THREE.BoxGeometry(0.8, 0.98, 0.2), pHead: new THREE.BoxGeometry(0.52, 0.26, 0.15), pArm: new THREE.BoxGeometry(0.2, 0.22, 0.78), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03)
+      pCush: new THREE.BoxGeometry(0.8, 0.2, 0.74), pBase: new THREE.BoxGeometry(0.6, 0.34, 0.5), pBack: new THREE.BoxGeometry(0.8, 0.98, 0.2), pHead: new THREE.BoxGeometry(0.52, 0.26, 0.15), pArm: new THREE.BoxGeometry(0.2, 0.22, 0.78), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: new THREE.BoxGeometry(0.56, 0.74, 0.05), pCap: new THREE.BoxGeometry(0.22, 0.035, 0.8)
     };
-    var velM = P ? std(0x0d0d10, 0.8, 0.05, 0x060608) : lam(VELVET), darkM = P ? std(0x050507, 0.7, 0.1, 0x030304) : lam(0x180a0e), ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
+    var velM = P ? std(0xa8142a, 0.72, 0.04, 0x1f0408) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0xc41e38, 0.6, 0.05, 0x260509) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
-      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pHead, mat: velM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: velM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: velM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pLed, mat: ledM, p: [0, 0.06, -0.3] }];
+      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 1.0, 0.23], rx: 0.16 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.5, 0.77, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.5, 0.77, 0.0] }, { geo: seatGeo.pLed, mat: goldS, p: [0, 0.06, -0.3] }];
       inst = { parts: parts, meshes: parts.map(function (pt) { var im = new THREE.InstancedMesh(pt.geo, pt.mat, ROWS.length * COLS.length + 50); im.frustumCulled = false; im.count = 0; g.add(im); return im; }), n: 0 };
     }
     function seat(x, z, elev) {
@@ -407,8 +428,9 @@
     ROWS.forEach(function (rz, ri) { var elev = G0.elev ? G0.elev(ri) : ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
 
     /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
-    var deckM = P ? std(0x3a0a14, 0.9, 0.05) : std(0x34101b, 0.85, 0.05);
-    function deckBlock(xC, xW, zC, topY, base) { base = base || 0; if (topY - base < 0.01) return; box(g, xW, topY - base, ROW_GAP, deckM, xC, base + (topY - base) / 2, zC); box(g, xW, 0.03, 0.05, P ? bas(0xcfd8ff) : trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
+    var deckM = P ? std(0x0d0d11, 0.9, 0.05) : std(0x34101b, 0.85, 0.05);
+    function deckFor(w, d) { return P ? starMat(w, d) : deckM; }   // premium : gradins noirs semés de points blancs
+    function deckBlock(xC, xW, zC, topY, base) { base = base || 0; if (topY - base < 0.01) return; box(g, xW, topY - base, ROW_GAP, deckFor(xW, ROW_GAP), xC, base + (topY - base) / 2, zC); box(g, xW, 0.03, 0.05, P ? bas(0xcfd8ff) : trimM, xC, topY, zC - ROW_GAP / 2 + 0.025); }   // + nez de marche doré, sur le bord qui fait face à l'écran
     ROWS.forEach(function (rz, ri) { if (!ri) return; var topY = G0.elev ? G0.elev(ri) : ri * ROW_H, base = G0.elev && ri >= G0.nLow ? G0.HB : 0; G0.blocks.forEach(function (b) { deckBlock((b.x0 + b.x1) / 2, b.x1 - b.x0, rz, topY, base); }); });
 
     /* --- allées (centrale + deux latérales) : un escalier continu, construit en échantillonnant cinemaGroundY --- */
@@ -419,13 +441,13 @@
         var xC = ln[0], xW = ln[1];
         for (var z = ROWS[0]; z < ROWS[ROWS.length - 1]; z += step) {
           var zc = z + step / 2, topY = cinemaGroundY(xC, zc);
-          if (topY > 0.01) box(g, xW, topY, step + 0.02, deckM, xC, topY / 2, zc);
+          if (topY > 0.01) box(g, xW, topY, step + 0.02, deckFor(xW, step), xC, topY / 2, zc);
         }
       });
     })();
     /* --- palier du fond : régie, pop-corn et sortie sont de plain-pied avec la dernière rangée (jusqu'au mur du fond, sinon la régie flotte au-dessus du vide) --- */
     var backZ0 = ROWS[ROWS.length - 1], backZC = (backZ0 + HZ) / 2;
-    box(g, HX * 2, BACK_H, HZ - backZ0 + 0.1, deckM, 0, BACK_H / 2, backZC);
+    box(g, HX * 2, BACK_H, HZ - backZ0 + 0.1, deckFor(HX * 2, HZ - backZ0), 0, BACK_H / 2, backZC);
     box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
@@ -527,57 +549,73 @@
     /* --- lumières : salle allumée avant la séance, baissées pendant --- */
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
-    /* --- étage VIP : dans chaque mur latéral, un trou avec un escalier fermé dedans qu'on monte à pied jusqu'à un balcon de fauteuils de luxe tout en haut --- */
+    /* --- étage VIP : dans chaque mur latéral, un trou donne sur un escalier tout simple (dans le mur) qui monte jusqu'à un second trou, au niveau d'un balcon de fauteuils de luxe --- */
     var vipUp = false, VY = 9.0, vipLights = [];
     (function buildVip() {
       if (!P) return;
-      var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.3, LX0 = 17.4, ZL0 = -9.0, ZL1 = vz0 - 0.05, slope = VY / (ZL1 - ZL0), HR = 3.0;
+      var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.1, ZS0 = -8.4, ZT = 9.0, slope = VY / (ZT - ZS0), SW = 2.3, SZ0 = -10.6, SZ1 = 12.8, SH = VY + 3.4;
+      var BH = { z0: -10.1, z1: -6.9, y0: 0, y1: 2.8 }, TH = { z0: 9.9, z1: 12.1, y0: VY, y1: VY + 2.8 };
       var VROWS = [11.5, 13.3, 15.1], VCOLS = [-10.15, -8.7, -7.25, -5.8, -4.35, -2.9, 2.9, 4.35, 5.8, 7.25, 8.7, 10.15], T1 = 12.4, T2 = 14.2;
-      var vdeck = std(0x3a0a14, 0.9, 0.05), pill = std(0x1b1519, 0.4, 0.4), wallV = std(0x14101c, 0.85, 0.1), gl2 = new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+      var pill = std(0x1b1519, 0.4, 0.4), wallV = std(0x2a2230, 0.85, 0.1, 0x241c2e), gl2 = new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+      var z2, sd2;
       // la dalle de l'étage, avec une marche pour chaque rangée de fauteuils
-      box(g, vw * 2, 0.7, vz1 - vz0, vdeck, 0, VY - 0.35, (vz0 + vz1) / 2);
+      box(g, vw * 2, 0.7, vz1 - vz0, starMat(vw * 2, vz1 - vz0), 0, VY - 0.35, (vz0 + vz1) / 2);
       box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
-      box(g, vw * 2, 0.2, vz1 - T1, vdeck, 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.2, T1 + 0.025);
-      box(g, vw * 2, 0.2, vz1 - T2, vdeck, 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.4, T2 + 0.025);
+      box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.2, T1 + 0.025);
+      box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, bas(0xcfd8ff), 0, VY + 0.4, T2 + 0.025);
       // piliers sous le bord avant, dans les allées du bas
       [-13.4, -2.9, 2.9, 13.4].forEach(function (px) { cyl(g, 0.2, 0.2, VY - 0.7, pill, px, (VY - 0.7) / 2, vz0 + 0.25, 16); cyl(g, 0.26, 0.26, 0.1, trimM, px, VY - 0.74, vz0 + 0.25, 16); room.colliders.push({ x: px, z: vz0 + 0.25, r: 0.3 }); });
       // garde-corps de verre le long du bord
-      var rw = LX0 - 0.1, rail = new THREE.Mesh(new THREE.PlaneGeometry(rw * 2, 0.95), gl2); rail.position.set(0, VY + 0.5, vz0 + 0.3); g.add(rail);
+      var rw = vw - 0.4, rail = new THREE.Mesh(new THREE.PlaneGeometry(rw * 2, 0.95), gl2); rail.position.set(0, VY + 0.5, vz0 + 0.3); g.add(rail);
       box(g, rw * 2, 0.06, 0.08, trimM, 0, VY + 1.0, vz0 + 0.3); for (var kx = -rw; kx <= rw + 0.01; kx += 2.9) box(g, 0.05, 1.0, 0.05, trimM, kx, VY + 0.5, vz0 + 0.3);
       // fauteuils de luxe : trois rangées de douze
       VROWS.forEach(function (rz, ri) { VCOLS.forEach(function (cx3) { seat(cx3, rz, VY + ri * 0.2); seats[seats.length - 1].vip = true; }); });
       if (!low) [[-9, 13.5], [9, 13.5]].forEach(function (p) { var pl = new THREE.PointLight(0xffe2b8, 0.5, 16); pl.position.set(p[0], VY + 3.5, p[1]); g.add(pl); vipLights.push(pl); });
-      // les deux escaliers fermés, avec une ouverture dans le mur du bas
-      var ang = Math.atan2(VY, ZL1 - ZL0), len = Math.hypot(ZL1 - ZL0, VY) + 0.4, z2;
-      [-1, 1].forEach(function (sd) {
-        var xC = sd * (LX0 + HX - 0.3) / 2, xW = HX - 0.3 - LX0;
-        for (z2 = ZL0; z2 < ZL1; z2 += 0.45) {                                               // marches pleines + nez blanc
-          var zc = Math.min(z2 + 0.225, ZL1), top = slope * (zc - ZL0);
-          if (top > 0.02) { box(g, xW, top, 0.47, vdeck, xC, top / 2, zc); box(g, xW, 0.03, 0.06, bas(0xcfd8ff), xC, top + 0.005, z2 + 0.03); }
-        }
-        // mur côté salle : un grand triangle plein, du sol jusqu'au plafond de l'escalier
-        var sh = new THREE.Shape(); sh.moveTo(-ZL0, 0); sh.lineTo(-ZL1, 0); sh.lineTo(-ZL1, VY + HR); sh.lineTo(-ZL0, HR); sh.closePath();
-        var iw = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.15, bevelEnabled: false }), wallV); iw.rotation.y = Math.PI / 2; iw.position.set(sd * LX0 - (sd > 0 ? 0.15 : 0), 0, 0); g.add(iw);
-        // plafond incliné au-dessus des marches, avec un liseré doré
-        var roof = box(g, xW, 0.14, len, wallV, xC, VY / 2 + HR + 0.07, (ZL0 + ZL1) / 2); roof.rotation.x = -ang;
-        var trimR = box(g, 0.06, 0.06, len, trimM, sd * (LX0 + 0.03), VY / 2 + HR - 0.02, (ZL0 + ZL1) / 2); trimR.rotation.x = -ang;
-        // entrée : un trou dans un mur plein, avec cadre doré et enseigne
-        var fz = ZL0 - 0.1, ox0 = sd * 17.75, ox1 = sd * 19.35, pxs = [[sd * 17.575, 0.35], [sd * 19.525, 0.35]];
-        pxs.forEach(function (p) { box(g, p[1], HR + 0.2, 0.2, wallV, p[0], (HR + 0.2) / 2, fz); });
-        box(g, xW, 0.6, 0.2, wallV, xC, 2.9, fz);
-        box(g, Math.abs(ox1 - ox0) + 0.1, 0.06, 0.24, trimM, (ox0 + ox1) / 2, 2.55, fz); [ox0, ox1].forEach(function (ox) { box(g, 0.06, 2.6, 0.24, trimM, ox, 1.3, fz); });
+
+      // murs latéraux percés de deux trous (en bas : l'entrée de l'escalier ; en haut : la sortie sur le balcon)
+      function holeWall(sd, holes) {
+        var u = function (z) { return sd < 0 ? -z : z; };
+        var sh = new THREE.Shape(); sh.moveTo(-HZ, 0); sh.lineTo(HZ, 0); sh.lineTo(HZ, H); sh.lineTo(-HZ, H); sh.closePath();
+        holes.forEach(function (h) { var a = Math.min(u(h.z0), u(h.z1)), b = Math.max(u(h.z0), u(h.z1)), p = new THREE.Path(); p.moveTo(a, h.y0); p.lineTo(b, h.y0); p.lineTo(b, h.y1); p.lineTo(a, h.y1); p.closePath(); sh.holes.push(p); });
+        var m = new THREE.Mesh(new THREE.ShapeGeometry(sh), starMatUV()); m.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(sd * HX, 0, 0); g.add(m);
+      }
+      function frame(sd, h) {                       // cadre doré autour d'un trou
+        var x = sd * (HX - 0.05), hh = h.y1 - h.y0, zc = (h.z0 + h.z1) / 2;
+        box(g, 0.1, hh + 0.1, 0.1, trimM, x, (h.y0 + h.y1) / 2, h.z0 - 0.05); box(g, 0.1, hh + 0.1, 0.1, trimM, x, (h.y0 + h.y1) / 2, h.z1 + 0.05);
+        box(g, 0.1, 0.1, h.z1 - h.z0 + 0.2, trimM, x, h.y1 + 0.05, zc); box(g, 0.1, 0.1, h.z1 - h.z0 + 0.2, trimM, x, h.y0 - 0.05, zc);
+      }
+      function sign(sd, label, sub, y, z) {
         var sc2 = mkCanvas(512, 128), sx2 = sc2.getContext('2d'); sx2.fillStyle = '#0c1a48'; sx2.fillRect(0, 0, 512, 128); sx2.strokeStyle = '#ffd24a'; sx2.lineWidth = 6; sx2.strokeRect(4, 4, 504, 120);
-        sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.fillStyle = '#ffe9a8'; sx2.font = '800 48px ' + SERIF; sx2.fillText('▲ ÉTAGE VIP', 256, 52, 470); sx2.fillStyle = '#c9b46a'; sx2.font = '700 24px ' + MONO; sx2.fillText('FAUTEUILS DE LUXE', 256, 96, 470);
-        var sg = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.575), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); sg.position.set(xC, HR + 0.55, fz - 0.14); sg.rotation.y = Math.PI; g.add(sg);
-        if (!low) [-2.0, 6.0].forEach(function (zl) { var pl = new THREE.PointLight(0xffd9a0, 0.7, 9); pl.position.set(sd * 18.6, slope * (zl - ZL0) + 2.0, zl); g.add(pl); vipLights.push(pl); });
-        // collisions : mur côté salle, et deux montants de chaque côté de l'ouverture
-        for (z2 = ZL0; z2 < ZL1 + 0.25; z2 += 0.5) room.colliders.push({ x: sd * (LX0 - 0.05), z: z2, r: 0.35 });
-        room.colliders.push({ x: sd * 17.55, z: ZL0 - 0.1, r: 0.3 }, { x: sd * 19.5, z: ZL0 - 0.1, r: 0.3 });
+        sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.fillStyle = '#ffe9a8'; sx2.font = '800 48px ' + SERIF; sx2.fillText(label, 256, 52, 470); sx2.fillStyle = '#c9b46a'; sx2.font = '700 24px ' + MONO; sx2.fillText(sub, 256, 96, 470);
+        var sg = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.575), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); sg.position.set(sd * (HX - 0.08), y, z); sg.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(sg);
+      }
+      var wallPush = [], gate = [], edge = [], zc2;
+      [-1, 1].forEach(function (sd) {
+        holeWall(sd, [BH, TH]); frame(sd, BH); frame(sd, TH);
+        sign(sd, '▲ ÉTAGE VIP', 'ESCALIER · FAUTEUILS DE LUXE', 3.55, (BH.z0 + BH.z1) / 2);
+        sign(sd, '▼ ESCALIER', 'DESCENDRE', VY + 3.55, (TH.z0 + TH.z1) / 2);
+        // l'escalier : un puits derrière le mur, des marches pleines, un palier en bas et un palier en haut
+        var xs = sd * (HX + SW / 2 + 0.05), stepM = std(0x5a1020, 0.9, 0.05, 0x2e0a12);
+        box(g, 0.15, SH, SZ1 - SZ0, wallV, sd * (HX + SW + 0.1), SH / 2, (SZ0 + SZ1) / 2);                         // mur du fond du puits
+        box(g, SW + 0.3, SH, 0.15, wallV, xs, SH / 2, SZ0); box(g, SW + 0.3, SH, 0.15, wallV, xs, SH / 2, SZ1);       // les deux bouts
+        box(g, SW + 0.3, 0.15, SZ1 - SZ0, wallV, xs, SH, (SZ0 + SZ1) / 2);                                           // plafond
+        box(g, SW, 0.1, ZS0 - SZ0, stepM, xs, -0.05, (SZ0 + ZS0) / 2);                                              // palier du bas
+        for (z2 = ZS0; z2 < ZT; z2 += 0.45) {                                                                       // marches
+          var zc = Math.min(z2 + 0.225, ZT), top = slope * (zc - ZS0);
+          if (top > 0.02) { box(g, SW, top, 0.47, stepM, xs, top / 2, zc); box(g, SW, 0.03, 0.06, bas(0xcfd8ff), xs, top + 0.005, z2 + 0.03); }
+        }
+        box(g, SW, VY, SZ1 - ZT, stepM, xs, VY / 2, (ZT + SZ1) / 2);                                                // palier du haut
+        if (!low) [[2.4, -9.2], [VY / 2 + 1.7, 0.5], [VY + 2.2, 11.0]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a0, 0.8, 10); pl.position.set(xs, p[0], p[1]); g.add(pl); vipLights.push(pl); });
+        // collisions : le mur est plein sauf aux deux trous, et le puits est fermé à ses deux bouts
+        for (zc2 = -HZ + 3.0; zc2 < HZ - 0.7; zc2 += 0.5) {
+          if (zc2 > BH.z0 && zc2 < BH.z1) continue;
+          if (zc2 > 9.55 && zc2 < 12.45) { gate.push({ x: sd * (HX + 0.05), z: zc2, r: 0.4 }); continue; }   // trou du haut : fermé tant qu'on est en bas
+          room.colliders.push({ x: sd * (HX + 0.05), z: zc2, r: 0.4 });
+        }
+        for (var bx = HX + 0.3; bx <= HX + SW + 0.01; bx += 0.5) room.colliders.push({ x: sd * bx, z: SZ0 + 0.1, r: 0.4 }, { x: sd * bx, z: SZ1 - 0.1, r: 0.4 });
       });
-      // barrières qui changent avec l'étage : en bas on n'entre pas dans l'escalier par le haut ; en haut on ne tombe pas du bord
-      var gate = [], edge = [], gx, ex2;
-      for (gx = LX0 + 0.1; gx < HX - 0.5; gx += 0.45) gate.push({ x: gx, z: ZL1 + 2.3, r: 0.5 }, { x: -gx, z: ZL1 + 2.3, r: 0.5 });
-      for (ex2 = -(LX0 - 0.5); ex2 <= LX0 - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });
+      for (var ex2 = -(vw - 0.5); ex2 <= vw - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });     // bord de l'étage : on ne tombe pas
+      room.bounds.xMin = -HX - SW + 0.15; room.bounds.xMax = HX + SW - 0.15;                                          // on peut entrer dans les puits
       function setColl(list, on) { list.forEach(function (c2) { var ix = room.colliders.indexOf(c2); if (on && ix < 0) room.colliders.push(c2); else if (!on && ix >= 0) room.colliders.splice(ix, 1); }); }
       function setVip(v) { vipUp = v; setColl(edge, v); setColl(gate, !v); }
       var baseGround = room.groundY, lz = null;
@@ -585,20 +623,19 @@
       room.resetVip = function () { setVip(false); lz = null; };
       function vipGround(x, z, up) {
         var ax = Math.abs(x);
-        if (ax > LX0 && z > ZL0 && z <= ZL1) return slope * (z - ZL0);                                  // les marches de l'escalier
-        if (ax > LX0 && z > ZL1 && z <= ZL1 + 0.6) return VY;                                           // le haut de l'escalier : toujours à l'étage, pas de saut
-        if (up && z > ZL1 && z < vz1 + 0.2 && ax < vw + 0.2) return VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4);   // le balcon
+        if (ax > HX) return z <= ZS0 ? 0 : z <= ZT ? slope * (z - ZS0) : VY;                          // dans le puits : marches, puis palier du haut
+        if (up && z > vz0 - 0.05 && z < vz1 + 0.2 && ax < vw + 0.2) return VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4);   // le balcon
         return baseGround(x, z);
       }
       room.groundY = function (x, z) { return vipGround(x, z, vipUp); };
-      room.vipTrack = function (x, z) {                // en haut dès qu'on a franchi le haut de l'escalier, en bas dès qu'on repasse en dessous
-        if (lz !== null && Math.abs(x) > LX0) { if (lz < ZL1 && z >= ZL1 && !vipUp) setVip(true); else if (lz >= ZL1 && z < ZL1 && vipUp) setVip(false); }
+      room.vipTrack = function (x, z) {                // en haut dès qu'on a monté toutes les marches, en bas dès qu'on repasse en dessous
+        if (lz !== null && Math.abs(x) > HX) { if (lz < ZT && z >= ZT && !vipUp) setVip(true); else if (lz >= ZT && z < ZT && vipUp) setVip(false); }
         lz = z;
       };
       room.remoteGroundY = function (r, x, z) {         // les autres joueurs : même règle ; assis à l'étage, ils sont dessinés à l'étage
         var st = r && r.seat >= 0 ? seats[r.seat] : null;
         if (st && st.vip) return st.y;
-        if (Math.abs(x) > LX0) { var pz = r._lz == null ? z : r._lz; if (pz < ZL1 && z >= ZL1) r._vip = true; else if (pz >= ZL1 && z < ZL1) r._vip = false; }
+        if (Math.abs(x) > HX) { var pz = r._lz == null ? z : r._lz; if (pz < ZT && z >= ZT) r._vip = true; else if (pz >= ZT && z < ZT) r._vip = false; }
         r._lz = z;
         return vipGround(x, z, !!r._vip);
       };
@@ -1061,6 +1098,11 @@
             '<button data-a="pause" class="btn-pause" title="Mettre en pause"><i class="fa-solid fa-pause"></i> Pause</button>' +
             '<button data-a="stop" class="btn-stop" title="Couper la séance"><i class="fa-solid fa-stop"></i> Couper</button>' +
           '</div>' +
+          '<div class="cin-cn-seek">' +
+            '<span class="cin-seek-l"><i class="fa-solid fa-clock"></i> Choisir le moment du film</span>' +
+            '<div class="cin-seek-f"><input class="cin-sk" data-k="h" type="number" min="0" max="23" value="0" aria-label="heures"><b>h</b><input class="cin-sk" data-k="m" type="number" min="0" max="59" value="0" aria-label="minutes"><b>min</b><input class="cin-sk" data-k="s" type="number" min="0" max="59" value="0" aria-label="secondes"><b>s</b></div>' +
+            '<div class="cin-seek-b"><button data-a="seek" title="Se placer à ce moment, sans changer lecture / pause"><i class="fa-solid fa-forward"></i> Aller à ce moment</button><button data-a="seek-play" title="Se placer à ce moment et lancer la lecture"><i class="fa-solid fa-play"></i> Lancer à ce moment</button></div>' +
+          '</div>' +
         '</div>' +
         '<div class="cin-cn-tabs">' +
           '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist</button>' +
@@ -1145,6 +1187,12 @@
           return;
         }
         if (a === 'play' || a === 'pause' || a === 'stop') { cinemaAction(a); return; }
+        if (a === 'seek' || a === 'seek-play') {                       // aller à l'heure / minute / seconde choisie
+          if (!net.url) { world.flash('🎬 Charge d\'abord un film.'); return; }
+          var gv = function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); return Math.max(0, parseInt(el && el.value, 10) || 0); };
+          cinemaAction('seek', { position: gv('h') * 3600 + gv('m') * 60 + gv('s'), play: a === 'seek-play' });
+          return;
+        }
         if (a === 'fp-toggle') { consoleEl.querySelector('.cin-fp-pop').classList.toggle('hid'); renderFilmPicker(); return; }
         if (a === 'fp-pick') { schedPick = { id: b.getAttribute('data-id'), ver: b.getAttribute('data-ver') || 'VF' }; consoleEl.querySelector('.cin-fp-pop').classList.add('hid'); renderFpButton(); return; }
         if (a === 'dp-day') { schedDay = parseInt(b.getAttribute('data-i'), 10) || 0; renderDatePicker(); return; }
@@ -1221,6 +1269,7 @@
       if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
       consoleEl.classList.remove('hid');
       consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+      (function () { var t = Math.max(0, Math.floor(netPosNow())), vals = { h: Math.floor(t / 3600), m: Math.floor(t % 3600 / 60), s: t % 60 }; ['h', 'm', 's'].forEach(function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); if (el) el.value = vals[k]; }); })();   // les cases partent du moment actuel
       if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); } else loadPlaylist();
       refreshConsole();
       renderSchedule();
@@ -1362,11 +1411,11 @@
       var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
-      if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); }     // les lumières du plafond s'éteignent avec la salle
+      if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); starMats.forEach(function (m) { m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
       var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
       amb.intensity = (P ? 0.5 : 0.95) * dv; key.intensity = (P ? 0.2 : 0.3) * dv;
-      lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; }); vipLights.forEach(function (l) { l.intensity = 0.5 * dv; });
+      lights.forEach(function (l) { l.intensity = (P ? 0.3 : 0.55) * dv; }); vipLights.forEach(function (l) { l.intensity = 0.7 * dv; });
       wash.intensity = playing ? 0.5 : 0;
       lampGlow.forEach(function (s, i) { s.scale.setScalar(1.8 + Math.sin(clock * 3 + i) * 0.06); });
       // musique : elle se tait pendant le film (qui a son propre son)
@@ -1512,6 +1561,11 @@
       '.cin-np-bar{height:6px;border-radius:3px;background:#2a1f24;overflow:hidden;margin-top:2px}.cin-np-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-np-time{display:flex;justify-content:space-between;font-size:11px;color:#9d8a53;font-variant-numeric:tabular-nums;min-height:14px}' +
       '.cin-cn-row button:disabled{opacity:.35;cursor:not-allowed}' +
+      '.cin-cn-seek{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}' +
+      '.cin-seek-l{font-size:11.5px;font-weight:700;color:#e9c66b;letter-spacing:.03em;width:100%}' +
+      '.cin-seek-f{display:flex;align-items:center;gap:5px}.cin-seek-f b{font-size:12px;color:#c9b8e8;font-weight:600;margin-right:6px}' +
+      '.cin-sk{width:58px;padding:7px 6px;border-radius:8px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);color:#fff;font:700 15px inherit;text-align:center}.cin-sk:focus{outline:2px solid #e9c66b}' +
+      '.cin-seek-b{display:flex;gap:8px;flex:1;min-width:210px}.cin-seek-b button{flex:1;padding:9px 8px;border-radius:9px;border:1px solid rgba(233,198,107,.45);background:rgba(233,198,107,.12);color:#f3d98a;font:700 12px inherit;cursor:pointer}.cin-seek-b button:hover{background:rgba(233,198,107,.28)}' +
       '.cin-cn-row button{padding:10px 6px;font-size:12.5px}' +
       '.cin-pl-item{padding:7px 9px}.cin-pl-thumb{width:44px;height:66px}.cin-pl-title{font-size:13px}' +
       '.cin-pane-schedule{max-height:56vh}' +
