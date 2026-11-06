@@ -791,8 +791,7 @@
       net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
       if (st.status !== 'playing') endedUrl = '';
       net.status = (st.status === 'playing' && net.url && net.url === endedUrl) ? 'idle' : (st.status || 'idle');   // film terminé chez moi : écran de base, même si le serveur n'a pas encore coupé
-      if (early && net.url === early.url) early = null;
-      if (net.url !== net.lastSrc && !(early && Date.now() < early.until && net.url !== early.url)) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }   // (pas de retour à l'ancien film pendant qu'on charge le nouveau)
+      if (net.url !== net.lastSrc) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
         ensureVideoAudio();
@@ -977,18 +976,6 @@
       }
     }
 
-    function resolveFlux(u) {                           // extrait le flux tout de suite (via notre relais) : le film commence à se charger sans attendre le serveur
-      if (!looksLikeEmbedPage(u)) return Promise.resolve(null);
-      var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 12000);
-      return fetch('/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr/api/proxy?url=' + encodeURIComponent(u) + '&wp=1&json=1'), { signal: ctl.signal, cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { clearTimeout(t); return d && d.success && d.src ? { url: '/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr' + d.src), type: d.type === 'hls' ? 'hls' : 'mp4' } : null; })
-        .catch(function () { clearTimeout(t); return null; });
-    }
-    function autoLaunchOn() { var el = consoleEl && consoleEl.querySelector('[data-r="auto"]'); return !el || el.checked; }
-    function tryAutoPlay() {                            // le film est chargé chez le serveur ET prêt à jouer chez le Patron : on lance
-      if (auto.want && auto.setDone && video.readyState >= 3 && net.lastSrc === auto.url && net.status !== 'playing' && isCinemaCtrl()) { auto.want = false; cinemaAction('play'); }
-    }
     function pickFilm(id, ver) {
       if (!playlist) return;
       var f = playlist.find(function (x) { return String(x.id) === String(id); });
@@ -1000,20 +987,8 @@
       if (urlInput) urlInput.value = targetUrl;
       world.flash('🎬 ' + f.titre + ' (' + ver + ')', 'Extraction du flux ' + (f.host || 'Premium') + ' via Tropi Stream...');
       pendingTitle = fullTitle; refreshConsole();
-      auto = { want: autoLaunchOn(), setDone: false, url: '' };
-      var finish = function () { pendingTitle = ''; auto.setDone = true; refreshConsole(); tryAutoPlay(); };
-      resolveFlux(targetUrl).then(function (res) {
-        if (res) {                                       // flux trouvé : on charge la vidéo tout de suite, pendant que le serveur enregistre le film
-          auto.url = res.url; early = { url: res.url, until: Date.now() + 20000 };
-          if (net.lastSrc !== res.url) { net.lastSrc = res.url; setSource(res.url, res.type); }
-          return cinemaAction('set', { url: res.url, type: res.type, resolved: true, title: fullTitle });
-        }
-        auto.url = '';
-        return cinemaAction('set', { url: targetUrl, title: fullTitle }).then(function (r) { if (r && r.state) auto.url = r.state.url; return r; });
-      }).then(finish, finish);
+      cinemaAction('set', { url: targetUrl, title: fullTitle }).then(function () { pendingTitle = ''; refreshConsole(); });
     }
-    var auto = { want: false, setDone: false, url: '' }, early = null;
-    video.addEventListener('canplay', function () { tryAutoPlay(); });
     function filmOfTitle(title) {
       if (!playlist || !title) return null;
       var base = String(title).replace(/\s*\[(VF|VO)\]\s*$/, '');
@@ -1147,7 +1122,6 @@
             '<button data-a="pause" class="btn-pause" title="Mettre en pause"><i class="fa-solid fa-pause"></i> Pause</button>' +
             '<button data-a="stop" class="btn-stop" title="Couper la séance"><i class="fa-solid fa-stop"></i> Couper</button>' +
           '</div>' +
-          '<label class="cin-auto"><input type="checkbox" data-r="auto" checked> Lancer automatiquement dès que le film est prêt</label>' +
           '<div class="cin-cn-seek">' +
             '<span class="cin-seek-l"><i class="fa-solid fa-clock"></i> Choisir le moment du film</span>' +
             '<div class="cin-seek-f"><input class="cin-sk" data-k="h" type="number" min="0" max="23" value="0" aria-label="heures"><b>h</b><input class="cin-sk" data-k="m" type="number" min="0" max="59" value="0" aria-label="minutes"><b>min</b><input class="cin-sk" data-k="s" type="number" min="0" max="59" value="0" aria-label="secondes"><b>s</b></div>' +
@@ -1319,7 +1293,6 @@
       if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
       consoleEl.classList.remove('hid');
       consoleEl.querySelector('.cin-cn-url').value = net.url || '';
-      (function () { var a = consoleEl.querySelector('[data-r="auto"]'); if (a && !a._bound) { a._bound = true; try { a.checked = localStorage.getItem('cinAutoLaunch') !== '0'; } catch (e) { /* ok */ } a.addEventListener('change', function () { try { localStorage.setItem('cinAutoLaunch', a.checked ? '1' : '0'); } catch (e) { /* ok */ } }); } })();
       (function () { var t = Math.max(0, Math.floor(netPosNow())), vals = { h: Math.floor(t / 3600), m: Math.floor(t % 3600 / 60), s: t % 60 }; ['h', 'm', 's'].forEach(function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); if (el) el.value = vals[k]; }); })();   // les cases partent du moment actuel
       if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); } else loadPlaylist();
       refreshConsole();
@@ -1699,7 +1672,6 @@
       '.cin-np-bar{height:6px;border-radius:3px;background:#2a1f24;overflow:hidden;margin-top:2px}.cin-np-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-np-time{display:flex;justify-content:space-between;font-size:11px;color:#9d8a53;font-variant-numeric:tabular-nums;min-height:14px}' +
       '.cin-cn-row button:disabled{opacity:.35;cursor:not-allowed}' +
-      '.cin-auto{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#d9c88f;cursor:pointer}.cin-auto input{accent-color:#e9c66b;width:16px;height:16px}' +
       '.cin-cn-seek{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}' +
       '.cin-seek-l{font-size:11.5px;font-weight:700;color:#e9c66b;letter-spacing:.03em;width:100%}' +
       '.cin-seek-f{display:flex;align-items:center;gap:5px}.cin-seek-f b{font-size:12px;color:#c9b8e8;font-weight:600;margin-right:6px}' +
