@@ -83,9 +83,30 @@ function createResponseAdapter() {
     return res;
   };
 
-  res.on('data', (chunk) => {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  });
+  // Streaming : dès qu'un handler écrit (ou pipe) des données, on répond tout de suite avec un flux, au lieu de tout garder en mémoire
+  // (un film de 1,5 Go du cinéma ne tiendrait pas, et le navigateur attendait indéfiniment le début de la réponse).
+  let streaming = false;
+  const origWrite = res.write.bind(res);
+  res.write = (chunk, encoding, cb) => {
+    if (!resolved && !streaming) {
+      streaming = true;
+      resolved = true;
+      const stream = new ReadableStream({
+        start(controller) {
+          res.on('data', (c) => {
+            controller.enqueue(new Uint8Array(c));
+            if (controller.desiredSize !== null && controller.desiredSize <= 0) res.pause();
+          });
+          res.on('end', () => { try { controller.close(); } catch (e) { /* déjà fermé */ } });
+          res.on('error', (e) => { try { controller.error(e); } catch (e2) { /* ok */ } });
+        },
+        pull() { res.resume(); },
+        cancel() { res.destroy(); },
+      });
+      resolveResponse(new Response(stream, { status: statusCode, headers }));
+    }
+    return origWrite(chunk, encoding, cb);
+  };
 
   res.on('finish', () => {
     if (!resolved) {
@@ -96,6 +117,7 @@ function createResponseAdapter() {
 
   const origEnd = res.end.bind(res);
   res.end = (chunk, encoding, cb) => {
+    if (streaming) return origEnd(chunk, encoding, cb);
     if (chunk !== undefined && typeof chunk !== 'function') {
       if (typeof chunk === 'string' && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'text/plain; charset=utf-8');
