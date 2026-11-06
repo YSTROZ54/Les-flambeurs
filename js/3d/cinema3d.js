@@ -30,7 +30,7 @@
   function makeGeo(P) {
     var G0 = P ? {
       HX: 28, HZ: 20, H: 34, SCR_W: 51.2, SCR_Y: 2.6, SCR_H: 51.2 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65],
-      blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-20.05, 15.3], [20.05, 15.3]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
+      blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-20.2, 15.6], [20.2, 15.6]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
@@ -608,39 +608,108 @@
       }
       // vitre sans tain : côté salle, un miroir sombre (on ne voit pas derrière) ; côté intérieur, une vitre claire (on voit toute la salle)
       var GZ = vz0 - 0.1, gy0 = BACK_H, gy1 = VY - 0.7, gH = gy1 - gy0, glassColl = [], glassOn = null;
-      var dW = 1.4, dH = 2.5, dx0 = -HX + 1.2, dx1 = dx0 + dW, dcx = (dx0 + dx1) / 2;            // la porte, tout à gauche
+      var dW = 1.4, dH = 2.5, STAFF = ['ystroz', 'alex', 'yohan81'];
       var outM = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.08, metalness: 0.95 }), inM = new THREE.MeshBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.08, depthWrite: false });
       function pane(x0, x1, y0, y1) {                  // un morceau de vitre : miroir sombre côté salle, vitre claire côté salon
         var w0 = x1 - x0, h0 = y1 - y0, cx0 = (x0 + x1) / 2, cy0 = (y0 + y1) / 2;
         var a = new THREE.Mesh(new THREE.PlaneGeometry(w0, h0), outM); a.rotation.y = Math.PI; a.position.set(cx0, cy0, GZ); g.add(a);
         var b = new THREE.Mesh(new THREE.PlaneGeometry(w0, h0), inM); b.position.set(cx0, cy0, GZ + 0.02); g.add(b);
       }
-      pane(-HX, dx0, gy0, gy1); pane(dx0, dx1, gy0 + dH, gy1); pane(dx1, HX, gy0, gy1);
-      var doorM = std(0x0b0b0f, 0.45, 0.35), frameM = std(0x050507, 0.5, 0.4);
-      box(g, 0.08, dH, 0.12, frameM, dx0 - 0.04, gy0 + dH / 2, GZ); box(g, 0.08, dH, 0.12, frameM, dx1 + 0.04, gy0 + dH / 2, GZ); box(g, dW + 0.16, 0.08, 0.12, frameM, dcx, gy0 + dH + 0.04, GZ);
-      var hinge = new THREE.Group(); hinge.position.set(dx0, gy0, GZ); g.add(hinge);
-      box(hinge, dW, dH - 0.02, 0.05, doorM, dW / 2, dH / 2, 0);                                // le battant noir
-      box(hinge, 0.04, 0.3, 0.06, std(0x9a9aa2, 0.3, 0.8), dW - 0.15, dH * 0.47, -0.05); box(hinge, 0.04, 0.3, 0.06, std(0x9a9aa2, 0.3, 0.8), dW - 0.15, dH * 0.47, 0.05);   // poignées
+      var doorM = std(0x0b0b0f, 0.45, 0.35), frameM = std(0x050507, 0.5, 0.4), handM = std(0x9a9aa2, 0.3, 0.8);
       var stC = mkCanvas(512, 128), stx = stC.getContext('2d'); stx.fillStyle = '#08080b'; stx.fillRect(0, 0, 512, 128); stx.strokeStyle = '#c9a227'; stx.lineWidth = 5; stx.strokeRect(4, 4, 504, 120);
       stx.textAlign = 'center'; stx.textBaseline = 'middle'; stx.fillStyle = '#f3d98a'; stx.font = '800 54px ' + SERIF; stx.fillText('ESPACE STAFF', 256, 66, 480);
-      var stS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: mkTex(stC) })); stS.rotation.y = Math.PI; stS.position.set(dcx, gy0 + dH + 0.35, GZ - 0.03); g.add(stS);
-      var stS2 = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: mkTex(stC) })); stS2.position.set(dcx, gy0 + dH + 0.35, GZ + 0.05); g.add(stS2);
-      var wallColl = [], doorColl = [], cxg, doorA = 0;
-      for (cxg = -HX + 0.3; cxg <= HX - 0.3; cxg += 0.5) { if (cxg > dx0 - 0.15 && cxg < dx1 + 0.15) continue; wallColl.push({ x: cxg, z: GZ, r: 0.4 }); }
-      for (cxg = dx0 + 0.25; cxg <= dx1 - 0.2; cxg += 0.4) doorColl.push({ x: cxg, z: GZ, r: 0.4 });
+      var stTex = mkTex(stC);
+      function staffDoor(x0) {                         // une petite porte noire dans le mur, charnière à gauche
+        var x1 = x0 + dW, cx0 = (x0 + x1) / 2, d = { x0: x0, x1: x1, cx: cx0, a: 0, coll: [] };
+        box(g, 0.08, dH, 0.12, frameM, x0 - 0.04, gy0 + dH / 2, GZ); box(g, 0.08, dH, 0.12, frameM, x1 + 0.04, gy0 + dH / 2, GZ); box(g, dW + 0.16, 0.08, 0.12, frameM, cx0, gy0 + dH + 0.04, GZ);
+        d.hinge = new THREE.Group(); d.hinge.position.set(x0, gy0, GZ); g.add(d.hinge);
+        box(d.hinge, dW, dH - 0.02, 0.05, doorM, dW / 2, dH / 2, 0);
+        box(d.hinge, 0.04, 0.3, 0.06, handM, dW - 0.15, dH * 0.47, -0.05); box(d.hinge, 0.04, 0.3, 0.06, handM, dW - 0.15, dH * 0.47, 0.05);
+        [[Math.PI, -0.03], [0, 0.05]].forEach(function (o) { var sg = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: stTex })); sg.rotation.y = o[0]; sg.position.set(cx0, gy0 + dH + 0.35, GZ + o[1]); g.add(sg); });
+        for (var cq = x0 + 0.25; cq <= x1 - 0.2; cq += 0.4) d.coll.push({ x: cq, z: GZ, r: 0.4 });
+        return d;
+      }
+      var doors2 = [staffDoor(-HX + 1.2), staffDoor(HX - 1.2 - dW)];
+      pane(-HX, doors2[0].x0, gy0, gy1); pane(doors2[0].x0, doors2[0].x1, gy0 + dH, gy1); pane(doors2[0].x1, doors2[1].x0, gy0, gy1); pane(doors2[1].x0, doors2[1].x1, gy0 + dH, gy1); pane(doors2[1].x1, HX, gy0, gy1);
+      var wallColl = [], cxg;
+      for (cxg = -HX + 0.3; cxg <= HX - 0.3; cxg += 0.5) { if (doors2.some(function (d) { return cxg > d.x0 - 0.15 && cxg < d.x1 + 0.15; })) continue; wallColl.push({ x: cxg, z: GZ, r: 0.4 }); }
       wallColl.forEach(function (c2) { room.colliders.push(c2); });
-      // seuls le Patron et le Co Fondateur passent, et seulement par la porte ; elle s'ouvre toute seule devant eux (sans téléportation)
+      // seuls le Patron et le Co Fondateur passent, et seulement par les portes. Une porte s'ouvre chez TOUT LE MONDE dès qu'un membre du staff
+      // (toi ou un autre joueur) est devant : tout le monde la voit s'ouvrir et se refermer au même moment.
       room.glassCheck = function (w) {
         var staff = isCinemaCtrl(), on = !staff;
-        if (on !== glassOn) { glassOn = on; setColl(doorColl, on); }
-        var near = staff && w && Math.hypot(w.player.x - dcx, w.player.z - GZ) < 2.6;
-        doorA += ((near ? -1.45 : 0) - doorA) * 0.12; hinge.rotation.y = doorA;
+        if (on !== glassOn) { glassOn = on; doors2.forEach(function (d) { setColl(d.coll, on); }); }
+        doors2.forEach(function (d) {
+          var near = !!(w && staff && Math.hypot(w.player.x - d.cx, w.player.z - GZ) < 2.6);
+          if (!near && w && w.remote) Object.keys(w.remote).forEach(function (k) {
+            var r = w.remote[k]; if (!r || !r.person || STAFF.indexOf(String(r.name || '').toLowerCase()) < 0) return;
+            var gp = r.person.group.position; if (Math.hypot(gp.x - d.cx, gp.z - GZ) < 2.6) near = true;
+          });
+          d.a += ((near ? -1.45 : 0) - d.a) * 0.12; d.hinge.rotation.y = d.a;
+        });
       };
       // le salon : sol et plafond qui prennent la lumière, plafonniers
       var salonF = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x17141c, 0.9, 0.05)); salonF.rotation.x = -Math.PI / 2; salonF.position.set(0, gy0 + 0.006, (GZ + HZ) / 2); g.add(salonF);
       var salonC = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x1e1a24, 0.9, 0.05)); salonC.rotation.x = Math.PI / 2; salonC.position.set(0, gy1 - 0.006, (GZ + HZ) / 2); g.add(salonC);
       [-21, -14, -7, 0, 7, 14, 21].forEach(function (lx) { [12.5, 16.8].forEach(function (lz) { cyl(g, 0.28, 0.28, 0.04, bas(0xfff2d6), lx, gy1 - 0.03, lz, 18); }); });
       if (!low) [-18, -6, 6, 18].forEach(function (lx) { var pl = new THREE.PointLight(0xffe7c4, 0.9, 11); pl.position.set(lx, gy1 - 0.5, 14.6); g.add(pl); });
+      (function staffDesk() {
+        var DX = -8, DZ = HZ - 1.7, deskM = std(0x2a2328, 0.5, 0.2), darkK = std(0x18181c, 0.5, 0.3);
+        box(g, 3.2, 0.06, 1.0, deskM, DX, gy0 + 0.76, DZ); box(g, 3.24, 0.03, 1.04, trimM, DX, gy0 + 0.79, DZ);                       // plateau du bureau
+        [[-1.5, -0.42], [1.5, -0.42], [-1.5, 0.42], [1.5, 0.42]].forEach(function (lp) { box(g, 0.06, 0.74, 0.06, darkK, DX + lp[0], gy0 + 0.37, DZ + lp[1]); });
+        box(g, 0.9, 0.025, 0.28, darkK, DX, gy0 + 0.81, DZ - 0.12);                                                                   // clavier
+        for (var kk = 0; kk < 24; kk++) box(g, 0.055, 0.012, 0.055, std(0x34343c, 0.5, 0.2), DX - 0.4 + (kk % 12) * 0.073, gy0 + 0.83, DZ - 0.2 + Math.floor(kk / 12) * 0.09);
+        box(g, 0.09, 0.03, 0.14, darkK, DX + 0.6, gy0 + 0.81, DZ - 0.1);                                                              // souris
+        cyl(g, 0.3, 0.3, 0.5, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.25, DZ - 1.0, 16); box(g, 0.6, 0.7, 0.1, std(0x1c1c22, 0.6, 0.2), DX, gy0 + 0.85, DZ - 0.72);   // fauteuil
+        // le grand écran au mur, derrière le bureau
+        var SWm = 4.4, SHm = 2.48, wc = mkCanvas(1280, 720), wx = wc.getContext('2d'), wtex = mkTex(wc);
+        var wscr = new THREE.Mesh(new THREE.PlaneGeometry(SWm, SHm), new THREE.MeshBasicMaterial({ map: wtex })); wscr.rotation.y = Math.PI; wscr.position.set(DX, gy0 + 2.22, HZ - 0.06); g.add(wscr);
+        box(g, SWm + 0.2, SHm + 0.2, 0.06, std(0x0c0c10, 0.4, 0.4), DX, gy0 + 2.22, HZ - 0.02);
+        var posterCache = {};
+        function img(url) { if (!url) return null; if (posterCache[url]) return posterCache[url]; var im = new Image(); im.crossOrigin = 'anonymous'; im.src = url; posterCache[url] = im; return im; }
+        function fmt(t) { t = Math.max(0, Math.floor(t || 0)); var h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (sec < 10 ? '0' : '') + sec; }
+        function paintWall() {
+          var x = wx; x.fillStyle = '#07070a'; x.fillRect(0, 0, 1280, 720);
+          x.fillStyle = '#c9a227'; x.font = '800 34px ' + SERIF; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillText('ÉCRAN STAFF — RÉGIE', 40, 44);
+          // l'image du film (en direct), ou l'affiche
+          var vx0 = 40, vy0 = 86, vw0 = 800, vh0 = 450;
+          x.fillStyle = '#000'; x.fillRect(vx0, vy0, vw0, vh0);
+          var f2 = filmOfTitle(net.title), drew = false;
+          if ((net.status === 'playing' || net.status === 'paused') && video.readyState >= 2 && video.videoWidth) { try { x.drawImage(video, vx0, vy0, vw0, vh0); drew = true; } catch (e) { /* ok */ } }
+          if (!drew && f2 && f2.poster) { var pim = img(f2.poster); if (pim && pim.complete && pim.naturalWidth) { var ph = vh0, pw = ph * pim.naturalWidth / pim.naturalHeight; x.drawImage(pim, vx0 + (vw0 - pw) / 2, vy0, pw, ph); drew = true; } }
+          if (!drew) { x.fillStyle = '#5a5a66'; x.font = '600 30px ' + MONO; x.textAlign = 'center'; x.fillText('Aucun film chargé', vx0 + vw0 / 2, vy0 + vh0 / 2); x.textAlign = 'left'; }
+          x.strokeStyle = '#c9a227'; x.lineWidth = 3; x.strokeRect(vx0, vy0, vw0, vh0);
+          // infos à droite
+          var ix = 880, st2 = net.status === 'playing' ? '● EN COURS' : net.status === 'paused' ? '❚❚ EN PAUSE' : (net.url && net.title ? '✓ FILM CHARGÉ, PRÊT' : '— AUCUNE SÉANCE');
+          x.fillStyle = net.status === 'playing' ? '#4ade80' : net.status === 'paused' ? '#facc15' : '#9ca3af'; x.font = '800 30px ' + MONO; x.fillText(st2, ix, 110);
+          x.fillStyle = '#f5ecd2'; x.font = '800 32px ' + SERIF;
+          var title = (net.title || '').replace(/\s*\[(VF|VO)\]\s*$/, '') || '—', words = title.split(' '), line = '', ly = 170;
+          words.forEach(function (wd) { var t2 = line ? line + ' ' + wd : wd; if (x.measureText(t2).width > 360 && line) { x.fillText(line, ix, ly); ly += 40; line = wd; } else line = t2; }); if (line) x.fillText(line, ix, ly);
+          var ver = verOfTitle(net.title); if (ver) { x.fillStyle = '#c9b46a'; x.font = '700 24px ' + MONO; x.fillText('Version : ' + ver, ix, ly + 44); }
+          if (f2 && f2.annee) { x.fillStyle = '#9d8a53'; x.font = '600 22px ' + MONO; x.fillText(String(f2.annee) + (f2.genres ? ' · ' + f2.genres.slice(0, 2).join(', ') : ''), ix, ly + 78); }
+          // progression
+          var dur = video.duration, pos = netPosNow();
+          if (isFinite(dur) && dur > 0) {
+            x.fillStyle = '#26262e'; x.fillRect(vx0, vy0 + vh0 + 24, vw0, 12); x.fillStyle = '#c9a227'; x.fillRect(vx0, vy0 + vh0 + 24, vw0 * Math.min(1, pos / dur), 12);
+            x.fillStyle = '#d9c88f'; x.font = '700 24px ' + MONO; x.fillText(fmt(pos) + ' / ' + fmt(dur), vx0, vy0 + vh0 + 64);
+          }
+          // prochaines séances
+          x.fillStyle = '#c9a227'; x.font = '800 24px ' + MONO; x.fillText('PROCHAINES SÉANCES', ix, 420);
+          x.fillStyle = '#e5dcc3'; x.font = '600 21px ' + MONO;
+          var sch = (net.schedule || []).slice(0, 5);
+          if (!sch.length) { x.fillStyle = '#6b6b75'; x.fillText('Aucune séance programmée', ix, 460); }
+          sch.forEach(function (it, i2) { var d0 = new Date(it.at), hh = (d0.getHours() < 10 ? '0' : '') + d0.getHours() + 'h' + (d0.getMinutes() < 10 ? '0' : '') + d0.getMinutes(); var tt = String(it.title || '').replace(/\s*\[(VF|VO)\]\s*$/, ''); if (tt.length > 24) tt = tt.slice(0, 23) + '…'; x.fillText(hh + '  ' + tt, ix, 460 + i2 * 34); });
+          wtex.needsUpdate = true;
+        }
+        var wallT = 0;
+        room.staffWall = function (dt) {                 // seul le staff voit l'écran (pour les autres il reste éteint)
+          var staff = isCinemaCtrl(); wscr.visible = staff;
+          if (!staff) return;
+          if (!playlist && !playlistLoading) loadPlaylist();       // pour afficher l'affiche et les infos du film
+          wallT += dt; if (wallT > 0.12) { wallT = 0; paintWall(); }
+        };
+        room.interactables.push({ x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl(); }, prompt: function () { return '🎛️ Bureau staff — choisir le film  [F]'; }, use: function () { if (isCinemaCtrl()) toggleConsole(); } });
+      })();
       var wallPush = [], gate = [], edge = [], zc2;
       [-1, 1].forEach(function (sd) {
         holeWall(sd); frame(sd, BH); frame(sd, TH);
@@ -1478,6 +1547,7 @@
       clock += dt;
       if (room.vipTrack) room.vipTrack(w.player.x, w.player.z);
       if (room.glassCheck) room.glassCheck(w);
+      if (room.staffWall) room.staffWall(dt);
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
