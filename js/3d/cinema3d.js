@@ -110,6 +110,7 @@
       try { m.ctx = new AC(); } catch (e) { m.ctx = null; return false; }
       var c = m.ctx;
       m.master = c.createGain(); m.master.gain.value = 0; m.master.connect(c.destination);
+      m.an = c.createAnalyser(); m.an.fftSize = 256; m.an.smoothingTimeConstant = 0.6; m.master.connect(m.an); m.anBuf = new Uint8Array(m.an.frequencyBinCount);
       m.dry = c.createGain(); m.dry.gain.value = 1; m.dry.connect(m.master);
       // réverbération : un bruit qui s'éteint en 2,4 s
       var len = Math.floor(c.sampleRate * 2.4), imp = c.createBuffer(2, len, c.sampleRate);
@@ -325,7 +326,7 @@
     var stageD = 2.4;
     box(g, HX * 2, 0.3, stageD, P ? starMat(HX * 2, stageD) : std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
-    if (P) box(g, HX * 2 - 1, 0.05, 0.05, bas(0xffe6a8), 0, 0.15, -HZ + stageD + 0.08);   // un seul trait de lumière continu au bord de la scène
+    if (P) { /* néon de la scène : construit avec la lumière de l'écran (plus bas) */ }   // un seul trait de lumière continu au bord de la scène
     else for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
     var posterLabel = 'AUCUNE SÉANCE EN COURS', posterSub = '';
@@ -580,12 +581,12 @@
       box(g, vw * 2, 0.2, vz1 - T1, starMat(vw * 2, vz1 - T1), 0, VY + 0.1, (T1 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.2, T1 + 0.025);
       box(g, vw * 2, 0.2, vz1 - T2, starMat(vw * 2, vz1 - T2), 0, VY + 0.3, (T2 + vz1) / 2); box(g, vw * 2, 0.03, 0.05, brassM, 0, VY + 0.4, T2 + 0.025);
       // piliers sous le bord avant, dans les allées du bas
-      [-13.4, -2.9, 2.9, 13.4].forEach(function (px) {
-        var pz = vz0 + 0.25, gy = cinemaGroundY(px, pz), top = VY - 0.7, hh = top - gy;
+      [-20, -11, 11, 20].forEach(function (px) {
+        var pz = vz0 + 0.55, gy = cinemaGroundY(px, pz), top = VY - 0.7, hh = top - gy;
         cyl(g, 0.22, 0.22, hh, pill, px, gy + hh / 2, pz, 20);                                   // le fût, posé sur le sol (plus rien sous le plancher)
         cyl(g, 0.34, 0.38, 0.22, pill, px, gy + 0.11, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, gy + 0.24, pz, 20);   // socle
         cyl(g, 0.34, 0.26, 0.2, pill, px, top - 0.1, pz, 20); cyl(g, 0.36, 0.36, 0.04, trimM, px, top - 0.22, pz, 20);   // chapiteau
-        room.colliders.push({ x: px, z: pz, r: 0.65 });                                         // on ne peut plus rentrer dedans
+        room.colliders.push({ x: px, z: pz, r: 0.6 });                                         // on ne peut plus rentrer dedans
       });
       // garde-corps de verre le long du bord
       box(g, vw * 2, 0.04, 0.08, trimM, 0, VY + 0.02, vz0 + 0.06);                      // juste un liseré doré au ras du sol : rien devant l'écran (la barrière invisible empêche de tomber)
@@ -758,6 +759,7 @@
     /* --- son en 3D : le film s'entend d'où est l'écran (panoramique gauche/droite, plus étouffé loin/derrière) ; si WebAudio échoue, on retombe sur video.volume --- */
     var vAudio = { ctx: null, pan: null, lp: null, gain: null, ok: false, pl: null, pr: null };
     room._ensureAudio = ensureVideoAudio; room._vAudio = vAudio; room._video = video;   // (pour les tests)
+    function filmVol() { var mv = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.5; return 2.3 * mv; }   // volume général du site : 50 % = volume normal du film
     function ensureVideoAudio() {
       if (vAudio.ctx || !(navigator.userActivation && navigator.userActivation.hasBeenActive)) return;
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -767,8 +769,9 @@
         // Un compresseur doux rapproche les dialogues et les explosions : on entend tout clairement sans devoir monter le son.
         var pre = c.createGain(); pre.channelCount = 2; pre.channelCountMode = 'explicit'; pre.channelInterpretation = 'speakers';
         var comp = c.createDynamicsCompressor(); comp.threshold.value = -22; comp.knee.value = 20; comp.ratio.value = 2.5; comp.attack.value = 0.006; comp.release.value = 0.3;
-        vAudio.gain = c.createGain(); vAudio.gain.gain.value = 1.15;
-        src.connect(pre); pre.connect(comp); comp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
+        vAudio.gain = c.createGain(); vAudio.gain.gain.value = filmVol();
+        var lim = c.createDynamicsCompressor(); lim.threshold.value = -1.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.15;
+        src.connect(pre); pre.connect(comp); comp.connect(vAudio.gain); vAudio.gain.connect(lim); lim.connect(c.destination);
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
     }
@@ -1473,8 +1476,8 @@
       music.setLevel(playing ? 0 : 1);
       // son du film : même volume partout, en stéréo
       if (playing || net.status === 'paused') {
-        if (vAudio.ok) vAudio.gain.gain.setTargetAtTime(1.15, vAudio.ctx.currentTime, 0.2);
-        else video.volume = 1;
+        if (vAudio.ok) vAudio.gain.gain.setTargetAtTime(filmVol(), vAudio.ctx.currentTime, 0.1);
+        else video.volume = Math.min(1, filmVol() / 2.3);
       }
     };
     /* ===================== LUMIÈRE DE L'ÉCRAN (salle premium) ===================== */
@@ -1505,7 +1508,7 @@
         var pos = [], uv = [], idx = [], i;
         for (i = 0; i <= M; i++) {
           var u = Math.min(i / M, 1), p = path.getPointAt(u), t = path.getTangentAt(u), nx = -t.y, ny = t.x;
-          pos.push(p.x - nx * w, p.y - ny * w, z, p.x + nx * w, p.y + ny * w, z); uv.push(u, 0, u, 1);
+          pos.push(p.x - nx * 0.1, p.y - ny * 0.1, z, p.x + nx * w, p.y + ny * w, z); uv.push(u, 0, u, 1);   // du néon vers l'extérieur seulement : aucun repli dans les coins
           if (i < M) { var a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
         }
         var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); return geo;
@@ -1530,7 +1533,7 @@
         }
       }
       var nImg = cx.createImageData(W, 2), hImg = hcx.createImageData(W, 16), prof = [];
-      for (var jj = 0; jj < 16; jj++) { var sa = Math.sin(Math.PI * (jj + 0.5) / 16); prof.push(0.42 * sa * sa); }
+      for (var jj = 0; jj < 16; jj++) { var sa = (jj + 0.5) / 16; prof.push(0.42 * sa * sa); }       // fort contre le néon, s'efface vers l'extérieur
       function paint() {
         var nd = nImg.data, hd = hImg.data, i, j, o;
         for (i = 0; i < W; i++) {
@@ -1546,8 +1549,30 @@
       function setTgt(e, acc) { for (var k = 0; k < e.n; k++) { var a = acc[k], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, v = vivid(r0, g0, b0), kk = smooth(0.04, 0.45, r0 * 0.3 + g0 * 0.59 + b0 * 0.11); e.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk]; } }
       function zeros(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0, 0]); return a; }
       function avg(e) { var s0 = [0, 0, 0]; e.cur.forEach(function (c) { s0[0] += c[0]; s0[1] += c[1]; s0[2] += c[2]; }); return [s0[0] / e.n, s0[1] / e.n, s0[2] / e.n]; }
-      var paintT = 0;
+      // néon au bord de la scène : pendant le film il reprend les couleurs du bas de l'image ; sans film, il vit au rythme de la musique d'attente
+      var SL = HX * 2 - 1, SNR = 128, scv = mkCanvas(2, SNR), scx = scv.getContext('2d'), stex = new THREE.CanvasTexture(scv), sImg = scx.createImageData(2, SNR), musE = 0, clk = 0;
+      var stube = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, SL, 10), new THREE.MeshBasicMaterial({ map: stex })); stube.rotation.z = -Math.PI / 2; stube.position.set(0, 0.17, -HZ + stageD + 0.06); g.add(stube);
+      function pickB(fx) { var e = E.B, x = Math.min(e.n - 1, Math.max(0, fx * (e.n - 1))), a = Math.floor(x), b = Math.min(e.n - 1, a + 1), w = x - a; return [e.cur[a][0] + (e.cur[b][0] - e.cur[a][0]) * w, e.cur[a][1] + (e.cur[b][1] - e.cur[a][1]) * w, e.cur[a][2] + (e.cur[b][2] - e.cur[a][2]) * w]; }
+      function paintStage(dt, on) {
+        clk += dt;
+        var target = 0;
+        if (!on && music && music.an && music.up) { music.an.getByteFrequencyData(music.anBuf); var sum = 0; for (var q = 0; q < 24; q++) sum += music.anBuf[q]; target = Math.min(1, sum / 24 / 160); }
+        musE += (target - musE) * Math.min(1, dt * (target > musE ? 14 : 4));
+        var hue = (0.09 + 0.05 * Math.sin(clk * 0.15)), sd = sImg.data;
+        for (var k = 0; k < SNR; k++) {
+          var c;
+          if (on) c = pickB(1 - k / (SNR - 1));                                   // ligne 0 = bout droit
+          else {
+            var v = (0.18 + 0.82 * musE) * (0.75 + 0.25 * Math.sin(k * 0.18 - clk * 3.5)), col = new THREE.Color().setHSL(hue + 0.03 * Math.sin(k * 0.05 + clk * 0.4), 0.85, 0.5);
+            c = [col.r * v, col.g * v, col.b * v];
+          }
+          for (var j = 0; j < 2; j++) { var o = (k * 2 + j) * 4; sd[o] = Math.max(12, Math.round(c[0] * 255)); sd[o + 1] = Math.max(10, Math.round(c[1] * 255)); sd[o + 2] = Math.max(8, Math.round(c[2] * 255)); sd[o + 3] = 255; }
+        }
+        scx.putImageData(sImg, 0, 0); stex.needsUpdate = true;
+      }
+      var paintT = 0, stageT = 0;
       room.ambiUpdate = function (dt, on) {
+        stageT += dt; if (stageT > 0.033) { paintStage(stageT, on); stageT = 0; }
         tAcc += dt; paintT += dt;
         if (on && !bad && tAcc > 0.05 && video.readyState >= 2 && video.videoWidth > 0) {     // 20 lectures par seconde : les couleurs suivent le film en direct
           tAcc = 0;
