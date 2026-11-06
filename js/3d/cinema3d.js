@@ -313,7 +313,8 @@
     var stageD = 2.4;
     box(g, HX * 2, 0.3, stageD, P ? starMat(HX * 2, stageD) : std(0x2a1810, 0.7, 0.1), 0, 0.15, -HZ + stageD / 2);
     box(g, HX * 2, 0.1, 0.06, trimM, 0, 0.15, -HZ + stageD + 0.03);                // liteau doré sur la face de la scène
-    for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
+    if (P) box(g, HX * 2 - 1, 0.05, 0.05, bas(0xffe6a8), 0, 0.15, -HZ + stageD + 0.08);   // un seul trait de lumière continu au bord de la scène
+    else for (i = -HX + 0.5; i <= HX - 0.5; i += 0.5) sph(g, 0.045, bas(0xfff0c0), i, 0.15, -HZ + stageD + 0.08);      // petites ampoules posées sur le liteau, bien visibles
     var posterC = mkCanvas(1280, 720), posterTex = mkTex(posterC), posterImg = null;
     var posterLabel = 'AUCUNE SÉANCE EN COURS', posterSub = '';
     // écran de base (aucune séance) : l'affiche assombrie, un clap, le texte ; surtout pas de bouton lecture
@@ -390,7 +391,7 @@
     var velM = P ? std(0xa8142a, 0.72, 0.04, 0x1f0408) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0xc41e38, 0.6, 0.05, 0x260509) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
-      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 1.0, 0.23], rx: 0.16 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.5, 0.77, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.5, 0.77, 0.0] }, { geo: seatGeo.pLed, mat: goldS, p: [0, 0.06, -0.3] }];
+      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 1.0, 0.23], rx: 0.16 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.5, 0.77, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.5, 0.77, 0.0] }];
       inst = { parts: parts, meshes: parts.map(function (pt) { var im = new THREE.InstancedMesh(pt.geo, pt.mat, ROWS.length * COLS.length + 50); im.frustumCulled = false; im.count = 0; g.add(im); return im; }), n: 0 };
     }
     function seat(x, z, elev) {
@@ -441,7 +442,7 @@
     box(g, HX * 2 - 1.4, 0.03, 0.05, trimM, 0, BACK_H, backZ0 + 0.025);
 
     /* --- feux d'allée au sol, à chaque bout de rangée (suivent le relief des gradins) --- */
-    ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, P ? aisleM : bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
+    if (!P) ROWS.forEach(function (rz) { G0.aisleLights.forEach(function (ax) { box(g, 0.06, 0.04, 0.2, P ? aisleM : bas(0xffa040), ax, cinemaGroundY(ax, rz + 0.1) + 0.03, rz + 0.1); }); });
 
     /* --- fond de salle : appliques, cabine de projection, comptoir à pop-corn, porte de sortie --- */
     var glowC = mkCanvas(64, 64), gx = glowC.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -785,7 +786,8 @@
       net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
       if (st.status !== 'playing') endedUrl = '';
       net.status = (st.status === 'playing' && net.url && net.url === endedUrl) ? 'idle' : (st.status || 'idle');   // film terminé chez moi : écran de base, même si le serveur n'a pas encore coupé
-      if (net.url !== net.lastSrc) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }
+      if (early && net.url === early.url) early = null;
+      if (net.url !== net.lastSrc && !(early && Date.now() < early.until && net.url !== early.url)) { net.lastSrc = net.url; endedUrl = st.status === 'playing' ? '' : endedUrl; setSource(net.url, net.type); }   // (pas de retour à l'ancien film pendant qu'on charge le nouveau)
       if (!seanceAsked) { seanceAsked = true; if (net.status === 'playing') announceSeance(); }
       if (net.status === 'playing') {
         ensureVideoAudio();
@@ -969,6 +971,18 @@
       }
     }
 
+    function resolveFlux(u) {                           // extrait le flux tout de suite (via notre relais) : le film commence à se charger sans attendre le serveur
+      if (!looksLikeEmbedPage(u)) return Promise.resolve(null);
+      var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 12000);
+      return fetch('/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr/api/proxy?url=' + encodeURIComponent(u) + '&wp=1&json=1'), { signal: ctl.signal, cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { clearTimeout(t); return d && d.success && d.src ? { url: '/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr' + d.src), type: d.type === 'hls' ? 'hls' : 'mp4' } : null; })
+        .catch(function () { clearTimeout(t); return null; });
+    }
+    function autoLaunchOn() { var el = consoleEl && consoleEl.querySelector('[data-r="auto"]'); return !el || el.checked; }
+    function tryAutoPlay() {                            // le film est chargé chez le serveur ET prêt à jouer chez le Patron : on lance
+      if (auto.want && auto.setDone && video.readyState >= 3 && net.lastSrc === auto.url && net.status !== 'playing' && isCinemaCtrl()) { auto.want = false; cinemaAction('play'); }
+    }
     function pickFilm(id, ver) {
       if (!playlist) return;
       var f = playlist.find(function (x) { return String(x.id) === String(id); });
@@ -980,8 +994,20 @@
       if (urlInput) urlInput.value = targetUrl;
       world.flash('🎬 ' + f.titre + ' (' + ver + ')', 'Extraction du flux ' + (f.host || 'Premium') + ' via Tropi Stream...');
       pendingTitle = fullTitle; refreshConsole();
-      cinemaAction('set', { url: targetUrl, title: fullTitle }).then(function () { pendingTitle = ''; refreshConsole(); });
+      auto = { want: autoLaunchOn(), setDone: false, url: '' };
+      var finish = function () { pendingTitle = ''; auto.setDone = true; refreshConsole(); tryAutoPlay(); };
+      resolveFlux(targetUrl).then(function (res) {
+        if (res) {                                       // flux trouvé : on charge la vidéo tout de suite, pendant que le serveur enregistre le film
+          auto.url = res.url; early = { url: res.url, until: Date.now() + 20000 };
+          if (net.lastSrc !== res.url) { net.lastSrc = res.url; setSource(res.url, res.type); }
+          return cinemaAction('set', { url: res.url, type: res.type, resolved: true, title: fullTitle });
+        }
+        auto.url = '';
+        return cinemaAction('set', { url: targetUrl, title: fullTitle }).then(function (r) { if (r && r.state) auto.url = r.state.url; return r; });
+      }).then(finish, finish);
     }
+    var auto = { want: false, setDone: false, url: '' }, early = null;
+    video.addEventListener('canplay', function () { tryAutoPlay(); });
     function filmOfTitle(title) {
       if (!playlist || !title) return null;
       var base = String(title).replace(/\s*\[(VF|VO)\]\s*$/, '');
@@ -1115,6 +1141,7 @@
             '<button data-a="pause" class="btn-pause" title="Mettre en pause"><i class="fa-solid fa-pause"></i> Pause</button>' +
             '<button data-a="stop" class="btn-stop" title="Couper la séance"><i class="fa-solid fa-stop"></i> Couper</button>' +
           '</div>' +
+          '<label class="cin-auto"><input type="checkbox" data-r="auto" checked> Lancer automatiquement dès que le film est prêt</label>' +
           '<div class="cin-cn-seek">' +
             '<span class="cin-seek-l"><i class="fa-solid fa-clock"></i> Choisir le moment du film</span>' +
             '<div class="cin-seek-f"><input class="cin-sk" data-k="h" type="number" min="0" max="23" value="0" aria-label="heures"><b>h</b><input class="cin-sk" data-k="m" type="number" min="0" max="59" value="0" aria-label="minutes"><b>min</b><input class="cin-sk" data-k="s" type="number" min="0" max="59" value="0" aria-label="secondes"><b>s</b></div>' +
@@ -1286,6 +1313,7 @@
       if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
       consoleEl.classList.remove('hid');
       consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+      (function () { var a = consoleEl.querySelector('[data-r="auto"]'); if (a && !a._bound) { a._bound = true; try { a.checked = localStorage.getItem('cinAutoLaunch') !== '0'; } catch (e) { /* ok */ } a.addEventListener('change', function () { try { localStorage.setItem('cinAutoLaunch', a.checked ? '1' : '0'); } catch (e) { /* ok */ } }); } })();
       (function () { var t = Math.max(0, Math.floor(netPosNow())), vals = { h: Math.floor(t / 3600), m: Math.floor(t % 3600 / 60), s: t % 60 }; ['h', 'm', 's'].forEach(function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); if (el) el.value = vals[k]; }); })();   // les cases partent du moment actuel
       if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); } else loadPlaylist();
       refreshConsole();
@@ -1622,6 +1650,7 @@
       '.cin-np-bar{height:6px;border-radius:3px;background:#2a1f24;overflow:hidden;margin-top:2px}.cin-np-bar i{display:block;height:100%;width:0;background:#ff7a1a}' +
       '.cin-np-time{display:flex;justify-content:space-between;font-size:11px;color:#9d8a53;font-variant-numeric:tabular-nums;min-height:14px}' +
       '.cin-cn-row button:disabled{opacity:.35;cursor:not-allowed}' +
+      '.cin-auto{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#d9c88f;cursor:pointer}.cin-auto input{accent-color:#e9c66b;width:16px;height:16px}' +
       '.cin-cn-seek{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}' +
       '.cin-seek-l{font-size:11.5px;font-weight:700;color:#e9c66b;letter-spacing:.03em;width:100%}' +
       '.cin-seek-f{display:flex;align-items:center;gap:5px}.cin-seek-f b{font-size:12px;color:#c9b8e8;font-weight:600;margin-right:6px}' +

@@ -44,10 +44,20 @@ function looksLikeEmbedPage(u) { return EMBED_HOST_RE.test(u) && !/\.(mp4|m3u8)(
 // Demande à tropistream.fr d'extraire le flux réel de ce lien embed (mode « Watch Party » du site :
 // &wp=1 force l'extraction même sans compte premium). Un appel navigateur direct est refusé par leur
 // liste blanche CORS ; un appel serveur à serveur (sans en-tête Origin) passe — vérifié en direct.
+const EXTRACT_CACHE = new Map();
 async function extractFromTropistream(embedUrl) {
+  const hit = EXTRACT_CACHE.get(embedUrl);
+  if (hit && Date.now() - hit.t < 20 * 60 * 1000) return hit.v;
+  for (const ms of [15000, 20000]) {                                   // pas d'attente de 45 s : un essai rapide, puis un second
+    const v = await extractOnce(embedUrl, ms);
+    if (v) { EXTRACT_CACHE.set(embedUrl, { t: Date.now(), v }); if (EXTRACT_CACHE.size > 60) EXTRACT_CACHE.delete(EXTRACT_CACHE.keys().next().value); return v; }
+  }
+  return null;
+}
+async function extractOnce(embedUrl, timeoutMs) {
   const api = `${TROPISTREAM}/api/proxy?url=${encodeURIComponent(embedUrl)}&wp=1&json=1`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const r = await fetch(api, { headers: { Accept: 'application/json' }, signal: controller.signal });
     if (!r.ok) return null;
@@ -72,8 +82,9 @@ async function ensureRow(ROW = ROW0) {
 }
 
 // modifie l'état de façon atomique ; mutate(st, now) peut lancer GameError
+const ENSURED = new Set();
 async function mutateState(mutate, ROW = ROW0) {
-  await ensureRow(ROW);
+  if (!ENSURED.has(ROW)) { await ensureRow(ROW); ENSURED.add(ROW); }
   const { result } = await updateAccount(ROW, (d) => {
     const st = d.data.cinema;
     const out = mutate(st, Date.now());
@@ -111,7 +122,8 @@ export default async function handler(req, res) {
 
     const action = body.action;
     const ROW = rowOf(String(body.room || ''));
-    const mutate = (fn) => mutateState(fn, ROW);
+    let last = null;                                                  // l'état juste après la modification : plus besoin de le relire
+    const mutate = (fn) => mutateState((s, now) => { const o = fn(s, now); last = JSON.parse(JSON.stringify(s)); return o; }, ROW);
 
     // ---- CHARGER UN LIEN ----
     if (action === 'set') {
@@ -120,14 +132,21 @@ export default async function handler(req, res) {
       if (!raw) return fail(res, 400, 'Donne un lien valide.');
 
       let finalUrl = raw, finalType = /\.m3u8(\?|#|$)/i.test(raw) ? 'hls' : 'mp4';
-      if (looksLikeEmbedPage(raw)) {
+      let already = false;
+      if (body.resolved === true && raw.startsWith('/api/cinema-video?u=')) {
+        let inner = '';
+        try { inner = decodeURIComponent(raw.slice('/api/cinema-video?u='.length)); } catch (e) { inner = ''; }
+        if (!inner.startsWith(TROPISTREAM + '/srv/')) return fail(res, 400, 'Lien invalide.');
+        already = true; finalType = body.type === 'hls' ? 'hls' : 'mp4';
+      }
+      if (!already && looksLikeEmbedPage(raw)) {
         const extracted = await extractFromTropistream(raw);
         if (!extracted) return fail(res, 422, "Impossible d'extraire ce lien pour l'instant. Réessaie dans un instant, ou utilise un lien direct.");
         finalUrl = extracted.url; finalType = extracted.type;
       }
 
       await mutate((s, now) => { s.url = finalUrl; s.type = finalType; s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; s.title = title; });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
@@ -137,7 +156,7 @@ export default async function handler(req, res) {
         if (!s.url) throw new GameError(400, 'Charge un lien avant de lancer la séance.');
         if (s.status !== 'playing') { s.status = 'playing'; s.updatedAt = now; s.updatedBy = actor; }
       });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
@@ -150,7 +169,7 @@ export default async function handler(req, res) {
         if (body.play === true) s.status = 'playing';
         s.updatedAt = now; s.updatedBy = actor;
       });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
@@ -160,14 +179,14 @@ export default async function handler(req, res) {
         if (s.status === 'playing') s.position = positionAt(s, now);
         s.status = 'paused'; s.updatedAt = now; s.updatedBy = actor;
       });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
     // ---- COUPER LA SÉANCE ----
     if (action === 'stop') {
       await mutate((s, now) => { s.status = 'idle'; s.position = 0; s.updatedAt = now; s.updatedBy = actor; });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
@@ -187,7 +206,7 @@ export default async function handler(req, res) {
         s.schedule.sort((a, b) => a.at - b.at);
         if (s.schedule.length > MAX_SCHEDULE) s.schedule.length = MAX_SCHEDULE;
       });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
@@ -196,7 +215,7 @@ export default async function handler(req, res) {
       const id = String(body.id || '');
       if (!id) return fail(res, 400, 'Séance introuvable.');
       await mutate((s) => { s.schedule = (s.schedule || []).filter((it) => it.id !== id); });
-      const st = (await getRowExact(ROW)).data.cinema;
+      const st = last || (await getRowExact(ROW)).data.cinema;
       return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
     }
 
