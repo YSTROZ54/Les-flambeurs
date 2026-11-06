@@ -129,6 +129,12 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // DIAGNOSTIC TEMPORAIRE : noms (jamais les valeurs) des variables reçues par le serveur
+    if (pathname === '/__env') {
+      const names = Object.keys(env || {}).map((k) => ({ nom: k, type: typeof env[k], longueur: typeof env[k] === 'string' ? env[k].length : null }));
+      return new Response(JSON.stringify({ variables: names, SUPABASE_SERVICE_KEY_dans_process_env: !!process.env.SUPABASE_SERVICE_KEY }, null, 1), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+
     // Gestion des routes /api/*
     const apiMatch = pathname.match(/^\/api\/([a-z0-9_-]+)$/);
     if (apiMatch) {
