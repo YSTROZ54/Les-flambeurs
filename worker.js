@@ -135,6 +135,43 @@ function createResponseAdapter() {
   return { res, responsePromise };
 }
 
+// Relais vidéo du cinéma, passé directement au moteur de Cloudflare : le film (1 à 2 Go) n'est plus recopié morceau par morceau en JavaScript.
+// Avant, chaque morceau coûtait du temps de calcul au Worker, et au-delà de sa limite le flux était coupé net : le film s'arrêtait pour quelqu'un, ou pour tout le monde.
+const CINEMA_HOSTS = ['tropistream.fr', 'www.tropistream.fr'];
+const CINEMA_PASS = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control', 'etag', 'last-modified'];
+async function cinemaVideo(request, url) {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Range', 'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges' };
+  if (request.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors });
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: cors });
+  let target;
+  try { target = new URL(url.searchParams.get('u') || ''); } catch (e) { return new Response('URL invalide', { status: 400, headers: cors }); }
+  if (!CINEMA_HOSTS.includes(target.hostname)) return new Response('Hôte non autorisé', { status: 400, headers: cors });
+  const h = {};
+  const range = request.headers.get('range');
+  if (range) h.Range = range;
+  let up = null;
+  for (let attempt = 0; attempt < 2 && !up; attempt++) {                // un second essai si la source ne répond pas du premier coup
+    try {
+      const r = await fetch(target.href, { headers: h });
+      if (r.status < 500 || attempt === 1) up = r;
+      else { try { await r.body?.cancel(); } catch (e) { /* ok */ } }
+    } catch (e) {
+      if (attempt === 1) return new Response('Source indisponible', { status: 502, headers: cors });
+    }
+  }
+  if (up.status >= 400) { try { await up.body?.cancel(); } catch (e) { /* ok */ } return new Response('Source indisponible', { status: up.status, headers: { ...cors, 'Content-Type': 'text/plain' } }); }
+  const ct = up.headers.get('content-type') || '';
+  if (ct.includes('mpegurl') || /\.m3u8(\?|$)/i.test(target.href)) {     // liste HLS : ses segments repassent aussi par ce relais
+    const text = await up.text();
+    const rewritten = text.replace(/\/srv\/[^\s"]+/g, (m) => '/api/cinema-video?u=' + encodeURIComponent('https://tropistream.fr' + m));
+    return new Response(rewritten, { status: 200, headers: { ...cors, 'Content-Type': 'application/vnd.apple.mpegurl', 'Cache-Control': 'public, max-age=60, s-maxage=300' } });
+  }
+  const out = new Headers(cors);
+  for (const k of CINEMA_PASS) { const v = up.headers.get(k); if (v) out.set(k, v); }
+  if (!range && up.status === 200 && !ct.includes('text')) out.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+  return new Response(up.body, { status: up.status, headers: out });
+}
+
 export default {
   async fetch(request, env, ctx) {
     // Propager les variables d'environnement Cloudflare dans process.env
@@ -148,6 +185,8 @@ export default {
 
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    if (pathname === '/api/cinema-video') return cinemaVideo(request, url);
 
     // Gestion des routes /api/*
     const apiMatch = pathname.match(/^\/api\/([a-z0-9_-]+)$/);

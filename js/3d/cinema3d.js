@@ -172,7 +172,7 @@
     m.setLevel = function (v) {
       m.level = v;
       var vol = F.audio ? F.audio.musicVol : 0.5, mast = typeof getMasterVolume === 'function' ? getMasterVolume() : 0.5;
-      var target = m.up ? v * vol * mast * 1.4 : 0;
+      var target = m.up ? v * vol * mast * 0.55 : 0;     // musique d'attente douce (elle était trop forte)
       if (m.master && m.ctx && Math.abs(target - m.lastTarget) > 0.002) { m.lastTarget = target; m.master.gain.setTargetAtTime(target, m.ctx.currentTime, 0.7); }
     };
     function closeCtx() {                              // fondu rapide, puis on libère le son
@@ -721,10 +721,31 @@
         video.src = url || ''; try { video.load(); } catch (e) { /* ok */ }
       }
     }
-    video.addEventListener('error', function () { if (net.url) world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
+    // flux interrompu (réseau, coupure du relais) : on recharge le film et on reprend pile au bon moment, sans rien couper pour les autres
+    var recoverN = 0, recoverAt = 0;
+    function recoverVideo() {
+      if (!net.url) return;
+      var now = performance.now();
+      if (now - recoverAt > 60000) recoverN = 0;
+      if (recoverN >= 4) { world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); return; }
+      recoverN++; recoverAt = now;
+      setTimeout(function () {
+        if (!net.url) return;
+        setSource(net.url, net.type);
+        video.addEventListener('loadedmetadata', function () {
+          try { video.currentTime = Math.max(0, net.status === 'playing' ? netPosNow() : net.position); } catch (e) { /* ok */ }
+          if (net.status === 'playing') { var p = video.play(); if (p && p.catch) p.catch(function () { /* geste requis */ }); }
+        }, { once: true });
+      }, 700 * recoverN);
+    }
+    video.addEventListener('error', function () { if (!net.url) return; if (net.status === 'playing' || net.status === 'paused') recoverVideo(); else world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
     var endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null, lastSeekAt = 0;
     // fin du film : chez tout le monde on revient à l'écran de base (aucune séance), et le Patron/Co Fondateur coupe la séance pour tout le monde
-    video.addEventListener('ended', function () { endedUrl = net.url; if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); if (lastSt) applyNet(lastSt); });
+    video.addEventListener('ended', function () {
+      var dur = video.duration, realEnd = isFinite(dur) && dur > 0 && video.currentTime >= dur - 8 && netPosNow() >= dur - 15;
+      if (!realEnd) { recoverVideo(); return; }                         // fin « anticipée » = flux coupé : on recharge, la séance continue pour tout le monde
+      endedUrl = net.url; if (isCinemaCtrl() && net.status === 'playing') cinemaAction('stop'); if (lastSt) applyNet(lastSt);
+    });
     // écran de chargement tant que le flux met en mémoire tampon (extraction Tropi Stream + démarrage du flux, parfois plusieurs secondes)
     // (l'écran de chargement n'apparaît qu'après une vraie coupure d'une seconde, voir room.update : plus de rond qui clignote pour un micro-ralentissement)
     video.addEventListener('playing', function () { stallT = 0; started = true; if (net.status === 'playing') { setLoading(false); showVideo(true); } });
@@ -736,14 +757,12 @@
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       try {
         var c = vAudio.ctx = new AC(), src = c.createMediaElementSource(video);
-        // deux enceintes virtuelles de chaque côté de l'écran (voie gauche à gauche, voie droite à droite), rendu 3D réaliste (HRTF) : le même son dans les deux salles
+        // son en stéréo, directement dans les deux oreilles (casque ou enceintes) : la voie gauche du film à gauche, la droite à droite, au même volume partout dans la salle.
+        // Un compresseur doux rapproche les dialogues et les explosions : on entend tout clairement sans devoir monter le son.
         var pre = c.createGain(); pre.channelCount = 2; pre.channelCountMode = 'explicit'; pre.channelInterpretation = 'speakers';
-        var sp = c.createChannelSplitter(2); vAudio.lp = c.createBiquadFilter(); vAudio.lp.type = 'lowpass'; vAudio.lp.frequency.value = 18000;
-        vAudio.gain = c.createGain(); vAudio.gain.gain.value = 1;
-        function spk(x) { var yy = P ? 6 : SCR_Y + SCR_H / 2; var p = c.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 9; p.maxDistance = 100; p.rolloffFactor = 0.45; if (p.positionX) { p.positionX.value = x; p.positionY.value = yy; p.positionZ.value = -HZ + 0.5; } else p.setPosition(x, yy, -HZ + 0.5); return p; }
-        vAudio.pl = spk(P ? -9.5 : -SCR_W * 0.38); vAudio.pr = spk(P ? 9.5 : SCR_W * 0.38);
-        src.connect(pre); pre.connect(sp); sp.connect(vAudio.pl, 0); sp.connect(vAudio.pr, 1);
-        vAudio.pl.connect(vAudio.lp); vAudio.pr.connect(vAudio.lp); vAudio.lp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
+        var comp = c.createDynamicsCompressor(); comp.threshold.value = -22; comp.knee.value = 20; comp.ratio.value = 2.5; comp.attack.value = 0.006; comp.release.value = 0.3;
+        vAudio.gain = c.createGain(); vAudio.gain.gain.value = 1.15;
+        src.connect(pre); pre.connect(comp); comp.connect(vAudio.gain); vAudio.gain.connect(c.destination);
         vAudio.ok = true; video.volume = 1;
       } catch (e) { vAudio.ctx = null; vAudio.ok = false; /* on garde video.volume */ }
     }
@@ -1418,6 +1437,7 @@
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
         stallT = (video.readyState < 3 || video.seeking) ? stallT + dt : 0;
+        if (stallT > 12) { stallT = 0; recoverVideo(); }                // bloqué depuis 12 s : on relance le chargement au bon moment
         setLoading(!started && stallT > 1.0);          // écran « chargement » seulement avant le début du film ; ensuite l'image reste figée le temps de recharger
         if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
         var showBuf = started && stallT > 2.5;           // coupure en plein film : petit témoin discret au lieu de remplacer l'écran
@@ -1445,102 +1465,66 @@
       lampGlow.forEach(function (s, i) { s.scale.setScalar(1.8 + Math.sin(clock * 3 + i) * 0.06); });
       // musique : elle se tait pendant le film (qui a son propre son)
       music.setLevel(playing ? 0 : 1);
-      // son du film en 3D : plus fort et net près de l'écran, panoramique vers le côté où tu es, étouffé loin derrière
+      // son du film : même volume partout, en stéréo
       if (playing || net.status === 'paused') {
-        var sdist = Math.hypot(w.player.x, w.player.z + HZ), svol = vAudio.ok ? clamp(1.25 - sdist / 60, 0.7, 1) : clamp(1.15 - sdist / 26, 0.35, 1);
-        if (vAudio.ok) {
-          var t = vAudio.ctx.currentTime;
-          vAudio.gain.gain.setTargetAtTime(svol, t, 0.2);
-          setEars(w);
-          vAudio.lp.frequency.setTargetAtTime(clamp(17000 - sdist * 420, 700, 17000), t, 0.3);
-        } else video.volume = svol;
+        if (vAudio.ok) vAudio.gain.gain.setTargetAtTime(1.15, vAudio.ctx.currentTime, 0.2);
+        else video.volume = 1;
       }
     };
-    /* ===================== LUMIÈRE DE L'ÉCRAN ===================== */
-    // Pendant le film, l'image est lue 10 fois par seconde. Deux barres lumineuses de chaque côté de l'écran reprennent, tronçon par tronçon, les couleurs du bord de l'image
-    // (comme un éclairage de salon derrière une télé) et leur halo déborde sur les murs. Toute la salle baigne dans une lumière douce de la même couleur : forte près de l'écran,
-    // légère au fond, la couleur du côté gauche de l'image à gauche et celle du côté droit à droite. Couleurs lissées, un peu plus franches ; image sombre = aucune lumière.
+    /* ===================== LUMIÈRE DE L'ÉCRAN (salle premium) ===================== */
+    // Quatre tubes lumineux encadrent l'écran (gauche, droite, haut, bas). Chaque tube est découpé en tronçons qui reprennent la couleur du bord de l'image juste à côté,
+    // comme un éclairage de salon derrière une télé. La lumière reste DANS les tubes : la salle elle-même n'est pas éclairée. Couleurs lissées ; image sombre = tube éteint.
     (function buildAmbilight() {
-      var N = 14, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0, i;
-      var segCur = { L: [], R: [] }, segTgt = { L: [], R: [] };
-      for (i = 0; i < N; i++) { segCur.L.push([0, 0, 0]); segCur.R.push([0, 0, 0]); segTgt.L.push([0, 0, 0]); segTgt.R.push([0, 0, 0]); }
-      function barCanvas(w) { var cv = mkCanvas(w, N); return { w: w, cx: cv.getContext('2d'), tex: new THREE.CanvasTexture(cv) }; }
-      var halo = { L: barCanvas(64), R: barCanvas(64) }, core = { L: barCanvas(4), R: barCanvas(4) };
-      function lmat(t) { return new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); }
-      var bx = SCR_W / 2 + 0.55, bz = -HZ + 0.1, bh = SCR_H, by = SCR_Y + SCR_H / 2;
-      if (P) [-1, 1].forEach(function (sd) {
-        var key = sd < 0 ? 'L' : 'R';
-        var h = new THREE.Mesh(new THREE.PlaneGeometry(7, bh * 1.04), lmat(halo[key])); h.position.set(sd * bx, by, bz); g.add(h);                 // halo doux (derrière l'écran, déborde sur le mur)
-        var c = new THREE.Mesh(new THREE.PlaneGeometry(0.42, bh), lmat(core[key])); c.position.set(sd * bx, by, bz + 0.12); g.add(c);          // le tube lumineux
-      });
-      function paint(t, arr, wide) {
-        var cx = t.cx, k, col, gr;
-        cx.clearRect(0, 0, t.w, N);
-        for (k = 0; k < N; k++) {
-          col = Math.round(arr[k][0] * 255) + ',' + Math.round(arr[k][1] * 255) + ',' + Math.round(arr[k][2] * 255);
-          if (wide) { gr = cx.createLinearGradient(0, 0, t.w, 0); gr.addColorStop(0, 'rgba(' + col + ',0)'); gr.addColorStop(0.5, 'rgba(' + col + ',0.85)'); gr.addColorStop(1, 'rgba(' + col + ',0)'); cx.fillStyle = gr; }
-          else cx.fillStyle = 'rgba(' + col + ',1)';
-          cx.fillRect(0, k, t.w, 1);
-        }
-        t.tex.needsUpdate = true;
+      if (!P) { room.ambiUpdate = function () {}; return; }
+      var NV = 14, NH = 24, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
+      function side(n, rev) { var cur = [], tgt = [], k; for (k = 0; k < n; k++) { cur.push([0, 0, 0]); tgt.push([0, 0, 0]); } var cv = mkCanvas(2, n); return { n: n, rev: rev, cur: cur, tgt: tgt, cx: cv.getContext('2d'), tex: new THREE.CanvasTexture(cv) }; }
+      var S = { L: side(NV, false), R: side(NV, false), T: side(NH, true), B: side(NH, true) };     // tubes horizontaux : la texture va de droite à gauche
+      var ex = SCR_W / 2 + 0.45, yb = SCR_Y - 0.45, yt = SCR_Y + SCR_H + 0.45, tz = -HZ + 0.35, capM = std(0x1a1a1f, 0.4, 0.6);
+      function tube(sd, len, x, y, horiz) {
+        var m = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, len, 16, 1, false), new THREE.MeshBasicMaterial({ map: sd.tex }));
+        m.position.set(x, y, tz); if (horiz) m.rotation.z = -Math.PI / 2; g.add(m);
+        [-1, 1].forEach(function (e) { var c = cyl(g, 0.2, 0.2, 0.14, capM, horiz ? x + e * len / 2 : x, horiz ? y : y + e * len / 2, tz, 16); if (horiz) c.rotation.z = Math.PI / 2; });   // embouts
       }
-      var ambL = new THREE.AmbientLight(0xffffff, 0); g.add(ambL);
-      var pts = [], spots = [[-1, -HZ + 5, SCR_Y + SCR_H * 0.3], [1, -HZ + 5, SCR_Y + SCR_H * 0.3], [-1, 0, 7], [1, 0, 7], [-1, HZ - 6, 9], [1, HZ - 6, 9]];
-      if (!low) spots.forEach(function (sp0) { var l = new THREE.PointLight(0xffffff, 0, 46); l.position.set(sp0[0] * (HX - 4), sp0[2], sp0[1]); g.add(l); pts.push({ l: l, side: sp0[0] }); });
-      var gC = [0, 0, 0], gL = [0, 0, 0], gR = [0, 0, 0], tC = [0, 0, 0], tL = [0, 0, 0], tR = [0, 0, 0], str = 0, strT = 0;
+      tube(S.L, yt - yb, -ex, (yt + yb) / 2, false); tube(S.R, yt - yb, ex, (yt + yb) / 2, false);
+      tube(S.T, ex * 2 - 0.3, 0, yt, true); tube(S.B, ex * 2 - 0.3, 0, yb, true);
+      function paint(sd) {
+        for (var k = 0; k < sd.n; k++) {
+          var c = sd.cur[sd.rev ? sd.n - 1 - k : k], r = Math.max(c[0], 0.05), gg = Math.max(c[1], 0.05), b = Math.max(c[2], 0.06);   // éteint : tube de verre sombre
+          sd.cx.fillStyle = 'rgb(' + Math.round(r * 255) + ',' + Math.round(gg * 255) + ',' + Math.round(b * 255) + ')'; sd.cx.fillRect(0, k, 2, 1);
+        }
+        sd.tex.needsUpdate = true;
+      }
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
       function vivid(r, gg, b) { var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1; return [rr / mm, g2 / mm, bb / mm]; }
+      function setTgt(sd, acc) { for (var k = 0; k < sd.n; k++) { var a = acc[k], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, v = vivid(r0, g0, b0), kk = smooth(0.05, 0.5, r0 * 0.3 + g0 * 0.59 + b0 * 0.11); sd.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk]; } }
+      function zeros(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0, 0]); return a; }
       room.ambiUpdate = function (dt, on) {
         tAcc += dt;
         if (on && !bad && tAcc > 0.1 && video.readyState >= 2 && video.videoWidth > 0) {
           tAcc = 0;
           try {
             cxS.drawImage(video, 0, 0, 64, 36);
-            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, lum, w2, k, q, sw = 0, sr = 0, sg = 0, sb = 0, ml = 0, lw = 0, lr = 0, lg = 0, lb = 0, rw = 0, rr0 = 0, rg = 0, rb = 0;
-            var sa = { L: [], R: [] };
-            for (q = 0; q < N; q++) { sa.L.push([0, 0, 0, 0]); sa.R.push([0, 0, 0, 0]); }
+            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, q, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
             for (y = 0; y < 36; y++) for (x = 0; x < 64; x++) {
-              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255; ml += lum; w2 = lum * lum * lum + 0.0005;
-              sw += w2; sr += d[p] / 255 * w2; sg += d[p + 1] / 255 * w2; sb += d[p + 2] / 255 * w2;
-              if (x < 24) { lw += w2; lr += d[p] / 255 * w2; lg += d[p + 1] / 255 * w2; lb += d[p + 2] / 255 * w2; }
-              else if (x >= 40) { rw += w2; rr0 += d[p] / 255 * w2; rg += d[p + 1] / 255 * w2; rb += d[p + 2] / 255 * w2; }
-              k = Math.min(N - 1, Math.floor(y * N / 36));
-              if (x < 8) { q = sa.L[k]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
-              else if (x >= 56) { q = sa.R[k]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              p = (y * 64 + x) * 4;
+              if (x < 8) { q = aL[Math.min(NV - 1, Math.floor(y * NV / 36))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              if (x >= 56) { q = aR[Math.min(NV - 1, Math.floor(y * NV / 36))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              if (y < 6) { q = aT[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              if (y >= 30) { q = aB[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
             }
-            ml /= 2304; var peak = sr / sw * 0.3 + sg / sw * 0.59 + sb / sw * 0.11;
-            tC = vivid(sr / sw, sg / sw, sb / sw); tL = lw ? vivid(lr / lw, lg / lw, lb / lw) : tC; tR = rw ? vivid(rr0 / rw, rg / rw, rb / rw) : tC;
-            strT = smooth(0.06, 0.5, peak) * (0.45 + 0.55 * smooth(0.04, 0.35, ml));
-            ['L', 'R'].forEach(function (sk) {
-              for (var s2 = 0; s2 < N; s2++) {
-                var a = sa[sk][s2], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, l0 = r0 * 0.3 + g0 * 0.59 + b0 * 0.11, v = vivid(r0, g0, b0), kk2 = smooth(0.05, 0.5, l0);
-                segTgt[sk][s2] = [v[0] * kk2, v[1] * kk2, v[2] * kk2];
-              }
-            });
+            setTgt(S.L, aL); setTgt(S.R, aR); setTgt(S.T, aT); setTgt(S.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
         }
-        if (!on || bad) { strT = 0; for (i = 0; i < N; i++) { segTgt.L[i] = [0, 0, 0]; segTgt.R[i] = [0, 0, 0]; } }
-        var kk = Math.min(1, dt * (strT > str ? 9 : 2.4)), kc = Math.min(1, dt * 5), q2, c3;
-        str += (strT - str) * kk;
-        for (c3 = 0; c3 < 3; c3++) { gC[c3] += (tC[c3] - gC[c3]) * kc; gL[c3] += (tL[c3] - gL[c3]) * kc; gR[c3] += (tR[c3] - gR[c3]) * kc; }
-        for (i = 0; i < N; i++) for (c3 = 0; c3 < 3; c3++) {
-          var up = segTgt.L[i][c3] > segCur.L[i][c3], upR = segTgt.R[i][c3] > segCur.R[i][c3];
-          segCur.L[i][c3] += (segTgt.L[i][c3] - segCur.L[i][c3]) * Math.min(1, dt * (up ? 12 : 3));
-          segCur.R[i][c3] += (segTgt.R[i][c3] - segCur.R[i][c3]) * Math.min(1, dt * (upR ? 12 : 3));
-        }
-        paint(halo.L, segCur.L, true); paint(halo.R, segCur.R, true); paint(core.L, segCur.L, false); paint(core.R, segCur.R, false);
-        tintU.uL.value.setRGB(gL[0] * str * 0.3, gL[1] * str * 0.3, gL[2] * str * 0.3);
-        tintU.uR.value.setRGB(gR[0] * str * 0.3, gR[1] * str * 0.3, gR[2] * str * 0.3);
-        tintU.uC.value.setRGB(gC[0] * str * 0.3, gC[1] * str * 0.3, gC[2] * str * 0.3);
-        ambL.color.setRGB(gC[0], gC[1], gC[2]); ambL.intensity = str * 0.45;
-        pts.forEach(function (o) { var sc = o.side < 0 ? gL : gR; o.l.color.setRGB(gC[0] * 0.5 + sc[0] * 0.5, gC[1] * 0.5 + sc[1] * 0.5, gC[2] * 0.5 + sc[2] * 0.5); o.l.intensity = str * 0.8; });
+        ['L', 'R', 'T', 'B'].forEach(function (key) {
+          var sd = S[key], k, c3;
+          for (k = 0; k < sd.n; k++) for (c3 = 0; c3 < 3; c3++) {
+            var tg = (!on || bad) ? 0 : sd.tgt[k][c3], up = tg > sd.cur[k][c3];
+            sd.cur[k][c3] += (tg - sd.cur[k][c3]) * Math.min(1, dt * (up ? 12 : 3));
+          }
+          paint(sd);
+        });
       };
-      room._ambi = {
-        force: function (cl, cr) {                       // (test) couleurs imposées à gauche / à droite
-          strT = 1; bad = false; tC = [(cl[0] + cr[0]) / 2, (cl[1] + cr[1]) / 2, (cl[2] + cr[2]) / 2]; tL = cl; tR = cr;
-          for (var z = 0; z < N; z++) { segTgt.L[z] = cl; segTgt.R[z] = cr; }
-        }
-      };
+      room._ambi = { force: function (c) { bad = false; ['L', 'R', 'T', 'B'].forEach(function (key) { for (var k = 0; k < S[key].n; k++) S[key].tgt[k] = c(key, k / (S[key].n - 1)); }); } };
     })();
     room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } if (vAudio.ctx) { try { vAudio.ctx.close(); } catch (e) { /* ok */ } } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;
