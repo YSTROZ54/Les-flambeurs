@@ -29,14 +29,14 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 26, HZ: 20, H: 31, SCR_W: 46.4, SCR_Y: 2.6, SCR_H: 46.4 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
-      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-17.575, 16.25], [17.575, 16.25]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45], mini: true
+      HX: 28, HZ: 20, H: 34, SCR_W: 51.2, SCR_Y: 2.6, SCR_H: 51.2 * 9 / 16, ROW_H: 0.55, ROWS: [], COLS: [-8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75],
+      blocks: [{ x0: -9.45, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 9.45 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-18.575, 18.25], [18.575, 18.25]], aisleLights: [-9.45, -3.65, -2.2, 2.2, 3.65, 9.45], mini: true
     } : {
       HX: 10, HZ: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
     };
     var k;
-    if (P) { for (k = 0; k < 8; k++) G0.ROWS.push(-3.4 + k * 1.9); }      // 8 rangées, chacune 55 cm plus haute : on voit l'écran par-dessus la tête de devant
+    if (P) { for (k = 0; k < 7; k++) G0.ROWS.push(-3.4 + k * 1.9); }      // 8 rangées, chacune 55 cm plus haute : on voit l'écran par-dessus la tête de devant
     G0.ROW_GAP = G0.ROWS[1] - G0.ROWS[0];
     G0.BND = []; for (k = 0; k < G0.ROWS.length - 1; k++) G0.BND.push((G0.ROWS[k] + G0.ROWS[k + 1]) / 2);
     G0.BACK_H = (G0.ROWS.length - 1) * G0.ROW_H;
@@ -607,13 +607,21 @@
       function frame(sd, h) {                       // cadre doré autour d'un trou
         var x = sd * (HX - 0.05), hh = h.y1 - h.y0, zc = (h.z0 + h.z1) / 2;
         box(g, 0.1, hh + 0.1, 0.1, trimM, x, (h.y0 + h.y1) / 2, h.z0 - 0.05); box(g, 0.1, hh + 0.1, 0.1, trimM, x, (h.y0 + h.y1) / 2, h.z1 + 0.05);
-        box(g, 0.1, 0.1, h.z1 - h.z0 + 0.2, trimM, x, h.y1 + 0.05, zc); box(g, 0.1, 0.1, h.z1 - h.z0 + 0.2, trimM, x, h.y0 - 0.05, zc);
+        box(g, 0.1, 0.1, h.z1 - h.z0 + 0.2, trimM, x, h.y1 + 0.05, zc);
       }
       function sign(sd, label, sub, y, z) {
         var sc2 = mkCanvas(512, 128), sx2 = sc2.getContext('2d'); sx2.fillStyle = '#0c1a48'; sx2.fillRect(0, 0, 512, 128); sx2.strokeStyle = '#ffd24a'; sx2.lineWidth = 6; sx2.strokeRect(4, 4, 504, 120);
         sx2.textAlign = 'center'; sx2.textBaseline = 'middle'; sx2.fillStyle = '#ffe9a8'; sx2.font = '800 48px ' + SERIF; sx2.fillText(label, 256, 52, 470); sx2.fillStyle = '#c9b46a'; sx2.font = '700 24px ' + MONO; sx2.fillText(sub, 256, 96, 470);
         var sg = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.575), new THREE.MeshBasicMaterial({ map: mkTex(sc2) })); sg.position.set(sd * (HX - 0.08), y, z); sg.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(sg);
       }
+      // vitre sans tain : côté salle, un miroir sombre (on ne voit pas derrière) ; côté intérieur, une vitre claire (on voit toute la salle)
+      var GZ = vz0 - 0.1, gy0 = BACK_H, gy1 = VY - 0.7, gH = gy1 - gy0, glassColl = [], glassOn = null;
+      var gOut = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, gH), new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.08, metalness: 0.95 })); gOut.rotation.y = Math.PI; gOut.position.set(0, gy0 + gH / 2, GZ); g.add(gOut);
+      var gIn = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, gH), new THREE.MeshBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.08, depthWrite: false })); gIn.position.set(0, gy0 + gH / 2, GZ + 0.02); g.add(gIn);
+      for (var mx = -HX + 4; mx < HX - 1; mx += 4) box(g, 0.06, gH, 0.06, trimM, mx, gy0 + gH / 2, GZ + 0.01);              // fins montants dorés
+      box(g, HX * 2, 0.06, 0.08, trimM, 0, gy0 + 0.03, GZ + 0.01);
+      for (var cxg = -HX + 0.3; cxg <= HX - 0.3; cxg += 0.5) glassColl.push({ x: cxg, z: GZ, r: 0.4 });
+      room.glassCheck = function () { var on = !isCinemaCtrl(); if (on !== glassOn) { glassOn = on; setColl(glassColl, on); } };   // seuls le Patron et le Co Fondateur passent
       var wallPush = [], gate = [], edge = [], zc2;
       [-1, 1].forEach(function (sd) {
         holeWall(sd); frame(sd, BH); frame(sd, TH);
@@ -647,11 +655,19 @@
       var baseGround = room.groundY, lz = null;
       setVip(false);
       room.resetVip = function () { setVip(false); lz = null; };
+      function topK(k) { if (k < 0) return 0; var zc = ZS0 + k * 0.45 + 0.225; return zc >= ZT ? VY : slope * (zc - ZS0); }
+      function stairH(z) {                             // hauteur de la marche sous les pieds (même dessus que les marches dessinées), raccord doux entre deux marches
+        if (z <= ZS0) return 0; if (z >= ZT) return VY;
+        var u = (z - ZS0) / 0.45, k = Math.floor(u), f = (u - k) * 0.45, cur = topK(k);
+        if (f < 0.05) return topK(k - 1) + (cur - topK(k - 1)) * smoothT((f + 0.05) / 0.1);
+        if (f > 0.4) return cur + (topK(k + 1) - cur) * smoothT((f - 0.4) / 0.1);
+        return cur;
+      }
       function vipGround(x, z, up) {
         var ax = Math.abs(x);
         var room0 = function (xx) { return (up && z > vz0 - 0.05 && z < vz1 + 0.2 && Math.abs(xx) < vw + 0.2) ? VY + 0.2 * smoothT((z - T1) / 0.4) + 0.2 * smoothT((z - T2) / 0.4) : baseGround(xx, z); };   // le balcon, ou les gradins
         if (ax > HX) {                                                                                  // dans le puits : marches, puis palier du haut, en se raccordant en douceur au sol de la salle
-          var inside = z <= ZS0 ? 0 : z <= ZT ? slope * (z - ZS0) : VY, k = smoothT((ax - HX) / 0.8);
+          var inside = stairH(z), k = smoothT((ax - HX) / 0.8);
           return room0(x < 0 ? -HX : HX) * (1 - k) + inside * k;
         }
         return room0(x);
@@ -1442,6 +1458,7 @@
     room.update = function (dt, w) {
       clock += dt;
       if (room.vipTrack) room.vipTrack(w.player.x, w.player.z);
+      if (room.glassCheck) room.glassCheck();
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
       netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       if (net.status === 'playing') {   // chargement : seulement si le film manque de données depuis plus d'une seconde
@@ -1488,7 +1505,7 @@
       var NV = 14, NH = 24, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
       function seg(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0]); return a; }
       var E = { L: { n: NV, cur: seg(NV), tgt: seg(NV) }, R: { n: NV, cur: seg(NV), tgt: seg(NV) }, T: { n: NH, cur: seg(NH), tgt: seg(NH) }, B: { n: NH, cur: seg(NH), tgt: seg(NH) } };
-      var TR = 0.16, RAD = 0.5, hx = SCR_W / 2 + TR, y0 = SCR_Y - TR, y1 = SCR_Y + SCR_H + TR, tz = -HZ + 0.3;   // collé au bord de l'écran
+      var TR = 0.3, RAD = 0.7, hx = SCR_W / 2 + TR, y0 = SCR_Y - TR, y1 = SCR_Y + SCR_H + TR, tz = -HZ + 0.3;   // collé au bord de l'écran
       // le parcours du néon : un rectangle à coins arrondis, dans le sens bas-gauche → haut-gauche → haut-droit → bas-droit → retour
       var path = new THREE.CurvePath(), V = function (x, y) { return new THREE.Vector3(x, y, tz); };
       path.add(new THREE.LineCurve3(V(-hx, y0 + RAD), V(-hx, y1 - RAD)));
@@ -1513,7 +1530,7 @@
         }
         var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); return geo;
       }
-      var halo = new THREE.Mesh(ribbon(0.9, 600, -HZ + 0.1), new THREE.MeshBasicMaterial({ map: htex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(halo);
+      var halo = new THREE.Mesh(ribbon(1.7, 600, -HZ + 0.1), new THREE.MeshBasicMaterial({ map: htex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(halo);
       // position le long du néon → côté de l'écran et place sur ce côté (0..1)
       var segLen = [lens[0], lens[1] - lens[0], lens[2] - lens[1], lens[3] - lens[2], lens[4] - lens[3], lens[5] - lens[4], lens[6] - lens[5], lens[7] - lens[6]];
       function colorAt(u) {                             // u : 0..1 le long du néon
@@ -1546,8 +1563,16 @@
       }
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
       function vivid(r, gg, b) { var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1; return [rr / mm, g2 / mm, bb / mm]; }
-      function setTgt(e, acc) { for (var k = 0; k < e.n; k++) { var a = acc[k], n = a[3] || 1, r0 = a[0] / n / 255, g0 = a[1] / n / 255, b0 = a[2] / n / 255, v = vivid(r0, g0, b0), kk = smooth(0.04, 0.45, r0 * 0.3 + g0 * 0.59 + b0 * 0.11); e.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk]; } }
-      function zeros(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0, 0]); return a; }
+      function setTgt(e, acc) {                         // chaque tronçon : la couleur des zones les plus lumineuses de son tiers de l'image (+ un peu de la lumière la plus forte de l'image entière)
+        var gw = GL[3] || 1, gc = [GL[0] / gw / 255, GL[1] / gw / 255, GL[2] / gw / 255], glum = GL[4] / gw;
+        for (var k = 0; k < e.n; k++) {
+          var a = acc[k], n = a[3] || 1, c = [a[0] / n / 255 * 0.7 + gc[0] * 0.3, a[1] / n / 255 * 0.7 + gc[1] * 0.3, a[2] / n / 255 * 0.7 + gc[2] * 0.3], lw = a[4] / n;
+          var v = vivid(c[0], c[1], c[2]), kk = smooth(0.03, 0.34, lw * 0.75 + glum * 0.25);
+          e.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk];
+        }
+      }
+      function zeros(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0, 0, 0]); return a; }
+      var GL = [0, 0, 0, 0, 0];   // lumière la plus forte de toute l'image (pondérée)
       function avg(e) { var s0 = [0, 0, 0]; e.cur.forEach(function (c) { s0[0] += c[0]; s0[1] += c[1]; s0[2] += c[2]; }); return [s0[0] / e.n, s0[1] / e.n, s0[2] / e.n]; }
       // néon au bord de la scène : pendant le film il reprend les couleurs du bas de l'image ; sans film, il vit au rythme de la musique d'attente
       var SL = HX * 2 - 1, SNR = 128, scv = mkCanvas(2, SNR), scx = scv.getContext('2d'), stex = new THREE.CanvasTexture(scv), sImg = scx.createImageData(2, SNR), musE = 0, clk = 0;
@@ -1578,13 +1603,16 @@
           tAcc = 0;
           try {
             cxS.drawImage(video, 0, 0, 64, 36);
-            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, q, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
+            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, lum, w3, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
+            GL = [0, 0, 0, 0, 0];
+            var add = function (q) { q[0] += d[p] * w3; q[1] += d[p + 1] * w3; q[2] += d[p + 2] * w3; q[3] += w3; q[4] += lum * w3; };
             for (y = 0; y < 36; y++) for (x = 0; x < 64; x++) {
-              p = (y * 64 + x) * 4;
-              if (x < 8) { q = aL[Math.min(NV - 1, Math.floor(y * NV / 36))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
-              if (x >= 56) { q = aR[Math.min(NV - 1, Math.floor(y * NV / 36))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
-              if (y < 6) { q = aT[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
-              if (y >= 30) { q = aB[Math.min(NH - 1, Math.floor(x * NH / 64))]; q[0] += d[p]; q[1] += d[p + 1]; q[2] += d[p + 2]; q[3]++; }
+              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255; w3 = lum * lum * lum + 0.0002;   // les zones lumineuses comptent beaucoup plus
+              add(GL);
+              if (x < 22) add(aL[Math.min(NV - 1, Math.floor(y * NV / 36))]);
+              if (x >= 42) add(aR[Math.min(NV - 1, Math.floor(y * NV / 36))]);
+              if (y < 12) add(aT[Math.min(NH - 1, Math.floor(x * NH / 64))]);
+              if (y >= 24) add(aB[Math.min(NH - 1, Math.floor(x * NH / 64))]);
             }
             setTgt(E.L, aL); setTgt(E.R, aR); setTgt(E.T, aT); setTgt(E.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }

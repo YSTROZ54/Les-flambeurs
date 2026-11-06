@@ -723,7 +723,11 @@
 
     // pose « marche »
     var p = this.player, cpp = Math.cos(p.pitch), aspect = this.w / Math.max(1, this.h);
-    var groundH = room.groundY ? room.groundY(p.x, p.z) : 0;   // hauteur du sol sous les pieds (gradins, estrade…) ; 0 par défaut pour toutes les autres salles
+    var gh0 = room.groundY ? room.groundY(p.x, p.z) : 0;
+    if (this._camGH == null || this._camRoom !== room || Math.abs(gh0 - this._camGH) > 1.2) this._camGH = gh0;   // téléportation, changement de salle : tout de suite
+    else this._camGH += (gh0 - this._camGH) * Math.min(1, dt * 9);                                       // escaliers : la caméra glisse au lieu de sauter à chaque marche
+    this._camRoom = room;
+    var groundH = this._camGH;   // hauteur du sol sous les pieds (gradins, estrade…) ; 0 par défaut pour toutes les autres salles
     var rx = p.x, ry = 1.65 + groundH + (p.jy || 0), rz = p.z;
     var rtx = rx + Math.sin(p.yaw) * cpp, rty = ry + Math.sin(p.pitch), rtz = rz - Math.cos(p.yaw) * cpp;
     var cx = rx, cy = ry, cz = rz, tx = rtx, ty = rty, tz = rtz, fov = aspect < 0.9 ? 70 : 62;
