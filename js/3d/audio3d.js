@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    - F.audio.step(courir, salle) : un bruit de pas tiré de assets/sons/walking.mp3 ou running.mp3, étouffé selon le sol (synthétisé tant qu'ils chargent) ;
      F.audio.land() : réception d'un saut.
-   - F.audio.setRoom(id) : lance la musique de la salle (hall, machines, poker, courses, Tropi Shop, PMU) avec un fondu ; '' l'arrête.
+   - F.audio.setRoom(id) : lance la musique de la salle (hall, machines, poker, Tropi Shop, PMU) avec un fondu ; '' l'arrête.
      Vrais morceaux dans assets/musique/<salle>/ (playlist.json) ; le cinéma joue les siens lui-même (cinema3d.js).
    - Réglages (téléphone › Réglages) : volume de la musique et des bruitages, en plus du volume général du jeu (getMasterVolume) ; gardés pour la prochaine visite.
    Utilise le contexte audio du jeu (getAudioCtx) : le navigateur n'autorise le son qu'après un clic ou une touche, la musique démarre à ce moment-là.
@@ -78,7 +78,7 @@
   function kick(dest, t, v) { tone(dest, 150, t, 0.16, { to: 42, v: v || 0.3, a: 0.003 }); }
 
   /* ---------- pas : un talon (claquement + coup sourd) puis la pointe du pied, filtrés selon le sol, avec un peu de réverbération ---------- */
-  var SURFACE = { hall: 'marble', slots: 'carpet', pokerroom: 'carpet', horses: 'marble', shop3d: 'wood', pmu: 'carpet', cinema: 'carpet' };
+  var SURFACE = { hall: 'marble', slots: 'carpet', pokerroom: 'carpet', shop3d: 'wood', pmu: 'carpet', cinema: 'carpet' };
   var SOLS = {
     marble: { heel: { f0: 2600, f1: 1100, q: 1.1, dur: 0.06, v: 0.36, th: 210, tv: 0.16 }, toe: { f0: 3600, f1: 2000, q: 1.4, dur: 0.035, v: 0.16, th: 330, tv: 0.05 }, gap: 0.085, rev: 0.28 },
     wood: { heel: { f0: 1100, f1: 520, q: 1.3, dur: 0.09, v: 0.4, th: 150, tv: 0.26 }, toe: { f0: 1500, f1: 800, q: 1.2, dur: 0.05, v: 0.18, th: 190, tv: 0.1 }, gap: 0.09, rev: 0.12 },
@@ -174,15 +174,6 @@
         if (s === 6 || s === 14) ch.forEach(function (n) { tone(d, mtof(n + 12), t + sw, 0.4, { type: 'triangle', v: 0.035, a: 0.006, lp: 2400 }); });
         if (s % 8 === 0 || s % 8 === 6 || s % 4 === 2) noise(d, t + sw, 0.13, { f: 6500, v: 0.028, a: 0.003 });
         if (s === 0 && bar === 3 && Math.random() < 0.6) { tone(d, mtof(ch[2] + 24), t, 0.7, { type: 'triangle', v: 0.05, a: 0.01, lp: 2800 }); }
-      } },
-    // courses : fanfare de cuivres et galop de sabots
-    horses: { bpm: 114, chords: [[48, 52, 55], [53, 57, 60], [55, 59, 62], [48, 52, 55]], riff: { 0: 67, 4: 72, 8: 76, 10: 79, 12: 76, 14: 72 },
-      step: function (i, t, d) {
-        var bar = (i >> 4) & 3, ch = this.chords[bar], s = i & 15;
-        if ([0, 3, 4, 7, 8, 11, 12, 15].indexOf(s) >= 0) { tone(d, 120, t, 0.09, { to: 70, v: 0.2, a: 0.003 }); noise(d, t, 0.05, { type: 'bandpass', f: 700, q: 1.4, v: 0.1 }); }
-        if (s % 4 === 0) tone(d, mtof(ch[0] - 12), t, 0.3, { type: 'triangle', v: 0.13, a: 0.01 });
-        if (this.riff[s] != null && (bar % 2 === 0 || s % 8 !== 10)) { var n = this.riff[s] + (bar === 2 ? 2 : 0); tone(d, mtof(n), t, 0.3, { type: 'sawtooth', v: 0.05, a: 0.02, lp: 2000 }); tone(d, mtof(n - 12), t, 0.3, { type: 'sawtooth', v: 0.03, a: 0.02, lp: 1200 }); }
-        if (s === 0) ch.forEach(function (n) { tone(d, mtof(n + 12), t, 1.4, { type: 'sawtooth', v: 0.016, a: 0.1, lp: 1500 }); });
       } },
     // Tropi Shop : bossa nova, guitare nylon, shaker et flûte
     shop3d: { bpm: 98, chords: [[50, 57, 60, 64], [43, 53, 57, 62], [48, 55, 59, 62], [45, 52, 55, 61]], hits: [0, 3, 6, 10, 12], flute: [74, 77, 79, 81, 77],

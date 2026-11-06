@@ -23,8 +23,7 @@
     spade: 'M12 2.5C10 6 3.5 9 3.5 13.6c0 2.8 2.1 4.6 4.4 4.6 1.5 0 2.7-.8 3.3-1.8-.2 2.2-1.1 3.8-2.6 5.1h6.8c-1.5-1.3-2.4-2.9-2.6-5.1.6 1 1.8 1.8 3.3 1.8 2.3 0 4.4-1.8 4.4-4.6C20.5 9 14 6 12 2.5z',
     slotTop: 'M6.3 2.6h7.4a1.3 1.3 0 0 1 0 2.6H6.3a1.3 1.3 0 0 1 0-2.6z',
     slotBody: 'M5 6h10a2.5 2.5 0 0 1 2.5 2.5v10A2.5 2.5 0 0 1 15 21H5a2.5 2.5 0 0 1-2.5-2.5v-10A2.5 2.5 0 0 1 5 6zm-.4 3h3v6h-3zm3.9 0h3v6h-3zm3.9 0h3v6h-3zM7 17.6h6v1.3H7z',
-    slotLever: 'M17.5 13h2.1V6.5h1.2v7.9h-3.3z',
-    cupL: 'M2.30 11h3.8q.5 0 .6.5L7.70 20H0.70L1.70 11.5q.1-.5.6-.5z', cupR: 'M17.90 11h3.8q.5 0 .6.5L23.30 20H16.30L17.30 11.5q.1-.5.6-.5z', cupM: 'M10.10 4h3.8q.5 0 .6.5L15.50 13H8.50L9.50 4.5q.1-.5.6-.5z'
+    slotLever: 'M17.5 13h2.1V6.5h1.2v7.9h-3.3z'
   };
   function rr(c, x, y, w, h, r) {
     c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
@@ -50,7 +49,6 @@
       c.lineWidth = 1.3; for (var i = 0; i < 4; i++) { var a = i * Math.PI / 2 + 0.4; c.beginPath(); c.moveTo(12 + Math.cos(a) * 2, 11.5 + Math.sin(a) * 2); c.lineTo(12 + Math.cos(a) * 7, 11.5 + Math.sin(a) * 7); c.stroke(); }
       c.fillStyle = bg; c.beginPath(); c.arc(12, 11.5, 1.5, 0, TAU); c.fill();
     },
-    cups: function (c, col) { c.fillStyle = col; [P.cupL, P.cupR, P.cupM].forEach(function (d) { c.fill(new Path2D(d)); }); c.fillRect(0.3, 20.5, 7.8, 1.5); c.fillRect(15.9, 20.5, 7.8, 1.5); c.fillRect(8.1, 13.5, 7.8, 1.5); c.beginPath(); c.arc(12, 19.6, 2.3, 0, TAU); c.fill(); },
     scratch: function (c, col, bg) {
       c.fillStyle = col; rr(c, 1.5, 5, 21, 14, 1.6); c.fill();
       c.fillStyle = bg; c.beginPath(); c.arc(1.5, 12, 2.2, 0, TAU); c.fill(); c.beginPath(); c.arc(22.5, 12, 2.2, 0, TAU); c.fill();
@@ -70,10 +68,6 @@
     bank: function (c, col) {
       c.fillStyle = col; c.beginPath(); c.moveTo(1.5, 9); c.lineTo(12, 2.5); c.lineTo(22.5, 9); c.closePath(); c.fill();
       [3.6, 8.2, 12.8, 17.4].forEach(function (x) { c.fillRect(x, 10.5, 3, 7.5); }); c.fillRect(2, 19, 20, 2.2); c.fillRect(0.8, 21.4, 22.4, 1.6);
-    },
-    horses: function (c, col) {
-      c.strokeStyle = col; c.lineWidth = 3.4; c.lineCap = 'round'; c.beginPath(); c.arc(12, 12.5, 6.6, -Math.PI / 3, Math.PI + Math.PI / 3); c.stroke();
-      c.fillStyle = col; [[5.6, 17.6], [18.4, 17.6], [4.8, 11.5], [19.2, 11.5]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 0.01, 0, TAU); c.fill(); });
     },
     uno: function (c, col, bg) {                           // une carte penchée avec un ovale
       c.save(); c.translate(12, 12); c.rotate(-0.25); c.fillStyle = col; rr(c, -7, -10, 14, 20, 2.4); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(0, 0, 3.6, 7.6, 0.55, 0, TAU); c.fill(); c.restore();
@@ -202,15 +196,6 @@
         c.fillStyle = '#d6e0e0'; c.beginPath(); c.arc(W / 2, H * 0.5, 26, 0, TAU); c.fill();
       }
     },
-    cups: {
-      frame: 0xc9a227, leaf: 0x4b1d7a, rgb: '255, 224, 138', logo: 'cups', image: 'assets/icones/jeux/gobelets.png', square: true,
-      paint: function (c, W, H) {
-        c.fillStyle = '#4b1d7a'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffd24a', 8);
-        for (var i = 0; i < 26; i++) { var x = 30 + Math.random() * (W - 60), y = 30 + Math.random() * (H - 60), r = 6 + Math.random() * 12; c.fillStyle = 'rgba(255,224,138,' + (0.35 + Math.random() * 0.5) + ')'; c.beginPath(); for (var k = 0; k < 10; k++) { var rr2 = k % 2 ? r * 0.45 : r, a = -Math.PI / 2 + k * Math.PI / 5; c.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); } c.closePath(); c.fill(); }
-        c.save(); c.translate(W / 2, H * 0.5); c.scale(7, 7); c.translate(-12, -12); ICONS.cups(c, '#ffe08a'); c.restore();
-      },
-      deco: function (g, w) { [-0.5, 0.5].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.26, 14), new THREE.MeshLambertMaterial({ color: 0xd02a2a })); m.position.set(s * (w / 2 + 0.55), 0.13, 0.5); g.add(m); }); }
-    },
     scratch: {
       frame: 0xffd0e8, leaf: 0xff9fcf, rgb: '255, 192, 224', logo: 'scratch', image: 'assets/icones/jeux/grattage.png', square: true,
       paint: function (c, W, H) {
@@ -246,15 +231,6 @@
         c.fillStyle = '#1e3a8a'; c.font = '900 150px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('€', W / 2, H * 0.5);
       },
       deco: function (g, w, h) { [-1, 1].forEach(function (s) { var m = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, h + 0.1, 16), new THREE.MeshStandardMaterial({ color: 0xf0e8d6, roughness: 0.4 })); m.position.set(s * (w / 2 + 0.55), (h + 0.1) / 2, 0.35); g.add(m); }); }
-    },
-    horses: {
-      frame: 0xf2f2f2, leaf: 0x1f6b2a, rgb: '127, 209, 255', logo: 'horses', image: 'assets/icones/jeux/courses.png', square: true,
-      paint: function (c, W, H) {
-        c.fillStyle = '#1f6b2a'; c.fillRect(0, 0, W, H); noise(c, W, H, 900, 'rgba(255,255,255,0.07)');
-        c.fillStyle = '#f2f2f2'; [0.5, 0.64, 0.78].forEach(function (y) { c.fillRect(0, H * y, W, 14); }); [0.12, 0.88].forEach(function (x) { c.fillRect(W * x - 8, H * 0.46, 16, H * 0.46); });
-        var s = 30; for (var i = 0; i < Math.ceil(W / s); i++) for (var j = 0; j < 3; j++) { c.fillStyle = (i + j) % 2 ? '#fff' : '#111'; c.fillRect(i * s, 20 + j * s, s, s); }
-        border(c, W, H, '#f2f2f2', 6);
-      }
     },
     uno: {
       frame: 0xffd400, leaf: 0xd6221e, rgb: '255, 214, 0', logo: 'uno',
@@ -369,8 +345,6 @@
   T.exitCrash = exitTheme(0x0d1836, '110, 160, 255', '#cfe0ff', 0x1a3a86);
   T.exitSlots = exitTheme(0x0f3a3c, '255, 224, 138', '#ffe9a8', 0x0c3a3a);
   T.exitShop = exitTheme(0x4a2a12, '255, 210, 74', '#ffe9a8', 0x6b3d1a);
-  T.exitHorses = exitTheme(0x14502a, '127, 209, 255', '#f2f2f2', 0x1f6b2a);
-  T.exitCups = exitTheme(0x0f2a3a, '255, 224, 138', '#ffe9a8', 0x1b4f6e);
   T.exitUno = exitTheme(0x2a0f1c, '255, 214, 0', '#ffe9a8', 0x7a1020);
   T.exitCinema = exitTheme(0x4a0a16, '255, 122, 26', '#ffd9a0', 0x9a1424, { plain: true });
   // les fichiers images des thèmes sont chargés à l'avance

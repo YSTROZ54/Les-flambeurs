@@ -1034,7 +1034,7 @@
       return e ? { seat: e.n - 1, x: e.x + Math.sin(e.rotY) * 2.2, z: e.z + Math.cos(e.rotY) * 2.2, yaw: -e.rotY } : null;
     };
     room.standKey = true;   // la touche F fait se lever (world3d.js)
-    room.sitSpec = { y: 0.065, z: 0.28 };   // tabouret à 0,565 m (persona3d.js)
+    room.sitSpec = { y: 0.065, z: 0.28 };   // tabouret à 0,565 m
     room.remotePose = function (r) {
       var e = room.cabs[r.seat];
       return e ? { x: e.x + Math.sin(e.rotY) * 1.6, z: e.z + Math.cos(e.rotY) * 1.6, yaw: -e.rotY } : null;

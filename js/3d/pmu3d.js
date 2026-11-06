@@ -658,7 +658,7 @@
     }
     room.forceStand = function () { stand(); };
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.02, z: 0.28 };   // chaises à 0,52 m (persona3d.js)
+    room.sitSpec = { y: 0.02, z: 0.28 };   // chaises à 0,52 m
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) {

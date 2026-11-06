@@ -5,7 +5,6 @@ Application web complète de casino virtuel entre potes, conçue avec une interf
 ## 🎰 Jeux inclus
 - **♠️ Poker Texas Hold'em :** Mode solo contre les bots, ou salons multijoueur par type (Duel, Table de 4, Table de 6 : « Salon 1, 2, 3 », mêmes blindes 50/100 et même mise de départ pour tous).
 - **🃏 Blackjack :** Solo contre le croupier ou table multijoueur.
-- **🥤 Jeu des Gobelets :** Trouvez la bille cachée sous les gobelets avec animation et choix de vitesse.
 - **🎡 Roulette Française :** Tapis complet de mises (numéros pleins, rouge/noir, pair/impair, manqué/passé, douzaines, colonnes).
 - **🚀 Fusée Crash :** Encaissez avant que le multiplicateur n'explose en vol.
 - **🍒 Machine à Sous (Slots) :** Machine à rouleaux avec jackpot x500 et bonus.
@@ -59,7 +58,7 @@ Le navigateur **ne peut plus écrire un solde**. Toute mise, tout gain et tout v
 
 - `api/_store.js` : accès aux comptes et `updateAccount()` = écriture atomique (numéro de version `data._ver`) : deux requêtes simultanées ne peuvent pas dépenser deux fois le même argent.
 - `api/_wallet.js` : `walletCharge` / `walletPay` avec **clé unique** par opération (une opération rejouée ne s'applique jamais deux fois).
-- `api/_games.js` : machine à sous, grattage, mines, gobelets, coffre, boutique, **blackjack solo** (le serveur garde le paquet et la carte cachée du croupier).
+- `api/_games.js` : machine à sous, grattage, mines, coffre, boutique, **blackjack solo** (le serveur garde le paquet et la carte cachée du croupier).
 - `api/_bank.js` : virements (boîte de réception, historique, expiration 30 min, compte neuf bloqué 24 h pour limiter la création de faux comptes).
 - `api/blackjack.js` : tables multijoueur ; mises prélevées au départ de la manche, gains versés à la fin ou mises remboursées si la manche est interrompue ; le paquet n'est jamais envoyé aux navigateurs.
 - `api/crash.js` : le point de crash est tiré par le serveur et reste **secret jusqu'à l'explosion** ; le multiplicateur est calculé avec l'horloge du serveur.
@@ -70,7 +69,6 @@ Le navigateur **ne peut plus écrire un solde**. Toute mise, tout gain et tout v
 
 ## ⚠️ Limites connues
 - **Plusieurs comptes pour un même joueur** : le serveur limite surtout les virements (blocage 24 h des comptes neufs), mais ne peut pas empêcher quelqu'un d'ouvrir plusieurs comptes.
-- **Jeu des gobelets** : jeu d'adresse, un robot peut le jouer ; la mise est donc plafonnée (250 €).
 - **Un mur d'écriture « si personne n'a modifié »** (`data->>_ver`) n'a pas pu être testé contre le vrai Supabase hors ligne : si la base le refuse, le serveur retombe sur une écriture simple (un avertissement apparaît dans les logs Vercel).
 - Poker/blackjack/crash multijoueurs gardent leurs tables dans Supabase (écriture « dernier arrivé gagne » sur la table de jeu, pas sur l'argent, qui lui est protégé par des clés uniques).
 

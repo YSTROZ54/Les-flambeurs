@@ -73,16 +73,13 @@
     var itemSlot = new THREE.Group(); itemSlot.position.set(0, 0.075, -0.07); hand.add(itemSlot);   // l'objet tenu, posé au-dessus de la paume
 
     var held = '', itemId = '', item = null, k = 0, tt = 0, bob = 0, tiltQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.22), curName = String(name || '');
-    // le vrai bras du personnage (persona3d.js) remplace la main en boîtes dès qu'il est chargé ; les boîtes servent de secours
-    var va = F.persona && F.persona.createViewArm ? F.persona.createViewArm(F.myLookCode ? F.myLookCode() : '') : null, vtmp = new THREE.Vector3(), vup = new THREE.Vector3(), vnr = new THREE.Vector3(), vx = new THREE.Vector3(), vy = new THREE.Vector3(), vm4 = new THREE.Matrix4();
-    if (va) root.add(va.group);
     function setItem(id) {
       if (id === itemId) return;
       itemId = id; if (item) { if (item.parent) item.parent.remove(item); item = null; }
       if (id && F.buildHeld) { item = F.buildHeld(id); if (item) itemSlot.add(item); }
     }
     return {
-      group: { visible: true }, arm: va,
+      group: { visible: true }, arm: arm,
       update: function (dt, o) {
         if (o.name !== curName) { curName = o.name; var c = F.personColors(curName); skin.color.setHex(c.skin); shirt.color.setHex(c.shirt); }
         held = o.held || ''; if (held) setItem(held);
@@ -91,19 +88,6 @@
         tt += dt; bob += dt * (2 + o.speed * 2.4);
         var walk = Math.min(1, o.speed / 3), sway = Math.sin(tt * 1.5) * 0.004, step = Math.sin(bob * 2.2) * 0.011 * walk, side = Math.cos(bob * 1.1) * 0.008 * walk;
         var jump = o.air ? 0.03 : 0;
-        if (va && va.ready) {
-          arm.visible = false;
-          if (F.myLookCode) va.setLook(F.myLookCode());
-          va.update(k, side, sway + step * (1 - 0.5 * k) - jump);
-          if (item) {                                                    // l'objet est tenu devant la paume (qui regarde vers toi), doigts vers le haut
-            if (item.parent !== va.group) { if (item.parent) item.parent.remove(item); va.group.add(item); }
-            va.handFrame(vtmp, vup, vnr);
-            item.position.copy(vtmp).addScaledVector(vup, 0.035).addScaledVector(vnr, 0.042); item.scale.setScalar(0.95);
-            vx.crossVectors(vup, vnr).normalize(); vy.crossVectors(vnr, vx);
-            vm4.makeBasis(vx, vy, vnr); item.quaternion.setFromRotationMatrix(vm4); item.visible = k > 0.25;
-          }
-          return;
-        }
         arm.visible = true;
         // repos : la main dépasse en bas à droite ; objet en main : elle se lève au centre, doigts refermés
         arm.position.set(0.28 - 0.1 * k + side, -0.47 + 0.05 * k + sway + step * (1 - 0.5 * k) - jump, -0.12 - 0.08 * k);

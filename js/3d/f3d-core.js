@@ -151,10 +151,10 @@
   var ROLE_GRAD = { 'role-patron': ['#78350f', '#eab308', '#fef9c3'], 'role-cofondateur': ['#3b0764', '#a855f7', '#f5d0fe'], 'role-flambeur': ['#7f1d1d', '#ef4444', '#ffe08a'] };
 
   // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
-  // 3e paramètre : ignoré ici (c'est l'apparence du vrai personnage animé, lue par F.createPlayer dans persona3d.js).
-  // role (optionnel, 4e paramètre, même position que dans F.createPlayer) : [icône FA, libellé, classe] comme renvoyé
+  // 3e paramètre : ignoré (réservé).
+  // role (optionnel, 4e paramètre) : [icône FA, libellé, classe] comme renvoyé
   // par roleOf()/isCurrentUserAdmin() dans la page — affiché sous le pseudo. Garder cette position : world3d.js appelle
-  // toujours (F.createPlayer || F.createPerson)(name, avatar, lookCode, role), qu'on retombe sur l'un ou l'autre.
+  // F.createPerson(name, avatar, '', role).
   function createPerson(name, avatar, lookInIgnored, role) {
     if (/^[?\s]*$|^(null|undefined)$/.test(String(avatar == null ? '' : avatar))) avatar = '';   // avatar abîmé (« ?? » venu d'un mauvais encodage) : on n'affiche que le pseudo
     var h = nameHash(name), G = geo();
@@ -389,11 +389,10 @@
   // Il sert aussi au chat : un message envoyé ici arrive à tous les joueurs connectés, dans n'importe quelle salle (F.presence.send / F.presence.on).
   var PRES = { rt: null, seen: {}, info: {}, handlers: {}, me: '', room: '', timer: 0 };
   function presSend() {
-    var nm = '', av = '', ap = '';
+    var nm = '', av = '';
     try { nm = state.username || ''; } catch (e) { /* pas connecté */ }
-    try { ap = F.myLookCode ? F.myLookCode() : ''; } catch (e) { /* personnages pas chargés */ }
     try { av = typeof getAvatarDisplay === 'function' ? getAvatarDisplay() : ''; } catch (e) { /* page pas prête */ }
-    if (PRES.rt && PRES.rt.ready && PRES.me) PRES.rt.send('p', { k: PRES.me, name: String(nm).slice(0, 20), av: String(av || '').slice(0, 12), ap: ap, room: PRES.room });
+    if (PRES.rt && PRES.rt.ready && PRES.me) PRES.rt.send('p', { k: PRES.me, name: String(nm).slice(0, 20), av: String(av || '').slice(0, 12), room: PRES.room });
   }
   function presBye() { if (PRES.rt && PRES.rt.ready && PRES.me) PRES.rt.send('bye', { k: PRES.me }); }
   F.presence = {
@@ -407,7 +406,7 @@
         if (!m || typeof m.k !== 'string' || !m.k || m.k === PRES.me) return;
         if (ev === 'bye') { delete PRES.seen[m.k]; return; }
         PRES.seen[m.k] = Date.now();
-        if (m.av || m.name) PRES.info[m.k] = { av: m.av || (PRES.info[m.k] && PRES.info[m.k].av) || '', name: m.name || '', ap: typeof m.ap === 'string' ? m.ap : ((PRES.info[m.k] && PRES.info[m.k].ap) || '') };   // pseudo et avatar de chacun (photos du chat)
+        if (m.av || m.name) PRES.info[m.k] = { av: m.av || (PRES.info[m.k] && PRES.info[m.k].av) || '', name: m.name || '' };   // pseudo et avatar de chacun (photos du chat)
         if (ev === 'hello') presSend();                                    // un nouvel arrivant demande qui est là : on répond tout de suite
         else if (PRES.handlers[ev]) { try { PRES.handlers[ev](m); } catch (e) { /* un abonné en panne ne bloque pas la présence */ } }
       });
@@ -426,7 +425,6 @@
     // envoie à tous les joueurs connectés ; renvoie false si le canal n'est pas prêt
     send: function (ev, payload) { return !!(PRES.rt && PRES.rt.ready && PRES.me && PRES.rt.send(ev, payload)); },
     avatarOf: function (k) { var i = PRES.info[k]; return i ? i.av : ''; },
-    lookOf: function (k) { var i = PRES.info[k]; return i ? i.ap : ''; },       // code du personnage 3D (persona3d.js)
     // nombre de joueurs en ligne (toi compris), ou 0 tant que le canal n'est pas prêt
     count: function () {
       if (!PRES.rt || !PRES.rt.ready) return 0;

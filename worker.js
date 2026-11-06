@@ -11,7 +11,6 @@ import blindtestHandler from './api/blindtest.js';
 import cinemaHandler from './api/cinema.js';
 import cinemaVideoHandler from './api/cinema-video.js';
 import crashHandler from './api/crash.js';
-import horsesHandler from './api/horses.js';
 import loupgarouHandler from './api/loupgarou.js';
 import ludoHandler from './api/ludo.js';
 import pokerHandler from './api/poker.js';
@@ -25,7 +24,6 @@ const ROUTE_HANDLERS = {
   cinema: cinemaHandler,
   'cinema-video': cinemaVideoHandler,
   crash: crashHandler,
-  horses: horsesHandler,
   loupgarou: loupgarouHandler,
   ludo: ludoHandler,
   poker: pokerHandler,

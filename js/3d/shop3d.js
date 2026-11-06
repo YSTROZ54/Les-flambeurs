@@ -2,7 +2,7 @@
    shop3d.js — Le Tropi Shop 3D des Flambeurs (PC seulement, dans le monde 3D)
    ---------------------------------------------------------------------
    Une grande galerie de luxe avec SIX vendeurs. Chaque vendeur a son stand et sa propre catégorie :
-     Neil (fusées du Crash) · Victor (poker) · Merlin (gobelets) · Rosa (blackjack) · Max (machines à sous) · Cléo (avatars).
+     Neil (fusées du Crash) · Victor (poker) · Rosa (blackjack) · Max (machines à sous) · Cléo (avatars).
    On marche jusqu'à un vendeur, on appuie sur F (ou on clique dessus) : la caméra se tourne vers lui et un panneau
    montre SES articles. Les achats passent par les fonctions déjà présentes dans la page (buySkin / equipSkin) :
    mêmes prix, même vérification par le serveur. Cette salle ne s'occupe que de ce qu'on voit et du bon bouton.
@@ -82,22 +82,6 @@
         [[-0.12, 0xd02a2a, 5], [0, 0x1f4e9e, 4], [0.12, 0x111111, 6]].forEach(function (c) {
           for (var i = 0; i < c[2]; i++) cyl(p, 0.045, 0.045, 0.02, lam(c[1]), c[0], 0.01 + i * 0.022, 0, 16);
         });
-      }
-    },
-    {
-      key: 'cupBall', name: 'Gobelets', avatar: '🎩', role: 'le magicien', icon: '🥤', title: 'GOBELETS', sub: 'BILLES MAGIQUES', color: 0xffe08a,
-      x: -HX, z: -3, nx: 1, nz: 0, skin: 0xe0ac82, shirt: 0x5b2a9a, pants: 0x14101c, hair: 0xcfcfcf,
-      hello: ['Abracadabra ! Quelle bille se cache sous quel gobelet ?', 'Approche… mes billes brillent d\'un éclat magique.'], thanks: ['Tada ! Elle est à toi.', 'Tu as l\'œil. La magie fera le reste.'],
-      dress: function (g, p) {
-        box(g, 0.46, 0.9, 0.03, lam(0x2a0f4a), 0, 1.25, -0.22);
-        cyl(g, 0.12, 0.12, 0.3, lam(0x0e0a14), 0, 2.03, 0); cyl(g, 0.21, 0.21, 0.02, lam(0x0e0a14), 0, 1.89, 0); cyl(g, 0.123, 0.123, 0.04, std(0xc9a227, 0.3, 0.6, 0x2a1d00), 0, 1.95, 0);
-        var wand = cyl(p.arms[1], 0.012, 0.012, 0.4, lam(0x111111), 0, -0.6, 0.12, 8); wand.rotation.x = Math.PI / 2;
-        sph(p.arms[1], 0.025, bas(0xfff3a0), 0, -0.6, 0.33);
-      },
-      tagY: 2.4,
-      prop: function (p) {
-        [-0.14, 0, 0.14].forEach(function (x) { cyl(p, 0.05, 0.08, 0.12, lam(0xd02a2a), x, 0.06, 0, 14); });
-        sph(p, 0.025, std(0xf3cf62, 0.2, 0.8, 0x6a4500), 0.27, 0.025, 0.04);
       }
     },
     {

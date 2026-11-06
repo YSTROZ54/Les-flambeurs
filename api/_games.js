@@ -12,10 +12,6 @@ export const SLOT_MAX_BET = 100000;
 export const SCRATCH_PRICE = 50;
 export const MINES_COUNTS = [3, 5, 8, 12];
 export const MINES_MIN_BET = 1;
-export const CUPS_MIN_BET = 10;
-export const CUPS_MAX_BET = 250;
-export const CUPS_MULT = 1.25;
-export const CUPS_MIN_MS = 3500; // le jeu ne peut pas être terminé avant la fin du mélange
 export const CHEST_COOLDOWN_MS = 6 * 3600 * 1000;
 export const SHOP_PRICES = {"veh_rocket": 0, "veh_plane": 5000, "veh_car": 5000, "veh_carpet": 10000, "veh_genie": 12000, "veh_duck": 15000, "veh_chicken": 20000, "felt_green": 0, "cards_classic": 0, "cards_black": 5000, "felt_crimson": 8000, "felt_midnight": 12000, "ball_gold": 0, "ball_ruby": 2500, "ball_sapphire": 4000, "ball_emerald": 6000, "ball_neon": 18000, "bj_classic": 0, "bj_black_gold": 5000, "bj_neon_cyber": 9000, "bj_emerald_imp": 14000, "bj_blood_gold": 20000, "cab_classic": 0, "cab_neon": 12000, "cab_emerald": 22000, "cab_gold": 45000, "av_default": 0, "av_chicken": 1500, "av_whisky": 2500, "av_duck": 4000, "av_boss": 6000, "av_fox": 8000, "av_crown": 10000};
 
@@ -315,32 +311,6 @@ export async function runGameAction(action, body, ctx) {
       return out;
     }
 
-    case 'cups_start':
-      return wrap((d) => {
-        const s = srv(d);
-        const bet = Math.max(CUPS_MIN_BET, Math.min(CUPS_MAX_BET, intBet(body.bet) || 100));
-        if (s.cups && s.cups.open) { /* manche abandonnée : la mise est perdue */ }
-        if (bet > d.balance) throw new GameError(400, 'Solde insuffisant.', { balance: d.balance });
-        d.balance -= bet;
-        const ballCup = randomInt(0, 3);
-        s.cups = { open: true, bet, ballCup, t0: Date.now() };
-        return { ballCup, bet };
-      });
-
-    case 'cups_pick':
-      return wrap((d) => {
-        const g = srv(d).cups;
-        if (!g || !g.open) throw new GameError(400, 'Aucune manche en cours.');
-        if (Date.now() - g.t0 < CUPS_MIN_MS) throw new GameError(400, 'Le mélange n\'est pas terminé.');
-        const cup = Math.floor(Number(body.cup));
-        if (!(cup >= 0 && cup < 3)) throw new GameError(400, 'Gobelet invalide.');
-        g.open = false;
-        const correct = cup === g.ballCup;
-        const win = correct ? Math.floor(g.bet * CUPS_MULT) : 0;
-        d.balance += win;
-        return { correct, win, ballCup: g.ballCup };
-      });
-
 
     case 'bj_start':
       return wrap((d) => {
@@ -461,4 +431,4 @@ export async function runGameAction(action, body, ctx) {
   }
 }
 
-export const GAME_ACTIONS = ['slots_spin', 'scratch_buy', 'scratch_claim', 'mines_start', 'mines_pick', 'mines_cashout', 'cups_start', 'cups_pick', 'chest_claim', 'shop_buy', 'bj_start', 'bj_hit', 'bj_stand', 'bj_double', 'pmu_cards', 'pmu_here', 'pmu_buy', 'pmu_scratch', 'wallet_balance'];
+export const GAME_ACTIONS = ['slots_spin', 'scratch_buy', 'scratch_claim', 'mines_start', 'mines_pick', 'mines_cashout', 'chest_claim', 'shop_buy', 'bj_start', 'bj_hit', 'bj_stand', 'bj_double', 'pmu_cards', 'pmu_here', 'pmu_buy', 'pmu_scratch', 'wallet_balance'];

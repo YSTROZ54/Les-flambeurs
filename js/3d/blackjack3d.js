@@ -7,7 +7,7 @@
    BJ_BET_COUNTDOWN_MS (10 s) pour miser à leur tour et rejoindre la MÊME manche (même croupier, même résultat) ; passé ce délai elle démarre quand même, seul si besoin.
    « Prêt » n'attend plus le délai. Le client sonde l'état de la table environ 1x/s (world.post / fetch), avec un petit ping temps réel pour sonder plus tôt dès qu'un
    adversaire joue. Chaque joueur ne voit QUE sa propre place et celle d'en face (2 places par table) ; les cartes et pastilles sont posées à partir de cet état, jamais simulées localement.
-   Fichiers liés : f3d-core.js, world3d.js, persona3d.js (personnages), hall3d.js (la porte), api/blackjack.js (serveur).
+   Fichiers liés : f3d-core.js, world3d.js, hall3d.js (la porte), api/blackjack.js (serveur).
    ===================================================================== */
 (function () {
   'use strict';
@@ -216,7 +216,7 @@
       return q;
     }
     function later(sec, fn) { timers.push({ t: sec, fn: fn }); }
-    // personnage : le vrai personnage animé s'il est actif, sinon le personnage en boîtes (persona3d.js désactive F.createPlayer)
+    // personnages : les petits personnages en boîtes de f3d-core.js (F3D.createPerson)
     // tenue de croupier posée sur le personnage en boîtes (f3d-core.js : hanches, buste, cou, tête = 4 premiers enfants du groupe)
     var DEALER_SKINS = [0xf1c9a5, 0xc68642, 0xffdbac, 0x8d5524, 0xe0ac82];
     var DEALER_HAIR = { f: [0x3b2314, 0xb8863b, 0x1a1210, 0x6b4423, 0x8a2b1c], h: [0x1a1210, 0x3b2314, 0x222222, 0x6b4423, 0x1a1210] };
@@ -252,7 +252,6 @@
       }
     }
     function makeNpc(name, look, croupier, idx) {
-      if (F.createPlayer) return F.createPlayer(name, '', look);
       if (!F.createPerson) return null;
       var p = F.createPerson(name, '', look);
       if (croupier) dressCroupier(p, look.charAt(0) === 'f', idx || 0);
@@ -304,7 +303,7 @@
         makeChair(grp, sx0 - td.x, sz0 - td.z, Math.atan2(dx, dz), 0.6, false);
         room.colliders.push({ x: sx0, z: sz0, r: 0.3 });
         if (s.bot) {
-          var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = makeNpc(nm, F.persona ? F.persona.lookCode(F.persona.lookFromName(nm)) : '', false);
+          var nm = BOT_NAMES[(ti * 3 + k * 5 + 1) % BOT_NAMES.length], bp = makeNpc(nm, '', false);
           if (bp) { bp.group.position.set(sx0, 0, sz0); bp.group.rotation.y = Math.atan2(dx, dz); bp.setSeated(true, { y: 0.155, z: 0.28 }); g.add(bp.group); people.push({ p: bp, kind: 'bot', s: s }); s.bp = bp; s.name = nm; }
         } else {
           var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(sx0, 0.7, sz0); g.add(hit);
@@ -695,9 +694,9 @@
       if (seatTaken(s)) { w.flash('Cette place est occupée.'); return; }
       w.sitDown(room); seat = s; view.yaw = view.pitch = 0; view3 = false;
       if (!s.table.spots.some(function (o) { return o !== s && !o.bot && seatTaken(o); })) dealerSay(s.table, '🎲 Lancez vos paris !');
-      if ((F.createPlayer || F.createPerson) && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
+      if (F.createPerson && !meRig) {                                   // mon personnage, montré seulement en vue 3e personne
         var nm0 = ''; try { nm0 = st().username || ''; } catch (e) { /* ok */ }
-        meRig = (F.createPlayer || F.createPerson)(nm0 || 'Moi', '', F.myLookCode ? F.myLookCode() : ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.155, z: 0.28 });
+        meRig = F.createPerson(nm0 || 'Moi', ''); meRig.tag.visible = false; meRig.setSeated(true, { y: 0.155, z: 0.28 });
         g.add(meRig.group);
       }
       if (meRig) { meRig.group.position.set(s.x, 0, s.z); meRig.group.rotation.y = Math.atan2(s.tx - s.x, s.tz + 0.25 - s.z); meRig.group.visible = false; }
@@ -726,7 +725,7 @@
     room.forceStand = function () { stand(); };
     room.standKey = false;
     room.seatPos = function () { return seat ? { seat: seat.n, x: seat.x, z: seat.z, yaw: seat.yaw } : null; };
-    room.sitSpec = { y: 0.155, z: 0.28 };      // tabouret à 0,62 m (persona3d.js)
+    room.sitSpec = { y: 0.155, z: 0.28 };      // tabouret à 0,62 m
     room.remotePose = function (r) { var s = seats[r.seat]; return s && !s.bot ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
     room.seatDrag = function (drag, dx, dy) {

@@ -294,23 +294,8 @@
     // le serveur donne la liste des joueurs avec leur place (seat) ; sinon, dans l'ordre
     function bySeat(t) { var a = []; if (t) t.players.forEach(function (p, i) { a[p && p.seat != null ? p.seat : i] = p; }); return a; }
     var shownKey = '';
-    // les joueurs assis (vrais joueurs et robots) sont les vrais personnages 3D (persona3d.js), posés sur la chaise de la table
-    function seatRig(s, p, mine) {
-      if (!F.createPlayer || !F.persona) { s.person.visible = !!p && !mine; return; }
-      s.person.visible = false;
-      if (!p || mine) { if (s.rig) s.rig.group.visible = false; return; }
-      var look = F.persona.lookFor(p.username);
-      if (s.rig && s.rigName !== p.username) { g.remove(s.rig.group); s.rig.dispose(); s.rig = null; }
-      if (!s.rig) {
-        g.updateMatrixWorld(true);
-        var wp = new THREE.Vector3(), wq = new THREE.Quaternion(), ws = new THREE.Vector3(); s.chair.matrixWorld.decompose(wp, wq, ws);
-        var rig = s.rig = F.createPlayer(p.username, '', look); s.rigName = p.username; rig.tag.visible = false;       // la plaque de la table donne déjà le nom
-        rig.group.position.set(wp.x, 0, wp.z); rig.group.rotation.y = new THREE.Euler().setFromQuaternion(wq, 'YXZ').y;
-        rig.setSeated(true, { y: wp.y + 0.075 * ws.x - 0.5, z: 0.28 });       // dessus de l'assise - hauteur d'assise du personnage
-        g.add(rig.group);
-      } else s.rig.setLook(look);
-      s.rig.group.visible = true;
-    }
+    // les joueurs assis (vrais joueurs et robots) sont les petits personnages posés sur la chaise de la table
+    function seatRig(s, p, mine) { s.person.visible = !!p && !mine; }
     function refreshSeats() {
       var key = JSON.stringify(ROOMS.map(function (d, r) { var t = room.tableOf(r); return t ? [t.count, bySeat(t).map(function (p) { return p ? p.username + p.avatar : ''; })] : 0; }));
       if (key === shownKey) return;

@@ -481,7 +481,7 @@
     this._kd = function (e) {
       var sr = self.seatRoom, tg = e.target && e.target.tagName;
       if (self.mode === 'seat' && sr && sr.standKey && sr.stand && e.code === 'KeyF' && self.running && !self.dead && !self.trans && !self._keyCapture && !e.ctrlKey && !e.metaKey && !e.altKey && tg !== 'INPUT' && tg !== 'TEXTAREA') {
-        sr.stand(); e.preventDefault(); return;                  // F : on se lève (machines à sous, courses de chevaux)
+        sr.stand(); e.preventDefault(); return;                  // F : on se lève (machines à sous)
       }
       if (!ok(e)) return;
       if (map[e.code]) { self.keys[map[e.code]] = true; e.preventDefault(); }
@@ -781,7 +781,7 @@
     if (!this.selfPerson) {
       var nm = '', av = '';
       try { nm = state.username || ''; av = state.avatarEmoji || ''; } catch (er) { /* pas connecté */ }
-      this.selfPerson = (F.createPlayer || F.createPerson)(nm || 'Moi', av, F.myLookCode ? F.myLookCode() : '', roleTripleFor(nm));
+      this.selfPerson = F.createPerson(nm || 'Moi', av, '', roleTripleFor(nm));
       this.selfPerson.tag.visible = false;
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
@@ -860,7 +860,7 @@
   World.prototype.ensureRemote = function (k, name, avatar, x, z, yaw, ap) {
     var r = this.remote[k];
     if (!r) {
-      r = this.remote[k] = { name: name || k, person: (F.createPlayer || F.createPerson)(name || k, avatar, ap, roleTripleFor(name)), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
+      r = this.remote[k] = { name: name || k, person: F.createPerson(name || k, avatar, '', roleTripleFor(name)), tx: x, tz: z, tyaw: yaw, lastFx: null, fresh: true, vx: 0, vz: 0, recv: performance.now(), jmp: 0, jt: -1, seat: -1, emo: '', emn: 0 };
       r.person.group.position.set(x, 0, z);
       this.scene.add(r.person.group);
     }
@@ -893,7 +893,6 @@
       var x = Number(m.x), z = Number(m.z);
       if (!isFinite(x) || !isFinite(z)) return;
       var r = this.ensureRemote(m.k, String(m.name || m.k).slice(0, 20), String(m.avatar || '').slice(0, 12), x, z, Number(m.yaw) || 0, typeof m.ap === 'string' ? m.ap : '');
-      if (typeof m.ap === 'string' && r.person.setLook) r.person.setLook(m.ap);                     // apparence du personnage (code de 5 caractères)
       r.tx = x; r.tz = z; r.tyaw = Number(m.yaw) || 0; r.vx = Number(m.vx) || 0; r.vz = Number(m.vz) || 0;
       r.recv = performance.now(); r.rtT = r.recv;
       if (typeof m.seat === 'number') r.seat = m.seat;
@@ -922,7 +921,7 @@
     try { nm = state.username || ''; av = (typeof getAvatarDisplay === 'function' && getAvatarDisplay()) || state.avatarEmoji || '🎭'; } catch (er) { /* pas connecté */ }
     var r3 = function (v) { return Math.round(v * 1000) / 1000; };
     this.rt.send('pos', {
-      k: me, name: nm, avatar: av, ap: F.myLookCode ? F.myLookCode() : '', seat: seatNow, room: room.id,
+      k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
       x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : emo ? this.emoYaw0 : p.yaw),   // en danse la caméra tourne, pas le personnage
       vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN, held: this.heldId
     });
@@ -1038,8 +1037,8 @@
     return hasWebGL;
   }
   // le monde complet n'est proposé que sur ordinateur
-  // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, gobelets, poker, uno, loup-garou) garde le menu classique
-  var PHONE_ROOMS = ['hall', 'slots', 'horses', 'shop', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'cups', 'vault', 'pokerroom', 'loupgarou', 'ludo'];
+  // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, poker, uno, loup-garou) garde le menu classique
+  var PHONE_ROOMS = ['hall', 'slots', 'shop', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo'];
   F.isPhone = function () { return F.isMobile() || F.isTouch(); };
   F.canWorld = function (room) { return webgl() && !mainFailed && !!document.getElementById('world3dStage') && (!F.isPhone() || !room || PHONE_ROOMS.indexOf(room) >= 0); };
   F.wantsWorldForSlots = function () { return F.canWorld('slots'); };
@@ -1072,7 +1071,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'horses', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'cups', 'vault', 'pokerroom', 'loupgarou', 'ludo'] : ['hall', 'slots', 'horses', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'cups', 'crash', 'blindtest', 'ludo'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo'] : ['hall', 'slots', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'crash', 'blindtest', 'ludo'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });
@@ -1087,7 +1086,6 @@
       if (place && main.room && main.room.id !== place) main.enterRoom(place, { from: null });
     }
     F.active = main;
-    if (F.persona && F.persona.ensureLook) setTimeout(F.persona.ensureLook, 800);   // pas encore de personnage : écran de création (creation3d.js)
     if (phone) phoneLandscape(true);
     if ((phone || !main.touch) && !main.full && place !== 'blackjack') main.setFull(true);   // on entre en plein écran (Échap ou « Quitter » pour en sortir), sauf au blackjack : là c'est au joueur de cliquer sur « Plein écran »
     return true;

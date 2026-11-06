@@ -25,24 +25,20 @@
   <script src="js/poker/poker3d-scene.js?v=2.2"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=2.8"></script>
+  <script src="js/3d/f3d-core.js?v=2.9"></script>
   <script src="js/3d/emotes3d.js?v=1.0"></script>
-  <script src="js/3d/persona3d.js?v=3.3"></script>
-  <script src="js/3d/creation3d.js?v=1.0"></script>
-  <script src="js/3d/hand3d.js?v=1.8"></script>
-  <script src="js/3d/audio3d.js?v=2.1"></script>
+  <script src="js/3d/hand3d.js?v=1.9"></script>
+  <script src="js/3d/audio3d.js?v=2.2"></script>
   <script src="js/3d/hud3d.js?v=5.2"></script>
-  <script src="js/3d/portes3d.js?v=2.9"></script>
-  <script src="js/3d/world3d.js?v=5.8"></script>
-  <script src="js/3d/hall3d.js?v=5.1"></script>
+  <script src="js/3d/portes3d.js?v=2.10"></script>
+  <script src="js/3d/world3d.js?v=5.9"></script>
+  <script src="js/3d/hall3d.js?v=5.2"></script>
   <script src="js/3d/slots3d.js?v=7.8"></script>
-  <script src="js/3d/horses3d.js?v=4.2"></script>
-  <script src="js/3d/pokerroom3d.js?v=3.2"></script>
-  <script src="js/3d/shop3d.js?v=2.4"></script>
+  <script src="js/3d/pokerroom3d.js?v=3.3"></script>
+  <script src="js/3d/shop3d.js?v=2.5"></script>
   <script src="js/3d/pmu3d.js?v=2.3"></script>
-  <script src="js/3d/blackjack3d.js?v=4.6"></script>
+  <script src="js/3d/blackjack3d.js?v=4.7"></script>
   <script src="js/3d/loupgarou3d.js?v=3.1"></script>
-  <script src="js/3d/cups3d.js?v=2.6"></script>
   <script src="js/3d/crash3d.js?v=2.6"></script>
   <script src="js/3d/blindtest3d.js?v=2.6"></script>
   <script src="js/3d/minijeux-regles.js?v=1.3"></script>
@@ -51,7 +47,7 @@
   <script src="js/3d/ludo3d.js?v=2.4"></script>
   <script src="js/3d/vault3d.js?v=2.4"></script>
   <script src="js/3d/cinema3d.js?v=4.4"></script>
-  <script src="js/utils/mises-a-jour.js?v=1.5"></script>
+  <script src="js/utils/mises-a-jour.js?v=1.6"></script>
   <style>
     /* poker assis sur téléphone en paysage : la barre d'actions passe sur une ligne pour laisser voir la table */
     @media (max-height:520px){#bottomHudContainer{max-width:100%!important;display:grid!important;grid-template-columns:1fr 1.3fr 0.9fr;gap:6px;align-items:end;padding:0 6px 4px;margin:0!important}#bottomHudContainer>*{margin:0!important}#actionButtonsRow{display:flex!important;flex-direction:column;gap:4px}#actionButtonsRow button{padding:5px 0!important;font-size:11px!important;line-height:1.1}#raiseControlPanel{padding:4px 8px!important}#heroPlayerEncart{padding:4px 8px!important}}
@@ -76,7 +72,7 @@
         <span class="doodle-icon"><i class="fl-slot"></i></span>
         <span class="doodle-pill text-pink-400">TAPIS ! +5 000 €</span>
         <span class="doodle-icon"><i class="fa-solid fa-gem"></i></span>
-        <span class="doodle-icon"><i class="fl-cups"></i></span>
+        <span class="doodle-icon"><i class="fl-spade"></i></span>
         <span class="doodle-pill text-sky-300">CRASH ×14.80</span>
         <span class="doodle-icon"><i class="fa-solid fa-masks-theater"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-crown"></i></span>
@@ -99,7 +95,7 @@
         <span class="doodle-icon"><i class="fl-slot"></i></span>
         <span class="doodle-pill text-pink-400">TAPIS ! +5 000 €</span>
         <span class="doodle-icon"><i class="fa-solid fa-gem"></i></span>
-        <span class="doodle-icon"><i class="fl-cups"></i></span>
+        <span class="doodle-icon"><i class="fl-spade"></i></span>
         <span class="doodle-pill text-sky-300">CRASH ×14.80</span>
         <span class="doodle-icon"><i class="fa-solid fa-masks-theater"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-crown"></i></span>
@@ -169,7 +165,7 @@
         <span class="doodle-icon"><i class="fa-solid fa-gem"></i></span>
         <span class="doodle-icon"><i class="fl-cards"></i></span>
         <span class="doodle-pill text-purple-300">POKER ALL-IN ×2.0</span>
-        <span class="doodle-icon"><i class="fl-cups"></i></span>
+        <span class="doodle-icon"><i class="fl-spade"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-flag-checkered"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-crown"></i></span>
         <span class="doodle-pill text-emerald-300">TABLE ROYALE HIGH ROLLER</span>
@@ -187,7 +183,7 @@
         <span class="doodle-icon"><i class="fa-solid fa-gem"></i></span>
         <span class="doodle-icon"><i class="fl-cards"></i></span>
         <span class="doodle-pill text-purple-300">POKER ALL-IN ×2.0</span>
-        <span class="doodle-icon"><i class="fl-cups"></i></span>
+        <span class="doodle-icon"><i class="fl-spade"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-flag-checkered"></i></span>
         <span class="doodle-icon"><i class="fa-solid fa-crown"></i></span>
         <span class="doodle-pill text-emerald-300">TABLE ROYALE HIGH ROLLER</span>
@@ -302,16 +298,6 @@
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Blackjack</span>
       </button>
 
-      <!-- Gobelets -->
-      <button onclick="switchRoom('cups')"
-        class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
-        title="Les Gobelets">
-        <img src="assets/icones/jeux/gobelets.png" alt="" class="sidebar-icon ts-logo">
-        <span
-          class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Les
-          Gobelets</span>
-      </button>
-
       <!-- Blind Test -->
       <button onclick="handleBlindTestClick()"
         class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
@@ -333,17 +319,6 @@
           class="sidebar-label hidden ml-2.5 truncate font-semibold text-xs text-stone-200 group-hover:text-white">Grattage</span>
       </button>
 
-      <!-- Chevaux -->
-      <button onclick="handleComingSoonGame('chevaux')"
-        class="sidebar-item w-full flex items-center rounded-xl py-2 px-2.5 text-stone-300 hover:text-white hover:bg-white/10 transition group text-left cursor-pointer"
-        title="Course de Chevaux (3D)">
-        <img src="assets/icones/jeux/courses.png" alt="" class="sidebar-icon ts-logo">
-        <div class="sidebar-label hidden ml-2.5 items-center justify-between flex-1 overflow-hidden">
-          <span class="truncate font-semibold text-xs text-stone-200 group-hover:text-white">Course de Chevaux</span>
-          <span
-            class="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 font-bold border border-sky-400/30 ml-1">3D</span>
-        </div>
-      </button>
 
       <!-- Titre section Services (visible uniquement en grand) -->
       <div
@@ -721,30 +696,6 @@
             </button>
           </div>
 
-          <!-- 7. LES GOBELETS -->
-          <div
-            class="rounded-2xl p-6 bg-gradient-to-br from-[#2e1a0f]/95 via-[#180d07]/95 to-black border border-orange-500/40 hover:border-orange-400 transition flex flex-col justify-between shadow-xl">
-            <div>
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 font-bold">Observation
-                  &amp; Réflexes</span>
-                <button onclick="openRulesModal('cups')"
-                  class="text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold"><i
-                    class="fa-solid fa-circle-question"></i> Comment jouer</button>
-              </div>
-              <h3 class="font-serif-title text-2xl font-extrabold text-orange-100 mt-3 flex items-center gap-3"><img src="assets/icones/jeux/gobelets.png" alt="" class="w-12 h-12 shrink-0">Les Gobelets</h3>
-              <p class="text-xs text-orange-100/80 mt-2 leading-relaxed">
-                3 gobelets identiques sur le tapis ! Suis la bille des yeux en vitesse Rapide contre Roxy (Bot) pour
-                remporter ×1.25 ta mise.
-              </p>
-            </div>
-            <button onclick="switchRoom('cups')"
-              class="mt-5 w-full py-2.5 rounded-xl bg-orange-400 hover:bg-orange-300 text-black font-extrabold text-xs transition">
-              Jouer aux Gobelets →
-            </button>
-          </div>
-
           <!-- 8. BLIND TEST D'IMAGES -->
           <div
             class="rounded-2xl p-6 bg-gradient-to-br from-[#241038]/95 via-[#130722]/95 to-black border border-fuchsia-500/40 hover:border-fuchsia-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
@@ -811,40 +762,6 @@
             </button>
           </div>
 
-          <!-- 10. COURSE DE CHEVAUX (3D, PC) -->
-          <div
-            class="rounded-2xl p-6 bg-gradient-to-br from-[#122416]/95 via-[#0b170e]/95 to-black border border-emerald-500/40 hover:border-emerald-400 transition flex flex-col justify-between shadow-xl relative overflow-hidden group">
-            <div
-              class="absolute -top-10 -right-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none">
-            </div>
-            <div>
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold flex items-center gap-1">
-                  <span><i class="fa-solid fa-horse"></i></span> <span>Hippodrome VIP</span>
-                </span>
-                <span
-                  class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/40">
-                  PC · 3D
-                </span>
-              </div>
-              <h3 class="font-serif-title text-2xl font-extrabold text-emerald-200 mt-3 flex items-center gap-2">
-                <img src="assets/icones/jeux/courses.png" alt="" class="w-12 h-12 shrink-0 mr-1">
-                <span>Course de Chevaux</span>
-                <span
-                  class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-sans font-bold border border-emerald-400/30">Nouveau</span>
-              </h3>
-              <p class="text-xs text-emerald-100/80 mt-2 leading-relaxed">
-                8 chevaux, une course toutes les 70 secondes : parie sur ton favori (dans les 4 premiers, ou à la place
-                exacte) et regarde la course en 3D, assis à la table ou d'en haut. Jusqu'à 3 paris par course.
-              </p>
-            </div>
-            <button onclick="handleComingSoonGame('chevaux')"
-              class="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:brightness-110 text-black font-extrabold text-xs transition shadow-lg cursor-pointer transform active:scale-95 flex items-center justify-center gap-1.5">
-              <span><i class="fa-solid fa-horse"></i></span> <span>Entrer à l'hippodrome 3D →</span>
-            </button>
-          </div>
-
           <!-- 11. BOUTIQUE DE CUSTOMISATION -->
           <div
             class="rounded-2xl p-6 bg-gradient-to-br from-[#2a173b]/95 via-[#140b1d]/95 to-black border border-purple-500/40 hover:border-purple-400 transition flex flex-col justify-between shadow-xl">
@@ -854,7 +771,7 @@
                 Catégories • Max 50 000 <i class="fl-coin"></i></span>
               <h3 class="font-serif-title text-2xl font-extrabold text-purple-100 mt-3 flex items-center gap-3"><img src="assets/icones/services/tropi-shop-petit.png" alt="" class="w-11 h-11 rounded-xl shrink-0">Tropi Shop</h3>
               <p class="text-xs text-purple-100/80 mt-2 leading-relaxed">
-                Skins Fusée Crash (Tapis Volant, Génie...), Poker, Billes de Gobelets, Cartes Blackjack, Bornes Slots
+                Skins Fusée Crash (Tapis Volant, Génie...), Poker, Cartes Blackjack, Bornes Slots
                 &amp; Avatars !
               </p>
             </div>
@@ -1699,128 +1616,6 @@
     </section>
 
     <!-- =============================================================== -->
-    <!-- VUE 8 : LES GOBELETS (PLEINE LARGEUR MOBILE & BILLES CUSTOM)    -->
-    <!-- =============================================================== -->
-    <section id="view-cups" class="space-y-6 hidden">
-      <div
-        class="flex flex-wrap items-center justify-between gap-4 bg-stone-950/90 border border-orange-500/30 rounded-2xl p-4">
-        <div class="flex items-center gap-3">
-          <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
-          <div>
-            <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white">Les Gobelets</h2>
-            <p class="text-xs text-orange-300">Suis la bille des yeux • Bille équipée : <strong id="cupsBallLabel">🟡
-                Bille Dorée Classique</strong></p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span
-            class="px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-400/30 text-orange-300 text-xs font-bold flex items-center gap-1.5">
-            <span><i class="fa-solid fa-robot"></i></span> <span>Solo vs ( Bot )</span>
-          </span>
-          <button onclick="openRulesModal('cups')"
-            class="px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold"><i
-              class="fa-solid fa-circle-question"></i> Comment jouer</button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div class="lg:col-span-4 rounded-2xl p-5 bg-stone-950/90 border border-orange-500/30 space-y-4">
-
-          <div>
-            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Mise (Min 10 • Max 250)</label>
-            <input id="cupsBetInput" type="number" value="100"
-              class="mt-1.5 w-full bg-black/60 border border-orange-500/30 rounded-xl px-3.5 py-2.5 text-white font-mono-num font-bold focus:outline-none">
-          </div>
-
-          <div>
-            <label class="text-xs uppercase tracking-wider text-orange-300 font-bold">Vitesse &amp;
-              Multiplicateur</label>
-            <div
-              class="mt-1.5 px-3.5 py-2.5 rounded-xl bg-orange-500/15 border border-orange-400/40 flex items-center justify-between text-xs">
-              <span class="font-extrabold text-white flex items-center gap-1.5">
-                <span><i class="fa-solid fa-bolt"></i></span> <span>Vitesse Ultra-Rapide (Fixe)</span>
-              </span>
-              <span
-                class="font-mono-num font-black text-amber-300 px-2.5 py-1 rounded-lg bg-black/60 border border-amber-400/30">
-                Gain ×1.25
-              </span>
-            </div>
-          </div>
-
-          <div class="p-3.5 rounded-xl bg-orange-950/30 border border-orange-400/30 space-y-1.5 text-xs">
-            <div class="font-extrabold text-orange-200 flex items-center gap-1.5">
-              <span><i class="fa-solid fa-robot"></i></span> <span>Le ( Bot ) cache la bille dorée</span>
-            </div>
-            <p class="text-stone-300 text-[11px] leading-relaxed">
-              Le ( Bot ) dissimule la bille sous l'un des gobelets et mélange à toute vitesse. Suis bien le bon gobelet
-              des yeux pour le démasquer !
-            </p>
-          </div>
-
-          <button id="cupsStartBtn" onclick="startCupsGame()"
-            class="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-orange-400 to-amber-500 text-black hover:brightness-110 transition shadow-lg cursor-pointer">
-            <i class="fl-cups"></i> Lancer la partie vs ( Bot )
-          </button>
-        </div>
-
-        <div
-          class="lg:col-span-8 w-full rounded-2xl p-4 sm:p-6 poker-felt felt-green flex flex-col justify-between min-h-[360px] overflow-hidden">
-          <div id="cupsBanner"
-            class="text-center text-xs sm:text-sm font-bold text-amber-200 bg-black/65 px-4 py-2 rounded-full border border-white/15 mx-auto">
-            Lance le mélange et ne quitte pas le bon gobelet des yeux !
-          </div>
-
-          <div class="cups-stage w-full my-auto">
-            <div id="cupGoldenBall" class="cup-ball ball-gold" style="left: 50%; opacity: 1;"></div>
-            <div id="cupSlot0" onclick="pickCup(0)" class="cup-slot lifted" style="left: 20%;">
-              <div class="cup-body"></div>
-            </div>
-            <div id="cupSlot1" onclick="pickCup(1)" class="cup-slot lifted" style="left: 50%;">
-              <div class="cup-body"></div>
-            </div>
-            <div id="cupSlot2" onclick="pickCup(2)" class="cup-slot lifted" style="left: 80%;">
-              <div class="cup-body"></div>
-            </div>
-          </div>
-
-          <div class="text-center text-xs text-stone-300">
-            Clique directement sur le gobelet qui cache la bille quand le mélange s'arrête.
-          </div>
-        </div>
-      </div>
-
-      <!-- CLASSEMENT DU JEU DES GOBELETS (TOP 3 VICTOIRES D'AFFILÉE) -->
-      <div
-        class="rounded-3xl p-5 sm:p-6 bg-stone-950/90 border border-orange-500/30 shadow-2xl backdrop-blur-xl space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl p-2 rounded-2xl bg-orange-500/15 border border-orange-400/30"><i
-                class="fa-solid fa-trophy"></i></span>
-            <div>
-              <h3 class="font-serif-title font-extrabold text-base sm:text-lg text-white">Classement des Maîtres du
-                Gobelet</h3>
-              <p class="text-xs text-orange-300">Les 3 joueurs ayant réussi la plus longue série de victoires d'affilée
-              </p>
-            </div>
-          </div>
-          <div id="cupsMyStreakBanner"
-            class="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-400/40 text-xs font-bold text-orange-200 flex items-center gap-2">
-            <span><i class="fa-solid fa-fire"></i> Ta série en cours : <strong id="cupsCurrentStreakText"
-                class="text-white font-mono-num font-black">0</strong></span>
-            <span>•</span>
-            <span><i class="fa-solid fa-trophy"></i> Ton record : <strong id="cupsBestStreakText"
-                class="text-amber-300 font-mono-num font-black">0</strong></span>
-          </div>
-        </div>
-
-        <!-- Les 3 Joueurs du Podium -->
-        <div id="cupsLeaderboardGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Dynamiquement généré par renderCupsLeaderboard() -->
-        </div>
-      </div>
-    </section>
-
-    <!-- =============================================================== -->
     <!-- VUE 9 : LE BLIND TEST D'IMAGES (films, dessins animés, séries)    -->
     <!-- =============================================================== -->
     <section id="view-blindtest" class="space-y-4 hidden">
@@ -2380,7 +2175,7 @@
           <button onclick="switchRoom('hall')" class="btn-home-big">← Accueil</button>
           <div>
             <h2 class="font-serif-title text-xl sm:text-2xl font-extrabold text-white"><img src="assets/icones/services/tropi-shop-petit.png" alt="" class="inline-block w-9 h-9 rounded-lg align-middle mr-1">Tropi Shop</h2>
-            <p class="text-xs text-purple-300">Fusée Crash, Poker, Gobelets, Blackjack, Machines à Sous &amp; Avatars
+            <p class="text-xs text-purple-300">Fusée Crash, Poker, Blackjack, Machines à Sous &amp; Avatars
               (Plafond max : 50 000 <i class="fl-coin"></i>)</p>
           </div>
         </div>
@@ -2680,7 +2475,7 @@
       </div>
 
       <p class="text-xs text-stone-300">Ajoute des joueurs en ami pour les inviter directement sur les tables de jeu
-        (Poker, Crash, Gobelets, etc.) ou leur faire des dons.</p>
+        (Poker, Crash, etc.) ou leur faire des dons.</p>
 
       <!-- Champ ajout manuel -->
       <div class="flex gap-2">
@@ -3279,7 +3074,7 @@
         </p>
         <p class="text-stone-400 text-xs leading-relaxed max-w-sm mx-auto pt-1">
           Tu pourras débloquer des trophées exclusifs, des badges rares et des récompenses en pièces en accomplissant
-          des défis au Poker, Blackjack, Crash, Gobelets et Machine à sous.
+          des défis au Poker, Blackjack, Crash et Machine à sous.
         </p>
       </div>
 
@@ -3291,10 +3086,6 @@
         <div class="flex items-center gap-3 text-xs text-stone-300">
           <span class="text-base"><i class="fa-solid fa-lock"></i></span>
           <span><strong>Fusée Stratosphérique :</strong> Cashout à plus de 10× au Crash</span>
-        </div>
-        <div class="flex items-center gap-3 text-xs text-stone-300">
-          <span class="text-base"><i class="fa-solid fa-lock"></i></span>
-          <span><strong>Œil de Lynx :</strong> Série de 10 victoires consécutives aux Gobelets</span>
         </div>
       </div>
 
@@ -3334,10 +3125,6 @@
       </div>
 
       <div class="pt-2 border-t border-white/10 flex gap-2">
-        <button onclick="closeLeaderboardModal(); switchRoom('cups');"
-          class="flex-1 py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 text-xs font-bold transition">
-          <i class="fl-cups"></i> Top Gobelets
-        </button>
         <button onclick="closeLeaderboardModal()"
           class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 hover:brightness-110 text-black font-black text-xs shadow-lg transition">
           Fermer
@@ -3419,10 +3206,6 @@
           <button onclick="playSlotMachineLeverSound()"
             class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
             <span><i class="fl-slot"></i></span> <span>Machine à sous</span>
-          </button>
-          <button onclick="playCupShuffleSound()"
-            class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span><i class="fl-cups"></i></span> <span>Gobelets</span>
           </button>
           <button onclick="playCoinWinSound()"
             class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-stone-200 flex items-center justify-center gap-1.5 transition active:scale-95">
@@ -4098,40 +3881,6 @@
         bellOsc.stop(now + 0.36);
       } catch (e) { }
     }
-
-    // Bruit de gobelet qui frotte la table (doux et feutré)
-    function playCupShuffleSound() {
-      const vol = getMasterVolume();
-      if (vol <= 0) return;
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        const dur = 0.26;
-        const bufLen = Math.floor(ctx.sampleRate * dur);
-        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < bufLen; i++) {
-          const t = i / ctx.sampleRate;
-          const env = Math.sin((t / dur) * Math.PI);
-          data[i] = (Math.random() * 2 - 1) * env;
-        }
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(420, now);
-        filter.Q.setValueAtTime(1.6, now);
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.16 * vol, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-        src.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        src.start(now);
-      } catch (e) { }
-    }
-
     function playBoomSound() {
       const vol = getMasterVolume();
       if (vol <= 0) return;
@@ -4163,7 +3912,6 @@
     const SHOP_CATEGORIES = [
       { key: 'crashVehicle', title: '🚀 Catégorie Fusée Crash', subtitle: 'Véhicules & sujets volants (élément de base équipé en haut)' },
       { key: 'poker', title: '♠️ Catégorie Poker', subtitle: 'Tapis de table & styles de cartes de Poker' },
-      { key: 'cupBall', title: '🥤 Catégorie Gobelets', subtitle: 'Billes de couleur & bille rare effet néon' },
       { key: 'bjCardSkin', title: '🃏 Catégorie Blackjack', subtitle: 'Styles de cartes exclusifs pour la table de Blackjack' },
       { key: 'slotCabinet', title: '🎰 Catégorie Machines à Sous', subtitle: 'Habillages complets de bornes de machines à sous' },
       { key: 'avatar', title: '👤 Catégorie Avatars / Profil', subtitle: 'Images de profil rigolotes à côté de ton blase (Plafond max : 10 000 🪙)' }
@@ -4187,11 +3935,6 @@
       { id: 'felt_midnight', group: 'poker', category: 'pokerFelt', name: '🔵 Tapis Bleu Minuit', desc: 'Tapis bleu profond haute limite.', price: 12000, css: 'felt-midnight' },
 
       // 3. GOBELETS (Billes de couleur + Bille Néon)
-      { id: 'ball_gold', group: 'cupBall', category: 'cupBall', name: '🟡 Bille Dorée Classique', desc: 'La bille dorée de base.', price: 0, ballClass: 'ball-gold' },
-      { id: 'ball_ruby', group: 'cupBall', category: 'cupBall', name: '🔴 Bille Rubis Rouge', desc: 'Bille rouge éclatante sous les gobelets.', price: 2500, ballClass: 'ball-ruby' },
-      { id: 'ball_sapphire', group: 'cupBall', category: 'cupBall', name: '🔵 Bille Saphir Bleue', desc: 'Bille bleu profond très lisible.', price: 4000, ballClass: 'ball-sapphire' },
-      { id: 'ball_emerald', group: 'cupBall', category: 'cupBall', name: '🟢 Bille Émeraude Verte', desc: 'Bille verte aux reflets précieux.', price: 6000, ballClass: 'ball-emerald' },
-      { id: 'ball_neon', group: 'cupBall', category: 'cupBall', name: '🔮 Bille Rare Effet Néon', desc: 'Bille collector lumineuse avec halo néon animé !', price: 18000, ballClass: 'ball-neon' },
 
       // 4. BLACKJACK (Styles de cartes stylées)
       { id: 'bj_classic', group: 'bjCardSkin', category: 'bjCardSkin', name: '🃏 Cartes Classiques Blackjack', desc: 'Style de cartes standard pour le Blackjack.', price: 0, skinClass: '' },
@@ -4236,12 +3979,11 @@
       scratchCardsPlayed: 0,
       friends: [],
       friendBalances: {},
-      ownedSkins: ['veh_rocket', 'felt_green', 'cards_classic', 'ball_gold', 'bj_classic', 'cab_classic', 'av_default'],
+      ownedSkins: ['veh_rocket', 'felt_green', 'cards_classic', 'bj_classic', 'cab_classic', 'av_default'],
       equipped: {
         crashVehicle: 'veh_rocket',
         pokerFelt: 'felt_green',
         cardSkin: 'cards_classic',
-        cupBall: 'ball_gold',
         bjCardSkin: 'bj_classic',
         slotCabinet: 'cab_classic',
         avatar: 'av_default'
@@ -4831,9 +4573,6 @@
         } else if (currentRoomKey === 'blackjack') {
           syncBjMultiplayer();
           updateLobbyUI('bj');
-        } else if (currentRoomKey === 'cups') {
-          updateLobbyUI('cups');
-          renderCupsLeaderboard();
         } else if (currentRoomKey === 'scratch') {
           renderScratchLeaderboard();
         }
@@ -4995,7 +4734,6 @@
       setupPokerSeats();
       renderLeaderboard();
       renderBank();
-      if (window.F3D && F3D.persona && F3D.persona.ensureLook) setTimeout(F3D.persona.ensureLook, 600);   // personnage 3D à créer ?
       showToast(`👋 Bon retour au club, ${state.username} !`);
     }
 
@@ -5074,7 +4812,6 @@
       setupPokerSeats();
       renderLeaderboard();
       renderBank();
-      if (window.F3D && F3D.persona && F3D.persona.ensureLook) setTimeout(F3D.persona.ensureLook, 600);   // personnage 3D à créer ?
       showToast(`🎉 Bienvenue ${state.username} ! ${fmt(state.balance)} € crédités sur ton compte.`);
     }
 
@@ -5864,20 +5601,12 @@
       const cabLbl = document.getElementById('slotCabinetLabel');
       if (cabLbl && cabItem) cabLbl.textContent = cabItem.name;
 
-      // Bille des Gobelets
-      const ballItem = SHOP_CATALOG.find(i => i.id === state.equipped.cupBall) || SHOP_CATALOG.find(i => i.id === 'ball_gold');
-      const ballEl = document.getElementById('cupGoldenBall');
-      if (ballEl && ballItem) ballEl.className = `cup-ball ${ballItem.ballClass}`;
-      const ballLbl = document.getElementById('cupsBallLabel');
-      if (ballLbl && ballItem) ballLbl.textContent = ballItem.name;
-
       // Cartes Blackjack
       const bjSkin = SHOP_CATALOG.find(i => i.id === state.equipped.bjCardSkin) || SHOP_CATALOG.find(i => i.id === 'bj_classic');
       const bjLbl = document.getElementById('bjCardSkinLabel');
       if (bjLbl && bjSkin) bjLbl.textContent = bjSkin.name;
 
       renderLeaderboard();
-      try { renderCupsLeaderboard(); } catch (e) { }
       renderShop();
       renderBankHistory();
       try { updateNotificationsBadge(); } catch (e) { }
@@ -5966,11 +5695,10 @@
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
-    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'cups', 'scratch', 'blindtest', 'shop', 'bank', 'world3d'];
+    const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'scratch', 'blindtest', 'shop', 'bank', 'world3d'];
     const ROOM_TITLES = {
       hall: '/ Accueil', world3d: '/ Casino 3D', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
-      cups: '/ Les Gobelets',
       scratch: '/ Grattage',
       blindtest: '/ Blind Test',
       shop: '/ Tropi Shop', bank: '/ La Banque'
@@ -6006,7 +5734,7 @@
       if (!ALL_ROOMS.includes(room)) room = 'hall';
       if (room === 'slots' && window.F3D && F3D.wantsWorldForSlots()) { room = 'world3d'; window.__f3dPlace = 'slots'; }
       // Blackjack : sur PC il se joue dans la salle 3D (le jeu 2D ne sert plus que sur téléphone)
-      if ((room === 'blackjack' || room === 'cups' || room === 'crash' || room === 'blindtest') && window.F3D && F3D.canWorld(room)) { window.__f3dPlace = room; room = 'world3d'; }
+      if ((room === 'blackjack' || room === 'crash' || room === 'blindtest') && window.F3D && F3D.canWorld(room)) { window.__f3dPlace = room; room = 'world3d'; }
       // Boutique : sur PC elle est en 3D (vendeurs) ; le bouton « Boutique classique » de la 3D garde l'ancienne page
       if (room === 'shop' && !window.__shopClassic && window.F3D && F3D.canWorld('shop3d')) { room = 'world3d'; window.__f3dPlace = 'shop3d'; }
       window.__shopClassic = false;
@@ -6091,11 +5819,6 @@
         renderBlackjack();
         updateLobbyUI('bj');
       }
-      if (room === 'cups') {
-        updateLobbyUI('cups');
-        updateCupsSetupBoxVisibility();
-        renderCupsLeaderboard();
-      }
       if (room === 'scratch') {
         if (typeof initScratchGame === 'function') initScratchGame();
         if (typeof renderScratchLeaderboard === 'function') renderScratchLeaderboard();
@@ -6165,15 +5888,6 @@
           <p>🎯 <strong>Le but :</strong> Approcher le plus possible de 21 sans dépasser face au croupier.</p>
           <p>👥 <strong>Modes de jeu :</strong> Joue en <strong>Solo direct contre le Croupier IA</strong> ou rejoins librement l'une des <strong>5 Tables Publiques (Table 1 à Table 5)</strong> pour jouer en direct avec d\'autres joueurs sans invitation (tu peux voir qui est déjà assis avant d\'entrer !). La mise est libre, à partir de <strong>10 €</strong>.</p>
           <p>⏱️ <strong>Temps de décision :</strong> À ton tour, tu as un temps limite de <strong>30 secondes</strong> pour tirer, rester ou doubler. Prends tout ton temps entre les manches pour choisir ta mise, la partie ne se relance jamais toute seule !</p>
-        `
-      },
-      cups: {
-        title: '🥤 Comment jouer aux Gobelets ?',
-        html: `
-          <p>🎯 <strong>Le but :</strong> Regarde bien où se cache la bille dorée au départ et suis le bon gobelet des yeux pendant le mélange ultra-rapide !</p>
-          <p>🤖 <strong>Mode de jeu :</strong> Joue en <strong>Solo contre le ( Bot )</strong>. Le ( Bot ) dissimule la bille sous l'un des trois gobelets et les mélange à toute vitesse !</p>
-          <p>⚡ <strong>Vitesse &amp; Gains :</strong> La partie se joue en <strong>Vitesse Ultra-Rapide</strong>. Une victoire rapporte exactement <strong>×1.25 ta mise</strong>.</p>
-          <p>🏆 <strong>Classement :</strong> Tente d'enchaîner le plus de victoires d'affilée pour intégrer le <strong>Top 3 du classement des Maîtres du Gobelet</strong> affiché sous le jeu !</p>
         `
       },
       blindtest: {
@@ -6923,8 +6637,7 @@
 
     const lobbies = {
       poker: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false },
-      bj: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false },
-      cups: { mode: 'solo' }
+      bj: { mode: 'solo', tableType: 'public', publicTableId: null, roomCode: '', fillWithBots: false }
     };
 
     function generateRoomCode(prefix) {
@@ -7155,7 +6868,6 @@
     }
 
     function getTableParticipants(game) {
-      if (game === 'cups') return [];
       const lobbyKey = (game === 'blackjack' || game === 'bj') ? 'bj' : 'poker';
       const l = lobbies[lobbyKey];
       if (!l || l.mode !== 'multi') return [];
@@ -7424,8 +7136,6 @@
 
         const coBox = document.getElementById('bjCoPlayerBox');
         if (coBox) coBox.classList.toggle('hidden', !isMulti);
-      } else if (game === 'cups') {
-        updateCupsSetupBoxVisibility();
       }
     }
 
@@ -8344,22 +8054,10 @@
       }, 2900);
     }
     /* ================= LA CHAMBRE FORTE / MINES (extrait dans js/mini-jeux/mines.js) ================= */
-    /* ================= JEUX À VENIR (GRATTAGE & COURSE DE CHEVAUX) ================= */
-    function handleComingSoonGame(gameName) {
-      if (gameName === 'chevaux') { openHorses(); return; }
-      showToast('futur mise a jour');
-    }
-
     // Poker : sur PC on entre dans la salle de poker 3D (on marche, on choisit sa chaise) ; sinon le lobby classique
     function openPoker() {
       if (window.F3D && F3D.canWorld('pokerroom')) { window.__f3dPlace = 'pokerroom'; switchRoom('world3d'); }
       else switchRoom('poker');
-    }
-
-    // Courses de chevaux : salle 3D (PC seulement), directement depuis le menu classique
-    function openHorses() {
-      if (window.F3D && F3D.canWorld('horses')) { window.__f3dPlace = 'horses'; switchRoom('world3d'); }
-      else showToast('🏇 Les courses de chevaux sont en 3D : la 3D est indisponible sur cet appareil.');
     }
 
     /* ================= BLACKJACK (extrait dans js/mini-jeux/blackjack.js) ================= */
@@ -8762,7 +8460,6 @@
     }
 
     /* ================= BLACKJACK SUITE (extrait dans js/mini-jeux/blackjack.js) ================= */
-    /* ================= LES GOBELETS (extrait dans js/mini-jeux/gobelets.js) ================= */
     /* ================= JEU DE GRATTAGE (extrait dans js/mini-jeux/grattage.js) ================= */
 
     // Intervalle ultra-rapide (200ms) dédié au Blackjack multijoueur pour une réactivité instantanée
@@ -10132,7 +9829,6 @@
       setupPokerSeats();
       updateLobbyUI('poker');
       updateLobbyUI('bj');
-      updateLobbyUI('cups');
       renderMinesGrid(false);
       renderCrashHistoryPills();
       renderCrashLiveBets();
@@ -10520,7 +10216,6 @@
   <script src="js/mini-jeux/crash.js"></script>
   <script src="js/mini-jeux/mines.js"></script>
   <script src="js/mini-jeux/blackjack.js"></script>
-  <script src="js/mini-jeux/gobelets.js"></script>
   <script src="js/mini-jeux/grattage.js"></script>
 </body>
 

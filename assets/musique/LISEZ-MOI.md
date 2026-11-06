@@ -8,13 +8,11 @@ Un dossier par salle. Dépose-y **plusieurs** fichiers (.mp3, .ogg, .m4a ou .wav
 | `hall/` | Hall d'accueil | lounge, jazz doux, piano |
 | `machines-a-sous/` | Machines à sous | arcade, électro joyeuse, retro |
 | `poker/` | Salle de poker | jazz enfumé, blues, piano bar |
-| `courses/` | Courses de chevaux | fanfare, orchestral dynamique, épique |
 | `tropi-shop/` | Tropi Shop | bossa nova, acoustique, chill |
 | `pmu/` | PMU | folk joyeux, marimba, café |
 | `blackjack/` | Blackjack | jazz chic, swing, piano |
 | `blind-test/` | Blind test | jeu-concours entraînant, percussions légères |
 | `crash/` | Crash (fusée) | électro tendue, synthwave |
-| `gobelets/` | Gobelets | jazz manouche, cabaret |
 | `mini-jeux/` | Mini jeux (UNO, Puissance 4) | pop légère, chiptune |
 | `loup-garou/` | Loup-garou | ambiance sombre, cordes, mystère |
 | `cinema/` | Cinéma | bande-annonce, orchestral (se tait pendant le film) |
