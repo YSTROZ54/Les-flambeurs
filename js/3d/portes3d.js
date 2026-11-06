@@ -69,6 +69,19 @@
       c.fillStyle = col; c.beginPath(); c.moveTo(1.5, 9); c.lineTo(12, 2.5); c.lineTo(22.5, 9); c.closePath(); c.fill();
       [3.6, 8.2, 12.8, 17.4].forEach(function (x) { c.fillRect(x, 10.5, 3, 7.5); }); c.fillRect(2, 19, 20, 2.2); c.fillRect(0.8, 21.4, 22.4, 1.6);
     },
+    connect4: function (c, col, bg) {                      // grille de Puissance 4 : trous vides et jetons
+      c.fillStyle = col; rr(c, 2, 2.5, 20, 19, 3); c.fill();
+      for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) { c.fillStyle = bg; c.beginPath(); c.arc(7 + j * 5, 8 + i * 5, 1.9, 0, TAU); c.fill(); }
+      c.fillStyle = col; [[7, 18], [12, 18], [12, 13]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 1.2, 0, TAU); c.fill(); });
+    },
+    ludo: function (c, col, bg) {                          // un dé
+      c.fillStyle = col; rr(c, 3, 3, 18, 18, 4); c.fill(); c.fillStyle = bg;
+      [[8, 8], [16, 8], [12, 12], [8, 16], [16, 16]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 1.7, 0, TAU); c.fill(); });
+    },
+    pmu: function (c, col, bg) {                           // un fer à cheval
+      c.strokeStyle = col; c.lineWidth = 3.6; c.lineCap = 'round'; c.beginPath(); c.arc(12, 11.5, 7, Math.PI * 0.8, Math.PI * 0.2, false); c.stroke();
+      c.fillStyle = col; [[5.4, 17.2], [18.6, 17.2]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 1.4, 0, TAU); c.fill(); });
+    },
     uno: function (c, col, bg) {                           // une carte penchée avec un ovale
       c.save(); c.translate(12, 12); c.rotate(-0.25); c.fillStyle = col; rr(c, -7, -10, 14, 20, 2.4); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(0, 0, 3.6, 7.6, 0.55, 0, TAU); c.fill(); c.restore();
     },
@@ -239,6 +252,53 @@
         c.save(); c.translate(W / 2, H * 0.5); c.rotate(-0.3); c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, W * 0.34, H * 0.28, 0, 0, TAU); c.fill();
         c.fillStyle = '#ffd400'; c.strokeStyle = '#111'; c.lineWidth = 8; c.font = '900 92px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
         [['#1f9d4a', 0.14, 0.1], ['#1b63c9', 0.86, 0.1], ['#f2c200', 0.14, 0.9], ['#1f9d4a', 0.86, 0.9]].forEach(function (q) { c.fillStyle = q[0]; rr(c, W * q[1] - 22, H * q[2] - 28, 44, 56, 8); c.fill(); });
+      }
+    },
+    puissance4: {
+      frame: 0x2b6cff, leaf: 0x1646b8, rgb: '110, 160, 255', logo: 'connect4',
+      paint: function (c, W, H) {                              // la grille bleue de Puissance 4, jetons rouges et jaunes pris dans les trous
+        var g0 = c.createLinearGradient(0, 0, W, H); g0.addColorStop(0, '#2f7bff'); g0.addColorStop(1, '#1246b0'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+        border(c, W, H, '#0b2a78', 10); border(c, W, H, '#9fc0ff', 3);
+        var cols = 4, rows = Math.round(cols * (H - 40) / (W - 40)), dx = (W - 40) / cols, dy = (H - 40) / rows, r = Math.min(dx, dy) * 0.38;
+        for (var i = 0; i < rows; i++) for (var j = 0; j < cols; j++) {
+          var x = 20 + dx * (j + 0.5), y = 20 + dy * (i + 0.5), k = (i * 3 + j * 5) % 7, bottom = i >= rows - 3;
+          c.fillStyle = '#0a1a48'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+          if (bottom && k < 5) { c.fillStyle = k % 2 ? '#ffd400' : '#e0232b'; c.beginPath(); c.arc(x, y, r * 0.88, 0, TAU); c.fill(); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, r * 0.55, 0, TAU); c.stroke(); }
+        }
+      }
+    },
+    ludo: {
+      frame: 0xffb300, leaf: 0x1d1530, rgb: '255, 190, 60', logo: 'ludo',
+      paint: function (c, W, H) {                              // deux petits plateaux de Ludo : quatre bases de couleur et une étoile au centre
+        c.fillStyle = '#1d1530'; c.fillRect(0, 0, W, H); border(c, W, H, '#ffb300', 8);
+        var S = W - 56, cl = ['#e0232b', '#1f9d4a', '#1b63c9', '#f2c200'];
+        [H * 0.04 + 14, H * 0.52 + 6].forEach(function (y0) {
+          var x0 = 28, h = S / 2;
+          c.fillStyle = '#fff6df'; rr(c, x0 - 6, y0 - 6, S + 12, S + 12, 12); c.fill();
+          for (var q = 0; q < 4; q++) {
+            var qx = x0 + (q % 2) * h, qy = y0 + (q >> 1) * h; c.fillStyle = cl[q]; c.fillRect(qx + 2, qy + 2, h - 4, h - 4);
+            c.fillStyle = '#fff'; c.beginPath(); c.arc(qx + h / 2, qy + h / 2, h * 0.3, 0, TAU); c.fill();
+            c.fillStyle = cl[q]; c.beginPath(); c.arc(qx + h / 2, qy + h / 2, h * 0.16, 0, TAU); c.fill();
+          }
+          c.fillStyle = '#fff6df'; c.beginPath(); for (var k = 0; k < 8; k++) { var a = -Math.PI / 2 + k * Math.PI / 4, rad = k % 2 ? h * 0.17 : h * 0.4; c.lineTo(x0 + h + Math.cos(a) * rad, y0 + h + Math.sin(a) * rad); } c.closePath(); c.fill();
+          c.strokeStyle = '#1d1530'; c.lineWidth = 3; c.stroke();
+        });
+      }
+    },
+    pmu: {
+      frame: 0xd8b04a, leaf: 0x0e4a2a, rgb: '255, 120, 100', logo: 'pmu', image: 'assets/icones/jeux/pmu.png', square: true,
+      paint: function (c, W, H) {                              // piste verte, deux panneaux dorés avec un fer à cheval, damier d'arrivée en haut et en bas
+        var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#12603a'); g0.addColorStop(1, '#0a3a22'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+        noise(c, W, H, 700, 'rgba(255,255,255,0.06)'); border(c, W, H, '#d8b04a', 8);
+        var s = 18; for (var i = 0; i < Math.ceil((W - 32) / s); i++) for (var j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? '#f4f4f4' : '#161616'; c.fillRect(16 + i * s, 16 + j * s, s, s); c.fillRect(16 + i * s, H - 16 - (j + 1) * s, s, s); }
+        var pw = W - 56, ph = (H - 150) / 2, px = 28;
+        [60, 60 + ph + 30].forEach(function (y, n) {
+          c.strokeStyle = '#d8b04a'; c.lineWidth = 4; rr(c, px, y, pw, ph, 10); c.stroke();
+          c.fillStyle = 'rgba(0,0,0,0.28)'; rr(c, px + 6, y + 6, pw - 12, ph - 12, 8); c.fill();
+          var cx = px + pw / 2, cy = y + ph / 2, r = Math.min(pw, ph) * 0.27;
+          c.strokeStyle = '#ffd86b'; c.lineWidth = 11; c.lineCap = 'round'; c.beginPath(); c.arc(cx, cy, r, Math.PI * 0.78, Math.PI * 0.22, false); c.stroke();
+          c.fillStyle = '#0a3a22'; [-1, 1].forEach(function (sd) { c.beginPath(); c.arc(cx + sd * r * 0.9, cy + r * 0.45, 2.6, 0, TAU); c.fill(); });
+        });
       }
     },
     minijeux: {

@@ -18,12 +18,12 @@
   // les portes : nx/nz = direction dans laquelle la porte regarde (vers l'intérieur de la salle)
   var DOORS = [
     { id: 'uno', x: -9, z: -HZ, nx: 0, nz: 1, label: '🃏 UNO', sub: '2 À 4 JOUEURS', color: 0xffd400, target: 'uno', theme: 'uno' },
-    { id: 'puissance4', x: -3, z: -HZ, nx: 0, nz: 1, label: '🔴 PUISSANCE 4', sub: '2 JOUEURS', color: 0x2b6cff, target: 'puissance4' },
-    { id: 'ludo', x: 3, z: -HZ, nx: 0, nz: 1, label: '🎲 LUDO', sub: 'PETITS CHEVAUX', color: 0xffb300, target: 'ludo' },
+    { id: 'puissance4', x: -3, z: -HZ, nx: 0, nz: 1, label: '🔴 PUISSANCE 4', sub: '2 JOUEURS', color: 0x2b6cff, target: 'puissance4', theme: 'puissance4' },
+    { id: 'ludo', x: 3, z: -HZ, nx: 0, nz: 1, label: '🎲 LUDO', sub: 'PETITS CHEVAUX', color: 0xffb300, target: 'ludo', theme: 'ludo' },
     { id: 'vault', x: 9, z: -HZ, nx: 0, nz: 1, label: '🔐 CHAMBRE FORTE', sub: 'MINES', color: 0x3dff9a, target: 'vault', theme: 'mines' },
     { id: 'loupgarou', x: -HX, z: -3, nx: 1, nz: 0, label: '🐺 LOUP GAROU', sub: 'PARTIES DE 4 À 12 JOUEURS', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' },
     { id: 'blindtest', x: -HX, z: 3, nx: 1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
-    { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu' }
+    { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' }
   ];
 
   function createMiniJeuxRoom(world) {
