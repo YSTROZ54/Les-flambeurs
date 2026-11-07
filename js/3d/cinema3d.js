@@ -1712,7 +1712,7 @@
       var NV = 14, NH = 24, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
       function seg(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0]); return a; }
       var E = { L: { n: NV, cur: seg(NV), tgt: seg(NV) }, R: { n: NV, cur: seg(NV), tgt: seg(NV) }, T: { n: NH, cur: seg(NH), tgt: seg(NH) }, B: { n: NH, cur: seg(NH), tgt: seg(NH) } };
-      var TR = 0.3, RAD = 0.7, hx = SCR_W / 2 + TR, y0 = SCR_Y - TR, y1 = SCR_Y + SCR_H + TR, tz = -HZ + 0.3;   // collé au bord de l'écran
+      var TR = 0.3, OFF = 0.2, RAD = 0.7, hx = SCR_W / 2 + OFF, y0 = SCR_Y - OFF, y1 = SCR_Y + SCR_H + OFF, tz = -HZ + 0.16;   // le néon touche l'écran : même plan (z de l'écran), bord intérieur sous le bord de l'image
       // le parcours du néon : un rectangle à coins arrondis, dans le sens bas-gauche → haut-gauche → haut-droit → bas-droit → retour
       var path = new THREE.CurvePath(), V = function (x, y) { return new THREE.Vector3(x, y, tz); };
       path.add(new THREE.LineCurve3(V(-hx, y0 + RAD), V(-hx, y1 - RAD)));
@@ -1725,7 +1725,9 @@
       path.add(new THREE.QuadraticBezierCurve3(V(-hx + RAD, y0), V(-hx, y0), V(-hx, y0 + RAD)));
       var lens = path.getCurveLengths(), Ltot = lens[lens.length - 1];
       var W = 512, cv = mkCanvas(W, 2), cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.wrapS = THREE.RepeatWrapping;
-      var neon = new THREE.Mesh(new THREE.TubeGeometry(path, 900, TR, 12, true), new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(neon);   // additif : le noir ne se voit pas
+      var neonGeo = new THREE.TubeGeometry(path, 900, TR, 12, true), nPos = neonGeo.attributes.position;
+      for (var vi = 0; vi < nPos.count; vi++) nPos.setZ(vi, tz + (nPos.getZ(vi) - tz) * 0.35);   // néon aplati : un ruban collé contre l'écran, plus de jour visible de côté
+      var neon = new THREE.Mesh(neonGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(neon);   // additif : le noir ne se voit pas
       // halo doux tout autour (pas de rectangle : il s'efface vers l'extérieur et derrière l'écran)
       var hcv = mkCanvas(W, 16), hcx = hcv.getContext('2d'), htex = new THREE.CanvasTexture(hcv); htex.wrapS = THREE.RepeatWrapping;
       function ribbon(w, M, z) {                        // bande plate qui suit le néon, posée derrière l'écran : seule la moitié extérieure se voit, sur le mur
@@ -1814,7 +1816,9 @@
             GL = [0, 0, 0, 0, 0, 0, 0];
             var add = function (q) { q[0] += d[p] * w3; q[1] += d[p + 1] * w3; q[2] += d[p + 2] * w3; q[3] += w3; q[4] += lum * w3; q[5] += lum; q[6] += 1; };
             for (y = 0; y < 36; y++) for (x = 0; x < 64; x++) {
-              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255; w3 = lum * lum * lum + 0.0002;   // les zones lumineuses comptent beaucoup plus
+              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255;
+              var mxv = Math.max(d[p], d[p + 1], d[p + 2]), mnv = Math.min(d[p], d[p + 1], d[p + 2]), sat = mxv ? (mxv - mnv) / mxv : 0;
+              w3 = lum * lum * lum * 0.4 + sat * sat * lum * lum * 2 + 0.0002;   // les zones lumineuses comptent plus, et les couleurs vives aussi (une petite voiture rouge dans la neige doit teinter le bord)
               add(GL);
               if (x < 22) add(aL[Math.min(NV - 1, Math.floor(y * NV / 36))]);
               if (x >= 42) add(aR[Math.min(NV - 1, Math.floor(y * NV / 36))]);

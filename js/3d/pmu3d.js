@@ -20,7 +20,7 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, EMOJI = F.EMOJI_FONT, TAU = F.TAU, fmtN = F.fmtN;
 
-  var HX = 9, HZ = 8, H = 4.8;                 // demi-largeur, demi-profondeur, hauteur de la salle (mètres)
+  var HX = 13, HZ = 11, H = 5.2;                 // demi-largeur, demi-profondeur, hauteur de la salle (mètres)
   var RED = 0xd01a1a, BLACK = 0x15151a;
   var CARD_MS = 3400, SHOW_MS = 5500;           // durée du grattage, puis temps où la carte reste affichée
   var PRICE = 100, MAX_CARDS = 4;               // affichage seulement : le serveur décide (api/_games.js)
@@ -281,7 +281,7 @@
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshLambertMaterial({ color: 0x45424a })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
     /* --- le comptoir : plateau noir, face blanche rétroéclairée, bande rouge (il touche le mur de gauche ; un retour ferme le côté droit) --- */
-    var CZ = -4.6, CX0 = -HX, CX1 = 5.0;                                   // le comptoir va de x = -9 à x = 5, face à la salle (z = CZ)
+    var CZ = -7.4, CX0 = -HX, CX1 = 6.5;                                   // le comptoir va du mur de gauche à x = 6,5, face à la salle (z = CZ)
     var cw = CX1 - CX0, cmx = (CX0 + CX1) / 2;
     box(g, cw, 1.0, 0.9, lam(BLACK), cmx, 0.5, CZ);
     box(g, cw + 0.1, 0.06, 1.05, lam(0x0c0c10), cmx, 1.03, CZ);
@@ -297,20 +297,20 @@
     for (j = CZ - 1; j > -HZ; j -= 1.0) room.colliders.push({ x: CX1, z: j, r: 0.75 });
 
     /* --- derrière le comptoir : étagères de bureau de tabac, écrans de résultats et enseigne --- */
-    var shelf = new THREE.Group(); shelf.position.set(-2, 0, -HZ + 0.25); g.add(shelf);
-    box(shelf, 14, 2.4, 0.5, lam(0x1c1c22), 0, 1.2, 0);
+    var shelf = new THREE.Group(); shelf.position.set(-3, 0, -HZ + 0.25); g.add(shelf);
+    box(shelf, 20, 2.4, 0.5, lam(0x1c1c22), 0, 1.2, 0);
     var palette = [0xd01a1a, 0xf2f2f2, 0x2f6fe0, 0xf2d12a, 0x2fa050, 0x888890, 0x111111];
-    for (var row = 0; row < 3; row++) for (var col = 0; col < 40; col++) {
+    for (var row = 0; row < 3; row++) for (var col = 0; col < 57; col++) {
       if (Math.random() < 0.12) continue;
-      box(shelf, 0.28, 0.17, 0.1, lam(palette[(row * 7 + col * 3 + (col % 5)) % palette.length]), -6.9 + col * 0.35, 0.55 + row * 0.62, 0.26);
+      box(shelf, 0.28, 0.17, 0.1, lam(palette[(row * 7 + col * 3 + (col % 5)) % palette.length]), -9.9 + col * 0.35, 0.55 + row * 0.62, 0.26);
     }
-    [0.3, 0.92, 1.54, 2.16].forEach(function (y) { box(shelf, 14, 0.04, 0.5, lam(0x2c2c34), 0, y, 0.02); });
+    [0.3, 0.92, 1.54, 2.16].forEach(function (y) { box(shelf, 20, 0.04, 0.5, lam(0x2c2c34), 0, y, 0.02); });
     var tc = mkCanvas(512, 192), tx = tc.getContext('2d');
     tx.fillStyle = '#111116'; tx.fillRect(0, 0, 512, 192); tx.fillStyle = '#d01a1a'; tx.fillRect(0, 0, 512, 18); tx.fillRect(0, 174, 512, 18);
     tx.textAlign = 'center'; tx.textBaseline = 'middle'; tx.fillStyle = '#fff'; tx.font = '900 130px ' + SERIF; tx.fillText('PMU', 256, 98, 460);
     // enseigne collée au mur du fond, entre les étagères (haut 2,4 m) et les poutres (bas 4,5 m) : elle ne traverse plus ni le mur ni une poutre
-    box(g, 2.3, 0.9, 0.06, lam(0x111116), -2, 3.45, -HZ + 0.03);
-    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.825), new THREE.MeshBasicMaterial({ map: mkTex(tc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); tabSign.position.set(-2, 3.45, -HZ + 0.07); g.add(tabSign);
+    box(g, 2.3, 0.9, 0.06, lam(0x111116), -3, 3.7, -HZ + 0.03);
+    var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.825), new THREE.MeshBasicMaterial({ map: mkTex(tc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); tabSign.position.set(-3, 3.7, -HZ + 0.07); g.add(tabSign);
 
     /* --- le vendeur de cartes --- */
     var person = F.createPerson('Bruno', '🎟️'), pg = person.group, kids = pg.children;
@@ -334,17 +334,17 @@
       cyl(g, 0.19, 0.19, 0.1, lam(BLACK), x, 0.69, z, 18); cyl(g, 0.17, 0.17, 0.06, lam(RED), x, 0.77, z, 18);
       room.colliders.push({ x: x, z: z, r: 0.32 });
     }
-    for (i = 0; i < 7; i++) stool(-7.2 + i * 1.5, CZ + 1.25);
+    for (i = 0; i < 12; i++) stool(-11.5 + i * 1.5, CZ + 1.25);
 
     /* --- petites tables carrées et chaises noires à assise rouge (on peut s'y asseoir) --- */
     var seats = room.seats = [];
-    function chair(x, z, r, tx, tz, arm) {                       // r : rotation de la chaise (0 = elle regarde vers +z) ; (tx, tz) : la table
+    function chair(x, z, r, tx, tz, arm, tbl) {                       // r : rotation de la chaise (0 = elle regarde vers +z) ; (tx, tz) : la table
       var c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = r; g.add(c);
       [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(function (p) { box(c, 0.035, 0.45, 0.035, lam(BLACK), p[0], 0.225, p[1]); });
       box(c, 0.46, 0.05, 0.46, lam(BLACK), 0, 0.46, 0); box(c, 0.4, 0.04, 0.4, lam(RED), 0, 0.5, 0);
       box(c, 0.46, 0.4, 0.04, lam(BLACK), 0, 0.72, -0.21);                                                   // dossier : derrière la chaise
       room.colliders.push({ x: x, z: z, r: 0.3 });
-      var s = { n: seats.length, x: x, z: z, r: r, yaw: Math.PI - r, tx: tx, tz: tz, arm: arm, sx: x - Math.sin(r) * 0.95, sz: z - Math.cos(r) * 0.95 };   // sx, sz : où on se retrouve debout
+      var s = { n: seats.length, x: x, z: z, r: r, yaw: Math.PI - r, tx: tx, tz: tz, arm: arm, tbl: tbl, sx: x - Math.sin(r) * 0.95, sz: z - Math.cos(r) * 0.95 };   // sx, sz : où on se retrouve debout
       seats.push(s);
       room.interactables.push({
         x: x, z: z, radius: 1.35,
@@ -358,70 +358,166 @@
       room.colliders.push({ x: x, z: z, r: 0.55 });
       chair(x, z - 0.8, 0, x, z); chair(x, z + 0.8, Math.PI, x, z); chair(x - 0.85, z, Math.PI / 2, x, z); chair(x + 0.85, z, -Math.PI / 2, x, z);
     }
-    [[1.6, -0.5], [5.2, -0.5], [1.6, 3.4], [5.2, 3.4]].forEach(function (p) { table(p[0], p[1]); });
+    
+    // lampes suspendues : abat-jour noir, intérieur qui brille
+    function pendant(x, z, y, r) {
+      var cord = cyl(g, 0.012, 0.012, H - y, lam(BLACK), x, (H + y) / 2, z, 6);
+      var sh = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.35, r, 0.38, 20, 1, true), new THREE.MeshLambertMaterial({ color: 0x15151a, side: THREE.DoubleSide })); sh.position.set(x, y, z); g.add(sh);
+      var bulb = sph(g, r * 0.22, bas(0xfff0c8), x, y - 0.08, z);
+      var gl = new THREE.Sprite(glowMatPmu); gl.scale.set(r * 4, r * 4, 1); gl.position.set(x, y - 0.1, z); g.add(gl);
+    }
+    var glowMatPmu = new THREE.SpriteMaterial({ map: (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,225,170,0.8)'); gr.addColorStop(0.45, 'rgba(255,190,110,0.25)'); gr.addColorStop(1, 'rgba(255,170,80,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c); })(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    // plantes en pot
+    function plant(x, z, sc) {
+      sc = sc || 1;
+      cyl(g, 0.3 * sc, 0.24 * sc, 0.55 * sc, lam(0x2a2a32), x, 0.275 * sc, z, 14); cyl(g, 0.27 * sc, 0.27 * sc, 0.03, lam(0x3b2a1c), x, 0.55 * sc, z, 14);
+      var leafM = [lam(0x2f7d3a), lam(0x3f9a45), lam(0x23642f)];
+      for (var q = 0; q < 14; q++) { var a = q * 2.4, rr = 0.18 + (q % 4) * 0.08, l = sph(g, 0.22 * sc, leafM[q % 3], x + Math.cos(a) * rr * sc, (0.95 + (q % 5) * 0.22) * sc, z + Math.sin(a) * rr * sc); l.scale.set(0.8, 1.5, 0.8); l.rotation.set(Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4); }
+      room.colliders.push({ x: x, z: z, r: 0.42 * sc });
+    }
+    [[-12, 9.8], [12, 9.8], [12.1, -0.2], [-12, -0.2]].forEach(function (p) { plant(p[0], p[1], 1.3); });
+    // coin salon : deux canapés en cuir rouge face à face autour d'une table basse
+    function sofa(x, z, ry) {
+      var sg = new THREE.Group(); sg.position.set(x, 0, z); sg.rotation.y = ry; g.add(sg);
+      var lea = lam(0x5a1218), legM = lam(BLACK);
+      box(sg, 2.2, 0.38, 0.95, lea, 0, 0.3, 0); box(sg, 2.2, 0.55, 0.22, lea, 0, 0.7, -0.4);
+      [-1, 1].forEach(function (sd) { box(sg, 0.2, 0.3, 0.95, lea, sd * 1.1, 0.55, 0); box(sg, 0.05, 0.1, 0.05, legM, sd * 1.0, 0.05, 0.38); box(sg, 0.05, 0.1, 0.05, legM, sd * 1.0, 0.05, -0.38); });
+      [-0.55, 0.55].forEach(function (cx) { box(sg, 0.95, 0.12, 0.8, lam(0x6e1820), cx, 0.52, 0.04); });
+      room.colliders.push({ x: x + Math.cos(ry) * -0.6, z: z + Math.sin(ry) * 0.6, r: 0.65 }, { x: x + Math.cos(ry) * 0.6, z: z - Math.sin(ry) * 0.6, r: 0.65 });
+    }
+    sofa(11.9, 8.2, -Math.PI / 2); sofa(7.6, 8.2, Math.PI / 2);
+    box(g, 1.1, 0.05, 0.7, lam(0x1c1c22), 9.75, 0.42, 8.2); cyl(g, 0.04, 0.04, 0.4, chrome(), 9.75, 0.2, 8.2, 8); room.colliders.push({ x: 9.75, z: 8.2, r: 0.55 });
+    pendant(9.75, 8.2, 3.0, 0.7);
+    [[-8, -3.4], [-4.2, -3.4], [-0.4, -3.4], [3.4, -3.4], [7.2, -3.4], [10.8, -3.4]].forEach(function (p) { table(p[0], p[1]); pendant(p[0], p[1], 2.9, 0.55); });
 
-    /* --- table de bras de fer : 2 joueurs, en ligne. Le joueur assis à l'ouest (côté 0) est l'arbitre : lui seul décide du score et du gagnant. --- */
-    var AX = -4.6, AZ = 3.4, STEP = 0.025, MIN_GAP = 80, ARM_BEAT = 100, ARM_MAX_MS = 25000;
-    var aw = { id: 0, st: 'idle', n: 0, pos: 0, win: -1, n0: '', n1: '', last: 0, t0: 0, endT: 0, dirty: true, sent: 0, clicks: [0, 0] };
-    var armSeats = [], armEl = null, armCssDone = false, lastOwnClick = 0;
-    box(g, 1.5, 0.06, 0.85, lam(0x2a1d14), AX, 0.76, AZ);
-    [[-0.6, -0.32], [0.6, -0.32], [-0.6, 0.32], [0.6, 0.32]].forEach(function (p) { box(g, 0.07, 0.73, 0.07, chrome(), AX + p[0], 0.365, AZ + p[1]); });
-    [-0.45, 0.45].forEach(function (dx) { box(g, 0.22, 0.03, 0.3, lam(RED), AX + dx, 0.8, AZ); });          // coussins pour les coudes
-    room.colliders.push({ x: AX, z: AZ, r: 0.75 });
-    chair(AX - 1.15, AZ, Math.PI / 2, AX, AZ, 0); chair(AX + 1.15, AZ, -Math.PI / 2, AX, AZ, 1);
-    armSeats = [seats[seats.length - 2], seats[seats.length - 1]];
+
+
+    /* --- trois tables de bras de fer : 2 joueurs chacune, en ligne. Le joueur assis à l'ouest (côté 0) est l'arbitre de SA table : lui seul décide du score et du gagnant. --- */
+    var STEP = 0.025, MIN_GAP = 80, ARM_BEAT = 100, ARM_MAX_MS = 25000;
+    var armTables = [], armEl = null, armCssDone = false, lastOwnClick = 0;
     var armMat = [lam(0xd01a1a), lam(0x2f6fe0)], skinM = lam(0xe0ac82);
-    var forearm = [box(g, 1, 0.07, 0.09, armMat[0], AX, 1, AZ), box(g, 1, 0.07, 0.09, armMat[1], AX, 1, AZ)];
-    var fist = sph(g, 0.1, skinM, AX, 1, AZ);
-    var abCv = mkCanvas(512, 192), abTex = mkTex(abCv);
-    var board = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: abTex, transparent: true, depthWrite: false })); board.position.set(AX, 2.05, AZ); g.add(board);
     function myName() { var s = st(); return (s && s.username) || 'Joueur'; }
-    function armRemote(n) {
-      var now = performance.now(), s = armSeats[n], found = null;
-      Object.keys(world.remote).forEach(function (k) { var r = world.remote[k]; if (r && r.seat === s.n && now - (r.recv || 0) < 3200) found = r; });
-      return found;
-    }
     function mySide() { return seat && seat.arm !== undefined ? seat.arm : -1; }
-    function drawBoard() {
-      var x = abCv.getContext('2d'), W = 512, Hh = 192;
-      x.clearRect(0, 0, W, Hh); x.fillStyle = 'rgba(12,12,18,0.82)'; x.fillRect(0, 0, W, Hh);
-      x.fillStyle = '#d01a1a'; x.fillRect(0, 0, W, 10);
-      x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '900 34px ' + SERIF;
-      var tl = aw.st === 'idle' ? '💪 BRAS DE FER' : aw.st === 'count' ? String(Math.max(1, aw.n)) : aw.st === 'end' ? '🏆 ' + (aw.win === 0 ? aw.n0 : aw.n1) + ' gagne !' : (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?');
-      x.fillText(tl, W / 2, 46, 480);
-      x.fillStyle = '#333'; x.fillRect(30, 90, 452, 30);
-      var f = (aw.pos + 1) / 2; x.fillStyle = '#d01a1a'; x.fillRect(30, 90, 452 * f, 30); x.fillStyle = '#2f6fe0'; x.fillRect(30 + 452 * f, 90, 452 * (1 - f), 30);
-      x.fillStyle = '#fff'; x.fillRect(30 + 452 * f - 3, 84, 6, 42);
-      x.font = '700 22px ' + SERIF; x.fillStyle = '#ddd';
-      x.fillText(aw.st === 'idle' ? 'Assieds-toi de chaque côté (F)' : aw.st === 'run' ? 'Clic gauche, le plus vite possible !' : aw.st === 'count' ? 'Prépare-toi…' : 'Revanche dans un instant', W / 2, 154, 480);
-      abTex.needsUpdate = true;
+    // tapis rond sous chaque table : fond sombre, anneaux dorés, rouge contre bleu
+    var rugTex = (function () {
+      var c = mkCanvas(256, 256), x = c.getContext('2d');
+      x.fillStyle = '#1a0a0e'; x.beginPath(); x.arc(128, 128, 126, 0, TAU); x.fill();
+      x.strokeStyle = '#c9a227'; x.lineWidth = 6; x.beginPath(); x.arc(128, 128, 118, 0, TAU); x.stroke(); x.lineWidth = 2; x.beginPath(); x.arc(128, 128, 104, 0, TAU); x.stroke();
+      x.fillStyle = '#7a1018'; x.beginPath(); x.arc(128, 128, 96, Math.PI / 2, Math.PI * 1.5); x.fill();
+      x.fillStyle = '#1c3f86'; x.beginPath(); x.arc(128, 128, 96, -Math.PI / 2, Math.PI / 2); x.fill();
+      x.fillStyle = 'rgba(0,0,0,0.35)'; x.beginPath(); x.arc(128, 128, 60, 0, TAU); x.fill();
+      x.strokeStyle = '#c9a227'; x.lineWidth = 3; x.beginPath(); x.arc(128, 128, 60, 0, TAU); x.stroke();
+      return mkTex(c);
+    })();
+    function makeArmTable(AX, AZ, idx) {
+      var T = { idx: idx, aw: { id: 0, st: 'idle', n: 0, pos: 0, win: -1, n0: '', n1: '', last: 0, t0: 0, endT: 0, dirty: true, sent: 0, clicks: [0, 0] } }, aw = T.aw;
+      var rug = new THREE.Mesh(new THREE.CircleGeometry(2.7, 40), new THREE.MeshLambertMaterial({ map: rugTex, transparent: true })); rug.rotation.x = -Math.PI / 2; rug.position.set(AX, 0.012, AZ); g.add(rug);
+      box(g, 1.5, 0.06, 0.85, lam(0x2a1d14), AX, 0.76, AZ);
+      [[-0.6, -0.32], [0.6, -0.32], [-0.6, 0.32], [0.6, 0.32]].forEach(function (p) { box(g, 0.07, 0.73, 0.07, chrome(), AX + p[0], 0.365, AZ + p[1]); });
+      [-0.45, 0.45].forEach(function (dx) { box(g, 0.22, 0.03, 0.3, lam(RED), AX + dx, 0.8, AZ); });          // coussins pour les coudes
+      room.colliders.push({ x: AX, z: AZ, r: 0.75 });
+      chair(AX - 1.15, AZ, Math.PI / 2, AX, AZ, 0, T); chair(AX + 1.15, AZ, -Math.PI / 2, AX, AZ, 1, T);
+      T.seats = [seats[seats.length - 2], seats[seats.length - 1]];
+      pendant(AX, AZ, 3.3, 0.8);
+      var forearm = [box(g, 1, 0.07, 0.09, armMat[0], AX, 1, AZ), box(g, 1, 0.07, 0.09, armMat[1], AX, 1, AZ)];
+      var fist = sph(g, 0.1, skinM, AX, 1, AZ);
+      var abCv = mkCanvas(512, 192), abTex = mkTex(abCv);
+      var board = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: abTex, transparent: true, depthWrite: false })); board.position.set(AX, 2.3, AZ); g.add(board);
+      var tn = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'); x.fillStyle = '#d01a1a'; x.beginPath(); x.arc(32, 32, 30, 0, TAU); x.fill(); x.fillStyle = '#fff'; x.font = '900 40px ' + SERIF; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(idx + 1), 32, 36); return mkTex(c); })(), transparent: true })); tn.position.set(AX, 2.95, AZ); g.add(tn);
+      function armRemote(n) {
+        var now = performance.now(), s = T.seats[n], found = null;
+        Object.keys(world.remote).forEach(function (k) { var r = world.remote[k]; if (r && r.seat === s.n && now - (r.recv || 0) < 3200) found = r; });
+        return found;
+      }
+      function drawBoard() {
+        var x = abCv.getContext('2d'), W = 512, Hh = 192;
+        x.clearRect(0, 0, W, Hh); x.fillStyle = 'rgba(12,12,18,0.82)'; x.fillRect(0, 0, W, Hh);
+        x.fillStyle = '#d01a1a'; x.fillRect(0, 0, W, 10);
+        x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '900 34px ' + SERIF;
+        var tl = aw.st === 'idle' ? '💪 BRAS DE FER ' + (idx + 1) : aw.st === 'count' ? String(Math.max(1, aw.n)) : aw.st === 'end' ? '🏆 ' + (aw.win === 0 ? aw.n0 : aw.n1) + ' gagne !' : (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?');
+        x.fillText(tl, W / 2, 46, 480);
+        x.fillStyle = '#333'; x.fillRect(30, 90, 452, 30);
+        var f = (aw.pos + 1) / 2; x.fillStyle = '#d01a1a'; x.fillRect(30, 90, 452 * f, 30); x.fillStyle = '#2f6fe0'; x.fillRect(30 + 452 * f, 90, 452 * (1 - f), 30);
+        x.fillStyle = '#fff'; x.fillRect(30 + 452 * f - 3, 84, 6, 42);
+        x.font = '700 22px ' + SERIF; x.fillStyle = '#ddd';
+        x.fillText(aw.st === 'idle' ? 'Assieds-toi de chaque côté (F)' : aw.st === 'run' ? 'Clic gauche, le plus vite possible !' : aw.st === 'count' ? 'Prépare-toi…' : 'Revanche dans un instant', W / 2, 154, 480);
+        abTex.needsUpdate = true;
+      }
+      function applyArms() {
+        var cx = AX + aw.pos * 0.22, cy = 0.9 + 0.22 * (1 - Math.abs(aw.pos) * 0.7);
+        [-0.45, 0.45].forEach(function (dx, i) {
+          var ex = AX + dx, ey = 0.84, vx = cx - ex, vy = cy - ey, len = Math.hypot(vx, vy), f = forearm[i];
+          f.scale.x = len; f.position.set(ex + vx / 2, ey + vy / 2, AZ); f.rotation.z = Math.atan2(vy, vx);
+        });
+        fist.position.set(cx, cy, AZ);
+      }
+      function resetAw() { aw.st = 'idle'; aw.pos = 0; aw.win = -1; aw.n = 0; aw.dirty = true; }
+      function endAw(win) { aw.st = 'end'; aw.win = win; aw.endT = performance.now(); aw.dirty = true; aw.sent = 0; }
+      T.applyClick = function (side, now) {                  // arbitre seulement
+        if (aw.st !== 'run') return;
+        if (now - aw.clicks[side] < MIN_GAP) return;           // cadence maximale : environ 12 clics par seconde
+        aw.clicks[side] = now; aw.pos += side === 0 ? STEP : -STEP;
+        if (aw.pos >= 1) { aw.pos = 1; endAw(0); } else if (aw.pos <= -1) { aw.pos = -1; endAw(1); }
+        aw.dirty = true;
+      };
+      function armSend() {
+        var w = world; if (!w.rt || !w.rt.ready) return;
+        try { w.rt.send('abs', { k: F.me(), id: aw.id, st: aw.st, n: aw.n, pos: Math.round(aw.pos * 1000) / 1000, win: aw.win, n0: aw.n0, n1: aw.n1 }); } catch (e) { /* ok */ }
+      }
+      T.update = function (dt) {
+        var now = performance.now(), me = seat && seat.tbl === T ? seat.arm : -1;
+        if (me === 0) {
+          var opp = armRemote(1);
+          aw.n0 = myName();
+          if (!opp) { if (aw.st !== 'idle') { resetAw(); armSend(); } }
+          else {
+            aw.n1 = String(opp.name || '').slice(0, 16);
+            if (aw.st === 'idle') { aw.id = (aw.id + 1) % 100000; aw.st = 'count'; aw.t0 = now; aw.pos = 0; aw.win = -1; aw.clicks = [0, 0]; aw.dirty = true; }
+            else if (aw.st === 'count') {
+              var n = 3 - Math.floor((now - aw.t0) / 1000); if (n !== aw.n) { aw.n = n; aw.dirty = true; }
+              if (now - aw.t0 >= 3000) { aw.st = 'run'; aw.t0 = now; aw.dirty = true; }
+            } else if (aw.st === 'run' && now - aw.t0 > ARM_MAX_MS) { if (aw.pos === 0) resetAw(); else endAw(aw.pos > 0 ? 0 : 1); }
+            else if (aw.st === 'end' && now - aw.endT > 4500) resetAw();
+          }
+          if (now - aw.sent > ARM_BEAT || aw.dirty) { aw.sent = now; armSend(); }
+        } else if (aw.st !== 'idle' && now - aw.last > 2500) resetAw();   // l'arbitre a disparu
+        if (aw.dirty || (armEl && me >= 0)) {
+          if (armEl && me >= 0) {
+            var t = armEl.querySelector('.t'), s = armEl.querySelector('.s'), b = armEl.querySelector('.bar i'), tx, sx;
+            if (aw.st === 'idle') { tx = '💪 Bras de fer'; sx = me === 0 ? 'Attends un adversaire…' : 'Attends que le joueur de gauche soit prêt…'; }
+            else if (aw.st === 'count') { tx = String(Math.max(1, aw.n)); sx = 'Prépare ton doigt sur le CLIC GAUCHE'; }
+            else if (aw.st === 'run') { tx = (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?'); sx = 'CLIC GAUCHE, le plus vite possible !'; }
+            else { tx = aw.win === me ? '🏆 Tu as gagné !' : '😖 Tu as perdu…'; sx = 'Revanche dans un instant'; }
+            if (t.textContent !== tx) t.textContent = tx; if (s.textContent !== sx) s.textContent = sx;
+            b.style.width = ((aw.pos + 1) * 50).toFixed(1) + '%';
+          }
+          if (aw.dirty) { drawBoard(); applyArms(); aw.dirty = false; }
+        }
+      };
+      T.msg = function (ev, m, remote) {
+        var now = performance.now(), me = seat && seat.tbl === T ? seat.arm : -1;
+        if (!remote) return;
+        if (ev === 'abs') {
+          if (remote.seat !== T.seats[0].n || me === 0) return;
+          var okSt = { idle: 1, count: 1, run: 1, end: 1 };
+          if (!okSt[m.st]) return;
+          var p = Number(m.pos); if (!isFinite(p)) return;
+          aw.id = m.id | 0; aw.st = m.st; aw.n = m.n | 0; aw.pos = Math.max(-1, Math.min(1, p)); aw.win = m.win === 0 || m.win === 1 ? m.win : -1;
+          aw.n0 = String(m.n0 || '').slice(0, 16); aw.n1 = String(m.n1 || '').slice(0, 16); aw.last = now; aw.dirty = true;
+        } else if (ev === 'abc') {
+          if (me !== 0 || remote.seat !== T.seats[1].n || (m.id | 0) !== aw.id) return;
+          T.applyClick(1, now);
+        }
+      };
+      applyArms(); drawBoard();
+      armTables.push(T); return T;
     }
-    function applyArms() {
-      var cx = AX + aw.pos * 0.22, cy = 0.9 + 0.22 * (1 - Math.abs(aw.pos) * 0.7);
-      [-0.45, 0.45].forEach(function (dx, i) {
-        var ex = AX + dx, ey = 0.84, vx = cx - ex, vy = cy - ey, len = Math.hypot(vx, vy), f = forearm[i];
-        f.scale.x = len; f.position.set(ex + vx / 2, ey + vy / 2, AZ); f.rotation.z = Math.atan2(vy, vx);
-      });
-      fist.position.set(cx, cy, AZ);
-    }
-    function resetAw() { aw.st = 'idle'; aw.pos = 0; aw.win = -1; aw.n = 0; aw.dirty = true; }
-    function endAw(win) { aw.st = 'end'; aw.win = win; aw.endT = performance.now(); aw.dirty = true; aw.sent = 0; }
-    function applyClick(side, now) {                        // arbitre seulement
-      if (aw.st !== 'run') return;
-      if (now - aw.clicks[side] < MIN_GAP) return;           // cadence maximale : environ 12 clics par seconde
-      aw.clicks[side] = now; aw.pos += side === 0 ? STEP : -STEP;
-      if (aw.pos >= 1) { aw.pos = 1; endAw(0); } else if (aw.pos <= -1) { aw.pos = -1; endAw(1); }
-      aw.dirty = true;
-    }
-    function armSend() {
-      var w = world; if (!w.rt || !w.rt.ready) return;
-      try { w.rt.send('abs', { k: F.me(), id: aw.id, st: aw.st, n: aw.n, pos: Math.round(aw.pos * 1000) / 1000, win: aw.win, n0: aw.n0, n1: aw.n1 }); } catch (e) { /* ok */ }
-    }
+    [-7, 0, 7].forEach(function (x, i) { makeArmTable(x, 4.6, i); });
     function onArmClick(e) {
-      if (e.button !== 0 || !seat || seat.arm === undefined) return;
+      if (e.button !== 0 || !seat || seat.arm === undefined || !seat.tbl) return;
       if (e.target && e.target.closest && e.target.closest('button')) return;
-      var now = performance.now(), me = seat.arm;
-      if (me === 0) applyClick(0, now);
+      var T = seat.tbl, aw = T.aw, now = performance.now(), me = seat.arm;
+      if (me === 0) T.applyClick(0, now);
       else if (aw.st === 'run' && now - lastOwnClick >= MIN_GAP) { lastOwnClick = now; try { if (world.rt && world.rt.ready) world.rt.send('abc', { k: F.me(), id: aw.id }); } catch (er) { /* ok */ } }
       if (armEl) { armEl.classList.add('hit'); setTimeout(function () { if (armEl) armEl.classList.remove('hit'); }, 60); }
     }
@@ -436,59 +532,13 @@
       armEl.innerHTML = '<div class="t"></div><div class="bar"><i></i></div><div class="s"></div>';
       w.container.appendChild(armEl);
       window.addEventListener('mousedown', onArmClick, true);
-      aw.dirty = true;
+      if (seat && seat.tbl) seat.tbl.aw.dirty = true;
     }
     function armOnStand() {
       window.removeEventListener('mousedown', onArmClick, true);
       if (armEl && armEl.parentNode) armEl.parentNode.removeChild(armEl);
       armEl = null;
     }
-    function armUpdate(dt) {
-      var now = performance.now(), me = mySide();
-      if (me === 0) {
-        var opp = armRemote(1);
-        aw.n0 = myName();
-        if (!opp) { if (aw.st !== 'idle') { resetAw(); armSend(); } }
-        else {
-          aw.n1 = String(opp.name || '').slice(0, 16);
-          if (aw.st === 'idle') { aw.id = (aw.id + 1) % 100000; aw.st = 'count'; aw.t0 = now; aw.pos = 0; aw.win = -1; aw.clicks = [0, 0]; aw.dirty = true; }
-          else if (aw.st === 'count') {
-            var n = 3 - Math.floor((now - aw.t0) / 1000); if (n !== aw.n) { aw.n = n; aw.dirty = true; }
-            if (now - aw.t0 >= 3000) { aw.st = 'run'; aw.t0 = now; aw.dirty = true; }
-          } else if (aw.st === 'run' && now - aw.t0 > ARM_MAX_MS) { if (aw.pos === 0) resetAw(); else endAw(aw.pos > 0 ? 0 : 1); }
-          else if (aw.st === 'end' && now - aw.endT > 4500) resetAw();
-        }
-        if (now - aw.sent > ARM_BEAT || aw.dirty) { aw.sent = now; armSend(); }
-      } else if (aw.st !== 'idle' && now - aw.last > 2500) resetAw();   // l'arbitre a disparu
-      if (aw.dirty || armEl) {
-        if (armEl) {
-          var mine = me, t = armEl.querySelector('.t'), s = armEl.querySelector('.s'), b = armEl.querySelector('.bar i'), tx, sx;
-          if (aw.st === 'idle') { tx = '💪 Bras de fer'; sx = me === 0 ? 'Attends un adversaire…' : 'Attends que le joueur de gauche soit prêt…'; }
-          else if (aw.st === 'count') { tx = String(Math.max(1, aw.n)); sx = 'Prépare ton doigt sur le CLIC GAUCHE'; }
-          else if (aw.st === 'run') { tx = (aw.n0 || '?') + '  VS  ' + (aw.n1 || '?'); sx = 'CLIC GAUCHE, le plus vite possible !'; }
-          else { tx = aw.win === mine ? '🏆 Tu as gagné !' : '😖 Tu as perdu…'; sx = 'Revanche dans un instant'; }
-          if (t.textContent !== tx) t.textContent = tx; if (s.textContent !== sx) s.textContent = sx;
-          b.style.width = ((aw.pos + 1) * 50).toFixed(1) + '%';
-        }
-        if (aw.dirty) { drawBoard(); applyArms(); aw.dirty = false; }
-      }
-    }
-    function armMsg(ev, m, remote) {
-      var now = performance.now(), me = mySide();
-      if (!remote) return;
-      if (ev === 'abs') {
-        if (remote.seat !== armSeats[0].n || me === 0) return;
-        var okSt = { idle: 1, count: 1, run: 1, end: 1 };
-        if (!okSt[m.st]) return;
-        var p = Number(m.pos); if (!isFinite(p)) return;
-        aw.id = m.id | 0; aw.st = m.st; aw.n = m.n | 0; aw.pos = Math.max(-1, Math.min(1, p)); aw.win = m.win === 0 || m.win === 1 ? m.win : -1;
-        aw.n0 = String(m.n0 || '').slice(0, 16); aw.n1 = String(m.n1 || '').slice(0, 16); aw.last = now; aw.dirty = true;
-      } else if (ev === 'abc') {
-        if (me !== 0 || remote.seat !== armSeats[1].n || (m.id | 0) !== aw.id) return;
-        applyClick(1, now);
-      }
-    }
-    applyArms(); drawBoard();
 
     /* --- étagères de magazines le long du mur de gauche --- */
     function magTex() {
@@ -503,7 +553,7 @@
       return mkTex(c);
     }
     var mt = magTex();
-    [-1.2, 1.5, 4.2].forEach(function (z) {
+    [-3.2, 0.2, 3.6, 7.0].forEach(function (z) {
       var u = new THREE.Group(); u.position.set(-HX + 0.3, 0, z); u.rotation.y = Math.PI / 2; g.add(u);
       box(u, 2.5, 2.3, 0.5, lam(BLACK), 0, 1.15, 0);
       var m = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.9), new THREE.MeshBasicMaterial({ map: mt })); m.position.set(0, 1.2, 0.26); u.add(m);
@@ -514,7 +564,7 @@
     /* --- poutres sombres au plafond --- */
     var beamM = lam(0x1b1512);
     for (i = -HX + 1.5; i < HX; i += 3) box(g, 0.28, 0.3, HZ * 2, beamM, i, H - 0.15, 0);
-    [-4.5, 0, 4.5].forEach(function (z) { box(g, HX * 2, 0.22, 0.2, beamM, 0, H - 0.11, z); });
+    [-7.5, -2.5, 2.5, 7.5].forEach(function (z) { box(g, HX * 2, 0.22, 0.2, beamM, 0, H - 0.11, z); });
 
     /* --- appliques murales : abat-jour crème, lumière chaude et douce (ni LED ni lustre) --- */
     var glowTex = (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,214,150,0.85)'); gr.addColorStop(0.4, 'rgba(255,180,100,0.3)'); gr.addColorStop(1, 'rgba(255,160,70,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c); })();
@@ -528,15 +578,25 @@
       var gl = new THREE.Sprite(glowMat); gl.scale.set(1.5, 1.5, 1); gl.position.set(0, 0.04, 0.3); s.add(gl);
       var wash = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.3), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })); wash.position.set(0, 0.0, 0.02); s.add(wash);
     }
-    [-6.5, -2.5, 2.5, 6.5].forEach(function (z) { sconce(HX - 0.01, z, -Math.PI / 2); });          // mur de droite
-    [-3.3, 6.9].forEach(function (z) { sconce(-HX + 0.01, z, Math.PI / 2); });                        // mur de gauche : entre le comptoir et les étagères, et après les étagères
-    [-6.5, -3.2, 3.2, 6.5].forEach(function (x) { sconce(x, HZ - 0.01, Math.PI); });                // mur de l'entrée
-    sconce(7.2, -HZ + 0.02, 0);                                                                     // mur du fond, à droite des étagères
+    [-8, -4, 0, 4, 8].forEach(function (z) { sconce(HX - 0.01, z, -Math.PI / 2); });          // mur de droite
+    [-5, -1.5, 1.9, 5.3, 8.8].forEach(function (z) { sconce(-HX + 0.01, z, Math.PI / 2); });                        // mur de gauche : entre le comptoir et les étagères, et après les étagères
+    [-10, -6, -3.2, 3.2, 6, 10].forEach(function (x) { sconce(x, HZ - 0.01, Math.PI); });                // mur de l'entrée
+    sconce(9.5, -HZ + 0.02, 0); sconce(-12.2, -HZ + 0.02, 0);                                                                     // mur du fond, à droite des étagères
+
+    /* --- enseigne de l'arène, sur le mur du fond de la salle à droite des tables : « Bras de fer » --- */
+    (function () {
+      var c = mkCanvas(1024, 192), x = c.getContext('2d');
+      x.fillStyle = '#12090c'; x.fillRect(0, 0, 1024, 192); x.strokeStyle = '#d01a1a'; x.lineWidth = 10; x.strokeRect(8, 8, 1008, 176); x.strokeStyle = '#c9a227'; x.lineWidth = 3; x.strokeRect(22, 22, 980, 148);
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff4e0'; x.font = '900 92px ' + SERIF; x.fillText('💪 ARÈNE DU BRAS DE FER', 512, 92, 940);
+      var sg = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 1.35), new THREE.MeshBasicMaterial({ map: mkTex(c), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      sg.position.set(0, 4.15, HZ - 0.06); sg.rotation.y = Math.PI; g.add(sg);
+      box(g, 7.5, 1.6, 0.05, lam(0x111116), 0, 4.15, HZ - 0.03);
+    })();
 
     /* --- lumières --- */
     g.add(new THREE.AmbientLight(0xf0e6dc, 1.15));
     var key = new THREE.DirectionalLight(0xffffff, 0.45); key.position.set(3, 8, 5); g.add(key);
-    if (!low) { var pl = new THREE.PointLight(0xfff0d8, 0.7, 16); pl.position.set(1, 3.6, -1); g.add(pl); var p2 = new THREE.PointLight(0xffe0c0, 0.5, 12); p2.position.set(-5, 3, 3); g.add(p2); }
+    if (!low) [[-8, 4, -3], [8, 4, -3], [-7, 4, 5], [0, 4, 5], [7, 4, 5], [9.7, 3.6, 8.2]].forEach(function (p) { var pl = new THREE.PointLight(0xffe6c4, 0.55, 13); pl.position.set(p[0], p[1], p[2]); g.add(pl); });
 
     /* --- porte de retour vers la boutique --- */
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🎮 MINI JEUX', sub: 'RETOUR', color: 0xffd24a, target: 'minijeux' });
@@ -696,10 +756,10 @@
       s.dirty = true;
     }
     function killShow(s) { if (s.sp.parent) s.sp.parent.remove(s.sp); s.tex.dispose(); s.sp.material.dispose(); }
-    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); else if (ev === 'abs' || ev === 'abc') armMsg(ev, m, remote); };
+    room.onRtMsg = function (ev, m, remote) { if (ev === 'scr') showRemote(m, remote); else if (ev === 'scp') progRemote(m); else if (ev === 'abs' || ev === 'abc') armTables.forEach(function (T) { T.msg(ev, m, remote); }); };
 
     /* --- cycle de vie, interface --- */
-    room.hint = function (w) { if (w.touch) return 'Joystick : marcher · touche Bruno au comptoir ou une table pour jouer'; return 'Bras de fer : prends place à la table de gauche · ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
+    room.hint = function (w) { if (w.touch) return 'Joystick : marcher · touche Bruno au comptoir ou une table pour jouer'; return 'Bras de fer : prends place à l\'une des trois tables · ZQSD / flèches : marcher · Maj : courir · F : parler à Bruno au comptoir ou prendre place aux tables · tes cartes sont dans la barre du bas (1, 2, 4, 5) : on les gratte ici, dans le PMU'; };
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.onEnter = function () { hereT = 99; if (loggedIn()) loadCards(); };
     room.onLeave = function () { closeTalk(true); stand(); if (PMU.self) PMU.self.finish(); shows.forEach(killShow); shows = []; };
@@ -717,7 +777,7 @@
       else if (talk) r0 = -0.9 + Math.sin(t * 2.2) * 0.12;
       else if (d < 6 && w.mode === 'room') r0 = -2.6 + Math.sin(t * 7) * 0.22;
       arms[0].rotation.x = lerp(arms[0].rotation.x, l0, k); arms[1].rotation.x = lerp(arms[1].rotation.x, r0, k);
-      armUpdate(dt);
+      armTables.forEach(function (T) { T.update(dt); });
       // cartes affichées au-dessus des autres joueurs
       var now = performance.now();
       shows = shows.filter(function (s) {
