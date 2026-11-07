@@ -302,7 +302,7 @@
       bw.moveTo(-HX, 0); bw.lineTo(HX, 0); bw.lineTo(HX, H); bw.lineTo(-HX, H); bw.closePath();
       hole.moveTo(-1.0, hy); hole.lineTo(1.0, hy); hole.lineTo(1.0, hy2); hole.lineTo(-1.0, hy2); hole.closePath(); bw.holes.push(hole);
       var bm = new THREE.Mesh(new THREE.ShapeGeometry(bw), P ? starMatUV() : wallM); bm.rotation.y = Math.PI; bm.position.set(0, 0, HZ); g.add(bm);
-    })(); if (!P) { wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2); }   // (premium : murs latéraux percés, construits avec l'étage VIP)
+    })(); wall(HZ * 2, H, -HX, H / 2, 0, Math.PI / 2); wall(HZ * 2, H, HX, H / 2, 0, -Math.PI / 2);   // murs latéraux pleins   // (premium : murs latéraux percés, construits avec l'étage VIP)
     var ceilM = null, starLedM = null;
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), P ? (ceilM = tintize(new THREE.MeshBasicMaterial({ map: starCeilingTex() }))) : new THREE.MeshLambertMaterial({ color: 0x140a0e })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
     if (P) {                                                // quelques petites lumières blanches au plafond : elles s'éteignent quand le film commence
@@ -729,41 +729,18 @@
         room._deskInfo = { DX: DX, DZ: DZ, EY: gy0 + 1.35, WY: gy0 + 2.22, WZ: HZ - 0.06, SW: SWm, SH: SHm };
         room.interactables.push({ hit: deskHit, x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl(); }, prompt: function () { return '🎛️ Bureau staff — la régie sur le grand écran  [F / clic]'; }, use: function (w) { deskEnter(w || world); } });
       })();
-      var wallPush = [], gate = [], edge = [], zc2;
+      var gate = [], edge = [];
+      // l'étage VIP : une porte normale de chaque côté (en bas) qui emmène sur le balcon, et une de chaque côté du balcon pour redescendre
       [-1, 1].forEach(function (sd) {
-        holeWall(sd); frame(sd, BH); frame(sd, TH);
-        [BH, TH].forEach(function (h) {                  // le trou est un portail lumineux : on entre dedans et on est téléporté
-          var pc = mkCanvas(256, 256), px2 = pc.getContext('2d'), gr2 = px2.createRadialGradient(128, 128, 6, 128, 128, 180);
-          gr2.addColorStop(0, '#fff6dc'); gr2.addColorStop(0.18, '#d9b8ff'); gr2.addColorStop(0.5, '#5a2ab0'); gr2.addColorStop(1, '#0a0614'); px2.fillStyle = gr2; px2.fillRect(0, 0, 256, 256);
-          for (var rk = 0; rk < 5; rk++) { px2.strokeStyle = 'rgba(255,230,170,' + (0.35 - rk * 0.06) + ')'; px2.lineWidth = 3; px2.beginPath(); px2.arc(128, 128, 30 + rk * 22, 0, TAU); px2.stroke(); }
-          var po = new THREE.Mesh(new THREE.PlaneGeometry(h.z1 - h.z0, h.y1 - h.y0), new THREE.MeshBasicMaterial({ map: mkTex(pc) }));
-          po.position.set(sd * (HX + 0.5), (h.y0 + h.y1) / 2, (h.z0 + h.z1) / 2); po.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; g.add(po);
-        });
-        sign(sd, '▲ ÉTAGE VIP', 'TÉLÉPORTATION · FAUTEUILS DE LUXE', 3.55, (BH.z0 + BH.z1) / 2);
-        sign(sd, '▼ DESCENDRE', 'TÉLÉPORTATION', VY + 3.55, (TH.z0 + TH.z1) / 2);
-        // l'escalier : un puits derrière le mur, des marches pleines, un palier en bas et un palier en haut
-        var xs = sd * (HX + SW / 2 + 0.05), stepM = std(0x5a1020, 0.9, 0.05, 0x2e0a12);
-        box(g, 0.15, SH, SZ1 - SZ0, wallV, sd * (HX + SW + 0.1), SH / 2, (SZ0 + SZ1) / 2);                         // mur du fond du puits
-        var xe = sd * (HX + SW / 2 + 0.135);                                                                         // les bouts et le plafond restent derrière le mur (aucun bord ne dépasse dans la salle)
-        box(g, SW + 0.07, SH, 0.15, wallV, xe, SH / 2, SZ0); box(g, SW + 0.07, SH, 0.15, wallV, xe, SH / 2, SZ1);       // les deux bouts
-        box(g, SW + 0.07, 0.15, SZ1 - SZ0, wallV, xe, SH, (SZ0 + SZ1) / 2);                                           // plafond
-        box(g, SW, 0.1, ZS0 - SZ0, stepM, xs, -0.05, (SZ0 + ZS0) / 2);                                              // palier du bas
-        for (z2 = ZS0; z2 < ZT; z2 += 0.45) {                                                                       // marches
-          var zc = Math.min(z2 + 0.225, ZT), top = slope * (zc - ZS0);
-          if (top > 0.02) { box(g, SW, top, 0.47, stepM, xs, top / 2, zc); box(g, SW, 0.03, 0.06, brassM, xs, top + 0.005, z2 + 0.03); }
-        }
-        box(g, SW, VY, SZ1 - ZT, stepM, xs, VY / 2, (ZT + SZ1) / 2);                                                // palier du haut
-        if (!low) [[2.4, -9.2], [VY / 2 + 1.7, 0.5], [VY + 2.2, 11.0]].forEach(function (p) { var pl = new THREE.PointLight(0xffd9a0, 0.8, 10); pl.position.set(xs, p[0], p[1]); g.add(pl); vipLights.push(pl); });
-        // collisions : le mur est plein sauf aux deux trous, et le puits est fermé à ses deux bouts
-        for (zc2 = -HZ + 3.0; zc2 < HZ - 0.7; zc2 += 0.5) {
-          if (zc2 > BH.z0 && zc2 < BH.z1) continue;
-          if (zc2 > 9.55 && zc2 < 12.45) { gate.push({ x: sd * (HX + 0.05), z: zc2, r: 0.4 }); continue; }   // trou du haut : fermé tant qu'on est en bas
-          room.colliders.push({ x: sd * (HX + 0.05), z: zc2, r: 0.4 });
-        }
-        for (var bx = HX + 0.3; bx <= HX + SW + 0.01; bx += 0.5) room.colliders.push({ x: sd * bx, z: SZ0 + 0.1, r: 0.4 }, { x: sd * bx, z: SZ1 - 0.1, r: 0.4 });
+        var yIn = F.yawFor(-sd, 0);
+        world.addDoor(room, { x: sd * HX, z: -7.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '👑 ÉTAGE VIP', sub: 'FAUTEUILS DE LUXE', color: 0xffd86b, theme: 'cinemavip',
+          enabled: function () { return !vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), 11.5, yIn, function () { setVip(true); }); } });
+        var upD = world.addDoor(room, { x: sd * HX, z: 11.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '⬇ DESCENDRE', sub: 'RETOUR EN BAS', color: 0xffd86b, theme: 'cinemavip',
+          enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), -7.5, yIn, function () { setVip(false); }); } });
+        upD.g.position.y = VY;
       });
       for (var ex2 = -(vw - 0.5); ex2 <= vw - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });     // bord de l'étage : on ne tombe pas
-      room.bounds.xMin = -HX - SW + 0.15; room.bounds.xMax = HX + SW - 0.15;                                          // on peut entrer dans les puits
+                                          // on peut entrer dans les puits
       function setColl(list, on) { list.forEach(function (c2) { var ix = room.colliders.indexOf(c2); if (on && ix < 0) room.colliders.push(c2); else if (!on && ix >= 0) room.colliders.splice(ix, 1); }); }
       function setVip(v) { vipUp = v; setColl(edge, v); setColl(gate, !v); }
       var baseGround = room.groundY, lz = null;
@@ -859,6 +836,7 @@
     }
     // applique la pub : true si elle occupe l'écran (le film ne doit alors rien faire)
     function applyAd() {
+      if (P) return false;                              // le cinéma premium n'a jamais de pub
       if (!inAd()) { stopAd(); return false; }
       if (adSrc !== net.ad.url) setAdSource(net.ad.url, net.ad.type);
       setLoading(false); stallT = 0;

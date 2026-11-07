@@ -296,7 +296,6 @@
     room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-0.9, Math.min(0.9, drag.seat.yaw - dx * 0.006)); if (drag.mouse) view.pitch = Math.max(-0.3, Math.min(0.4, drag.seat.pitch - dy * 0.004)); };
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 2, tz: -5, fov: 62 };
-      if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
       var ex = s.x, ey = 1.45, ez = s.z, a = view.yaw, p = Math.atan2(4.0 - ey, 10) - 0.1 + view.pitch;           // on regarde le grand écran
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 8 - (s.x * 0.1), ty: ey + Math.sin(p) * 8, tz: ez - Math.cos(a) * Math.cos(p) * 8, fov: 62 };
     };

@@ -23,10 +23,11 @@
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
+    { x: -HX, z: -5, nx: 1, nz: 0, label: '🎵 SALLE DE MUSIQUE', sub: 'BIENTÔT DISPONIBLE', color: 0xb98cff, target: '', theme: 'music', staffOnly: true },
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · P4 · LUDO · PMU · COFFRES…', color: 0xffd400, target: 'minijeux', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)
-    { x: HX, z: 0, nx: -1, nz: 0, label: '🎬 CINÉMA PREMIUM', sub: 'ÉCRAN GÉANT · FAUTEUILS CLUB', color: 0xffd36a, target: 'cinemapremium', theme: 'cinemapremium' }   // la banque est maintenant l'appli Tropi Bank du téléphone
+    { x: HX, z: 0, nx: -1, nz: 0, label: '🎬 CINÉMA PREMIUM', sub: 'ÉCRAN GÉANT · FAUTEUILS CLUB', color: 0xffd36a, target: 'cinemapremium', theme: 'cinemapremium', noSign: true }   // la banque est maintenant l'appli Tropi Bank du téléphone
   ];
 
   function createHallRoom(world, cfg) {
@@ -114,7 +115,25 @@
     }
 
     // bannière du casino, en haut des trois murs qui ont des portes de jeu (au-dessus des enseignes de portes) : chacune annonce les jeux de son mur
-    [['fond', 'hall-fond.jpg'], ['gauche', 'hall-gauche.jpg'], ['droite', 'hall-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'assets/bannieres/' + k[1] + '?v=4', 8.1, 2.7, 0xffb300); });
+    [['fond', 'hall-fond.jpg'], ['droite', 'hall-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'assets/bannieres/' + k[1] + '?v=4', 8.1, 2.7, 0xffb300); });
+    (function () {                                       // mur de gauche : même bannière, mais elle annonce Mini jeux · Tropi Shop · Salle de musique
+      var bc = mkCanvas(1620, 540), bmat = neon(WALL.gauche, 0, 5.75, '', 8.1, 2.7, 0xffb300, bc), bim = new Image();
+      bim.onload = function () {
+        var W = bim.naturalWidth, H = bim.naturalHeight; bc.width = W; bc.height = H; var x = bc.getContext('2d'); x.drawImage(bim, 0, 0);
+        // couleur du fond de la plaque : moyenne des pixels sombres autour des deux lignes de texte
+        var x0 = W * 0.3, x1 = W * 0.7, y0 = H * 0.468, y1 = H * 0.645, dd = x.getImageData(Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0)).data, sr = 0, sgc = 0, sb = 0, nn = 0;
+        for (var qi = 0; qi < dd.length; qi += 16) { if (dd[qi] + dd[qi + 1] + dd[qi + 2] < 150) { sr += dd[qi]; sgc += dd[qi + 1]; sb += dd[qi + 2]; nn++; } }
+        var base = nn ? 'rgb(' + Math.round(sr / nn) + ',' + Math.round(sgc / nn) + ',' + Math.round(sb / nn) + ')' : '#3d0108';
+        x.save(); x.shadowColor = base; x.shadowBlur = 28; x.fillStyle = base; x.fillRect(x0 + 14, y0 + 6, x1 - x0 - 28, y1 - y0 - 12); x.fillRect(x0 + 14, y0 + 6, x1 - x0 - 28, y1 - y0 - 12); x.restore();
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        var g1 = x.createLinearGradient(0, H * 0.48, 0, H * 0.54); g1.addColorStop(0, '#fff7e2'); g1.addColorStop(1, '#ead6a8'); x.fillStyle = g1; x.shadowColor = 'rgba(0,0,0,0.55)'; x.shadowBlur = 6;
+        x.font = '600 ' + Math.round(H * 0.06) + 'px ' + SERIF; x.fillText('JOUE, ACHÈTE, ÉCOUTE', W / 2, H * 0.512, x1 - x0 - 60);
+        var gg = x.createLinearGradient(0, H * 0.59, 0, H * 0.63); gg.addColorStop(0, '#f6dc8a'); gg.addColorStop(1, '#c79a2a'); x.fillStyle = gg; x.shadowBlur = 3;
+        x.font = '700 ' + Math.round(H * 0.034) + 'px ' + MONO; x.fillText('MINI JEUX  ·  TROPI SHOP  ·  SALLE DE MUSIQUE', W / 2, H * 0.61, x1 - x0 - 60);
+        if (bmat.map) bmat.map.needsUpdate = true;
+      };
+      bim.src = 'assets/bannieres/hall-gauche.jpg?v=4';
+    })();
 
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
@@ -206,9 +225,15 @@
       lastCinSt = st;
       // fond : dégradé sombre façon salle obscure + vignette, plutôt qu'un aplat
       var bg = sn.createRadialGradient(640, 320, 80, 640, 360, 760);
-      bg.addColorStop(0, '#1c0f16'); bg.addColorStop(1, '#0a0509');
+      if (P2.lux) { bg.addColorStop(0, '#16131a'); bg.addColorStop(1, '#040305'); } else { bg.addColorStop(0, '#1c0f16'); bg.addColorStop(1, '#0a0509'); }
       sn.fillStyle = bg; sn.fillRect(0, 0, 1280, 720);
-      filmstrip(0); filmstrip(704);
+      if (P2.lux) {                                    // cadre art déco : double filet doré, coins à gradins, petits losanges
+        sn.strokeStyle = '#d4af37'; sn.lineWidth = 6; sn.strokeRect(14, 14, 1252, 692); sn.lineWidth = 2; sn.strokeRect(28, 28, 1224, 664);
+        [[28, 28, 1, 1], [1252, 28, -1, 1], [28, 692, 1, -1], [1252, 692, -1, -1]].forEach(function (q) {
+          sn.fillStyle = '#d4af37'; for (var st = 0; st < 3; st++) sn.fillRect(q[0] + (q[2] < 0 ? -(46 - st * 14) : 0), q[1] + (q[3] < 0 ? -(4 + st * 10) - 4 : st * 10), 46 - st * 14, 4);
+          sn.save(); sn.translate(q[0] + q[2] * 64, q[1] + q[3] * 36); sn.rotate(Math.PI / 4); sn.fillRect(-6, -6, 12, 12); sn.restore();
+        });
+      } else { filmstrip(0); filmstrip(704); }
 
       // en-tête : titre du panneau, médaillon Tropi Stream à droite du texte, double filet doré en dessous
       var logo = getImg('assets/cinema/tropistream-serveur.png'), LY = 86, LR = 46;
@@ -219,6 +244,7 @@
         sn.strokeStyle = 'rgba(' + P2.rgb + ',0.85)'; sn.lineWidth = 3; sn.beginPath(); sn.arc(LX, LY, LR, 0, TAU); sn.stroke();
       });
       sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.shadowColor = P2.c1; sn.shadowBlur = 26; sn.fillStyle = P2.c2;
+      if (P2.lux) { var tg2 = sn.createLinearGradient(0, 50, 0, 130); tg2.addColorStop(0, '#fff3c4'); tg2.addColorStop(0.5, '#e6c35c'); tg2.addColorStop(1, '#a8781d'); sn.fillStyle = tg2; sn.shadowColor = 'rgba(212,175,55,0.8)'; }
       sn.font = '900 80px ' + SERIF; sn.fillText(P2.head, 640, 92, 860);
       sn.shadowBlur = 0;
       sn.fillStyle = 'rgba(' + P2.rgb + ',0.45)'; sn.fillRect(70, 146, 1140, 2);
@@ -307,7 +333,7 @@
     }
     var boards = [
       makeCinemaBoard({ mur: WALL.entree, along: 4.5, ay: 4.2, hex: 0xff7a1a, c1: '#ff7a1a', c2: '#ffb066', rgb: '255,122,26', name: 'CINÉMA TROPI STREAM', head: 'À L\'AFFICHE', api: '/api/cinema' }),
-      makeCinemaBoard({ mur: WALL.droite, along: 4.8, ay: 2.6, hex: 0xd4af37, c1: '#d4af37', c2: '#f3d98a', rgb: '212,175,55', name: 'CINÉMA PREMIUM', head: "À L'AFFICHE", api: '/api/cinema?room=premium' })
+      makeCinemaBoard({ mur: WALL.droite, along: 4.8, ay: 2.6, hex: 0xd4af37, c1: '#d4af37', c2: '#f3d98a', rgb: '212,175,55', name: 'CINÉMA PREMIUM', head: "À L'AFFICHE", api: '/api/cinema?room=premium', lux: true })
     ];
 
     // guirlandes de néons qui s'enroulent autour des colonnes (même LED lumineuses que la table des chevaux)
@@ -538,7 +564,15 @@
     if (!low) { var p2 = new THREE.PointLight(0xffb070, 0.6, 20); p2.position.set(0, 3, -7); g.add(p2); }
 
     // les portes
-    DOORS.forEach(function (d) { world.addDoor(room, { x: d.x, z: d.z, nx: d.nx, nz: d.nz, w: 1.8, h: 2.9, label: d.label, sub: d.sub, color: d.color, target: d.target, theme: d.theme }); });
+    function isStaff() { try { return (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder()); } catch (e) { return false; } }
+    DOORS.forEach(function (d) {
+      var spec = { x: d.x, z: d.z, nx: d.nx, nz: d.nz, w: 1.8, h: 2.9, label: d.label, sub: d.sub, color: d.color, target: d.target, theme: d.theme, noSign: !!d.noSign };
+      if (d.staffOnly) {                               // salle de musique : seuls le Patron et le Co Fondateur peuvent pousser la porte, et elle n'est pas encore ouverte
+        spec.enabled = isStaff;
+        spec.go = function (w) { w.flash('🎵 Salle de musique', 'Bientôt disponible'); w.player.x = d.x + d.nx * 2.2; w.player.z = d.z + d.nz * 2.2; };
+      }
+      world.addDoor(room, spec);
+    });
 
     room.spawn = function (from) {
       for (var i = 0; i < room.doors.length; i++) {

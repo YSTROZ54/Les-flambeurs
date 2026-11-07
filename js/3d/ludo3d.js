@@ -17,8 +17,8 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var HX = 12, HZ = 9, H = 6.2, OG = 1.5, OPH = 3.3;
-  var TABLES = [{ x: -5.4, z: -1 }, { x: 5.4, z: -1 }];
+  var HX = 12, HZ = 10.5, H = 6.2, OG = 1.5, OPH = 3.3;
+  var TABLES = [{ x: -5.4, z: -5.4 }, { x: 5.4, z: -5.4 }, { x: -5.4, z: 3.6 }, { x: 5.4, z: 3.6 }];
   var CS = 0.2, BS = CS * 15, TOP_Y = 0.84;                                  // cases de 20 cm : plateau de 3 m sur une table de 3,6 m
   var COLORS = ['rouge', 'vert', 'jaune', 'bleu'], CHEX = [0xe53935, 0x43a047, 0xfdd835, 0x1e88e5], CCSS = ['#e53935', '#43a047', '#fdd835', '#1e88e5'];
   var DIRS = [[-1, 0], [0, -1], [1, 0], [0, 1]];                           // côté du plateau de chaque couleur (x, z)

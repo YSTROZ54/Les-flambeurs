@@ -72,6 +72,10 @@
     stairs: function (c, col, bg) {                        // un escalier qui monte
       c.fillStyle = col; c.beginPath(); c.moveTo(2, 21); c.lineTo(2, 17); c.lineTo(7, 17); c.lineTo(7, 12.5); c.lineTo(12, 12.5); c.lineTo(12, 8); c.lineTo(17, 8); c.lineTo(17, 3.5); c.lineTo(22, 3.5); c.lineTo(22, 21); c.closePath(); c.fill();
     },
+    music: function (c, col) {                             // une double croche
+      c.fillStyle = col; c.beginPath(); c.ellipse(7, 18, 3.4, 2.5, -0.4, 0, TAU); c.fill(); c.beginPath(); c.ellipse(17, 16, 3.4, 2.5, -0.4, 0, TAU); c.fill();
+      c.fillRect(9.4, 4, 1.6, 14); c.fillRect(19.4, 2, 1.6, 14); c.beginPath(); c.moveTo(9.4, 4); c.lineTo(21, 2); c.lineTo(21, 5.2); c.lineTo(9.4, 7.2); c.closePath(); c.fill();
+    },
     connect4: function (c, col, bg) {                      // grille de Puissance 4 : trous vides et jetons
       c.fillStyle = col; rr(c, 2, 2.5, 20, 19, 3); c.fill();
       for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) { c.fillStyle = bg; c.beginPath(); c.arc(7 + j * 5, 8 + i * 5, 1.9, 0, TAU); c.fill(); }
@@ -263,6 +267,16 @@
         var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#13296b'); g0.addColorStop(1, '#091238'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
         border(c, W, H, '#ffd24a', 6); c.strokeStyle = 'rgba(255,210,74,0.45)'; c.lineWidth = 2; c.strokeRect(22, 22, W - 44, H - 44);
         c.save(); c.translate(W / 2, H * 0.5); c.scale(W * 0.5 / 24, W * 0.5 / 24); c.translate(-12, -12); ICONS.stairs(c, '#ffd86b', '#091238'); c.restore();
+      }
+    },
+    music: {
+      frame: 0xb98cff, leaf: 0x1a0d33, rgb: '185, 140, 255', logo: 'music',
+      paint: function (c, W, H) {                              // violet nuit, portées dorées et notes
+        var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#2a1652'); g0.addColorStop(1, '#0e0720'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+        border(c, W, H, '#d4af37', 7);
+        c.strokeStyle = 'rgba(212,175,55,0.55)'; c.lineWidth = 2;
+        for (var st = 0; st < 2; st++) for (var l = 0; l < 5; l++) { var y = H * (0.3 + st * 0.36) + l * 12; c.beginPath(); c.moveTo(24, y); c.lineTo(W - 24, y); c.stroke(); }
+        c.save(); c.translate(W / 2, H * 0.5); c.scale(W * 0.42 / 24, W * 0.42 / 24); c.translate(-12, -12); ICONS.music(c, '#f3d98a'); c.restore();
       }
     },
     puissance4: {

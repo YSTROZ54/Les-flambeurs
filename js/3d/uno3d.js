@@ -57,8 +57,8 @@
 
   function createUnoRoom(world, kind) {
     var low = world.low, isC4 = kind === 'c4';
-    var UNO_P = isC4 ? [] : [[-6.5, 0], [6.5, 0]], C4_P = isC4 ? [[-6, 0], [6, 0]] : [];     // positions des tables de chaque salle
-    var room = { title: isC4 ? '🔴 PUISSANCE 4' : '🃏 UNO', subtitle: isC4 ? 'DEUX TABLES · 2 JOUEURS' : 'DEUX TABLES · 2 À 4 JOUEURS', topic: isC4 ? 'flambeurs-puissance4-room' : 'flambeurs-uno-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
+    var UNO_P = isC4 ? [] : [[-6.5, -5.4], [6.5, -5.4], [-6.5, 5.2], [6.5, 5.2]], C4_P = isC4 ? [[-9, -5], [0, -5], [9, -5], [-9, 3.6], [0, 3.6], [9, 3.6]] : [];     // positions des tables de chaque salle
+    var room = { title: isC4 ? '🔴 PUISSANCE 4' : '🃏 UNO', subtitle: isC4 ? 'SIX TABLES · 2 JOUEURS' : 'QUATRE TABLES · 2 À 4 JOUEURS', topic: isC4 ? 'flambeurs-puissance4-room' : 'flambeurs-uno-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, i;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
 
@@ -150,8 +150,19 @@
     var unoFelt = new THREE.MeshStandardMaterial({ map: mkTex(fe), roughness: 0.92 }), leatherM = new THREE.MeshStandardMaterial({ color: 0x6b1020, roughness: 0.45, metalness: 0.1 }), edgeM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5 });
     var UR = 2.25, USEAT = 3.3, UHR = 1.62, UARR = 1.74;                       // table d'UNO : rayon, rayon des fauteuils, rayon des mains posées, rayon des flèches
     var arrowShape = new THREE.Shape(); arrowShape.moveTo(-0.26, -0.065); arrowShape.lineTo(0.05, -0.065); arrowShape.lineTo(0.05, -0.17); arrowShape.lineTo(0.28, 0); arrowShape.lineTo(0.05, 0.17); arrowShape.lineTo(0.05, 0.065); arrowShape.lineTo(-0.26, 0.065); arrowShape.closePath();
-    var arrowGeo = new THREE.ShapeGeometry(arrowShape), arrowM = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
-    var arrowOutM = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    function curvedArrow(w2, hw, a0, a1, tipA) {    // flèche courbe (arc de cercle + pointe) qui suit le bord de la table : bien plus jolie que l'ancien trait droit
+      var sh2 = new THREE.Shape(), R0 = UARR, N2 = 20, k2, an;
+      function P2(r, a) { return [Math.sin(a) * r, R0 - Math.cos(a) * r]; }       // repère local de la flèche (le centre de la table est en (0, R0))
+      var st0 = P2(R0 - w2, a0); sh2.moveTo(st0[0], st0[1]);
+      for (k2 = 1; k2 <= N2; k2++) { an = a0 + (a1 - a0) * k2 / N2; var q2 = P2(R0 - w2, an); sh2.lineTo(q2[0], q2[1]); }
+      var b1 = P2(R0 - hw, a1), tip = P2(R0, a1 + tipA), b2 = P2(R0 + hw, a1); sh2.lineTo(b1[0], b1[1]); sh2.lineTo(tip[0], tip[1]); sh2.lineTo(b2[0], b2[1]);
+      for (k2 = N2; k2 >= 0; k2--) { an = a0 + (a1 - a0) * k2 / N2; var q3 = P2(R0 + w2, an); sh2.lineTo(q3[0], q3[1]); }
+      sh2.closePath(); return sh2;
+    }
+    arrowShape = curvedArrow(0.07, 0.17, -0.32, 0.2, 0.16);
+    var arrowGeoOut = new THREE.ShapeGeometry(curvedArrow(0.105, 0.225, -0.345, 0.19, 0.205), 24);       // liseré sombre autour
+    var arrowGeo = new THREE.ShapeGeometry(arrowShape, 24), arrowM = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: 0xffd34d, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    var arrowOutM = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: 0x1a1208, transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     var headArrowGeo = new THREE.ConeGeometry(0.13, 0.3, 18); headArrowGeo.rotateX(Math.PI); var headArrowM = new THREE.MeshBasicMaterial({ color: 0xffe35a });
     var cardGeo = new THREE.PlaneGeometry(0.29, 0.435), bigCardGeo = new THREE.PlaneGeometry(0.48, 0.72), pileCardGeo = new THREE.PlaneGeometry(0.24, 0.36), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
     var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.62, 48);
@@ -175,7 +186,7 @@
       var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [], heads: [], arrows: [], badges: [] };
       for (var aq = 0; aq < 4; aq++) {                                       // flèches de sens de jeu, dans les espaces entre les mains
         var am = (aq + 0.5) / 4 * TAU + Math.PI / 4, ag = new THREE.Group(); ag.position.set(Math.cos(am) * UARR, 0.884, Math.sin(am) * UARR);
-        var ash0 = new THREE.Mesh(arrowGeo, arrowOutM); ash0.rotation.x = -Math.PI / 2; ash0.scale.set(1.3, 1.35, 1); ash0.renderOrder = 5; ag.add(ash0); var ash = new THREE.Mesh(arrowGeo, arrowM); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.002; ash.renderOrder = 6; ag.add(ash); ag.visible = false; t.add(ag); tv.arrows.push({ g: ag, am: am, phi: am + Math.PI / 2 });
+        var ash0 = new THREE.Mesh(arrowGeoOut, arrowOutM); ash0.rotation.x = -Math.PI / 2; ash0.renderOrder = 5; ag.add(ash0); var ash = new THREE.Mesh(arrowGeo, arrowM); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.002; ash.renderOrder = 6; ag.add(ash); ag.visible = false; t.add(ag); tv.arrows.push({ g: ag, am: am, phi: am + Math.PI / 2 });
       }
       tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.5, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
       tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.44, 0.866, 0.08); tv.top2.visible = false; t.add(tv.top2);
@@ -367,7 +378,7 @@
         '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       s.textContent += '.mj3d.uno{background:transparent;border:0;box-shadow:none;width:min(1000px,98%);bottom:52px;animation:none}.mj3d.uno .mj-msg,.mj3d.uno .mj-pl{align-self:center;background:rgba(8,5,12,.62);border-radius:999px;padding:3px 16px;text-shadow:0 1px 3px #000}.mj3d.uno .mj-hand{padding-top:26px}.mj3d.uno .mj-hand img{width:86px;box-shadow:0 8px 18px rgba(0,0,0,.55)}.mj3d.uno .mj-hand button.ok{transform:translateY(-16px)}.mj3d.uno .mj-hand button:hover{transform:translateY(-24px)}';
-      s.textContent += '.mj-badge{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:4;pointer-events:none;padding:4px 14px;border-radius:999px;background:rgba(8,5,12,.55);border:1px solid rgba(255,227,90,.55);color:#ffe9a0;font-weight:800;font-size:12px;letter-spacing:.04em;opacity:0;transition:opacity .35s}.mj-badge.on{opacity:.85}';
+      s.textContent += '.mj-badge{position:absolute;left:50%;top:70px;transform:translateX(-50%) scale(.9);z-index:4;pointer-events:none;padding:12px 34px;border-radius:999px;background:linear-gradient(180deg,rgba(255,214,77,.96),rgba(214,150,20,.96));border:2px solid #fff3b0;color:#2a1a00;font-weight:900;font-size:24px;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 0 0 rgba(255,214,77,0);opacity:0;transition:opacity .3s,transform .3s}.mj-badge.on{opacity:1;transform:translateX(-50%) scale(1);animation:mjTurn 1.1s ease-in-out infinite alternate}@keyframes mjTurn{from{box-shadow:0 0 12px rgba(255,214,77,.5)}to{box-shadow:0 0 40px rgba(255,214,77,1),0 0 90px rgba(255,180,40,.55)}}.mj3d .mj-msg:empty{display:none}';
       s.textContent += '.mj-fxpop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:9;pointer-events:none;font-weight:900;font-size:clamp(54px,10vw,120px);color:#fff;text-shadow:0 5px 0 #000,0 0 34px currentColor;animation:mjFx 1.5s ease-out forwards}@keyframes mjFx{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}35%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.1)}}';
       s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}}';
       document.head.appendChild(s);
@@ -498,7 +509,7 @@
       injectCss();
       var el = document.createElement('div'); el.className = 'mj3d'; el.innerHTML = '<div class="mj-msg"></div><div class="mj-pl"></div><div class="mj-body"></div>';
       w.container.appendChild(el);
-      badgeEl = document.createElement('div'); badgeEl.className = 'mj-badge'; badgeEl.textContent = '👉 À toi de jouer'; w.container.appendChild(badgeEl);
+      badgeEl = document.createElement('div'); badgeEl.className = 'mj-badge'; badgeEl.textContent = '★ À toi de jouer ★'; w.container.appendChild(badgeEl);
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled || !seat) return;
         var a = b.dataset.a, tid = seat.tid, loc = seat.local, err = '';
@@ -530,7 +541,7 @@
       var msg = errT > 0 ? errMsg : (st.msg || (Object.keys(st.seats).length < 2 ? 'En attente d\'un autre joueur…' : 'Tout le monde est là : lance la partie !'));
       ui.el.classList.toggle('myturn', mine);
       if (badgeEl) badgeEl.classList.toggle('on', mine);
-      if (st.ph === 'play' && mine && errT <= 0) msg = '👉 À toi de jouer ! ' + (st.msg && st.msg.indexOf('Au tour') !== 0 ? '— ' + st.msg : '');
+      if (u && st.ph === 'play' && errT <= 0) msg = '';                     // pendant la partie, plus de phrase au-dessus des joueurs (le gros bandeau dit quand c'est à toi)
       var m = ui.el.querySelector('.mj-msg'); if (m.textContent !== msg) m.textContent = msg; m.style.color = errT > 0 ? '#ff8a80' : (st.ph === 'over' && st.win === seat.local ? '#7ee0a0' : '');
       var pl = Object.keys(st.seats).map(Number).sort().map(function (n) {
         var e = st.seats[n], cnt = u && st.hands[n] ? ' · ' + st.hands[n].length + ' 🂠' : '', dot = u ? '' : (n === 0 ? '🔴 ' : '🟡 ');
@@ -610,9 +621,9 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? 0.12 : tc ? 0.1 : -0.35), ey = u ? 1.7 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? 0.12 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.1 : -0.35), ey = u ? 2.25 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
-      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: 62 };
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: u ? 72 : 62 };
     };
     room.seatClick = function (ray) {
       if (!seat || kindOf(seat.tid) !== 'c') return;
@@ -672,6 +683,7 @@
           a.g.visible = on; if (!on) return;
           var target = a.am + dir * Math.PI / 2, d = target - a.phi; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
           a.phi += d * Math.min(1, dt * 5); a.g.rotation.y = -a.phi; a.g.scale.setScalar(pulse);
+          a.g.children.forEach(function (m) { m.scale.y = dir > 0 ? -1 : 1; });          // la flèche courbe se plie toujours autour de la table
         });
         tv.heads.forEach(function (h, s2) { var act = on && st.turn === s2 && st.hands[s2] && !(st.wait >= 0 && false); h.visible = act; if (act) { h.position.y = 2.8 + 0.09 * Math.sin(arrowClock * 5); h.rotation.y += dt * 2; } });
       });

@@ -1,4 +1,4 @@
-// Ludo (petits chevaux) multijoueur, 2 tables de 2 à 4 joueurs, entièrement géré par le serveur, SANS argent ni mise :
+// Ludo (petits chevaux) multijoueur, 4 tables de 2 à 4 joueurs, entièrement géré par le serveur, SANS argent ni mise :
 //  - le dé est tiré ici (jamais par le navigateur), les coups sont vérifiés et appliqués ici ;
 //  - le chrono et l'ordre de jeu suivent l'horloge du serveur (un joueur absent ou trop lent est joué automatiquement).
 // Une table = une ligne __ludo_table_<n> (invisible depuis le navigateur), modifiée avec contrôle de version comme le Blind Test.
@@ -23,7 +23,7 @@ import { getRow, getRowExact, putRow, updateAccount, GameError } from './_store.
 
 const PREFIX = '__ludo_table_';
 const NOOP = Symbol('noop');
-export const TABLE_IDS = ['1', '2'];
+export const TABLE_IDS = ['1', '2', '3', '4'];
 export const MIN_PLAYERS = 2;
 export const GONE_MS = 45000;
 export const SEEN_REFRESH_MS = 20000;

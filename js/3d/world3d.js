@@ -276,21 +276,21 @@
     }
     var L = leaf(-1), R = leaf(1);   // L : charnière à gauche (x=-w/2), R : à droite
     // enseigne au-dessus : avec un thème, un logo à gauche et le nom à droite
-    if (th) {
+    if (th && !spec.noSign) {
       var tc = mkCanvas(640, 160), ttex = mkTex(tc);
       F.paintDoorSign(tc, spec, th, function () { ttex.needsUpdate = true; });
       var tsign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.75), new THREE.MeshBasicMaterial({ map: ttex }));
       tsign.position.set(0, h + 0.72, 0.262); g.add(tsign);   // 3 cm devant le fond : plus de scintillement
       box(3.2, 0.9, 0.08, 0, h + 0.72, 0.19, stoneM); box(3.26, 0.05, 0.14, 0, h + 1.2, 0.2); box(3.26, 0.04, 0.14, 0, h + 0.25, 0.2); box(0.05, 0.9, 0.14, -1.6, h + 0.72, 0.2); box(0.05, 0.9, 0.14, 1.6, h + 0.72, 0.2);   // faces avant à 0,27 : devant la corniche (0,25)
       box(3.0, 0.03, 0.012, 0, h + 1.12, 0.268, neonM);
-      if (th.deco) th.deco(g, w, h);
     }
+    if (th && th.deco) th.deco(g, w, h);
     var sc = mkCanvas(512, 128), sx = sc.getContext('2d');
     sx.fillStyle = '#12080f'; sx.fillRect(0, 0, 512, 128); sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(4, 4, 504, 120);
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#f3cf62'; sx.shadowColor = '#ffb300'; sx.shadowBlur = 10;
     sx.font = '800 46px ' + SERIF; sx.fillText(spec.label || '', 256, spec.sub ? 48 : 66, 480);
     if (spec.sub) { sx.shadowBlur = 0; sx.fillStyle = '#d9c88f'; sx.font = '600 24px ' + MONO; sx.fillText(spec.sub, 256, 96, 480); }
-    if (!th) {
+    if (!th && !spec.noSign) {
       var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: mkTex(sc) }));
       sign.position.set(0, h + 0.72, 0.235); g.add(sign);
       box(2.6, 0.78, 0.08, 0, h + 0.72, 0.19, stoneM); box(2.66, 0.05, 0.1, 0, h + 1.12, 0.2); box(2.66, 0.04, 0.1, 0, h + 0.32, 0.2); box(0.05, 0.8, 0.1, -1.3, h + 0.72, 0.2); box(0.05, 0.8, 0.1, 1.3, h + 0.72, 0.2);
@@ -988,8 +988,10 @@
       if (silence > 380 && actualSp < 0.12) sp = 0;
 
       var groundH = room.remoteGroundY ? room.remoteGroundY(r, g.position.x, g.position.z) : room.groundY ? room.groundY(g.position.x, g.position.z) : 0;   // gradins, estrade… : même fonction que pour soi-même (la salle peut avoir un étage de plus)
-      if (r.jt >= 0) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = groundH + 4 * 0.6 * u * (1 - u); }
-      else g.position.y = groundH;
+      // assis : on garde le décalage de l'assise (sinon le personnage flottait au-dessus de toutes les chaises)
+      var sitOff = r.person.seated ? (typeof r.person.sitY === 'number' ? r.person.sitY : 0.035) - 0.335 : 0;
+      if (r.jt >= 0 && !r.person.seated) { r.jt += dt; var u = r.jt / 0.66; if (u >= 1) { r.jt = -1; } else g.position.y = groundH + 4 * 0.6 * u * (1 - u); }
+      else g.position.y = groundH + sitOff;
 
       var ty = Math.PI - yaw, ey = r.person.emoYaw, base = g.rotation.y - ey, dy = ((ty - base + Math.PI * 3) % TAU) - Math.PI;
       g.rotation.y = base + dy * Math.min(1, dt * 6) + ey;
