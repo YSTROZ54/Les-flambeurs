@@ -531,7 +531,7 @@
           else if (mine.result === 'push') setMsg('🤝 Égalité : mise remboursée.', '#f3cf62');
           else if (mine.status === 'busted') setMsg('💥 Tu as dépassé 21.', '#ff8a80');
           else setMsg('Perdu : ' + mine.score + ' contre ' + (t.dealer ? t.dealer.score : 0) + '.', '#ff8a80');
-          autoRebet = { amount: mine.bet, deadline: Date.now() + AUTO_REBET_MS };   // la manche suivante reprend la même mise, toute seule
+          // plus de remise automatique : une nouvelle manche ne part que si le joueur mise lui-même
         }
       } else if (t.status === 'waiting') {
         var hasBet = !!(t.readyBets && t.readyBets[me]);

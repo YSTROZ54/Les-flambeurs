@@ -728,7 +728,7 @@
         };
         var deskHit = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.8, 2.4), hitM); deskHit.position.set(DX, gy0 + 1.9, DZ + 0.3); g.add(deskHit);   // clic gauche sur le bureau ou l'écran
         room._deskInfo = { DX: DX, DZ: DZ, EY: gy0 + 1.35, WY: gy0 + 2.22, WZ: HZ - 0.06, SW: SWm, SH: SHm };
-        room.interactables.push({ hit: deskHit, x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl(); }, prompt: function () { return '🎛️ Bureau staff — la régie sur le grand écran  [F / clic]'; }, use: function (w) { deskEnter(w || world); } });
+        room.interactables.push({ hit: deskHit, x: DX, z: DZ - 0.9, radius: 1.3, enabled: function () { return isCinemaCtrl() && !vipUp; }, prompt: function () { return '🎛️ Bureau staff — la régie sur le grand écran  [F / clic]'; }, use: function (w) { deskEnter(w || world); } });
       })();
       var gate = [], edge = [];
       // l'étage VIP : une porte normale de chaque côté (en bas) qui emmène sur le balcon, et une de chaque côté du balcon pour redescendre
@@ -739,6 +739,17 @@
         var upD = world.addDoor(room, { x: sd * HX, z: 11.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '⬇ DESCENDRE', sub: 'RETOUR EN BAS', color: 0xffd86b, theme: 'cinemavip',
           enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), -7.5, yIn, function () { setVip(false); }); } });
         upD.g.position.y = VY;
+        // un palier de marbre bordé de laiton devant chaque porte : la porte repose dessus, plus de pied qui disparaît dans le sol sombre
+        var landM = std(0x1a1520, 0.35, 0.4);
+        [[-7.5, 0], [-3.4, 0], [11.5, VY]].forEach(function (lp) {
+          var lx = sd * (HX - 1.3);
+          box(g, 2.6, 0.03, 3.4, landM, lx, lp[1] + 0.015, lp[0]);
+          box(g, 2.6, 0.036, 0.05, brassM, lx, lp[1] + 0.017, lp[0] - 1.7); box(g, 2.6, 0.036, 0.05, brassM, lx, lp[1] + 0.017, lp[0] + 1.7);
+          box(g, 0.05, 0.036, 3.4, brassM, sd * (HX - 2.6), lp[1] + 0.017, lp[0]);
+        });
+        // sortie du bas, juste à côté de la porte qui monte à l'étage
+        world.addDoor(room, { x: sd * HX, z: -3.4, nx: -sd, nz: 0, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinemaPremium',
+          enabled: function () { return !vipUp; } });
       });
       for (var ex2 = -(vw - 0.5); ex2 <= vw - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });     // bord de l'étage : on ne tombe pas
                                           // on peut entrer dans les puits
@@ -1623,11 +1634,10 @@
       if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
-    room.spawn = function () { return P ? { x: 0, z: HZ - 2.4, yaw: F.yawFor(0, -1) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive à l'étage VIP, devant la sortie
+    room.spawn = function () { return P ? { x: HX - 2.6, z: -5.5, yaw: F.yawFor(-1, 0) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       seanceAsked = false; if (room.resetVip) room.resetVip();
-      if (P && room.enterVip) room.enterVip();
       music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son

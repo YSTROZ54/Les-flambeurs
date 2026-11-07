@@ -15,6 +15,7 @@ Un dossier par salle. Dépose-y **plusieurs** fichiers (.mp3, .ogg, .m4a ou .wav
 | `crash/` | Crash (fusée) | électro tendue, synthwave |
 | `mini-jeux/` | Mini jeux (UNO, Puissance 4) | pop légère, chiptune |
 | `loup-garou/` | Loup-garou | ambiance sombre, cordes, mystère |
+| `salle-musique/` | Salle de musique (le sol de verre et les lumières suivent le son) | électro, house, pop rythmée |
 | `cinema/` | Cinéma | bande-annonce, orchestral (se tait pendant le film) |
 
 Sans fichier, le hall, les machines, le poker, les courses, le Tropi Shop, le PMU, le blind test et le cinéma jouent une musique synthétisée ; les autres salles restent silencieuses.

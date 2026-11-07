@@ -175,6 +175,7 @@ async function saveSupabaseTables(tables) {
 const BJ_MIN_BET = 10;   // pas de mise maximale : seul le solde limite (walletCharge refuse si le solde est insuffisant)
 export const BJ_TURN_MS = 10000;   // temps pour jouer (tous en même temps) ; chaque carte tirée relance ce délai, passé ce délai ceux qui n'ont pas joué restent automatiquement
 export const BJ_BET_COUNTDOWN_MS = 10000;   // dès qu'un joueur mise, les autres ont 10 s pour miser aussi : la manche est la même pour tous ceux qui ont misé à temps
+const BJ_PRESENCE_MS = 25000;   // un joueur qui ne sonde plus la table depuis ce délai est considéré parti (mise retirée, manche non interrompue à tort)
 const clampBet = (v, fallback) => Math.max(BJ_MIN_BET, Math.floor(Number(v)) || fallback || 100);
 
 export async function bjCharge(username, key, amount) { await walletCharge(username, key, amount); }
@@ -260,6 +261,9 @@ async function startRound(table, participants, now) {
 async function tryAutoStart(tableId, table, now, force) {
   if (table.status !== 'waiting' || !table.bettingStartTime) return false;
   if (!force && now - table.bettingStartTime < BJ_BET_COUNTDOWN_MS) return false;
+  // un joueur qui a misé puis fermé l'onglet ne fait plus rien démarrer (ni payer) : sa mise « fantôme » est retirée
+  const present = (k) => !table.seen || table.seen[k] === undefined || now - table.seen[k] < BJ_PRESENCE_MS;
+  Object.keys(table.readyBets || {}).forEach((k) => { if (!present(k)) { delete table.readyBets[k]; if (table.readyPlayers) delete table.readyPlayers[k]; } });
   const bettorKeys = Object.keys(table.readyBets || {}).filter((k) => (table.readyBets[k] || 0) >= BJ_MIN_BET);
   table.bettingStartTime = 0;
   if (!bettorKeys.length) return false;
@@ -473,6 +477,13 @@ export default async function handler(req, res) {
       modified = true;
     }
 
+    // présence : chaque sondage d'un joueur de la table le signale (au plus une écriture toutes les 5 s par joueur)
+    const meKey = String(req.query.me || '').toLowerCase().trim();
+    if (meKey && (table.readyBets?.[meKey] || table.players?.[meKey] || table.knownPlayers?.[meKey])) {
+      if (!table.seen) table.seen = {};
+      if (now - (table.seen[meKey] || 0) > 5000) { table.seen[meKey] = now; modified = true; }
+    }
+
     // 1bis. Mise posée depuis BJ_BET_COUNTDOWN_MS et personne n'a relancé entre-temps : la manche démarre quand même (seul si besoin)
     if (table.status === 'waiting' && table.bettingStartTime && now - table.bettingStartTime >= BJ_BET_COUNTDOWN_MS) {
       if (await tryAutoStart(tableId, table, now, true)) modified = true;
@@ -483,7 +494,8 @@ export default async function handler(req, res) {
 
     // 2. Détection d'abandon / inactivité en cours de partie ('playing' ou 'dealer_turn') - Limite de 30s par tour
     if (table.status === 'playing' || table.status === 'dealer_turn') {
-      const timeSinceUpdate = now - (table.updatedAt || table.roundId || now);
+      const lastSeen = Math.max(0, ...Object.values(table.seen || {}).map(Number));
+      const timeSinceUpdate = now - Math.max(table.updatedAt || table.roundId || now, lastSeen);   // quelqu'un qui sonde encore la table : elle n'est pas abandonnée
       if (timeSinceUpdate > 30000) {
         // table abandonnée depuis plus de 30 s (plus personne ne sonde) -> manche remboursée, puis remise à zéro totale
         await settleTable(table);
@@ -580,6 +592,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: false, error: 'Cette table est déjà complète (2 joueurs).', table: publicTable(table, viewer) });
       }
       table.readyBets[pKey] = betVal;
+      if (!table.seen) table.seen = {};
+      table.seen[pKey] = now;
       if (table.readyPlayers) delete table.readyPlayers[pKey];   // la mise change : il faut confirmer « Prêt » de nouveau
       if (!table.knownPlayers) table.knownPlayers = {};
       table.knownPlayers[pKey] = { username: body.username, avatar: body.avatar || '👤', spot: body.spot === 1 ? 1 : 0 };

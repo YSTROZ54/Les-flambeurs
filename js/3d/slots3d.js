@@ -614,8 +614,11 @@
   }
 
 
-  var ROOM = { xMax: 8.4, zMin: -2.6, zMax: 10.4, wall: 9, back: -3.2, front: 11 };
+  var ROOM = { xMax: 8.4, zMin: -22.6, zMax: 10.4, wall: 9, back: -23.2, front: 11 };   // salle longue : le fond est 20 m plus loin qu'avant
+  ROOM.len = ROOM.front - ROOM.back; ROOM.cz = (ROOM.front + ROOM.back) / 2;
   var ARC = { cx: 0, cz: 4, r: 5.5, stepDeg: 26 };
+  // les rangées de machines : mur de gauche, mur de droite (sous le tableau des règles : on commence plus loin), îlot central dos à dos
+  var LEFT_Z = [6.6, 3.4, 0.2, -3.0, -6.2, -9.4, -12.6, -15.8, -19.0], RIGHT_Z = [-3.0, -6.2, -9.4, -12.6, -15.8, -19.0], ISLE_Z = [-3.4, -7.2, -11.0, -14.8];
 
   function buildRoom(scene, low) {
     var carpet = mkCanvas(256, 256), x = carpet.getContext('2d');
@@ -627,23 +630,23 @@
     x.fillStyle = 'rgba(201,162,39,0.35)';
     [[0, 0], [256, 0], [0, 256], [256, 256], [128, 128]].forEach(function (p) { x.beginPath(); x.arc(p[0], p[1], 7, 0, TAU); x.fill(); });
     var cTex = new THREE.CanvasTexture(carpet);
-    cTex.wrapS = cTex.wrapT = THREE.RepeatWrapping; cTex.repeat.set(9, 8); cTex.anisotropy = 4;
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14.2), new THREE.MeshStandardMaterial({ map: cTex, roughness: 0.85, metalness: 0.05 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, 3.9); scene.add(floor);
+    cTex.wrapS = cTex.wrapT = THREE.RepeatWrapping; cTex.repeat.set(9, Math.round(8 * ROOM.len / 14.2)); cTex.anisotropy = 4;
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(18, ROOM.len), new THREE.MeshStandardMaterial({ map: cTex, roughness: 0.85, metalness: 0.05 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, ROOM.cz); scene.add(floor);
 
     var wallMat = new THREE.MeshStandardMaterial({ color: 0x24141e, roughness: 0.9 });
     var goldMat = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.6, emissive: 0x2a1d00 });
     function wall(w, h, px, py, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(px, py, pz); m.rotation.y = ry; scene.add(m); return m; }
     wall(18, 7.5, 0, 3.75, ROOM.back, 0);
-    wall(14.2, 7.5, -ROOM.wall, 3.75, 3.9, Math.PI / 2);
-    wall(14.2, 7.5, ROOM.wall, 3.75, 3.9, -Math.PI / 2);
+    wall(ROOM.len, 7.5, -ROOM.wall, 3.75, ROOM.cz, Math.PI / 2);
+    wall(ROOM.len, 7.5, ROOM.wall, 3.75, ROOM.cz, -Math.PI / 2);
     wall(18, 7.5, 0, 3.75, ROOM.front, Math.PI);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(18, 14.2), new THREE.MeshBasicMaterial({ color: 0x0b060c }));
-    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 7.5, 3.9); scene.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(18, ROOM.len), new THREE.MeshBasicMaterial({ color: 0x0b060c }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 7.5, ROOM.cz); scene.add(ceil);
     // moulures dorées
     [1.0, 7.35].forEach(function (y) {
       [[18, 0.07, 0.07, 0, y, ROOM.back + 0.04], [18, 0.07, 0.07, 0, y, ROOM.front - 0.04],
-       [0.07, 0.07, 14.2, -ROOM.wall + 0.04, y, 3.9], [0.07, 0.07, 14.2, ROOM.wall - 0.04, y, 3.9]].forEach(function (d) {
+       [0.07, 0.07, ROOM.len, -ROOM.wall + 0.04, y, ROOM.cz], [0.07, 0.07, ROOM.len, ROOM.wall - 0.04, y, ROOM.cz]].forEach(function (d) {
         var m = new THREE.Mesh(new THREE.BoxGeometry(d[0], d[1], d[2]), goldMat); m.position.set(d[3], d[4], d[5]); scene.add(m);
       });
     });
@@ -690,19 +693,20 @@
     }
     drawBoard([]);
     // colonnes
-    [[-8.5, -2.8], [8.5, -2.8], [-8.5, 10.6], [8.5, 10.6]].forEach(function (p) {
+    [10.6, 4, -2, -8, -14, -20, -22.8].reduce(function (a, z) { a.push([-8.5, z], [8.5, z]); return a; }, []).forEach(function (p) {
       var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x14484a, roughness: 0.45, metalness: 0.35 }));
       c.position.set(p[0], 3.75, p[1]); scene.add(c);
       [0.3, 7.2].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
     });
     // bandeaux lumineux au plafond
     var stripMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
-    [0.5, 4.5, 8.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 7.46, z); scene.add(s); });
+    [8.5, 4.5, 0.5, -3.5, -7.5, -11.5, -15.5, -19.5, -22.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 7.46, z); scene.add(s); });
 
     scene.add(new THREE.AmbientLight(0x9a8cc0, 0.85));
     var key = new THREE.DirectionalLight(0xfff0d0, 0.55); key.position.set(2, 5, 9); scene.add(key);
     var pl = new THREE.PointLight(0xffd9a0, 0.9, 16); pl.position.set(0, 4.4, 6); scene.add(pl);
     if (!low) { var pl2 = new THREE.PointLight(0xffc890, 0.6, 14); pl2.position.set(0, 4.4, 1); scene.add(pl2); }
+    [-6, -13, -20].forEach(function (z) { var pz = new THREE.PointLight(0xffd9a0, 0.8, 14); pz.position.set(0, 4.4, z); scene.add(pz); });
 
     // Règles et gains sur les murs de gauche et de droite (valeurs lues dans le jeu pour rester identiques)
     var rcv = mkCanvas(1400, 720), rx = rcv.getContext('2d'), rTex = mkTex(rcv);
@@ -827,8 +831,12 @@
     poster(-5.6, 4.0, ROOM.front - 0.05, Math.PI, '7️⃣', 'JACKPOT', 2.1, 2.8, 'assets/icones/symboles/sept.png'); poster(5.6, 4.0, ROOM.front - 0.05, Math.PI, '💎', 'DIAMANTS', 2.1, 2.8);
         [-3.6, 3.6].forEach(function (x) { sconce(x, 3.9, ROOM.front - 0.05, Math.PI); });
     // mur de gauche (x = -wall), tourné vers la salle : au-dessus des bornes
-    [[0.2, '🍒', 'CERISES'], [3.4, '👑', 'COURONNES'], [6.6, '🔥', 'FLAMMES']].forEach(function (a) { poster(-ROOM.wall + 0.05, 5.3, a[0], Math.PI / 2, a[1], a[2], 1.9, 2.5); });
-    [1.8, 5.0, 8.2, -1.4].forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2); });
+    var POST = [['🍒', 'CERISES'], ['👑', 'COURONNES'], ['🔥', 'FLAMMES'], ['💎', 'DIAMANTS'], ['🔔', 'CLOCHES'], ['🍋', 'CITRONS']];
+    LEFT_Z.forEach(function (z, i) { var a = POST[i % POST.length]; poster(-ROOM.wall + 0.05, 5.3, z, Math.PI / 2, a[0], a[1], 1.9, 2.5); });
+    LEFT_Z.forEach(function (z) { sconce(-ROOM.wall + 0.05, 5.3, z - 1.6, Math.PI / 2); });
+    sconce(-ROOM.wall + 0.05, 5.3, LEFT_Z[0] + 1.6, Math.PI / 2);
+    RIGHT_Z.forEach(function (z, i) { var a = POST[(i + 3) % POST.length]; poster(ROOM.wall - 0.05, 5.3, z, -Math.PI / 2, a[0], a[1], 1.9, 2.5); });
+    RIGHT_Z.forEach(function (z) { sconce(ROOM.wall - 0.05, 5.3, z - 1.6, -Math.PI / 2); });
     return { drawBoard: drawBoard, drawPlaque: drawPlaque, plaques: plaques };
   }
 
@@ -877,8 +885,10 @@
     room.bounds = { xMin: -ROOM.xMax, xMax: ROOM.xMax, zMin: ROOM.zMin, zMax: ROOM.zMax };
 
     // 7 bornes contre les murs : 4 au fond (sous le tableau des meilleurs gains), 3 le long du mur de gauche, toutes tournées vers la salle
-    var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0],
-      [-ROOM.wall + 0.9, 0.2, Math.PI / 2], [-ROOM.wall + 0.9, 3.4, Math.PI / 2], [-ROOM.wall + 0.9, 6.6, Math.PI / 2]];
+    var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0]];
+    LEFT_Z.slice().reverse().forEach(function (z) { SPOTS.push([-ROOM.wall + 0.9, z, Math.PI / 2]); });
+    RIGHT_Z.forEach(function (z) { SPOTS.push([ROOM.wall - 0.9, z, -Math.PI / 2]); });
+    ISLE_Z.forEach(function (z) { SPOTS.push([-1.15, z, -Math.PI / 2]); SPOTS.push([1.15, z, Math.PI / 2]); });
     var n = SPOTS.length;
     for (var i = 0; i < n; i++) {
       (function (i) {
@@ -1140,6 +1150,12 @@
     /* ---------- vie de la salle ---------- */
     room.update = function (dt) {
       for (var i = 0; i < room.cabs.length; i++) room.cabs[i].cab.update(dt);
+      // salle longue : les bornes trop loin ne sont pas dessinées (garde la fluidité), elles réapparaissent en approchant
+      room.cullT = (room.cullT || 0) + dt;
+      if (room.cullT > 0.25) {
+        room.cullT = 0; var pp = world.player;
+        room.cabs.forEach(function (e) { var d = Math.hypot(pp.x - e.x, pp.z - e.z), gv = e.cab.group; gv.visible = e === room.seatCab || d < (low ? (gv.visible ? 16 : 14) : (gv.visible ? 24 : 21)); });
+      }
       room.boardT = (room.boardT || 0) + dt;
       if (room.boardT > 5) { room.boardT = 0; built.drawBoard(topSlotWins()); }
     };

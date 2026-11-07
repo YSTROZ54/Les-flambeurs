@@ -30,6 +30,7 @@
     var comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.connect(c.destination);
     bus = { c: c, music: c.createGain(), sfx: c.createGain(), stepIn: c.createGain(), stepRev: c.createGain() };
     bus.music.gain.value = 0; bus.sfx.gain.value = 0; bus.music.connect(comp); bus.sfx.connect(comp);
+    bus.an = c.createAnalyser(); bus.an.fftSize = 256; bus.an.smoothingTimeConstant = 0.6; bus.music.connect(bus.an);   // écoute de la musique (salle de musique : le sol suit le son)
     // les pas passent par une courte réverbération (0,45 s) dont le dosage change selon le sol
     var len = Math.floor(c.sampleRate * 0.45), imp = c.createBuffer(2, len, c.sampleRate), conv = c.createConvolver();
     for (var ch = 0; ch < 2; ch++) { var dd = imp.getChannelData(ch); for (var j = 0; j < len; j++) dd[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 3); }
@@ -291,6 +292,20 @@
     A.room = id; M.pending = false;
     if (!id || id === 'cinema' || id === 'cinemapremium' || id === 'slots') { stopSong(); return; }      // pas de musique au cinéma ni dans la salle des machines
     start(id);
+  };
+  // niveaux de la musique en cours, des graves aux aigus : remplit out[0..n-1] (0 à 1, selon le volume) et renvoie le niveau moyen
+  var anBuf = null;
+  A.levels = function (out, n) {
+    var b = bus; if (!b || !b.an) { for (var z = 0; z < n; z++) out[z] = 0; return 0; }
+    if (!anBuf) anBuf = new Uint8Array(b.an.frequencyBinCount);
+    b.an.getByteFrequencyData(anBuf);
+    var top = Math.floor(anBuf.length * 0.7), tot = 0, i, j, from, to, sum;
+    for (i = 0; i < n; i++) {
+      from = Math.floor(Math.pow(i / n, 1.7) * top); to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / n, 1.7) * top)); sum = 0;
+      for (j = from; j < to; j++) sum += anBuf[j];
+      out[i] = sum / (to - from) / 255; tot += out[i];
+    }
+    return tot / n;
   };
   A.withPlaylist = function (fn) { withPlaylist(function () { fn(PL || {}); }); };   // pour le cinéma, qui joue sa musique lui-même
   A.hasFiles = function () { return !!PL && Object.keys(PL).some(function (k) { return PL[k] && PL[k].length; }); };

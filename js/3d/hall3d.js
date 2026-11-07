@@ -23,7 +23,7 @@
     { x: 2.5, z: -HZ, nx: 0, nz: 1, label: '🃏 BLACKJACK', sub: 'CONTRE LE CROUPIER', color: 0xff8a8a, target: 'blackjack', theme: 'blackjack' },
     { x: 7.5, z: -HZ, nx: 0, nz: 1, label: '🚀 FUSÉE CRASH', sub: 'ÉJECTE-TOI À TEMPS', color: 0x9ab8ff, target: 'crash', theme: 'crash' },
     // mur de gauche (regarde vers +x)
-    { x: -HX, z: -5, nx: 1, nz: 0, label: '🎵 SALLE DE MUSIQUE', sub: 'BIENTÔT DISPONIBLE', color: 0xb98cff, target: '', theme: 'music', staffOnly: true },
+    { x: -HX, z: -5, nx: 1, nz: 0, label: '🎵 SALLE DE MUSIQUE', sub: 'SOL DE VERRE · LUMIÈRES', color: 0xb98cff, target: 'musique', theme: 'music' },
     { x: -HX, z: 0, nx: 1, nz: 0, label: '🛍️ TROPI SHOP', sub: '6 VENDEURS · SKINS', color: 0xffd24a, target: 'shop3d', theme: 'shop' },
     { x: -HX, z: 5, nx: 1, nz: 0, label: '🎮 MINI JEUX', sub: 'UNO · P4 · LUDO · PMU · COFFRES…', color: 0xffd400, target: 'minijeux', theme: 'minijeux' },   // salle d'UNO et de Puissance 4 (l'ancienne porte du grattage : ce jeu reste dans le menu 2D)
     // mur de droite (regarde vers -x)

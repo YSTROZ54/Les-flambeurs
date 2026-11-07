@@ -425,6 +425,7 @@
     };
   }
   T.exitBlackjack = exitTheme(0x6a0f1c, '255, 138, 138', '#f4e3b0', 0x7a1020);
+  T.exitMusique = exitTheme(0x1a0d33, '185, 140, 255', '#f4e8ff', 0x3a1a6a);
   T.exitBlindtest = exitTheme(0x1d0f38, '217, 160, 255', '#e6d2ff', 0x3a1a6a);
   T.exitCinemaPremium = exitTheme(0x0c1a48, '255, 215, 120', '#ffe7a8', 0x1c3a8a, { noLamps: true });
   T.exitCrash = exitTheme(0x0d1836, '110, 160, 255', '#cfe0ff', 0x1a3a86);
