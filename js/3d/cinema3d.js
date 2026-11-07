@@ -560,7 +560,8 @@
     ex.beginPath(); ex.moveTo(50, 36); ex.lineTo(66, 36); ex.moveTo(60, 30); ex.lineTo(66, 36); ex.lineTo(60, 42); ex.stroke();   // flèche vers la sortie
     ex.font = '900 44px ' + MONO; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillText('SORTIE', 160, 42, 180);
     var exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshBasicMaterial({ map: mkTex(exC) })); if (P) { exit.position.set(-HX + 0.06, 4.9, EXZ); exit.rotation.y = Math.PI / 2; } else { exit.position.set(0, BACK_H + 4.9, HZ - 0.06); exit.rotation.y = Math.PI; } g.add(exit);
-    var exitDoor = world.addDoor(room, { x: P ? -HX : 0, z: P ? EXZ : HZ, nx: P ? 1 : 0, nz: P ? 0 : -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema' });
+    var exitDoor = world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.4, h: 3.2, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: P ? 'exitCinemaPremium' : 'exitCinema',
+      enabled: function () { return !P || vipUp; } });   // premium : la sortie est au fond de l'étage VIP
     if (P) exit.visible = false;   // (premium : pas de panneau vert au-dessus de la porte)
     exitDoor.g.position.y = P ? 0 : BACK_H;   // la porte est au niveau du palier du fond, surélevé par les gradins
 
@@ -746,6 +747,9 @@
       var baseGround = room.groundY, lz = null;
       setVip(false);
       room.resetVip = function () { setVip(false); lz = null; };
+      room.enterVip = function () { setVip(true); lz = null; };
+      room.level = function () { return vipUp ? 1 : 0; };
+      exitDoor.g.position.y = VY + 0.4;                    // collée au fond du balcon, sur la dernière marche
       function topK(k) { if (k < 0) return 0; var zc = ZS0 + k * 0.45 + 0.225; return zc >= ZT ? VY : slope * (zc - ZS0); }
       function stairH(z) {                             // hauteur de la marche sous les pieds (même dessus que les marches dessinées), raccord doux entre deux marches
         if (z <= ZS0) return 0; if (z >= ZT) return VY;
@@ -778,7 +782,7 @@
       room.remoteGroundY = function (r, x, z) {         // les autres joueurs : même règle ; assis à l'étage, ils sont dessinés à l'étage
         var st = r && r.seat >= 0 ? seats[r.seat] : null;
         if (st && st.vip) return st.y;
-        if (Math.abs(x) > HX) { var pz = r._lz == null ? z : r._lz; if (pz < ZT && z >= ZT) r._vip = true; else if (pz >= ZT && z < ZT) r._vip = false; }
+        r._vip = (r.lv || 0) > 0;                       // chaque joueur envoie son étage (on y monte par des portes, plus par un escalier)
         r._lz = z;
         return vipGround(x, z, !!r._vip);
       };
@@ -1619,10 +1623,11 @@
       if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
-    room.spawn = function () { return P ? { x: -HX + 2.8, z: -HZ + 4.9, yaw: Math.PI } : { x: 0, z: HZ - 2.6, yaw: 0 }; };
+    room.spawn = function () { return P ? { x: 0, z: HZ - 2.4, yaw: F.yawFor(0, -1) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive à l'étage VIP, devant la sortie
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       seanceAsked = false; if (room.resetVip) room.resetVip();
+      if (P && room.enterVip) room.enterVip();
       music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son

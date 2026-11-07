@@ -64,11 +64,10 @@
     room.colliders.push({ x: cx, z: cz, r: 1.5 });                                   // la tour est pleine : on ne peut plus entrer dedans
     var pad = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.45, 0.2, 32), steel); pad.position.set(cx, 0.1, cz); g.add(pad);
     var glass = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, SILO.h, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
-    glass.position.set(cx, SILO.h / 2 + 0.2, cz); g.add(glass);
+    glass.position.set(cx, SILO.h / 2 + 0.2, cz); glass.renderOrder = 2; g.add(glass);
     var cap = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.12, 32), steel); cap.position.set(cx, SILO.h + 0.26, cz); g.add(cap);          // couvercle du tube
-    var capGlass = new THREE.Mesh(new THREE.CircleGeometry(1.15, 32), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); capGlass.rotation.x = -Math.PI / 2; capGlass.position.set(cx, SILO.h + 0.2, cz); g.add(capGlass);
     var ceilCol = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, H - SILO.h - 0.32, 16), steel); ceilCol.position.set(cx, SILO.h + 0.32 + (H - SILO.h - 0.32) / 2, cz); g.add(ceilCol);   // mât qui relie le tube au plafond
-    for (i = 0; i <= 5; i++) { var ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 8, 40), steel); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.25 + i * (SILO.h / 5), cz); g.add(ring); }
+    for (i = 0; i <= 4; i++) { var ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 8, 40), steel); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.25 + i * (SILO.h / 5), cz); g.add(ring); }
     for (i = 0; i < 6; i++) { var a = i / 6 * TAU, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, SILO.h, 6), steel); bar.position.set(cx + Math.cos(a) * 1.15, SILO.h / 2 + 0.2, cz + Math.sin(a) * 1.15); g.add(bar); }
     }
     buildTower(SILO.x, SILO.z); buildTower(SILO2.x, SILO2.z);

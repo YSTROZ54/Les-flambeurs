@@ -115,7 +115,7 @@
     }
 
     // bannière du casino, en haut des trois murs qui ont des portes de jeu (au-dessus des enseignes de portes) : chacune annonce les jeux de son mur
-    [['fond', 'hall-fond.jpg'], ['droite', 'hall-droite.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'assets/bannieres/' + k[1] + '?v=4', 8.1, 2.7, 0xffb300); });
+    [['fond', 'hall-fond.jpg']].forEach(function (k) { neon(WALL[k[0]], 0, 5.75, 'assets/bannieres/' + k[1] + '?v=4', 8.1, 2.7, 0xffb300); });
     (function () {                                       // mur de gauche : même bannière, mais elle annonce Mini jeux · Tropi Shop · Salle de musique
       var bc = mkCanvas(1620, 540), bmat = neon(WALL.gauche, 0, 5.75, '', 8.1, 2.7, 0xffb300, bc), bim = new Image();
       bim.onload = function () {
@@ -139,6 +139,35 @@
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
     neon(WALL.entree, -4.75, 4.2, 'assets/bannieres/tropistream-2.jpg', 4.95, 2.475, 0xff7a1a);   // nouvelle bannière (2 pour 1)
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
+    // affiche du cinéma premium : un vrai cadre de musée (moulure dorée en relief, rosaces, couronne au sommet, halo chaud sur le mur)
+    function luxFrame(mur, along, ay, bw, bh, canvas) {
+      var pg = new THREE.Group(); pg.position.set(mur.x, 0, mur.z); pg.rotation.y = Math.atan2(mur.nx, mur.nz); g.add(pg);
+      var goldL = new THREE.MeshStandardMaterial({ color: 0xe0b84c, roughness: 0.22, metalness: 0.9, emissive: 0x4a3308 });
+      var goldD = new THREE.MeshStandardMaterial({ color: 0x8a6a1c, roughness: 0.35, metalness: 0.85, emissive: 0x1e1504 });
+      function bx(w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(along + x, ay + y, z); pg.add(o); return o; }
+      // halo doré très doux autour du cadre
+      var mg = 1.4, tw2 = bw + mg * 2, th2 = bh + mg * 2, GW = 512, GH = Math.round(GW * th2 / tw2), sc2 = GW / tw2, hc = mkCanvas(GW, GH), hx2 = hc.getContext('2d');
+      hx2.shadowColor = 'rgba(255,205,120,1)'; hx2.shadowBlur = 70; hx2.fillStyle = 'rgba(255,205,120,0.9)'; hx2.fillRect(mg * sc2, mg * sc2, bw * sc2, bh * sc2);
+      var halo = new THREE.Mesh(new THREE.PlaneGeometry(tw2, th2), new THREE.MeshBasicMaterial({ map: mkTex(hc), transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })); halo.position.set(along, ay, 0.02); pg.add(halo);
+      bx(bw + 0.7, bh + 0.7, 0.04, new THREE.MeshStandardMaterial({ color: 0x0d0709, roughness: 0.85 }), 0, 0, 0.04);    // fond de velours noir
+      var T = 0.17, hw = bw / 2 + T / 2, hh = bh / 2 + T / 2;                                                              // la moulure principale
+      bx(bw + T * 2, T, 0.13, goldL, 0, hh, 0.11); bx(bw + T * 2, T, 0.13, goldL, 0, -hh, 0.11); bx(T, bh, 0.13, goldL, hw, 0, 0.11); bx(T, bh, 0.13, goldL, -hw, 0, 0.11);
+      var t3 = 0.035;                                                                                                      // filet sombre côté image
+      bx(bw, t3, 0.05, goldD, 0, bh / 2 - t3 / 2, 0.1); bx(bw, t3, 0.05, goldD, 0, -bh / 2 + t3 / 2, 0.1); bx(t3, bh, 0.05, goldD, bw / 2 - t3 / 2, 0, 0.1); bx(t3, bh, 0.05, goldD, -bw / 2 + t3 / 2, 0, 0.1);
+      var o2 = bw / 2 + T + 0.12, v2 = bh / 2 + T + 0.12, t4 = 0.04;                                                       // second filet doré, à l'extérieur
+      bx(o2 * 2 + t4, t4, 0.05, goldL, 0, v2, 0.08); bx(o2 * 2 + t4, t4, 0.05, goldL, 0, -v2, 0.08); bx(t4, v2 * 2, 0.05, goldL, o2, 0, 0.08); bx(t4, v2 * 2, 0.05, goldL, -o2, 0, 0.08);
+      var rosG = new THREE.SphereGeometry(0.13, 18, 12);                                                                    // rosaces aux quatre coins
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) { var r = new THREE.Mesh(rosG, goldL); r.scale.z = 0.55; r.position.set(along + c[0] * hw, ay + c[1] * hh, 0.18); pg.add(r); });
+      var cs = new THREE.Shape(); cs.moveTo(-0.42, 0); cs.lineTo(0.42, 0); cs.lineTo(0.5, 0.4); cs.lineTo(0.24, 0.18); cs.lineTo(0, 0.5); cs.lineTo(-0.24, 0.18); cs.lineTo(-0.5, 0.4); cs.closePath();   // couronne au sommet
+      var crown = new THREE.Mesh(new THREE.ExtrudeGeometry(cs, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 }), goldL);
+      crown.position.set(along, ay + bh / 2 + T + 0.04, 0.08); pg.add(crown);
+      var pearl = new THREE.SphereGeometry(0.045, 12, 8);
+      [[-0.5, 0.4], [0, 0.5], [0.5, 0.4]].forEach(function (p) { var m = new THREE.Mesh(pearl, goldL); m.position.set(along + p[0], ay + bh / 2 + T + 0.04 + p[1] + 0.03, 0.12); pg.add(m); });
+      var jewel = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 10), new THREE.MeshStandardMaterial({ color: 0xc0142e, emissive: 0x5a0614, roughness: 0.15, metalness: 0.3 }));
+      jewel.position.set(along, ay + bh / 2 + T + 0.04 + 0.12, 0.16); pg.add(jewel);
+      var mat = new THREE.MeshBasicMaterial({ map: mkTex(canvas) }), pic = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), mat); pic.position.set(along, ay, 0.07); pg.add(pic);
+      return mat;
+    }
     // un panneau « à l'affiche » par cinéma : celui de Tropi Stream (mur d'entrée) et celui du cinéma premium (à droite de sa porte, en noir et or)
     function makeCinemaBoard(P2) {
     var soon = mkCanvas(1280, 720), sn = soon.getContext('2d');
@@ -147,7 +176,7 @@
     sn.font = '900 130px ' + SERIF; sn.fillText(P2.head, 640, 270, 1200);
     sn.shadowBlur = 0; sn.fillStyle = '#f8e7d0'; sn.font = '700 52px ' + MONO; sn.fillText(P2.name, 640, 440);
     sn.fillStyle = '#c98a55'; sn.font = '600 30px ' + MONO; sn.fillText('SALLE OUVERTE · ENTRE PAR LA PORTE', 640, 520);
-    var cinPosterMat = neon(P2.mur, P2.along, P2.ay, '', 4.4, 2.475, P2.hex, soon);
+    var cinPosterMat = P2.lux ? luxFrame(P2.mur, P2.along, P2.ay, P2.bw, P2.bw * 9 / 16, soon) : neon(P2.mur, P2.along, P2.ay, '', 4.4, 2.475, P2.hex, soon);
 
     // panneau « à l'affiche » tenu à jour : séance en cours (avec l'heure de début) et prochaines séances programmées depuis la régie (cinema3d.js),
     // affiches des films chargées depuis la playlist / la programmation, logo Tropi Stream en en-tête
@@ -221,8 +250,87 @@
         .catch(function () { hallPlaylist = []; });
     }
     var lastCinSt;
+    // ---- le dessin de l'affiche premium : velours noir, rayons art déco, lettres d'or, couronne, programme en cartes ----
+    function goldG(y0, y1) { var gq = sn.createLinearGradient(0, y0, 0, y1); gq.addColorStop(0, '#fff4c8'); gq.addColorStop(0.45, '#e6bf55'); gq.addColorStop(0.55, '#b98a28'); gq.addColorStop(1, '#f1d37a'); return gq; }
+    function spaced(t, x, y, sp) {                       // texte aux lettres écartées, centré sur x ; renvoie sa largeur
+      var ch = String(t).split(''), w = 0; ch.forEach(function (c) { w += sn.measureText(c).width + sp; }); w -= sp;
+      var cx = x - w / 2; sn.textAlign = 'left'; ch.forEach(function (c) { sn.fillText(c, cx, y); cx += sn.measureText(c).width + sp; }); sn.textAlign = 'center'; return w;
+    }
+    function crownIcon(cx, cy, s) {
+      sn.save(); sn.translate(cx, cy); sn.scale(s, s); sn.fillStyle = goldG(-26, 22);
+      sn.beginPath(); sn.moveTo(-30, 14); sn.lineTo(30, 14); sn.lineTo(34, -14); sn.lineTo(16, 0); sn.lineTo(0, -22); sn.lineTo(-16, 0); sn.lineTo(-34, -14); sn.closePath(); sn.fill();
+      sn.fillRect(-30, 17, 60, 5);
+      [[-34, -14], [0, -22], [34, -14]].forEach(function (p) { sn.beginPath(); sn.arc(p[0], p[1] - 4, 4.5, 0, TAU); sn.fill(); });
+      sn.fillStyle = '#c0142e'; sn.beginPath(); sn.arc(0, 6, 4.5, 0, TAU); sn.fill();
+      sn.restore();
+    }
+    function decoCorner(x, y, sx, sy) {                  // coin art déco : éventail de rayons, deux arcs, équerres dorées
+      sn.save(); sn.translate(x, y); sn.scale(sx, sy); sn.strokeStyle = '#d4af37'; sn.lineWidth = 2;
+      sn.globalAlpha = 0.5; for (var k = 0; k <= 6; k++) { var a = k / 6 * Math.PI / 2; sn.beginPath(); sn.moveTo(0, 0); sn.lineTo(Math.cos(a) * 56, Math.sin(a) * 56); sn.stroke(); }
+      sn.globalAlpha = 1; sn.beginPath(); sn.arc(0, 0, 56, 0, Math.PI / 2); sn.stroke(); sn.beginPath(); sn.arc(0, 0, 32, 0, Math.PI / 2); sn.stroke();
+      sn.fillStyle = '#d4af37'; sn.fillRect(0, 0, 84, 4); sn.fillRect(0, 0, 4, 84); sn.fillRect(0, 12, 64, 2); sn.fillRect(12, 0, 2, 64);
+      sn.restore();
+    }
+    function diamond(x, y, r) { sn.save(); sn.translate(x, y); sn.rotate(Math.PI / 4); sn.fillRect(-r, -r, r * 2, r * 2); sn.restore(); }
+    var JOURS_C = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
+    function jourCourt(d) { var n = new Date(); return d.toDateString() === n.toDateString() ? 'AUJOURD\'HUI' : JOURS_C[d.getDay()] + ' ' + d.getDate(); }
+    function paintLux(st) {
+      var W = 1280, H = 720, k;
+      var bg = sn.createRadialGradient(640, 300, 60, 640, 360, 820); bg.addColorStop(0, '#1f161b'); bg.addColorStop(0.6, '#0d080b'); bg.addColorStop(1, '#030203'); sn.fillStyle = bg; sn.fillRect(0, 0, W, H);
+      sn.save(); sn.globalAlpha = 0.06; sn.fillStyle = '#e6bf55';                                   // rayons de soleil art déco, depuis le haut
+      for (k = 0; k < 18; k++) { var a0 = Math.PI * k / 18, a1 = a0 + Math.PI / 36; sn.beginPath(); sn.moveTo(640, -60); sn.lineTo(640 + Math.cos(a0) * 1500, -60 + Math.sin(a0) * 1500); sn.lineTo(640 + Math.cos(a1) * 1500, -60 + Math.sin(a1) * 1500); sn.closePath(); sn.fill(); }
+      sn.restore();
+      sn.strokeStyle = goldG(0, H); sn.lineWidth = 8; sn.strokeRect(20, 20, W - 40, H - 40);
+      sn.strokeStyle = 'rgba(212,175,55,0.6)'; sn.lineWidth = 2; sn.strokeRect(36, 36, W - 72, H - 72);
+      decoCorner(36, 36, 1, 1); decoCorner(W - 36, 36, -1, 1); decoCorner(36, H - 36, 1, -1); decoCorner(W - 36, H - 36, -1, -1);
+      // en-tête : couronne, CINÉMA PREMIUM en lettres d'or espacées, « à l'affiche » entre deux filets
+      crownIcon(640, 70, 1.1);
+      sn.textAlign = 'center'; sn.textBaseline = 'middle';
+      sn.font = '700 62px ' + SERIF; sn.fillStyle = goldG(108, 168); sn.shadowColor = 'rgba(230,190,90,0.55)'; sn.shadowBlur = 18;
+      spaced('CINÉMA PREMIUM', 640, 138, 12); sn.shadowBlur = 0;
+      sn.font = '600 27px ' + MONO; sn.fillStyle = '#e2cb92'; var hw3 = spaced(P2.head, 640, 190, 8) / 2 + 30;
+      sn.fillStyle = '#d4af37'; sn.fillRect(170, 189, 640 - hw3 - 170, 1.5); sn.fillRect(640 + hw3, 189, W - 170 - 640 - hw3, 1.5); diamond(640 - hw3 + 12, 190, 4); diamond(640 + hw3 - 12, 190, 4);
+      // au milieu : le film en cours, ou la salle qui attend (et la prochaine séance)
+      var playing = st && st.status === 'playing' && st.title, now = Date.now();
+      var sched = ((st && st.schedule) || []).filter(function (it) { return it && isFinite(it.at) && it.at > now - 60000; }).sort(function (a, b) { return a.at - b.at; });
+      ensureHallPlaylist();
+      if (playing) {
+        var titre = String(st.title).replace(/\s*\[(VF|VO)\]\s*$/, ''), startD = new Date(now - (st.position || 0) * 1000), f = hallPlaylist && hallPlaylist.find(function (x) { return x.nom === titre; });
+        var PX = 130, PY = 226, PW = 150, PH = 225;
+        sn.strokeStyle = '#d4af37'; sn.lineWidth = 3; sn.strokeRect(PX - 9, PY - 9, PW + 18, PH + 18);
+        poster(getImg(f && f.poster), PX, PY, PW, PH, 3);
+        var tx = PX + PW + 54; sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
+        sn.fillStyle = '#e9cf86'; sn.font = '700 22px ' + MONO; sn.fillText('✦  EN CE MOMENT DANS LA SALLE', tx, 262);
+        sn.fillStyle = '#fbf3e0'; sn.font = 'italic 700 54px ' + SERIF; var ls = wrapLines(sn, titre, 1140 - tx, 2); ls.forEach(function (ln, i) { sn.fillText(ln, tx, 328 + i * 58); });
+        sn.fillStyle = '#c9ad6a'; sn.font = '600 22px ' + MONO; sn.fillText('Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '  ·  ' + f.annee : '') + (f && f.genres && f.genres[0] ? '  ·  ' + f.genres[0] : ''), tx, 328 + ls.length * 58 + 6);
+      } else {
+        sn.textAlign = 'center'; sn.textBaseline = 'middle';
+        sn.fillStyle = '#fbf3e0'; sn.font = 'italic 600 60px ' + SERIF; sn.shadowColor = 'rgba(0,0,0,0.6)'; sn.shadowBlur = 10; sn.fillText('La salle vous attend', 640, 290); sn.shadowBlur = 0;
+        var nx = sched[0];
+        sn.font = '600 30px ' + MONO; sn.fillStyle = '#d9c189';
+        sn.fillText(nx ? 'PROCHAINE SÉANCE  ·  ' + jourCourt(new Date(nx.at)) + ' À ' + fmtHeureBoard(new Date(nx.at)) : 'La séance commence dès que la régie lance un film', 640, 364, 1000);
+        if (nx) { sn.fillStyle = '#fbf3e0'; sn.font = '700 34px ' + SERIF; sn.fillText(truncate(sn, String(nx.title || '').replace(/\s*\[(VF|VO)\]\s*$/, ''), 1000), 640, 414); }
+      }
+      // en bas : le programme, en cartes (affiche, jour, heure, titre)
+      sn.textAlign = 'center'; sn.textBaseline = 'middle'; sn.font = '700 24px ' + MONO; sn.fillStyle = '#d4af37';
+      var pw2 = spaced('PROGRAMME', 640, 484, 10) / 2 + 26; sn.fillRect(130, 483, 640 - pw2 - 130, 1.5); sn.fillRect(640 + pw2, 483, W - 130 - 640 - pw2, 1.5); diamond(640 - pw2 + 10, 484, 3.5); diamond(640 + pw2 - 10, 484, 3.5);
+      var list = sched.slice(0, 4), CW2 = 240, GAP = 20, tot = list.length * CW2 + Math.max(0, list.length - 1) * GAP, x0 = 640 - tot / 2, CY = 508, CH = 160;
+      if (!list.length) { sn.fillStyle = 'rgba(217,193,137,0.8)'; sn.font = 'italic 600 42px ' + SERIF; sn.fillText('Programme bientôt annoncé', 640, 590); }
+      list.forEach(function (it, i) {
+        var cx = x0 + i * (CW2 + GAP), d = new Date(it.at);
+        var cg = sn.createLinearGradient(0, CY, 0, CY + CH); cg.addColorStop(0, 'rgba(212,175,55,0.14)'); cg.addColorStop(1, 'rgba(212,175,55,0.03)'); sn.fillStyle = cg; F.roundRectPath(sn, cx, CY, CW2, CH, 6); sn.fill();
+        sn.strokeStyle = 'rgba(212,175,55,0.7)'; sn.lineWidth = 1.5; F.roundRectPath(sn, cx, CY, CW2, CH, 6); sn.stroke();
+        poster(getImg(it.poster), cx + 12, CY + 12, 90, CH - 24, 3);
+        var tx2 = cx + 116; sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
+        sn.fillStyle = '#d4af37'; sn.font = '700 18px ' + MONO; sn.fillText(jourCourt(d), tx2, CY + 40, CW2 - 124);
+        sn.fillStyle = '#fbf3e0'; sn.font = '800 40px ' + SERIF; sn.fillText(fmtHeureBoard(d), tx2, CY + 86);
+        sn.fillStyle = '#d9c189'; sn.font = '600 16px ' + MONO; wrapLines(sn, String(it.title || '').replace(/\s*\[(VF|VO)\]\s*$/, ''), CW2 - 126, 2).forEach(function (ln, k2) { sn.fillText(ln, tx2, CY + 116 + k2 * 20); });
+      });
+      if (cinPosterMat.map) cinPosterMat.map.needsUpdate = true;
+    }
     function paintCinemaBoard(st) {
       lastCinSt = st;
+      if (P2.lux) { paintLux(st); return; }
       // fond : dégradé sombre façon salle obscure + vignette, plutôt qu'un aplat
       var bg = sn.createRadialGradient(640, 320, 80, 640, 360, 760);
       if (P2.lux) { bg.addColorStop(0, '#16131a'); bg.addColorStop(1, '#040305'); } else { bg.addColorStop(0, '#1c0f16'); bg.addColorStop(1, '#0a0509'); }
@@ -329,11 +437,12 @@
       fetch(P2.api, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinBoardBusy = false; paintCinemaBoard(st); }).catch(function () { cinBoardBusy = false; });
     }
 
+      if (P2.lux) paintCinemaBoard(null);              // l'affiche de luxe est dessinée tout de suite (avant la première réponse du serveur)
       return { poll: pollCinemaBoard };
     }
     var boards = [
       makeCinemaBoard({ mur: WALL.entree, along: 4.5, ay: 4.2, hex: 0xff7a1a, c1: '#ff7a1a', c2: '#ffb066', rgb: '255,122,26', name: 'CINÉMA TROPI STREAM', head: 'À L\'AFFICHE', api: '/api/cinema' }),
-      makeCinemaBoard({ mur: WALL.droite, along: 4.8, ay: 2.6, hex: 0xd4af37, c1: '#d4af37', c2: '#f3d98a', rgb: '212,175,55', name: 'CINÉMA PREMIUM', head: "À L'AFFICHE", api: '/api/cinema?room=premium', lux: true })
+      makeCinemaBoard({ mur: WALL.droite, along: 4.3, ay: 2.9, bw: 4.4, hex: 0xd4af37, c1: '#d4af37', c2: '#f3d98a', rgb: '212,175,55', name: 'CINÉMA PREMIUM', head: "À L'AFFICHE", api: '/api/cinema?room=premium', lux: true })
     ];
 
     // guirlandes de néons qui s'enroulent autour des colonnes (même LED lumineuses que la table des chevaux)
