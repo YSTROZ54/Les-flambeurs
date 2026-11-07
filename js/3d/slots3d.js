@@ -59,8 +59,9 @@
     function track(o) { disposables.push(o); return o; }
 
     /* ---------- matières ---------- */
-    var matBody = track(new THREE.MeshStandardMaterial({ color: 0x2a2038, roughness: 0.5, metalness: 0.3 }));
-    var matTrim = track(new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.6, emissive: 0x2a1d00 }));
+    var matBody = track(new THREE.MeshStandardMaterial({ color: opts.bodyColor || 0x2a2038, roughness: 0.5, metalness: 0.3 }));
+    var matTrim = track(new THREE.MeshStandardMaterial({ color: opts.trim || 0xc9a227, roughness: 0.3, metalness: 0.6, emissive: opts.trim || 0x2a1d00 }));
+    if (opts.trim) matTrim.emissive.multiplyScalar(0.25);
     var matDark = track(new THREE.MeshStandardMaterial({ color: 0x050408, roughness: 0.7, metalness: 0.2 }));
     var matSeat = track(new THREE.MeshStandardMaterial({ color: 0x8f0f20, roughness: 0.55, metalness: 0.1 }));
 
@@ -693,7 +694,7 @@
     }
     drawBoard([]);
     // colonnes
-    [10.6, 4, -2, -8, -14, -20, -22.8].reduce(function (a, z) { a.push([-8.5, z], [8.5, z]); return a; }, []).forEach(function (p) {
+    [10.6, 4, -2, -8, -14, -20, -22.8].reduce(function (a, z) { a.push([-8.5, z]); if (!(z > -1 && z < 10)) a.push([8.5, z]); return a; }, []).forEach(function (p) {
       var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x14484a, roughness: 0.45, metalness: 0.35 }));
       c.position.set(p[0], 3.75, p[1]); scene.add(c);
       [0.3, 7.2].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
@@ -888,14 +889,16 @@
     var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0]];
     LEFT_Z.slice().reverse().forEach(function (z) { SPOTS.push([-ROOM.wall + 0.9, z, Math.PI / 2]); });
     RIGHT_Z.forEach(function (z) { SPOTS.push([ROOM.wall - 0.9, z, -Math.PI / 2]); });
-    ISLE_Z.forEach(function (z) { SPOTS.push([-1.15, z, -Math.PI / 2]); SPOTS.push([1.15, z, Math.PI / 2]); });
+    var ISLE = { bodyColor: 0x0d2a4a, trim: 0x35d4ff };
+    ISLE_Z.forEach(function (z) { SPOTS.push([-0.47, z, -Math.PI / 2, ISLE]); SPOTS.push([0.47, z, Math.PI / 2, ISLE]); });
     var n = SPOTS.length;
     for (var i = 0; i < n; i++) {
       (function (i) {
         var px = SPOTS[i][0], pz = SPOTS[i][1], rot = SPOTS[i][2];
-        var cab = createSlotCabinet({ low: low, lights: false, position: new THREE.Vector3(px, 0, pz), rotationY: rot, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
+        var look = SPOTS[i][3] || {};
+        var cab = createSlotCabinet({ low: low, lights: false, bodyColor: look.bodyColor, trim: look.trim, position: new THREE.Vector3(px, 0, pz), rotationY: rot, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
         room.group.add(cab.group);
-        var e = { cab: cab, x: px, z: pz, rotY: rot, n: i + 1, occBy: null };
+        var e = { cab: cab, x: px, z: pz, rotY: rot, n: i + 1, occBy: null, fixedTrim: !!look.trim };
         room.cabs.push(e);
         room.colliders.push({ x: px, z: pz, r: 1.15 });
         room.interactables.push({
@@ -961,7 +964,7 @@
       room.elSpin.textContent = busy ? '… EN COURS' : '🔴 TIRER';
       var box = document.getElementById('slotCabinetBox'), trim = SKINS[''];
       if (box) Object.keys(SKINS).forEach(function (k) { if (k && box.classList.contains(k)) trim = SKINS[k]; });
-      room.cabs.forEach(function (c) { c.cab.setTrim(trim); });
+      room.cabs.forEach(function (c) { if (!c.fixedTrim) c.cab.setTrim(trim); });
     };
 
     /* ---------- s'asseoir / se lever / caméra à la borne ---------- */
@@ -1154,7 +1157,7 @@
       room.cullT = (room.cullT || 0) + dt;
       if (room.cullT > 0.25) {
         room.cullT = 0; var pp = world.player;
-        room.cabs.forEach(function (e) { var d = Math.hypot(pp.x - e.x, pp.z - e.z), gv = e.cab.group; gv.visible = e === room.seatCab || d < (low ? (gv.visible ? 16 : 14) : (gv.visible ? 24 : 21)); });
+        room.cabs.forEach(function (e) { var d = Math.hypot(pp.x - e.x, pp.z - e.z), gv = e.cab.group; gv.visible = !low || e === room.seatCab || d < (gv.visible ? 26 : 23); });
       }
       room.boardT = (room.boardT || 0) + dt;
       if (room.boardT > 5) { room.boardT = 0; built.drawBoard(topSlotWins()); }

@@ -22,33 +22,40 @@
     var g = room.group;
     room.bounds = { xMin: -HX + 0.8, xMax: HX - 0.8, zMin: -HZ + 0.8, zMax: HZ - 0.8 };
 
-    /* ---------- le sol : le damier du hall, en dalles de verre qui s'allument ---------- */
+    /* ---------- le sol : dalles LED en verre, une dalle lumineuse sur deux et l'autre en miroir infini ---------- */
     var TILE = low ? 1.5 : 1, NX = Math.round(HX * 2 / TILE), NZ = Math.round(HZ * 2 / TILE), N = NX * NZ;
-    var base = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x07040d }));
+    var base = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x05030a }));
     base.rotation.x = -Math.PI / 2; base.position.y = -0.34; g.add(base);
-    var glowGeo = new THREE.PlaneGeometry(TILE - 0.06, TILE - 0.06); glowGeo.rotateX(-Math.PI / 2);
-    var glow = new THREE.InstancedMesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }), N);
-    var glassGeo = new THREE.BoxGeometry(TILE - 0.03, 0.07, TILE - 0.03);
-    var glass = new THREE.InstancedMesh(glassGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }), N);
-    var dm = new THREE.Object3D(), tiles = [], i, j, k = 0, dmax = Math.hypot(HX, HZ);
-    for (i = 0; i < NX; i++) for (j = 0; j < NZ; j++) {
-      var tx = -HX + (i + 0.5) * TILE, tz = -HZ + (j + 0.5) * TILE;
-      dm.position.set(tx, -0.2, tz); dm.updateMatrix(); glow.setMatrixAt(k, dm.matrix);
-      dm.position.set(tx, -0.035, tz); dm.updateMatrix(); glass.setMatrixAt(k, dm.matrix);
-      var d = Math.hypot(tx, tz);
-      tiles.push({ light: (i + j) % 2 === 0, band: Math.min(NB - 1, Math.floor(Math.pow(d / dmax, 0.85) * NB)), d: d, ang: Math.atan2(tz, tx) });
-      glow.setColorAt(k, new THREE.Color(0x000000)); glass.setColorAt(k, new THREE.Color(0x222222));
-      k++;
+    function tileTex(kind) {
+      var c = mkCanvas(128, 128), x = c.getContext('2d'), q, d;
+      x.fillStyle = '#000'; x.fillRect(0, 0, 128, 128);
+      if (kind === 0) {                                      // dalle pleine : cadre clair, cœur qui rayonne
+        var gr = x.createRadialGradient(64, 64, 4, 64, 64, 90); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.6, '#a8a8a8'); gr.addColorStop(1, '#383838');
+        x.fillStyle = gr; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#ffffff'; x.lineWidth = 8; x.strokeRect(4, 4, 120, 120);
+      } else {                                               // miroir infini : des cadres qui s'enfoncent dans la dalle, points lumineux sur les bords
+        for (q = 0; q < 9; q++) { var m = 5 + q * 6.5; x.strokeStyle = 'rgba(255,255,255,' + Math.pow(0.78, q).toFixed(2) + ')'; x.lineWidth = Math.max(1, 3.4 - q * 0.28); x.strokeRect(m, m, 128 - 2 * m, 128 - 2 * m); }
+        x.fillStyle = 'rgba(255,255,255,0.95)';
+        for (d = 0; d < 15; d++) { x.fillRect(9 + d * 7.5, 7, 3, 3); x.fillRect(9 + d * 7.5, 118, 3, 3); x.fillRect(7, 9 + d * 7.5, 3, 3); x.fillRect(118, 9 + d * 7.5, 3, 3); }
+      }
+      var t = mkTex(c); t.anisotropy = 4; return t;
     }
-    glow.instanceMatrix.needsUpdate = true; glass.instanceMatrix.needsUpdate = true;
-    glow.frustumCulled = false; glass.frustumCulled = false;
-    g.add(glow); g.add(glass);
-    // filets dorés entre les dalles (comme le sol du hall)
-    var lc = mkCanvas(64, 64), lx = lc.getContext('2d');
-    lx.strokeStyle = 'rgba(201,162,39,0.85)'; lx.lineWidth = 3; lx.strokeRect(1, 1, 62, 62);
-    var lt = mkTex(lc); lt.wrapS = lt.wrapT = THREE.RepeatWrapping; lt.repeat.set(NX, NZ); lt.anisotropy = 4;
-    var lines = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ map: lt, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    lines.rotation.x = -Math.PI / 2; lines.position.y = 0.004; g.add(lines);
+    var glowGeo = new THREE.PlaneGeometry(TILE - 0.07, TILE - 0.07); glowGeo.rotateX(-Math.PI / 2);
+    var cnt = [0, 0], i, j, k = 0, dmax = Math.hypot(HX, HZ);
+    for (i = 0; i < NX; i++) for (j = 0; j < NZ; j++) cnt[(i + j) % 2]++;
+    function glowMesh(kind) { return new THREE.InstancedMesh(glowGeo, new THREE.MeshBasicMaterial({ map: tileTex(kind), color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), cnt[kind]); }
+    var glowA = glowMesh(0), glowB = glowMesh(1);
+    var glassGeo = new THREE.BoxGeometry(TILE - 0.04, 0.07, TILE - 0.04);
+    var glass = new THREE.InstancedMesh(glassGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false }), N);
+    var dm = new THREE.Object3D(), tiles = [], kk = [0, 0];
+    for (i = 0; i < NX; i++) for (j = 0; j < NZ; j++) {
+      var tx = -HX + (i + 0.5) * TILE, tz = -HZ + (j + 0.5) * TILE, kind = (i + j) % 2, d = Math.hypot(tx, tz), gm = kind ? glowB : glowA;
+      dm.position.set(tx, -0.18, tz); dm.updateMatrix(); gm.setMatrixAt(kk[kind], dm.matrix);
+      dm.position.set(tx, -0.035, tz); dm.updateMatrix(); glass.setMatrixAt(k, dm.matrix);
+      tiles.push({ kind: kind, k2: kk[kind], band: Math.min(NB - 1, Math.floor(Math.pow(d / dmax, 0.85) * NB)), d: d, ang: Math.atan2(tz, tx) });
+      gm.setColorAt(kk[kind], new THREE.Color(0x000000)); glass.setColorAt(k, new THREE.Color(0x111111));
+      kk[kind]++; k++;
+    }
+    [glowA, glowB, glass].forEach(function (m) { m.instanceMatrix.needsUpdate = true; m.frustumCulled = false; g.add(m); });
 
     /* ---------- murs, moulures, plafond ---------- */
     var wallMat = new THREE.MeshStandardMaterial({ color: 0x1d1038, roughness: 0.85 });
@@ -116,6 +123,17 @@
     })();
     var ball = new THREE.Mesh(new THREE.SphereGeometry(0.8, 24, 16), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.2, metalness: 0.9 })); ball.position.set(0, H - 1.6, 0); g.add(ball);
     var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold); chain.position.set(0, H - 0.6, 0); g.add(chain);
+    // faisceaux : de longs cônes de lumière qui partent de la boule, tournent avec elle et changent de couleur
+    var bgc = mkCanvas(4, 64), bgx = bgc.getContext('2d'), bgg = bgx.createLinearGradient(0, 0, 0, 64);
+    bgg.addColorStop(0, 'rgba(255,255,255,0.75)'); bgg.addColorStop(0.5, 'rgba(255,255,255,0.22)'); bgg.addColorStop(1, 'rgba(255,255,255,0)'); bgx.fillStyle = bgg; bgx.fillRect(0, 0, 4, 64);
+    var beamTex = mkTex(bgc), beams = new THREE.Group(), beamMats = [], NBEAM = low ? 8 : 16;
+    beams.position.set(0, H - 1.6, 0); g.add(beams);
+    for (i = 0; i < NBEAM; i++) {
+      var bg = new THREE.CylinderGeometry(0.03, 0.9, 14, 12, 1, true); bg.translate(0, -7, 0);
+      var bm = new THREE.MeshBasicMaterial({ map: beamTex, color: 0xb98cff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, opacity: 0.5 });
+      var piv = new THREE.Group(), bmesh = new THREE.Mesh(bg, bm);
+      piv.rotation.y = i / NBEAM * TAU; bmesh.rotation.z = 0.35 + (i % 4) * 0.28; piv.add(bmesh); beams.add(piv); beamMats.push(bm);
+    }
     var wallLeds = [];
     [-1, 1].forEach(function (sd) {
       for (i = 0; i < 6; i++) {
@@ -165,15 +183,14 @@
       // une image sur deux : le sol (jusqu'à 576 dalles) n'a pas besoin d'être plus fluide
       frame2++;
       if (frame2 % 2 === 0) {
-
         for (k = 0; k < N; k++) {
           var t = tiles[k], lv = sm[t.band] * (0.8 + 0.35 * Math.sin(clock * 2.1 + t.d * 0.7 - t.ang * 2));   // petite onde qui part du centre
           lv = Math.max(0, Math.min(1, lv));
-          neon(hue0 + t.band / NB * 0.85 + t.d * 0.02, 0.5, c1);
-          glow.setColorAt(k, c2.copy(c1).multiplyScalar((t.light ? 0.42 : 0.85) * lv * 1.15));
-          glass.setColorAt(k, c2.copy(t.light ? cLight : cDark).multiplyScalar(t.light ? 0.78 : 0.16).lerp(c1, Math.min(1, lv * (t.light ? 0.3 : 0.5))));
+          neon(hue0 + t.band / NB * 0.85 + t.d * 0.02 + (t.kind ? 0.08 : 0), 0.5, c1);
+          (t.kind ? glowB : glowA).setColorAt(t.k2, c2.copy(c1).multiplyScalar((t.kind ? 0.45 : 0.55) + lv * 1.0));
+          glass.setColorAt(k, c2.copy(c1).multiplyScalar(0.1 + lv * 0.3));
         }
-        glow.instanceColor.needsUpdate = true; glass.instanceColor.needsUpdate = true;
+        glowA.instanceColor.needsUpdate = true; glowB.instanceColor.needsUpdate = true; glass.instanceColor.needsUpdate = true;
       }
       // mur d'égaliseur
       for (i = 0; i < NBAR; i++) {
@@ -188,6 +205,8 @@
       discs.forEach(function (d, n) { d[0].rotation.y += dt * 2.4 * (n ? -1 : 1); d[1].rotation.y = d[0].rotation.y; d[2].rotation.y = d[0].rotation.y; neon(hue0b(n * 12) , 0.55, d[1].material.color); });
       knobs.forEach(function (kb, n) { kb.position.y = 1.15 + sm[2 + n * 3] * 0.05; });
       ball.rotation.y += dt * 0.5; ball.scale.setScalar(pulse * 0.97);
+      beams.rotation.y += dt * 0.45;
+      beamMats.forEach(function (bm, n) { neon(hue0b(n * 2), 0.55, bm.color); bm.opacity = 0.28 + bass * 0.5 + 0.12 * Math.sin(clock * 3 + n); });
       wallLeds.forEach(function (l) { neon(hue0b(l.i * 3), 0.25 + sm[(l.i * 2) % NB] * 0.4, l.m.color); });
       neon(hue0b(0), 0.4 + bass * 0.25, ceilRing.material.color); ceilRing.scale.setScalar(1 + bass * 0.05);
       if (spotA) {
@@ -196,7 +215,7 @@
         spotA.intensity = 0.7 + bass * 1.4; spotB.intensity = 0.7 + bass * 1.4;
       }
     };
-    room.dispose = function () { glowGeo.dispose(); glassGeo.dispose(); glow.dispose(); glass.dispose(); };
+    room.dispose = function () { glowGeo.dispose(); glassGeo.dispose(); glowA.dispose(); glowB.dispose(); glass.dispose(); };
     return room;
   }
   F.registerRoom('musique', createMusicRoom);

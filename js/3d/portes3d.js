@@ -412,8 +412,10 @@
         c.fillStyle = accent; c.font = '800 ' + Math.round(W * (plain ? 0.2 : 0.15)) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('HALL', W / 2, plain ? H * 0.56 : H * 0.8);
       },
       deco: function (g, w, h) {
-        var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, 2.6), new THREE.MeshLambertMaterial({ color: carpet })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.4); g.add(tapis);
-        var liseré = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.46, 2.72), new THREE.MeshLambertMaterial({ color: 0xc9a227 })); liseré.rotation.x = -Math.PI / 2; liseré.position.set(0, 0.012, 1.4); g.add(liseré);
+        if (!(opts && opts.noRug)) {
+          var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, 2.6), new THREE.MeshLambertMaterial({ color: carpet })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.4); g.add(tapis);
+          var liseré = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.46, 2.72), new THREE.MeshLambertMaterial({ color: 0xc9a227 })); liseré.rotation.x = -Math.PI / 2; liseré.position.set(0, 0.012, 1.4); g.add(liseré);
+        }
         if (!(opts && opts.noLamps)) [-1, 1].forEach(function (sd) {                 // lanternes dorées de part et d'autre
           var x = sd * (w / 2 + 0.75), gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.3, metalness: 0.7 });
           var base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.08, 16), gold); base.position.set(x, 0.04, 0.45); g.add(base);
@@ -425,7 +427,7 @@
     };
   }
   T.exitBlackjack = exitTheme(0x6a0f1c, '255, 138, 138', '#f4e3b0', 0x7a1020);
-  T.exitMusique = exitTheme(0x1a0d33, '185, 140, 255', '#f4e8ff', 0x3a1a6a);
+  T.exitMusique = exitTheme(0x1a0d33, '185, 140, 255', '#f4e8ff', 0x3a1a6a, { noRug: true });
   T.exitBlindtest = exitTheme(0x1d0f38, '217, 160, 255', '#e6d2ff', 0x3a1a6a);
   T.exitCinemaPremium = exitTheme(0x0c1a48, '255, 215, 120', '#ffe7a8', 0x1c3a8a, { noLamps: true });
   T.exitCrash = exitTheme(0x0d1836, '110, 160, 255', '#cfe0ff', 0x1a3a86);
