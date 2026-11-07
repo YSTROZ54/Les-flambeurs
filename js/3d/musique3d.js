@@ -116,23 +116,37 @@
     });
 
     /* ---------- boule à facettes et bandeaux lumineux aux murs ---------- */
-    var ballTex = (function () {
-      var c = mkCanvas(256, 128), x = c.getContext('2d'), a, b;
-      for (a = 0; a < 16; a++) for (b = 0; b < 8; b++) { var v = 140 + ((a * 37 + b * 91) % 100); x.fillStyle = 'rgb(' + v + ',' + v + ',' + Math.min(255, v + 25) + ')'; x.fillRect(a * 16, b * 16, 15, 15); }
-      return mkTex(c);
-    })();
-    var ball = new THREE.Mesh(new THREE.SphereGeometry(0.8, 24, 16), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.2, metalness: 0.9 })); ball.position.set(0, H - 1.6, 0); g.add(ball);
-    var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold); chain.position.set(0, H - 0.6, 0); g.add(chain);
-    // faisceaux : de fins cônes de lumière qui partent de la boule et tournent exactement avec elle (bords doux, qui s'éteignent loin de la boule)
+    // la boule : un noyau sombre recouvert de vraies facettes (petits carrés lumineux, chacun sa couleur qui suit la musique) ;
+    // de chaque facette tournée vers le bas part un faisceau, dans la direction exacte de la facette : il tourne et change de couleur avec elle
+    var BR = 0.8, ball = new THREE.Group(); ball.position.set(0, H - 1.6, 0); g.add(ball);
+    ball.add(new THREE.Mesh(new THREE.SphereGeometry(BR * 0.97, 24, 16), new THREE.MeshStandardMaterial({ color: 0x0a0a10, roughness: 0.3, metalness: 0.9 })));
+    var facets = [], NR = low ? 9 : 14, NSEG = low ? 14 : 22;
+    for (i = 0; i < NR; i++) {
+      var lat = -Math.PI / 2 + (i + 0.5) / NR * Math.PI, nseg = Math.max(4, Math.round(NSEG * Math.cos(lat)));
+      for (var jj = 0; jj < nseg; jj++) {
+        var lon = (jj + (i % 2) * 0.5) / nseg * TAU;
+        facets.push({ n: new THREE.Vector3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)), ph: Math.random() * TAU, sz: Math.min(TAU * BR * Math.cos(lat) / nseg, Math.PI * BR / NR) * 0.88 });
+      }
+    }
+    var facetMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }), facets.length);
+    var fq = new THREE.Quaternion(), fm = new THREE.Matrix4(), fpos = new THREE.Vector3(), fsc = new THREE.Vector3(), zAxis = new THREE.Vector3(0, 0, 1);
+    facets.forEach(function (f, k) {
+      fq.setFromUnitVectors(zAxis, f.n); fpos.copy(f.n).multiplyScalar(BR); fsc.set(f.sz, f.sz, 1); fm.compose(fpos, fq, fsc); facetMesh.setMatrixAt(k, fm); facetMesh.setColorAt(k, new THREE.Color(0xffffff));
+    });
+    facetMesh.frustumCulled = false; ball.add(facetMesh);
+    function facetHue(k) { return clock * 0.05 + ((k * 0.618034) % 1) * 0.85; }
     var BVS = 'varying float vT; varying vec3 vN; varying vec3 vV; void main() { vT = clamp(-position.y / 11.0, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
     var BFS = 'uniform vec3 uColor; uniform float uOp; varying float vT; varying vec3 vN; varying vec3 vV; void main() { float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.6); float g = pow(1.0 - vT, 1.3) * smoothstep(0.0, 0.03, vT); gl_FragColor = vec4(uColor, e * g * uOp); }';
-    var beams = new THREE.Group(), beamMats = [], NBEAM = low ? 8 : 14, beamGeo = new THREE.CylinderGeometry(0.02, 0.5, 11, 18, 1, true); beamGeo.translate(0, -5.5, 0);
-    beams.position.copy(ball.position); g.add(beams);
+    var beamMats = [], beamFacets = [], beamGeo = new THREE.CylinderGeometry(0.015, 0.34, 11, 14, 1, true); beamGeo.translate(0, -5.5, 0);
+    var down = new THREE.Vector3(0, -1, 0), cand = [];
+    facets.forEach(function (f, k) { if (f.n.y < -0.05 && f.n.y > -0.85) cand.push(k); });
+    var NBEAM = Math.min(cand.length, low ? 10 : 24);
     for (i = 0; i < NBEAM; i++) {
-      var bm = new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(0xb98cff) }, uOp: { value: 0.6 } }, vertexShader: BVS, fragmentShader: BFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-      var piv = new THREE.Group(), bmesh = new THREE.Mesh(beamGeo, bm);
-      piv.rotation.y = i / NBEAM * TAU; bmesh.rotation.z = 0.5 + (i % 3) * 0.32; piv.add(bmesh); beams.add(piv); beamMats.push(bm);
+      var fk = cand[Math.floor(i * cand.length / NBEAM)], bm = new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(0xb98cff) }, uOp: { value: 0.6 } }, vertexShader: BVS, fragmentShader: BFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      var bmesh = new THREE.Mesh(beamGeo, bm); bmesh.position.copy(facets[fk].n).multiplyScalar(BR); bmesh.quaternion.setFromUnitVectors(down, facets[fk].n); bmesh.frustumCulled = false;
+      ball.add(bmesh); beamMats.push(bm); beamFacets.push(fk);
     }
+    var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold); chain.position.set(0, H - 0.6, 0); g.add(chain);
     var wallLeds = [];
     [-1, 1].forEach(function (sd) {
       for (i = 0; i < 6; i++) {
@@ -213,9 +227,11 @@
       woofers.forEach(function (w) { w.m.scale.set(1, 1, 1 + (w.big ? bass : sm[8]) * 0.8); w.m.position.z = w.z + (w.big ? bass : sm[8]) * 0.03; });
       discs.forEach(function (d, n) { d[0].rotation.y += dt * 2.4 * (n ? -1 : 1); d[1].rotation.y = d[0].rotation.y; d[2].rotation.y = d[0].rotation.y; neon(hue0b(n * 12) , 0.55, d[1].material.color); });
       knobs.forEach(function (kb, n) { kb.position.y = 1.15 + sm[2 + n * 3] * 0.05; });
-      ball.rotation.y += dt * 0.5; ball.scale.setScalar(pulse * 0.97);
-      beams.rotation.y = ball.rotation.y;                                                    // les faisceaux et la boule tournent d'un seul bloc
-      beamMats.forEach(function (bm, n) { neon(hue0b(n * 2), 0.55, bm.uniforms.uColor.value); bm.uniforms.uOp.value = 0.45 + bass * 0.9; });
+      ball.rotation.y += dt * 0.5; ball.scale.setScalar(pulse * 0.97);                         // facettes et faisceaux sont dans le même groupe : ils tournent d'un seul bloc
+      var fcol = ball._fc || (ball._fc = new THREE.Color()), nf = facets.length, k2;
+      for (k2 = 0; k2 < nf; k2++) { var tw = 0.5 + 0.5 * Math.sin(clock * 3.2 + facets[k2].ph); neon(facetHue(k2), 0.22 + 0.3 * Math.min(1, tw * (0.5 + bass * 0.9 + sm[(k2 * 3) % NB] * 0.8)), fcol); facetMesh.setColorAt(k2, fcol); }
+      beamMats.forEach(function (bm, n) { neon(facetHue(beamFacets[n]), 0.55, bm.uniforms.uColor.value); bm.uniforms.uOp.value = 0.5 + bass * 0.9; neon(facetHue(beamFacets[n]), 0.75, fcol); facetMesh.setColorAt(beamFacets[n], fcol); });
+      if (facetMesh.instanceColor) facetMesh.instanceColor.needsUpdate = true;
       wallLeds.forEach(function (l) { neon(hue0b(l.i * 3), 0.25 + sm[(l.i * 2) % NB] * 0.4, l.m.color); });
             doorLamps.forEach(function (l) {                                                   // les lampes de la porte suivent la musique, une de chaque côté
         var lv = sm[l.i ? 5 : 2], mm = hue0b(l.i * 8 + 3);

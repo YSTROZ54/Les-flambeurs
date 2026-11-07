@@ -2,7 +2,7 @@
 // tout le monde voit exactement la même chose (le serveur fait l'horloge, pas chaque navigateur).
 // L'état est enregistré dans la ligne __cinema_state__, comme le fait api/crash.js pour sa partie.
 import { actorOf } from './_auth.js';
-import { getRowExact, putRow, updateAccount, GameError } from './_store.js';
+import { getRowExact, getRow, putRow, updateAccount, GameError } from './_store.js';
 
 // Vercel : l'extraction (appel à tropistream.fr, parfois lente côté Puppeteer la première fois) peut dépasser
 // la limite par défaut ; sans effet sur un plan qui ne l'autorise pas.
@@ -13,10 +13,25 @@ const rowOf = (room) => (room === 'premium' ? '__cinema_premium_state__' : ROW0)
 const PATRONS = ['ystroz', 'alex'];
 const CO_FONDATEURS = ['yohan81'];
 const CAN_CONTROL = PATRONS.concat(CO_FONDATEURS);
+const SEEN_TTL = 30000;            // un spectateur est « dans la salle » tant que son navigateur a donné signe de vie il y a moins de 30 s
+const MAX_CAPACITY = 500;
+// rôles : colonne "role" (patron / co_fondateur) + liste "roles" dans les données du compte (staff, premium), voir api/accounts.js (set_roles)
+async function rolesOf(actor) {
+  const out = { control: CAN_CONTROL.includes(actor), staff: false, premium: false };
+  try {
+    const row = await getRow(actor);
+    if (row) {
+      if (row.role === 'patron' || row.role === 'co_fondateur') out.control = true;
+      const extra = row.data && Array.isArray(row.data.roles) ? row.data.roles : [];
+      out.staff = extra.includes('staff'); out.premium = extra.includes('premium');
+    }
+  } catch (e) { /* compte illisible : aucun rôle */ }
+  return out;
+}
 const DEFAULT_URL = 'video/tropistream-presentation.mp4';
 const TROPISTREAM = 'https://tropistream.fr';
 
-const initialState = () => ({ url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '', schedule: [] });
+const initialState = () => ({ capacity: 0, seen: {}, url: DEFAULT_URL, type: 'mp4', status: 'idle', position: 0, updatedAt: Date.now(), updatedBy: '', title: '', schedule: [] });
 const MAX_SCHEDULE = 20;
 
 // Pubs du cinéma classique (gratuit) : une des deux, tirée au hasard, passe avant chaque film lancé depuis le début.
@@ -40,7 +55,9 @@ function visibleSchedule(st, now) {
 // ce que les navigateurs ont le droit de voir
 export function publicState(st, now) {
   const position = positionAt(st, now);
+  const present = Object.keys(st.seen || {}).filter((u) => now - st.seen[u] < SEEN_TTL).length;
   return {
+    capacity: Math.max(0, Math.floor(Number(st.capacity)) || 0), present,
     url: st.url || '', type: st.type || 'mp4', status: st.status || 'idle', position, serverNow: now, updatedBy: st.updatedBy || '', title: st.title || '',
     ad: st.ad && position < 0 ? { url: st.ad.url, type: st.ad.type, dur: st.ad.dur } : null,
     schedule: visibleSchedule(st, now).map((it) => ({ id: it.id, title: it.title, poster: it.poster || '', at: it.at }))
@@ -117,11 +134,43 @@ export default async function handler(req, res) {
 
     const actor = actorOf(req, body);
     if (!actor) return fail(res, 401, 'Connexion requise.');
-    if (!CAN_CONTROL.includes(actor)) return fail(res, 403, 'Réservé au Patron et au Co Fondateur.');
+    const roles = await rolesOf(actor);
+
+    // ---- ENTRER DANS LA SALLE (et rester compté : le navigateur répète toutes les 10 s) / EN SORTIR ----
+    // Cinéma premium : réservé au Patron, au Co Fondateur et aux rôles Staff et Premium. Les deux cinémas : nombre de places fixé par la direction (0 = illimité) ;
+    // une fois atteint, personne d'autre n'entre (le Patron et le Co Fondateur, qui lancent la séance, passent toujours).
+    if (body.action === 'enter' || body.action === 'leave') {
+      const ROWE = rowOf(String(body.room || ''));
+      if (body.action === 'leave') {
+        await mutateState((s) => { if (s.seen) delete s.seen[actor]; }, ROWE);
+        return res.status(200).json({ ok: true });
+      }
+      if (ROWE !== ROW0 && !(roles.control || roles.staff || roles.premium)) return fail(res, 403, 'Le cinéma premium est réservé aux membres Premium, Staff, Co Fondateur et Patron.');
+      const out = await mutateState((s, now) => {
+        const seen = s.seen && typeof s.seen === 'object' ? s.seen : {};
+        Object.keys(seen).forEach((u) => { if (now - seen[u] >= SEEN_TTL) delete seen[u]; });
+        const cap = Math.max(0, Math.floor(Number(s.capacity)) || 0);
+        const inside = Object.keys(seen).length;
+        if (!seen[actor] && cap > 0 && inside >= cap && !roles.control) throw new GameError(409, 'Salle complète (' + inside + '/' + cap + ') : reviens quand une place se libère.');
+        seen[actor] = now; s.seen = seen;
+        return { present: Object.keys(seen).length, capacity: cap };
+      }, ROWE);
+      return res.status(200).json(Object.assign({ ok: true }, out));
+    }
+
+    if (!roles.control) return fail(res, 403, 'Réservé au Patron et au Co Fondateur.');
 
     const action = body.action;
     const ROW = rowOf(String(body.room || ''));
     const mutate = (fn) => mutateState(fn, ROW);
+
+    // ---- NOMBRE DE PERSONNES AUTORISÉES DANS LA SALLE (0 = illimité) ----
+    if (action === 'set_capacity') {
+      const cap = Math.max(0, Math.min(MAX_CAPACITY, Math.floor(Number(body.capacity)) || 0));
+      await mutate((s) => { s.capacity = cap; });
+      const st = (await getRowExact(ROW)).data.cinema;
+      return res.status(200).json({ ok: true, state: publicState(st, Date.now()) });
+    }
 
     // ---- CHARGER UN LIEN ----
     if (action === 'set') {

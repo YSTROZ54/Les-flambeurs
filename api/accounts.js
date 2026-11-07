@@ -29,6 +29,8 @@ const WALLET_STRICT = process.env.WALLET_STRICT !== '0';
 const ADMINS = ['ystroz', 'alex'];
 // rôle affiché (badge) : colonne Supabase "role", changée uniquement par le Patron (action set_role). N'accorde aucun pouvoir : l'accès admin reste ADMINS ci-dessus.
 const ROLES = ['flambeur', 'co_fondateur', 'patron'];
+// rôles qui s'ajoutent au rôle principal (on peut en avoir plusieurs à la fois) : data.roles, choisis par le Patron / Co Fondateur (set_roles)
+const EXTRA_ROLES = ['staff', 'premium'];
 const START_BALANCE = 5500;
 const RENAME_COST = 50000;
 const TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -224,6 +226,7 @@ async function applyUpsert(incoming, actor, isAdmin) {
       // champs gérés par le serveur : jamais écrasés par le navigateur
       SERVER_ONLY_FIELDS.forEach((k) => { if (k === '_srv' || k === '_ver') { if (old[k] !== undefined) data[k] = old[k]; else delete data[k]; } else delete data[k]; });
       if (old.look !== undefined) data.look = old.look; else delete data.look;
+      if (old.roles !== undefined) data.roles = old.roles; else delete data.roles;   // Staff / Premium : seulement via set_roles
       d.data = data;
       d.avatar = cleanAvatar(incoming.avatar, d.avatar);
       if (!WALLET_STRICT) d.balance = cleanBalance(incoming.balance, d.balance);
@@ -434,6 +437,20 @@ export default async function handler(req, res) {
       if (!row) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
       await updateAccount(row.username, (d) => { d.role = role; });
       return res.status(200).json({ ok: true, role });
+    }
+
+    // --- plusieurs rôles à la fois : le principal (flambeur / co_fondateur / patron) + Staff et Premium ---
+    if (action === 'set_roles') {
+      if (!isAdmin && !(await isPrivilegedActor(actor))) return res.status(403).json({ ok: false, error: 'Accès refusé.' });
+      const target = cleanName(body.username);
+      if (!target || isReserved(target)) return res.status(400).json({ ok: false, error: 'Pseudo invalide.' });
+      const given = Array.isArray(body.roles) ? body.roles.map((r) => String(r).trim().toLowerCase()) : [];
+      const main = given.includes('patron') ? 'patron' : given.includes('co_fondateur') ? 'co_fondateur' : 'flambeur';
+      const extra = EXTRA_ROLES.filter((r) => given.includes(r));
+      const row = await getRow(target);
+      if (!row) return res.status(404).json({ ok: false, error: 'Compte introuvable.' });
+      await updateAccount(row.username, (d) => { d.role = main; d.data.roles = extra; });
+      return res.status(200).json({ ok: true, role: main, roles: extra });
     }
 
     // --- renommer le compte d'un joueur (Patron / Co Fondateur, gratuit, appli Direction) ---

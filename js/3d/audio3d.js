@@ -222,7 +222,7 @@
   function fade(song, to, tc) { try { song.gain.setTargetAtTime(to, bus.c.currentTime, tc); } catch (e) { /* ok */ } }
   function dropTrack(old) {                                        // fondu de sortie puis arrêt du titre
     if (!old) return;
-    fade(old.gain, 0, 0.4);
+    fade(old.gain, 0, 0.4); if (old.sync) { clearInterval(old.sync); old.sync = 0; }
     setTimeout(function () { try { old.el.pause(); old.el.removeAttribute('src'); old.el.load(); old.gain.disconnect(); } catch (e) { /* ok */ } }, 2200);
   }
   function stopSong() {
@@ -236,10 +236,23 @@
     if (list.length > 1) { do { pick = list[(Math.random() * list.length) | 0]; } while (pick === M.last[id]); }
     M.last[id] = pick; return pick;
   }
-  var ROOM_GAIN = { blackjack: 0.3, pokerroom: 0.3 };                // salles où la musique de fond doit rester à peine audible (multiplie FILE_GAIN)
+  var ROOM_GAIN = { blackjack: 0.3, pokerroom: 0.3, hall: 0.3 };                // salles où la musique de fond doit rester à peine audible (multiplie FILE_GAIN)
   var FILE_GAIN = 0.4;                                             // les vrais morceaux sont mixés bien plus fort que la musique synthétisée : on les baisse (le curseur du téléphone règle le reste)
-  function playFile(id, list) {
-    var b = bus, el = new Audio(), file = nextFile(id, list);
+  /* musique synchronisée (hall) : playlist.json donne la durée de chaque titre (_sync) ; tous les joueurs enchaînent les titres dans le même ordre, en boucle,
+     et le titre / l'endroit du titre se déduisent de l'horloge (Date.now). Deux joueurs dans le hall entendent donc la même chose au même moment. */
+  function syncSlot(id, list) {
+    var d = PL && PL._sync && PL._sync[id];
+    if (!d || d.length !== list.length) return null;
+    var tot = 0, i; for (i = 0; i < d.length; i++) tot += d[i];
+    if (!(tot > 0)) return null;
+    var t = (Date.now() / 1000) % tot;
+    for (i = 0; i < d.length; i++) { if (t < d[i]) return { i: i, off: t, dur: d[i] }; t -= d[i]; }
+    return { i: 0, off: 0, dur: d[0] };
+  }
+  function playFile(id, list, force) {
+    var b = bus, el = new Audio(), slot = syncSlot(id, list), file;
+    if (slot) { if (force != null && slot.i === force.i && slot.dur - slot.off < 3) slot = { i: (force.i + 1) % list.length, off: 0, dur: 0 }; file = list[slot.i]; M.last[id] = file; }
+    else file = nextFile(id, list);
     el.preload = 'auto'; el.src = 'assets/musique/' + file;
     var src, g;
     try { src = b.c.createMediaElementSource(el); g = b.c.createGain(); g.gain.value = 0.0001; src.connect(g); g.connect(b.music); }
@@ -247,8 +260,21 @@
     var track = { el: el, gain: g };
     var old = M.el; M.el = track;
     if (old) dropTrack(old);
-    el.addEventListener('canplay', function () { if (M.el === track) fade(g, FILE_GAIN * (ROOM_GAIN[id] || 1), 0.8); }, { once: true });
-    el.addEventListener('ended', function () { if (M.el === track && A.room === id) playFile(id, list); });
+    el.addEventListener('canplay', function () {
+      if (M.el !== track) return;
+      if (slot) {                                                  // on se cale sur l'horloge commune, puis on revérifie toutes les 3 s (un navigateur qui a pris du retard rattrape)
+        var s2 = syncSlot(id, list);
+        if (s2 && s2.i === slot.i) { try { el.currentTime = s2.off; } catch (e) { /* ok */ } }
+        else if (s2) { playFile(id, list); return; }
+        track.sync = setInterval(function () {
+          if (M.el !== track || el.paused) return;
+          var s3 = syncSlot(id, list);
+          if (s3 && s3.i === slot.i && Math.abs(el.currentTime - s3.off) > 1.2) { try { el.currentTime = s3.off; } catch (e) { /* ok */ } }
+        }, 3000);
+      }
+      fade(g, FILE_GAIN * (ROOM_GAIN[id] || 1), 0.8);
+    }, { once: true });
+    el.addEventListener('ended', function () { if (M.el === track && A.room === id) playFile(id, list, slot ? { i: slot.i } : null); });
     el.addEventListener('error', function () { if (M.el === track) { M.el = null; dropTrack(track); startSynth(id); } });   // fichier introuvable : musique synthétisée
     var pr = el.play(); if (pr && pr.catch) pr.catch(function () { M.pending = true; });
   }

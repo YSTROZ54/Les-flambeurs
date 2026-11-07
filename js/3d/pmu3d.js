@@ -409,7 +409,6 @@
       room.colliders.push({ x: AX, z: AZ, r: 0.75 });
       chair(AX - 1.15, AZ, Math.PI / 2, AX, AZ, 0, T); chair(AX + 1.15, AZ, -Math.PI / 2, AX, AZ, 1, T);
       T.seats = [seats[seats.length - 2], seats[seats.length - 1]];
-      pendant(AX, AZ, 3.3, 0.8);
       var forearm = [box(g, 1, 0.07, 0.09, armMat[0], AX, 1, AZ), box(g, 1, 0.07, 0.09, armMat[1], AX, 1, AZ)];
       var fist = sph(g, 0.1, skinM, AX, 1, AZ);
       var abCv = mkCanvas(512, 192), abTex = mkTex(abCv);

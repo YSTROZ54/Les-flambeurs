@@ -722,12 +722,7 @@
       bTex.needsUpdate = true;
     }
     drawBoard([]);
-    // colonnes
-    [10.6, 4, -2, -8, -14, -20, -22.8].reduce(function (a, z) { a.push([-8.5, z]); if (!(z > -1 && z < 10)) a.push([8.5, z]); return a; }, []).forEach(function (p) {
-      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.5, 16), new THREE.MeshStandardMaterial({ color: 0x14484a, roughness: 0.45, metalness: 0.35 }));
-      c.position.set(p[0], 3.75, p[1]); scene.add(c);
-      [0.3, 7.2].forEach(function (y) { var r = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 6, 20), goldMat); r.rotation.x = Math.PI / 2; r.position.set(p[0], y, p[1]); scene.add(r); });
-    });
+    // (plus de colonnes ni de poteaux dans la salle : ils gênaient la vue)
     // bandeaux lumineux au plafond
     var stripMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
     [8.5, 4.5, 0.5, -3.5, -7.5, -11.5, -15.5, -19.5, -22.5].forEach(function (z) { var s = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.18), stripMat); s.position.set(0, 7.46, z); scene.add(s); });
@@ -950,8 +945,6 @@
         var st2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, len - 0.4), pink); st2.position.set(sd * 0.215, 0.45, cz); room.group.add(st2);
       });
       [zA + 0.15, zB - 0.15].forEach(function (pz) {
-        var py = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 3.6, 24), pearl); py.position.set(0, 1.8, pz); room.group.add(py);
-        [0.4, 3.2].forEach(function (yy) { var rg = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.03, 8, 28), cyan); rg.rotation.x = Math.PI / 2; rg.position.set(0, yy, pz); room.group.add(rg); });
         room.colliders.push({ x: 0, z: pz, r: 0.8 });
       });
       for (var cz2 = zA; cz2 >= zB - 0.01; cz2 -= 0.9) room.colliders.push({ x: 0, z: cz2, r: 0.62 });

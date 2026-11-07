@@ -36,3 +36,5 @@ Cela écrit `playlist.json` (la liste des titres). Envoie le dossier `assets/mus
 - Autres sources libres : Free Music Archive, Jamendo, YouTube Audio Library (vérifie chaque licence).
 
 Garde des titres de 2 à 4 minutes, en .mp3 de 128 à 192 kb/s : c'est léger et suffisant en fond sonore.
+
+Le hall est un cas particulier : ses titres sont joués en même temps chez tous les joueurs (le titre en cours se déduit de l horloge, durées dans la clé _sync de playlist.json). Après un ajout de titre, relance bien `npm run playlist`.

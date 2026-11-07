@@ -1,6 +1,11 @@
 {
   "hall": [
-    "hall/ghost-in-the-attic.mp3"
+    "hall/filter-nic-hanson.mp3",
+    "hall/ghost-in-the-attic.mp3",
+    "hall/im-golden-gamma-skies.mp3",
+    "hall/in-pieces-madison-york.mp3",
+    "hall/pressure-nyck-caution.mp3",
+    "hall/sports-rocker-taelimb.mp3"
   ],
   "pokerroom": [
     "poker/easy-breezy.mp3"
@@ -13,5 +18,15 @@
   ],
   "cinema": [
     "cinema/alex-morgan-cinema-trailer-grand-overture-573884.mp3"
-  ]
+  ],
+  "_sync": {
+    "hall": [
+      186.792,
+      128.088,
+      153.432,
+      166.584,
+      144.048,
+      151.44
+    ]
+  }
 }

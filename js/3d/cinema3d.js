@@ -36,7 +36,7 @@
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
     };
     var k;
-    if (P) { for (k = 0; k < 7; k++) G0.ROWS.push(-3.4 + k * 1.9); }      // 8 rangées, chacune 55 cm plus haute : on voit l'écran par-dessus la tête de devant
+    if (P) { for (k = 3; k < 7; k++) G0.ROWS.push(-3.4 + k * 1.9); }      // 8 rangées, chacune 55 cm plus haute : on voit l'écran par-dessus la tête de devant
     G0.ROW_GAP = G0.ROWS[1] - G0.ROWS[0];
     G0.BND = []; for (k = 0; k < G0.ROWS.length - 1; k++) G0.BND.push((G0.ROWS[k] + G0.ROWS[k + 1]) / 2);
     G0.BACK_H = (G0.ROWS.length - 1) * G0.ROW_H;
@@ -449,7 +449,7 @@
         lanes.forEach(function (ln) {
           for (var m = 0; m < risers.length; m++) {
             var z0 = risers[m], z1 = m + 1 < risers.length ? risers[m + 1] : ROWS[ROWS.length - 1], top = (m + 1) * G0.ROW_H / 3;
-            if (z1 - z0 > 0.01) { box(g, ln[1], top, z1 - z0, deckFor(ln[1], z1 - z0), ln[0], top / 2, (z0 + z1) / 2); box(g, ln[1], 0.02, 0.035, nosingM, ln[0], top + 0.01, z0 + 0.0175); }   // un liseré de laiton très discret au bord de chaque marche
+            if (z1 - z0 > 0.01) { box(g, ln[1], top, z1 - z0, deckFor(ln[1], z1 - z0), ln[0], top / 2, (z0 + z1) / 2); if (Math.abs(ln[0]) < 15) box(g, ln[1], 0.02, 0.035, nosingM, ln[0], top + 0.01, z0 + 0.0175); }   // un liseré de laiton très discret au bord de chaque marche
           }
         });
         lanes = [];
@@ -731,7 +731,7 @@
       })();
       var gate = [], edge = [];
       // l'étage VIP : une porte normale de chaque côté (en bas) qui emmène sur le balcon, et une de chaque côté du balcon pour redescendre
-      [-1, 1].forEach(function (sd) {
+      [1].forEach(function (sd) {                          // seulement le côté droit : les portes de gauche (étage VIP, sortie, descendre) sont retirées
         var yIn = F.yawFor(-sd, 0);
         // en bas : « Étage VIP » et « Sortie » côte à côte, juste à côté de la porte du staff, sur la vitre du fond (loin de l'écran)
         var vx = sd * 23.0, sx2 = sd * 19.8, dz0 = GZ - 0.03;
@@ -995,6 +995,7 @@
       if (!st) return;
       lastSt = st;
       net.url = st.url || ''; net.type = st.type || 'mp4'; net.position = st.position || 0; net.recvAt = performance.now();
+      net.capacity = st.capacity || 0; net.present = st.present || 0;
       net.title = st.title || ''; net.schedule = Array.isArray(st.schedule) ? st.schedule : [];
       net.ad = st.ad && st.ad.url ? st.ad : null;
       if (st.status !== 'playing') endedUrl = '';
@@ -1028,6 +1029,12 @@
       if (net.busy) return;
       net.busy = true;
       fetch('/api/cinema' + (P ? '?room=premium' : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { net.busy = false; applyNet(st); }).catch(function () { net.busy = false; });
+    }
+    function capSync(setInput) {                         // régie : place max et nombre de personnes présentes
+      if (!consoleEl) return;
+      var ci = consoleEl.querySelector('input[data-cap]'), inf = consoleEl.querySelector('[data-r="capinfo"]');
+      if (ci && (setInput || document.activeElement !== ci)) ci.value = net.capacity || 0;
+      if (inf) inf.textContent = '· ' + (net.present || 0) + (net.capacity ? ' / ' + net.capacity : '') + ' présent(s)';
     }
     function cinemaAction(action, extra) {
       if (!isCinemaCtrl()) return Promise.resolve(null);
@@ -1338,6 +1345,11 @@
             '<div class="cin-seek-q"><button data-a="seek-rel" data-d="-600">−10 min</button><button data-a="seek-rel" data-d="-10">−10 s</button><button data-a="seek-rel" data-d="10">+10 s</button><button data-a="seek-rel" data-d="600">+10 min</button><button data-a="seek-rel" data-d="1800">+30 min</button></div>' +
           '</div>' +
         '</div>' +
+        '<div class="cin-cn-seek">' +
+            '<span class="cin-seek-l"><i class="fa-solid fa-users"></i> Places dans la salle <small data-r="capinfo"></small></span>' +
+            '<div class="cin-seek-f"><input class="cin-sk" data-cap="1" type="number" min="0" max="500" value="0" aria-label="nombre de places"><b>places (0 = illimité)</b></div>' +
+            '<div class="cin-seek-b"><button data-a="cap-set"><i class="fa-solid fa-check"></i> Enregistrer</button><button data-a="cap-none">Illimité</button></div>' +
+          '</div>' +
         '<div class="cin-cn-tabs">' +
           '<button class="cin-tab-btn active" data-tab="playlist"><i class="fa-solid fa-film"></i> Playlist</button>' +
           '<button class="cin-tab-btn" data-tab="direct"><i class="fa-solid fa-link"></i> Lien direct</button>' +
@@ -1421,6 +1433,11 @@
           return;
         }
         if (a === 'play' || a === 'pause' || a === 'stop') { cinemaAction(a); return; }
+        if (a === 'cap-set' || a === 'cap-none') {
+          var ci = consoleEl.querySelector('input[data-cap]'), cv = a === 'cap-none' ? 0 : Math.max(0, Math.min(500, parseInt(ci && ci.value, 10) || 0));
+          cinemaAction('set_capacity', { capacity: cv }).then(function (r) { if (r && r.ok) { capSync(true); world.flash(cv ? '👥 Salle limitée à ' + cv + ' personnes.' : '👥 Nombre de places illimité.'); } });
+          return;
+        }
         if (a === 'seek-rel') {                          // saut rapide à partir du moment actuel du film
           if (!net.url) { world.flash('🎬 Charge d\'abord un film.'); return; }
           var base = net.status === 'playing' ? netPosNow() : (net.position || 0), dd2 = parseInt(b.getAttribute('data-d'), 10) || 0, maxT = isFinite(video.duration) && video.duration > 0 ? video.duration - 2 : 86400;
@@ -1508,7 +1525,7 @@
       if (!consoleEl) return;
       if (!consoleEl.classList.contains('hid')) { closeConsole(); return; }
       consoleEl.classList.remove('hid');
-      consoleEl.querySelector('.cin-cn-url').value = net.url || '';
+      consoleEl.querySelector('.cin-cn-url').value = net.url || ''; capSync(true);
       (function () { var t = Math.max(0, Math.floor(netPosNow())), vals = { h: Math.floor(t / 3600), m: Math.floor(t % 3600 / 60), s: t % 60 }; ['h', 'm', 's'].forEach(function (k) { var el = consoleEl.querySelector('.cin-sk[data-k="' + k + '"]'); if (el) el.value = vals[k]; }); })();   // les cases partent du moment actuel
       if (playlist) { filterPlaylist(); renderPlaylistGenres(); renderPlaylistItems(false); renderFilmPicker(); } else loadPlaylist();
       refreshConsole();
@@ -1636,7 +1653,7 @@
     room.spawn = function () { return P ? { x: 21.4, z: 8.2, yaw: F.yawFor(0, -1) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
-      seanceAsked = false; room._curtT0 = performance.now(); if (room.resetVip) room.resetVip();
+      seanceAsked = false; beatT = 0; room._curtT0 = performance.now(); if (room.resetVip) room.resetVip();
       music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
@@ -1644,7 +1661,7 @@
       pollCinema();
     };
     function leave() {
-      deskLeave(); stand(); if (room.resetVip) room.resetVip(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
+      bye(); deskLeave(); stand(); if (room.resetVip) room.resetVip(); try { video.pause(); } catch (e) { /* ok */ }   // on ne coupe que chez soi : la séance continue pour les autres
       music.stop(); unmountEye(); unmountConsole();
       if (world.container) world.container.classList.remove('cin-in-cinema', 'cin-seated');
       window.removeEventListener('pointerdown', kickMusic, true); window.removeEventListener('keydown', kickMusic, true);
@@ -1657,7 +1674,14 @@
     room.onPageHide = function () { video.pause(); adVideo.pause(); };
     room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
-    var clock = 0, netT = 0, remotesHid = false;
+    var clock = 0, netT = 0, beatT = 0, remotesHid = false;
+    // présence : le serveur compte les spectateurs (places limitées par la direction) ; on se signale toutes les 10 s et on prévient en sortant
+    function presence() {
+      world.post('/api/cinema', Object.assign({ action: 'enter' }, P ? { room: 'premium' } : {})).then(function (r) {
+        if (r && r.ok === false && world.room === room && (r._status === 403 || r._status === 409)) { world.flash('⛔ ' + (r.error || 'Accès refusé.')); world.goRoom('hall', room.id, null, true); }
+      });
+    }
+    function bye() { world.post('/api/cinema', Object.assign({ action: 'leave' }, P ? { room: 'premium' } : {})); }
     room.update = function (dt, w) {
       clock += dt;
       if (room.vipTrack) room.vipTrack(w.player.x, w.player.z, w);
@@ -1666,7 +1690,8 @@
       if (room.staffWall) room.staffWall(dt);
       deskPlaceConsole();
       if (room.ambiUpdate) room.ambiUpdate(dt, net.status === 'playing' || net.status === 'paused');
-      netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
+      beatT += dt; if (beatT > 10) { beatT = 0; presence(); }
+      netT += dt; if (netT > 1.0) { netT = 0; pollCinema(); capSync(false); } else if (consoleEl && !consoleEl.classList.contains('hid')) refreshConsole();
       var adOn = applyAd();   // pub : elle prend la main sur l'écran à chaque image (et passe au film pile à 0:00)
       if (net.status === 'playing' && !adOn) {   // chargement : seulement si le film manque de données depuis plus d'une seconde
         stallT =(video.readyState < 3 || video.seeking) ? stallT + dt : 0;
@@ -1873,33 +1898,13 @@
             for (r = 0; r < 4; r++) {
               var o = (r * (NC + 1) + i) * 3, gold = r < 2, f = gold ? (r === 0 ? 0.85 : 1) : (r === 2 ? 1 : 0.6);
               p.pos[o] = x; p.pos[o + 1] = ys[r]; p.pos[o + 2] = z + (r === 3 ? -0.05 * k : 0);
-              if (gold) { p.col[o] = Math.min(1, (0.95 * sh + shine) * f); p.col[o + 1] = Math.min(1, (0.74 * sh + shine) * f); p.col[o + 2] = Math.min(1, (0.28 * sh + shine * 0.4) * f); }
-              else { p.col[o] = Math.min(1, (0.66 * sh + shine) * f); p.col[o + 1] = Math.min(1, (0.035 * sh + shine * 0.25) * f); p.col[o + 2] = Math.min(1, (0.075 * sh + shine * 0.3) * f); }
+              if (gold) { p.col[o] = Math.min(1, (0.05 * sh + shine * 0.3) * f); p.col[o + 1] = Math.min(1, (0.05 * sh + shine * 0.3) * f); p.col[o + 2] = Math.min(1, (0.06 * sh + shine * 0.35) * f); }
+              else { p.col[o] = Math.min(1, (0.07 * sh + shine * 0.5) * f); p.col[o + 1] = Math.min(1, (0.07 * sh + shine * 0.5) * f); p.col[o + 2] = Math.min(1, (0.085 * sh + shine * 0.6) * f); }
             }
           }
           p.geo.attributes.position.needsUpdate = true; p.geo.attributes.color.needsUpdate = true;
         });
       }
-      // lambrequin : un haut de scène à festons, galon d'or et glands
-      var pcw = 4096, pch = 220, pcv = mkCanvas(pcw, pch), px = pcv.getContext('2d'), SWN = 8, sw = pcw / SWN, q, f2;
-      for (q = 0; q < SWN; q++) {
-        var x0 = q * sw, x1 = x0 + sw, gr = px.createLinearGradient(0, 0, 0, pch);
-        gr.addColorStop(0, '#330408'); gr.addColorStop(0.5, '#86101c'); gr.addColorStop(1, '#5a0914');
-        px.fillStyle = gr; px.beginPath(); px.moveTo(x0, 0); px.lineTo(x1, 0); px.lineTo(x1, 66); px.quadraticCurveTo((x0 + x1) / 2, 324, x0, 66); px.closePath(); px.fill();
-        for (f2 = 1; f2 < 12; f2++) {
-          var t = f2 / 12, yb = (1 - t) * (1 - t) * 66 + 2 * t * (1 - t) * 324 + t * t * 66;
-          px.strokeStyle = 'rgba(0,0,0,0.3)'; px.lineWidth = 5; px.beginPath(); px.moveTo(x0 + t * sw, 0); px.lineTo(x0 + t * sw, yb - 4); px.stroke();
-          px.strokeStyle = 'rgba(255,120,130,0.16)'; px.lineWidth = 3; px.beginPath(); px.moveTo(x0 + t * sw + 6, 0); px.lineTo(x0 + t * sw + 6, yb - 6); px.stroke();
-        }
-        px.strokeStyle = '#d9b24a'; px.lineWidth = 9; px.beginPath(); px.moveTo(x0, 66); px.quadraticCurveTo((x0 + x1) / 2, 324, x1, 66); px.stroke();
-        px.strokeStyle = '#7a5a14'; px.lineWidth = 2.5; px.beginPath(); px.moveTo(x0, 72); px.quadraticCurveTo((x0 + x1) / 2, 330, x1, 72); px.stroke();
-        px.fillStyle = '#d9b24a'; px.beginPath(); px.ellipse(x1, 84, 15, 21, 0, 0, TAU); px.fill();                     // gland
-        px.strokeStyle = '#c99a2c'; px.lineWidth = 3;
-        for (f2 = -6; f2 <= 6; f2++) { px.beginPath(); px.moveTo(x1 + f2 * 2.6, 100); px.lineTo(x1 + f2 * 3.4, 168); px.stroke(); }
-      }
-      px.fillStyle = '#d9b24a'; px.fillRect(0, 34, pcw, 8);
-      var pel = new THREE.Mesh(new THREE.PlaneGeometry(CW + 0.4, (CW + 0.4) * pch / pcw), new THREE.MeshBasicMaterial({ map: mkTex(pcv), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
-      pel.position.set(0, H - 0.02 - (CW + 0.4) * pch / pcw / 2, CZ + 0.1); g.add(pel);
       var raw = 0, kShown = -1;
       room.curtainUpdate = function (dt) {
         var want = (net.status === 'playing' || net.status === 'paused') ? 1 : 0;
@@ -2081,6 +2086,18 @@
     document.head.appendChild(st);
   }
 
+  // contrôle à l'entrée (cinéma premium : rôles ; les deux : salle pleine) — appelé par world.goRoom avant le fondu
+  F.roomGates = F.roomGates || {};
+  function cinemaGate(prem) {
+    return function (w, done) {
+      w.post('/api/cinema', Object.assign({ action: 'enter' }, prem ? { room: 'premium' } : {})).then(function (r) {
+        if (r && r.ok) { done(true); return; }
+        if (!r && !prem) { done(true); return; }                  // pas connecté : simple spectateur du cinéma gratuit
+        done(false, r ? (r.error || 'Accès refusé.') : 'Connecte-toi pour entrer au cinéma premium.');
+      });
+    };
+  }
+  F.roomGates.cinema = cinemaGate(false); F.roomGates.cinemapremium = cinemaGate(true);
   F.registerRoom('cinema', function (w) { return createCinemaRoom(w, false); });
   F.registerRoom('cinemapremium', function (w) { return createCinemaRoom(w, true); });
 })();

@@ -3,7 +3,8 @@
    ---------------------------------------------------------------------
    On y entre par la porte « MINI JEUX » du hall. Chaque jeu a sa porte, bien séparée des autres (pas de couloir, pas de portes collées) :
      mur du fond : UNO · PUISSANCE 4 · LUDO · CHAMBRE FORTE
-     mur de gauche : LOUP-GAROU · BLIND TEST          mur de droite : PMU
+     mur de gauche : LOUP-GAROU · BLIND TEST          mur de droite : PROP HUNT · PMU · TABLEAU DESSIN   mur d'entrée : GOLF (+ la sortie)
+     (Prop Hunt, Tableau dessin et Golf : salles vides pour le moment, voir bientot3d.js)
    La porte de sortie (devant) ramène au hall. Les jeux eux-mêmes sont dans uno3d.js (UNO et Puissance 4), ludo3d.js, vault3d.js,
    loupgarou3d.js, blindtest3d.js et pmu3d.js : chacun renvoie vers cette salle quand on ressort.
    Identifiant interne de la salle : « minijeux » (listé dans world3d.js et hall3d.js).
@@ -23,7 +24,11 @@
     { id: 'vault', x: 9, z: -HZ, nx: 0, nz: 1, label: '🔐 CHAMBRE FORTE', sub: 'MINES', color: 0x3dff9a, target: 'vault', theme: 'mines' },
     { id: 'loupgarou', x: -HX, z: -3, nx: 1, nz: 0, label: '🐺 LOUP GAROU', sub: 'PARTIES DE 4 À 12 JOUEURS', color: 0xc8b8ff, target: 'loupgarou', theme: 'loupgarou' },
     { id: 'blindtest', x: -HX, z: 3, nx: 1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
-    { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' }
+    { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' },
+    // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
+    { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🕵️ PROP HUNT', sub: 'BIENTÔT', color: 0xff7a3d, target: 'prophunt' },
+    { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'BIENTÔT', color: 0x4ad0ff, target: 'dessin' },
+    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ GOLF', sub: 'BIENTÔT', color: 0x5dff8a, target: 'golf' }
   ];
 
   function createMiniJeuxRoom(world) {
