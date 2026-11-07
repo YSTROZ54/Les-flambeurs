@@ -254,13 +254,27 @@
     injectCss();
 
     /* --- petites lumières blanches (fibre optique) : plafond, murs et sol ; elles s'éteignent quand le film commence --- */
+    // couleurs des 4 bandes de LED autour de l'écran (lignes : 0 gauche, 1 droite, 2 haut, 3 bas ; 32 échantillons chacune) : les petits points des murs, du plafond et du sol les reprennent
+    var ledData = new Uint8Array(32 * 4 * 4), ledTex = new THREE.DataTexture(ledData, 32, 4, THREE.RGBAFormat);
+    ledTex.minFilter = ledTex.magFilter = THREE.LinearFilter; ledTex.wrapS = ledTex.wrapT = THREE.ClampToEdgeWrapping; ledTex.generateMipmaps = false; ledTex.needsUpdate = true;
+    for (var li = 3; li < ledData.length; li += 4) ledData[li] = 255;
     var starMats = [], starCache = {}, starTile = null;
-    var tintU = { uL: { value: new THREE.Color(0, 0, 0) }, uR: { value: new THREE.Color(0, 0, 0) }, uC: { value: new THREE.Color(0, 0, 0) }, uHX: { value: HX }, uZ0: { value: -HZ }, uZR: { value: HZ * 1.7 } };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
+    var tintU = { uL: { value: new THREE.Color(0, 0, 0) }, uR: { value: new THREE.Color(0, 0, 0) }, uC: { value: new THREE.Color(0, 0, 0) }, uHX: { value: HX }, uZ0: { value: -HZ }, uZR: { value: HZ * 1.7 }, uLed: { value: ledTex }, uDim: { value: 1 }, uY0: { value: SCR_Y }, uY1: { value: SCR_Y + SCR_H }, uSW: { value: SCR_W } };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
+    // les petits points prennent la couleur de la LED du même côté : sol = LED du bas, plafond = LED du haut, mur de gauche = LED de gauche, mur de droite = LED de droite
+    var LEDSH = [
+      'float nlen = length(vWn); vec3 nW = vWn / max(nlen, 0.0001); vec3 led;',
+      'if (nlen > 0.5 && abs(nW.y) > 0.7) { float ux = clamp((vWp.x + uSW * 0.5) / uSW, 0.0, 1.0); led = texture2D(uLed, vec2(ux, nW.y > 0.0 ? 0.875 : 0.625)).rgb; }',
+      'else if (nlen > 0.5 && abs(nW.x) > 0.7) { float uy = clamp(1.0 - (vWp.y - uY0) / (uY1 - uY0), 0.0, 1.0); led = texture2D(uLed, vec2(uy, nW.x > 0.0 ? 0.125 : 0.375)).rgb; }',
+      'else { led = mix(texture2D(uLed, vec2(0.5, 0.125)).rgb, texture2D(uLed, vec2(0.5, 0.375)).rgb, clamp(vWp.x / uSW + 0.5, 0.0, 1.0)); }',
+      'float dl = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)) / max(uDim, 0.02);',
+      'float ls = clamp(max(led.r, max(led.g, led.b)) * 3.0, 0.0, 1.0);',
+      'diffuseColor.rgb = mix(diffuseColor.rgb, led * dl * 1.7, ls);'
+    ].join('\n');
     function tintize(m) {                              // lumière de l'écran sur les surfaces étoilées : plus forte près de l'écran, plus douce au fond, et la couleur du côté gauche / droit de l'image de chaque côté de la salle
       m.onBeforeCompile = function (sh) {
         Object.keys(tintU).forEach(function (k) { sh.uniforms[k] = tintU[k]; });
-        sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-        sh.fragmentShader = 'varying vec3 vWp;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n#include <dithering_fragment>');
+        sh.vertexShader = 'varying vec3 vWp;\nvarying vec3 vWn;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWn = mat3(modelMatrix) * normal;');
+        sh.fragmentShader = 'varying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLed; uniform float uDim; uniform float uY0; uniform float uY1; uniform float uSW;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + LEDSH).replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n#include <dithering_fragment>');
       };
       return m;
     }
@@ -1714,7 +1728,8 @@
       var playing = net.status === 'playing';
       // lumières : on baisse pendant le film, on rallume sinon
       dim += ((playing ? 0.02 : 1) - dim) * Math.min(1, dt * 1.2);     // noir complet pendant le film
-      if (ceilM) { ceilM.color.setScalar(dim); starLedM.color.setScalar(dim); starMats.forEach(function (m) { if (m._base) m.color.copy(m._base).multiplyScalar(dim); else m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
+      tintU.uDim.value = dim;
+      if (ceilM) { ceilM.color.setScalar(dim); (function () { var lt = room._ledT || [0, 0, 0], s = Math.min(1, Math.max(lt[0], lt[1], lt[2]) * 3); starLedM.color.setRGB(dim * (1 - s) + lt[0] * s * 1.7, dim * (1 - s) + lt[1] * s * 1.7, dim * (1 - s) + lt[2] * s * 1.7); })(); starMats.forEach(function (m) { if (m._base) m.color.copy(m._base).multiplyScalar(dim); else m.color.setScalar(dim); }); }     // les lumières du plafond s'éteignent avec la salle
       glowM.opacity = 0.1 + 0.9 * dim; shadeM.color.setRGB(dim * 0.9 + 0.1, (dim * 0.9 + 0.1) * 0.85, (dim * 0.9 + 0.1) * 0.63);
       var dv = dim;                // dans la grande salle on garde un peu de lumière pendant le film : on voit les murs dorés et les fauteuils
       amb.intensity = (P ? 0.3 : 0.95) * dv; key.intensity = (P ? 0.12 : 0.3) * dv;
@@ -1861,11 +1876,22 @@
             e.cur[k][c3] += (tg - e.cur[k][c3]) * Math.min(1, dt * (up ? 30 : 9));      // réaction quasi immédiate, sans clignoter
           }
         });
-        if (paintT > 0.033) { paintT = 0; paint(); }
+        if (paintT > 0.033) {
+          paintT = 0; paint();
+          ['L', 'R', 'T', 'B'].forEach(function (key, row) {                       // 32 échantillons par côté, même couleurs que la LED
+            var e = E[key], i2, c3;
+            for (i2 = 0; i2 < 32; i2++) {
+              var xx = i2 / 31 * (e.n - 1), a0 = Math.floor(xx), b0 = Math.min(e.n - 1, a0 + 1), w0 = xx - a0, o2 = (row * 32 + i2) * 4;
+              for (c3 = 0; c3 < 3; c3++) ledData[o2 + c3] = Math.max(0, Math.min(255, Math.round((e.cur[a0][c3] + (e.cur[b0][c3] - e.cur[a0][c3]) * w0) * 255)));
+            }
+          });
+          ledTex.needsUpdate = true;
+        }
         // léger reflet sur les murs, le plafond et le sol près de l'écran (s'efface en quelques mètres)
         var aL2 = avg(E.L), aR2 = avg(E.R), aT2 = avg(E.T), aB2 = avg(E.B), K = 0.22;
         tintU.uL.value.setRGB(aL2[0] * K, aL2[1] * K, aL2[2] * K);
         tintU.uR.value.setRGB(aR2[0] * K, aR2[1] * K, aR2[2] * K);
+        room._ledT = aT2;
         tintU.uC.value.setRGB((aT2[0] + aB2[0]) / 2 * K, (aT2[1] + aB2[1]) / 2 * K, (aT2[2] + aB2[2]) / 2 * K);
       };
       paint();
@@ -1890,7 +1916,7 @@
       function shape(k) {                                  // k : 0 = fermé, 1 = ouvert (les plis se resserrent sur les côtés, deviennent plus profonds)
         var amp = 0.1 + 0.36 * k;
         panels.forEach(function (p) {
-          var outer = p.sd * CW / 2, span = Wp * (1 - k * (1 - GATHER)), i, r;
+          var outer = p.sd * (CW / 2 + k * (0.15 + Wp * GATHER)), span = Wp * (1 - k * (1 - GATHER)), i, r;   // ouvert : le pan entier est rentré dans le mur latéral, on ne le voit plus
           for (i = 0; i <= NC; i++) {
             var u = i / NC, ph = u * FOLDS * TAU, sn = Math.sin(ph), x = outer - p.sd * u * span, z = CZ + amp * (0.5 + 0.5 * sn) + (p.sd > 0 ? 0.09 : 0);
             var sh = 0.42 + 0.58 * (0.5 + 0.5 * sn), shine = Math.pow(Math.max(0, Math.sin(ph + 1.1)), 6) * 0.3;
