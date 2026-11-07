@@ -123,16 +123,15 @@
     })();
     var ball = new THREE.Mesh(new THREE.SphereGeometry(0.8, 24, 16), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.2, metalness: 0.9 })); ball.position.set(0, H - 1.6, 0); g.add(ball);
     var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold); chain.position.set(0, H - 0.6, 0); g.add(chain);
-    // faisceaux : de longs cônes de lumière qui partent de la boule, tournent avec elle et changent de couleur
-    var bgc = mkCanvas(4, 64), bgx = bgc.getContext('2d'), bgg = bgx.createLinearGradient(0, 0, 0, 64);
-    bgg.addColorStop(0, 'rgba(255,255,255,0.75)'); bgg.addColorStop(0.5, 'rgba(255,255,255,0.22)'); bgg.addColorStop(1, 'rgba(255,255,255,0)'); bgx.fillStyle = bgg; bgx.fillRect(0, 0, 4, 64);
-    var beamTex = mkTex(bgc), beams = new THREE.Group(), beamMats = [], NBEAM = low ? 8 : 16;
-    beams.position.set(0, H - 1.6, 0); g.add(beams);
+    // faisceaux : de fins cônes de lumière qui partent de la boule et tournent exactement avec elle (bords doux, qui s'éteignent loin de la boule)
+    var BVS = 'varying float vT; varying vec3 vN; varying vec3 vV; void main() { vT = clamp(-position.y / 11.0, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
+    var BFS = 'uniform vec3 uColor; uniform float uOp; varying float vT; varying vec3 vN; varying vec3 vV; void main() { float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.6); float g = pow(1.0 - vT, 1.3) * smoothstep(0.0, 0.03, vT); gl_FragColor = vec4(uColor, e * g * uOp); }';
+    var beams = new THREE.Group(), beamMats = [], NBEAM = low ? 8 : 14, beamGeo = new THREE.CylinderGeometry(0.02, 0.5, 11, 18, 1, true); beamGeo.translate(0, -5.5, 0);
+    beams.position.copy(ball.position); g.add(beams);
     for (i = 0; i < NBEAM; i++) {
-      var bg = new THREE.CylinderGeometry(0.03, 0.9, 14, 12, 1, true); bg.translate(0, -7, 0);
-      var bm = new THREE.MeshBasicMaterial({ map: beamTex, color: 0xb98cff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, opacity: 0.5 });
-      var piv = new THREE.Group(), bmesh = new THREE.Mesh(bg, bm);
-      piv.rotation.y = i / NBEAM * TAU; bmesh.rotation.z = 0.35 + (i % 4) * 0.28; piv.add(bmesh); beams.add(piv); beamMats.push(bm);
+      var bm = new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(0xb98cff) }, uOp: { value: 0.6 } }, vertexShader: BVS, fragmentShader: BFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      var piv = new THREE.Group(), bmesh = new THREE.Mesh(beamGeo, bm);
+      piv.rotation.y = i / NBEAM * TAU; bmesh.rotation.z = 0.5 + (i % 3) * 0.32; piv.add(bmesh); beams.add(piv); beamMats.push(bm);
     }
     var wallLeds = [];
     [-1, 1].forEach(function (sd) {
@@ -141,10 +140,10 @@
         led.position.set(sd * (HX - 0.1), 3.6, -HZ + 3.4 + i * 3.7); g.add(led); wallLeds.push({ m: m, i: i });
       }
     });
-    var ceilRing = new THREE.Mesh(new THREE.TorusGeometry(5.5, 0.07, 8, 64), new THREE.MeshBasicMaterial({ color: 0xb98cff })); ceilRing.rotation.x = Math.PI / 2; ceilRing.position.y = H - 0.15; g.add(ceilRing);
 
     /* ---------- éclairage ---------- */
     g.add(new THREE.AmbientLight(0x8f7fc0, 0.75));
+    var haloTex = (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c); })();
     var key = new THREE.DirectionalLight(0xf0e6ff, 0.35); key.position.set(3, 7, 6); g.add(key);
     var spotA = null, spotB = null;
     if (!low) {
@@ -153,7 +152,17 @@
     }
 
     // porte de retour vers le hall
-    world.addDoor(room, { x: 0, z: HZ - 0.02, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xb98cff, target: 'hall', theme: 'exitMusique' });
+    world.addDoor(room, { x: 0, z: HZ - 0.02, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xb98cff, target: 'hall', theme: 'exitMusique', noSill: true });
+    var doorLamps = [];
+    [-1, 1].forEach(function (sd) {
+      var lx = sd * 1.85, lz = HZ - 0.45;
+      var lg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.08, 16), gold); lg.position.set(lx, 0.04, lz); g.add(lg);
+      var lp = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.3, 10), gold); lp.position.set(lx, 0.72, lz); g.add(lp);
+      var lm = new THREE.MeshBasicMaterial({ color: 0xb98cff }), lb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 12), lm); lb.position.set(lx, 1.5, lz); g.add(lb);
+      var lc = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.15, 16), gold); lc.position.set(lx, 1.72, lz); g.add(lc);
+      var halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, color: 0xb98cff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); halo.scale.set(1.6, 1.6, 1); halo.position.set(lx, 1.5, lz); g.add(halo);
+      doorLamps.push({ m: lm, h: halo, i: sd > 0 ? 1 : 0 });
+    });
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) {
       return w.touch ? 'Joystick : marcher · le sol s\'allume au rythme de la musique'
@@ -205,10 +214,13 @@
       discs.forEach(function (d, n) { d[0].rotation.y += dt * 2.4 * (n ? -1 : 1); d[1].rotation.y = d[0].rotation.y; d[2].rotation.y = d[0].rotation.y; neon(hue0b(n * 12) , 0.55, d[1].material.color); });
       knobs.forEach(function (kb, n) { kb.position.y = 1.15 + sm[2 + n * 3] * 0.05; });
       ball.rotation.y += dt * 0.5; ball.scale.setScalar(pulse * 0.97);
-      beams.rotation.y += dt * 0.45;
-      beamMats.forEach(function (bm, n) { neon(hue0b(n * 2), 0.55, bm.color); bm.opacity = 0.28 + bass * 0.5 + 0.12 * Math.sin(clock * 3 + n); });
+      beams.rotation.y = ball.rotation.y;                                                    // les faisceaux et la boule tournent d'un seul bloc
+      beamMats.forEach(function (bm, n) { neon(hue0b(n * 2), 0.55, bm.uniforms.uColor.value); bm.uniforms.uOp.value = 0.45 + bass * 0.9; });
       wallLeds.forEach(function (l) { neon(hue0b(l.i * 3), 0.25 + sm[(l.i * 2) % NB] * 0.4, l.m.color); });
-      neon(hue0b(0), 0.4 + bass * 0.25, ceilRing.material.color); ceilRing.scale.setScalar(1 + bass * 0.05);
+            doorLamps.forEach(function (l) {                                                   // les lampes de la porte suivent la musique, une de chaque côté
+        var lv = sm[l.i ? 5 : 2], mm = hue0b(l.i * 8 + 3);
+        neon(mm, 0.35 + lv * 0.3, l.m.color); l.h.material.color.copy(l.m.color); l.h.material.opacity = 0.35 + lv * 0.65; l.h.scale.setScalar(1.2 + lv * 1.3);
+      });
       if (spotA) {
         spotA.color.setHSL((hue0 + 0.0) % 1, 1, 0.55); spotB.color.setHSL((hue0 + 0.5) % 1, 1, 0.55);
         spotA.position.set(-6 * Math.cos(clock * 0.6), 5, 6 * Math.sin(clock * 0.6)); spotB.position.set(6 * Math.cos(clock * 0.6), 5, -6 * Math.sin(clock * 0.6));

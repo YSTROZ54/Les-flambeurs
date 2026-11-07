@@ -188,8 +188,8 @@
     group.add(new THREE.Mesh(ribbonGeo(-1), sideMat));
 
     /* ---------- projecteurs : un petit spot de chaque côté du bandeau, qui envoie un vrai faisceau (cône doux, plus clair près de la lampe) ---------- */
-    var beamGeo = track(new THREE.CylinderGeometry(0.62, 0.03, 3.4, 28, 1, true)); beamGeo.rotateX(Math.PI); beamGeo.translate(0, 1.7, 0);   // pointe en bas (à la lampe), large en haut
-    var beamVS = 'varying float vT; varying vec3 vN; varying vec3 vV; void main() { vT = clamp(position.y / 3.4, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
+    var beamGeo = track(new THREE.CylinderGeometry(0.34, 0.03, 2.2, 28, 1, true)); beamGeo.rotateX(Math.PI); beamGeo.translate(0, 1.1, 0);   // pointe en bas (à la lampe), large en haut
+    var beamVS = 'varying float vT; varying vec3 vN; varying vec3 vV; void main() { vT = clamp(position.y / 2.2, 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
     var beamFS = 'uniform vec3 uColor; uniform float uOp; varying float vT; varying vec3 vN; varying vec3 vV; void main() { float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.7); float g = 1.0 - vT; g = g * g * smoothstep(0.0, 0.06, vT + 0.03); gl_FragColor = vec4(uColor, e * g * uOp); }';
     var lampM = track(new THREE.MeshStandardMaterial({ color: 0x14141c, roughness: 0.4, metalness: 0.7 })), lampG = track(new THREE.CylinderGeometry(0.075, 0.095, 0.16, 14)), lensG = track(new THREE.CircleGeometry(0.068, 16));
     var rays = [];
@@ -199,7 +199,7 @@
       var lens = new THREE.Mesh(lensG, track(new THREE.MeshBasicMaterial({ color: 0x9ec6ff }))); lens.rotation.x = -Math.PI / 2; lens.position.y = 0.042; pivot.add(lens);
       var m = track(new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(0x3a8dff) }, uOp: { value: 0.35 } }, vertexShader: beamVS, fragmentShader: beamFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
       var beam = new THREE.Mesh(beamGeo, m); beam.position.y = 0.04; pivot.add(beam);
-      pivot.rotation.z = -s * 0.55;
+      pivot.rotation.z = -s * 0.1;
       rays.push({ m: m, mesh: pivot, lens: lens, s: s, ph: Math.random() * 6 });
     });
 
@@ -589,6 +589,35 @@
 
     drawBanner(); drawScreen(); updateSides(0);
 
+    /* ---------- style « pod » (îlot central) : coque anguleuse nacrée, bords néon cyan, enseigne plate, plus de lyre ni de couronne ni de projecteurs ---------- */
+    if (opts.style === 'pod') {
+      group.children.slice().forEach(function (o) {
+        var gt = o.geometry && o.geometry.type;
+        if (gt === 'ExtrudeGeometry' || o.geometry === unitCyl || o.material === sideMat) o.visible = false;                                   // lyre, tubes néon, bandeaux latéraux
+        else if (o.position.y >= 2.82 && (gt === 'CylinderGeometry' || gt === 'TorusGeometry' || gt === 'SphereGeometry')) o.visible = false;  // couronne, anneaux, ampoules
+      });
+      rays.forEach(function (r) { r.mesh.visible = false; });
+      floorGlow.visible = false;
+      var pearl = track(new THREE.MeshStandardMaterial({ color: 0xe8e6f4, roughness: 0.22, metalness: 0.35 }));
+      var cyan = track(new THREE.MeshBasicMaterial({ color: opts.trim || 0x35d4ff }));
+      [1, -1].forEach(function (sd) {
+        var sh = new THREE.Shape(); sh.moveTo(0.62, 0); sh.lineTo(1.08, 0); sh.lineTo(1.0, 2.5); sh.lineTo(0.74, 3.0); sh.lineTo(0.62, 3.0); sh.lineTo(0.62, 0);
+        var fg = track(new THREE.ExtrudeGeometry(sh, { depth: 0.72, bevelEnabled: false })); fg.translate(0, 0, -0.36);
+        var fin = new THREE.Mesh(fg, pearl); fin.scale.x = sd; group.add(fin);
+        [[1.08, 0.02, 1.0, 2.5], [1.0, 2.5, 0.74, 3.0]].forEach(function (b) {                          // liseré néon sur l'arête de devant
+          var a = new THREE.Vector3(sd * b[0], b[1], 0.37), c = new THREE.Vector3(sd * b[2], b[3], 0.37), dir = new THREE.Vector3().subVectors(c, a), len = dir.length();
+          var bar = new THREE.Mesh(track(new THREE.CylinderGeometry(0.018, 0.018, len, 6)), cyan);
+          bar.position.copy(a).add(c).multiplyScalar(0.5); bar.quaternion.setFromUnitVectors(UP, dir.normalize()); group.add(bar);
+        });
+      });
+      var roof = new THREE.Mesh(track(new THREE.BoxGeometry(2.2, 0.14, 0.98)), pearl); roof.position.set(0, 3.07, 0.02); group.add(roof);
+      var mq = new THREE.Mesh(track(new THREE.BoxGeometry(1.9, 0.52, 0.2)), matDark); mq.position.set(0, 3.4, 0.0); group.add(mq);
+      banTex.repeat.x = 0.3;
+      var mp = new THREE.Mesh(track(new THREE.PlaneGeometry(1.8, 0.44)), matBanner); mp.position.set(0, 3.4, 0.105); group.add(mp);
+      var bar2 = new THREE.Mesh(track(new THREE.BoxGeometry(2.2, 0.03, 0.03)), cyan); bar2.position.set(0, 3.0, 0.5); group.add(bar2);
+      var kick = new THREE.Mesh(track(new THREE.BoxGeometry(2.0, 0.06, 1.05)), cyan); kick.position.set(0, 0.03, 0.05); group.add(kick);
+    }
+
     return {
       group: group,
       hit: hit,
@@ -889,14 +918,14 @@
     var SPOTS = [[-4.8, ROOM.back + 0.9, 0], [-1.6, ROOM.back + 0.9, 0], [1.6, ROOM.back + 0.9, 0], [4.8, ROOM.back + 0.9, 0]];
     LEFT_Z.slice().reverse().forEach(function (z) { SPOTS.push([-ROOM.wall + 0.9, z, Math.PI / 2]); });
     RIGHT_Z.forEach(function (z) { SPOTS.push([ROOM.wall - 0.9, z, -Math.PI / 2]); });
-    var ISLE = { bodyColor: 0x0d2a4a, trim: 0x35d4ff };
-    ISLE_Z.forEach(function (z) { SPOTS.push([-0.47, z, -Math.PI / 2, ISLE]); SPOTS.push([0.47, z, Math.PI / 2, ISLE]); });
+    var ISLE = { bodyColor: 0x0d2a4a, trim: 0x35d4ff, style: 'pod' };
+    ISLE_Z.forEach(function (z) { SPOTS.push([-0.72, z, -Math.PI / 2, ISLE]); SPOTS.push([0.72, z, Math.PI / 2, ISLE]); });
     var n = SPOTS.length;
     for (var i = 0; i < n; i++) {
       (function (i) {
         var px = SPOTS[i][0], pz = SPOTS[i][1], rot = SPOTS[i][2];
         var look = SPOTS[i][3] || {};
-        var cab = createSlotCabinet({ low: low, lights: false, bodyColor: look.bodyColor, trim: look.trim, position: new THREE.Vector3(px, 0, pz), rotationY: rot, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
+        var cab = createSlotCabinet({ low: low, lights: false, bodyColor: look.bodyColor, trim: look.trim, style: look.style, position: new THREE.Vector3(px, 0, pz), rotationY: rot, label: 'BORNE ' + (i + 1), message: 'Libre — viens jouer !' });
         room.group.add(cab.group);
         var e = { cab: cab, x: px, z: pz, rotY: rot, n: i + 1, occBy: null, fixedTrim: !!look.trim };
         room.cabs.push(e);
@@ -909,6 +938,24 @@
         });
       })(i);
     }
+    // colonne vertébrale de l'îlot : une cloison pleine entre les deux rangées de bornes dos à dos (rien ne s'interpénètre, personne ne passe derrière)
+    (function () {
+      var zA = ISLE_Z[0] + 2.0, zB = ISLE_Z[ISLE_Z.length - 1] - 2.0, len = zA - zB, cz = (zA + zB) / 2;
+      var navy = new THREE.MeshStandardMaterial({ color: 0x0a1a34, roughness: 0.3, metalness: 0.55 }), pearl = new THREE.MeshStandardMaterial({ color: 0xe8e6f4, roughness: 0.22, metalness: 0.35 });
+      var cyan = new THREE.MeshBasicMaterial({ color: 0x35d4ff }), pink = new THREE.MeshBasicMaterial({ color: 0xff3d8a });
+      var sp = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.3, len), navy); sp.position.set(0, 1.65, cz); room.group.add(sp);
+      var cap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, len + 0.3), pearl); cap.position.set(0, 3.38, cz); room.group.add(cap);
+      [-1, 1].forEach(function (sd) {
+        var st1 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, len - 0.4), cyan); st1.position.set(sd * 0.215, 3.05, cz); room.group.add(st1);
+        var st2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, len - 0.4), pink); st2.position.set(sd * 0.215, 0.45, cz); room.group.add(st2);
+      });
+      [zA + 0.15, zB - 0.15].forEach(function (pz) {
+        var py = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 3.6, 24), pearl); py.position.set(0, 1.8, pz); room.group.add(py);
+        [0.4, 3.2].forEach(function (yy) { var rg = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.03, 8, 28), cyan); rg.rotation.x = Math.PI / 2; rg.position.set(0, yy, pz); room.group.add(rg); });
+        room.colliders.push({ x: 0, z: pz, r: 0.8 });
+      });
+      for (var cz2 = zA; cz2 >= zB - 0.01; cz2 -= 0.9) room.colliders.push({ x: 0, z: cz2, r: 0.62 });
+    })();
     room.cab = room.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
     built.plaques.forEach(function (pl) { room.interactables.push({ hit: pl, use: function () { world.setFull(!world.full); } }); });
 

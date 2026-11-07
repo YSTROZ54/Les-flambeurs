@@ -594,7 +594,7 @@
           var m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), starMat(z1 - z0, y1 - y0)); m.position.set(sd * HX, (y0 + y1) / 2, (z0 + z1) / 2); m.rotation.y = ry; g.add(m);
           var m2 = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), wallV); m2.position.set(sd * (HX + 0.03), (y0 + y1) / 2, (z0 + z1) / 2); m2.rotation.y = ry + Math.PI; g.add(m2);   // face intérieure du puits : le mur est plein des deux côtés
         }
-        quad(-HZ, BH.z0, 0, H); quad(BH.z0, BH.z1, BH.y1, H); quad(BH.z1, TH.z0, 0, H);
+        quad(-HZ, TH.z0, 0, H);
         quad(TH.z0, TH.z1, 0, TH.y0); quad(TH.z0, TH.z1, TH.y1, H); quad(TH.z1, HZ, 0, H);
       }
       function frame(sd, h) {                       // cadre doré autour d'un trou
@@ -733,22 +733,22 @@
       // l'étage VIP : une porte normale de chaque côté (en bas) qui emmène sur le balcon, et une de chaque côté du balcon pour redescendre
       [-1, 1].forEach(function (sd) {
         var yIn = F.yawFor(-sd, 0);
-        world.addDoor(room, { x: sd * HX, z: -7.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '👑 ÉTAGE VIP', sub: 'FAUTEUILS DE LUXE', color: 0xffd86b, theme: 'cinemavip',
+        // en bas : « Étage VIP » et « Sortie » côte à côte, juste à côté de la porte du staff, sur la vitre du fond (loin de l'écran)
+        var vx = sd * 23.0, sx2 = sd * 19.8, dz0 = GZ - 0.03;
+        var dVip = world.addDoor(room, { x: vx, z: dz0, nx: 0, nz: -1, w: 2.0, h: 2.9, label: '👑 ÉTAGE VIP', sub: 'FAUTEUILS DE LUXE', color: 0xffd86b, theme: 'cinemavip',
           enabled: function () { return !vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), 11.5, yIn, function () { setVip(true); }); } });
-        var upD = world.addDoor(room, { x: sd * HX, z: 11.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '⬇ DESCENDRE', sub: 'RETOUR EN BAS', color: 0xffd86b, theme: 'cinemavip',
-          enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), -7.5, yIn, function () { setVip(false); }); } });
-        upD.g.position.y = VY;
-        // un palier de marbre bordé de laiton devant chaque porte : la porte repose dessus, plus de pied qui disparaît dans le sol sombre
-        var landM = std(0x1a1520, 0.35, 0.4);
-        [[-7.5, 0], [-15.5, 0], [11.5, VY]].forEach(function (lp) {
-          var lx = sd * (HX - 1.3);
-          box(g, 2.6, 0.03, 3.4, landM, lx, lp[1] + 0.015, lp[0]);
-          box(g, 2.6, 0.036, 0.05, brassM, lx, lp[1] + 0.017, lp[0] - 1.7); box(g, 2.6, 0.036, 0.05, brassM, lx, lp[1] + 0.017, lp[0] + 1.7);
-          box(g, 0.05, 0.036, 3.4, brassM, sd * (HX - 2.6), lp[1] + 0.017, lp[0]);
-        });
-        // sortie du bas, juste à côté de la porte qui monte à l'étage
-        world.addDoor(room, { x: sd * HX, z: -15.5, nx: -sd, nz: 0, w: 1.9, h: 2.8, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinemaPremium',
+        var dOut = world.addDoor(room, { x: sx2, z: dz0, nx: 0, nz: -1, w: 1.9, h: 2.8, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinemaPremium',
           enabled: function () { return !vipUp; } });
+        dVip.g.position.y = gy0; dOut.g.position.y = gy0;
+        // à l'étage : la porte pour redescendre, qui ramène devant la porte « Étage VIP » du bas
+        var upD = world.addDoor(room, { x: sd * HX, z: 11.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '⬇ DESCENDRE', sub: 'RETOUR EN BAS', color: 0xffd86b, theme: 'cinemavip',
+          enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * 21.4, GZ - 1.2, F.yawFor(0, -1), function () { setVip(false); }); } });
+        upD.g.position.y = VY;
+        // un palier de marbre bordé de laiton devant la porte de l'étage : la porte repose dessus
+        var landM = std(0x1a1520, 0.35, 0.4), lx = sd * (HX - 1.3);
+        box(g, 2.6, 0.03, 3.4, landM, lx, VY + 0.015, 11.5);
+        box(g, 2.6, 0.036, 0.05, brassM, lx, VY + 0.017, 11.5 - 1.7); box(g, 2.6, 0.036, 0.05, brassM, lx, VY + 0.017, 11.5 + 1.7);
+        box(g, 0.05, 0.036, 3.4, brassM, sd * (HX - 2.6), VY + 0.017, 11.5);
       });
       for (var ex2 = -(vw - 0.5); ex2 <= vw - 0.45; ex2 += 0.6) edge.push({ x: ex2, z: vz0 + 0.1, r: 0.5 });     // bord de l'étage : on ne tombe pas
                                           // on peut entrer dans les puits
@@ -1633,10 +1633,10 @@
       if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
-    room.spawn = function () { return P ? { x: HX - 2.6, z: -5.5, yaw: F.yawFor(-1, 0) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
+    room.spawn = function () { return P ? { x: 21.4, z: 8.2, yaw: F.yawFor(0, -1) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
-      seanceAsked = false; if (room.resetVip) room.resetVip();
+      seanceAsked = false; room._curtT0 = performance.now(); if (room.resetVip) room.resetVip();
       music.start(); mountEye();
       if (world.container) world.container.classList.add('cin-in-cinema');
       window.addEventListener('pointerdown', kickMusic, true); window.addEventListener('keydown', kickMusic, true);   // le navigateur peut exiger un geste avant le son
@@ -1661,6 +1661,7 @@
     room.update = function (dt, w) {
       clock += dt;
       if (room.vipTrack) room.vipTrack(w.player.x, w.player.z, w);
+      if (room.curtainUpdate) room.curtainUpdate(dt);
       if (room.glassCheck) room.glassCheck(w);
       if (room.staffWall) room.staffWall(dt);
       deskPlaceConsole();
@@ -1844,6 +1845,70 @@
       };
       paint();
       room._ambi = { force: function (c) { bad = false; ['L', 'R', 'T', 'B'].forEach(function (key) { for (var k = 0; k < E[key].n; k++) E[key].tgt[k] = c(key, k / (E[key].n - 1)); }); } };
+    })();
+    /* ===================== RIDEAU DE SCÈNE (salle premium) ===================== */
+    // Un grand rideau de velours rouge cache l'écran. Il s'ouvre lentement (les deux pans glissent vers les côtés en se plissant) dès qu'un film est lancé
+    // et ne se referme que lorsque le film est terminé : la pause le laisse ouvert. L'état vient du serveur (net.status), tout le monde voit donc la même chose.
+    (function buildCurtain() {
+      if (!P) return;
+      var CW = HX * 2 - 0.1, CY0 = 0.34, CY1 = H - 2.5, CZ = -HZ + 0.62, OV = 0.6, NC = 240, FOLDS = 36, GATHER = 0.075, HEM = 0.75, DUR = 9;
+      var Wp = CW / 2 + OV, ys = [CY0, CY0 + HEM, CY0 + HEM, CY1];
+      function panel(sd) {
+        var pos = new Float32Array(4 * (NC + 1) * 3), col = new Float32Array(4 * (NC + 1) * 3), idx = [], i, r;
+        for (i = 0; i < NC; i++) for (r = 0; r < 4; r += 2) { var a = r * (NC + 1) + i, b = a + 1, c = a + (NC + 1), d = c + 1; idx.push(a, c, b, b, c, d); }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+        var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); mesh.frustumCulled = false; g.add(mesh);
+        return { sd: sd, pos: pos, col: col, geo: geo };
+      }
+      var panels = [panel(-1), panel(1)];
+      function shape(k) {                                  // k : 0 = fermé, 1 = ouvert (les plis se resserrent sur les côtés, deviennent plus profonds)
+        var amp = 0.1 + 0.36 * k;
+        panels.forEach(function (p) {
+          var outer = p.sd * CW / 2, span = Wp * (1 - k * (1 - GATHER)), i, r;
+          for (i = 0; i <= NC; i++) {
+            var u = i / NC, ph = u * FOLDS * TAU, sn = Math.sin(ph), x = outer - p.sd * u * span, z = CZ + amp * (0.5 + 0.5 * sn) + (p.sd > 0 ? 0.09 : 0);
+            var sh = 0.42 + 0.58 * (0.5 + 0.5 * sn), shine = Math.pow(Math.max(0, Math.sin(ph + 1.1)), 6) * 0.3;
+            sh *= 1 - 0.3 * k * (1 - Math.abs(sn));
+            for (r = 0; r < 4; r++) {
+              var o = (r * (NC + 1) + i) * 3, gold = r < 2, f = gold ? (r === 0 ? 0.85 : 1) : (r === 2 ? 1 : 0.6);
+              p.pos[o] = x; p.pos[o + 1] = ys[r]; p.pos[o + 2] = z + (r === 3 ? -0.05 * k : 0);
+              if (gold) { p.col[o] = Math.min(1, (0.95 * sh + shine) * f); p.col[o + 1] = Math.min(1, (0.74 * sh + shine) * f); p.col[o + 2] = Math.min(1, (0.28 * sh + shine * 0.4) * f); }
+              else { p.col[o] = Math.min(1, (0.66 * sh + shine) * f); p.col[o + 1] = Math.min(1, (0.035 * sh + shine * 0.25) * f); p.col[o + 2] = Math.min(1, (0.075 * sh + shine * 0.3) * f); }
+            }
+          }
+          p.geo.attributes.position.needsUpdate = true; p.geo.attributes.color.needsUpdate = true;
+        });
+      }
+      // lambrequin : un haut de scène à festons, galon d'or et glands
+      var pcw = 4096, pch = 220, pcv = mkCanvas(pcw, pch), px = pcv.getContext('2d'), SWN = 8, sw = pcw / SWN, q, f2;
+      for (q = 0; q < SWN; q++) {
+        var x0 = q * sw, x1 = x0 + sw, gr = px.createLinearGradient(0, 0, 0, pch);
+        gr.addColorStop(0, '#330408'); gr.addColorStop(0.5, '#86101c'); gr.addColorStop(1, '#5a0914');
+        px.fillStyle = gr; px.beginPath(); px.moveTo(x0, 0); px.lineTo(x1, 0); px.lineTo(x1, 66); px.quadraticCurveTo((x0 + x1) / 2, 324, x0, 66); px.closePath(); px.fill();
+        for (f2 = 1; f2 < 12; f2++) {
+          var t = f2 / 12, yb = (1 - t) * (1 - t) * 66 + 2 * t * (1 - t) * 324 + t * t * 66;
+          px.strokeStyle = 'rgba(0,0,0,0.3)'; px.lineWidth = 5; px.beginPath(); px.moveTo(x0 + t * sw, 0); px.lineTo(x0 + t * sw, yb - 4); px.stroke();
+          px.strokeStyle = 'rgba(255,120,130,0.16)'; px.lineWidth = 3; px.beginPath(); px.moveTo(x0 + t * sw + 6, 0); px.lineTo(x0 + t * sw + 6, yb - 6); px.stroke();
+        }
+        px.strokeStyle = '#d9b24a'; px.lineWidth = 9; px.beginPath(); px.moveTo(x0, 66); px.quadraticCurveTo((x0 + x1) / 2, 324, x1, 66); px.stroke();
+        px.strokeStyle = '#7a5a14'; px.lineWidth = 2.5; px.beginPath(); px.moveTo(x0, 72); px.quadraticCurveTo((x0 + x1) / 2, 330, x1, 72); px.stroke();
+        px.fillStyle = '#d9b24a'; px.beginPath(); px.ellipse(x1, 84, 15, 21, 0, 0, TAU); px.fill();                     // gland
+        px.strokeStyle = '#c99a2c'; px.lineWidth = 3;
+        for (f2 = -6; f2 <= 6; f2++) { px.beginPath(); px.moveTo(x1 + f2 * 2.6, 100); px.lineTo(x1 + f2 * 3.4, 168); px.stroke(); }
+      }
+      px.fillStyle = '#d9b24a'; px.fillRect(0, 34, pcw, 8);
+      var pel = new THREE.Mesh(new THREE.PlaneGeometry(CW + 0.4, (CW + 0.4) * pch / pcw), new THREE.MeshBasicMaterial({ map: mkTex(pcv), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+      pel.position.set(0, H - 0.02 - (CW + 0.4) * pch / pcw / 2, CZ + 0.1); g.add(pel);
+      var raw = 0, kShown = -1;
+      room.curtainUpdate = function (dt) {
+        var want = (net.status === 'playing' || net.status === 'paused') ? 1 : 0;
+        if (performance.now() - (room._curtT0 || 0) < 2500) raw = want;                       // en entrant : le rideau est déjà dans le bon état (pas d'animation pour quelqu'un qui arrive en cours de film)
+        else raw += Math.max(-dt / DUR, Math.min(dt / DUR, want - raw));                       // sinon : une ouverture ou fermeture lente (9 s), pour tous en même temps
+        var kk = raw * raw * (3 - 2 * raw);
+        if (Math.abs(kk - kShown) > 0.0003) { kShown = kk; shape(kk); }
+      };
+      shape(0); kShown = 0;
     })();
     room.dispose = function () { leave(); if (hlsInst) { try { hlsInst.destroy(); } catch (e) { /* ok */ } hlsInst = null; } if (vAudio.ctx) { try { vAudio.ctx.close(); } catch (e) { /* ok */ } } video.removeAttribute('src'); video.load(); vtex.dispose(); posterTex.dispose(); };
     return room;

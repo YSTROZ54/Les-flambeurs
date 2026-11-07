@@ -253,7 +253,7 @@
     });
     box(w + 0.84, 0.22, 0.28, 0, h + 0.2, 0.11, stoneM); box(w + 1.0, 0.07, 0.36, 0, h + 0.36, 0.12);
     box(w + 0.08, 0.035, 0.03, 0, h + 0.02, 0.23, neonM); box(w + 0.7, 0.025, 0.012, 0, h + 0.2, 0.256);
-    box(w + 0.5, 0.02, 0.6, 0, 0.01, 0.35);                                                 // seuil en laiton
+    if (!spec.noSill) box(w + 0.5, 0.02, 0.6, 0, 0.01, 0.35);                                                 // seuil en laiton
     var wood = new THREE.MeshStandardMaterial({ color: th ? th.leaf : 0x4a1220, roughness: 0.55, metalness: 0.15 });
     var leafTex = null, leafTexR = null;
     if (th) {                                                              // un seul dessin pour les deux battants

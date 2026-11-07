@@ -367,15 +367,6 @@
       var gl = new THREE.Sprite(glowMatPmu); gl.scale.set(r * 4, r * 4, 1); gl.position.set(x, y - 0.1, z); g.add(gl);
     }
     var glowMatPmu = new THREE.SpriteMaterial({ map: (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,225,170,0.8)'); gr.addColorStop(0.45, 'rgba(255,190,110,0.25)'); gr.addColorStop(1, 'rgba(255,170,80,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c); })(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    // plantes en pot
-    function plant(x, z, sc) {
-      sc = sc || 1;
-      cyl(g, 0.3 * sc, 0.24 * sc, 0.55 * sc, lam(0x2a2a32), x, 0.275 * sc, z, 14); cyl(g, 0.27 * sc, 0.27 * sc, 0.03, lam(0x3b2a1c), x, 0.55 * sc, z, 14);
-      var leafM = [lam(0x2f7d3a), lam(0x3f9a45), lam(0x23642f)];
-      for (var q = 0; q < 14; q++) { var a = q * 2.4, rr = 0.18 + (q % 4) * 0.08, l = sph(g, 0.22 * sc, leafM[q % 3], x + Math.cos(a) * rr * sc, (0.95 + (q % 5) * 0.22) * sc, z + Math.sin(a) * rr * sc); l.scale.set(0.8, 1.5, 0.8); l.rotation.set(Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4); }
-      room.colliders.push({ x: x, z: z, r: 0.42 * sc });
-    }
-    [[-12, 9.8], [12, 9.8], [12.1, -0.2], [-12, -0.2]].forEach(function (p) { plant(p[0], p[1], 1.3); });
     // coin salon : deux canapés en cuir rouge face à face autour d'une table basse
     function sofa(x, z, ry) {
       var sg = new THREE.Group(); sg.position.set(x, 0, z); sg.rotation.y = ry; g.add(sg);
