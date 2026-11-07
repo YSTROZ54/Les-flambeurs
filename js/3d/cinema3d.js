@@ -1879,12 +1879,12 @@
       var CW = HX * 2 - 0.1, CY0 = 0.34, CY1 = H - 2.5, CZ = -HZ + 0.62, OV = 0.6, NC = 240, FOLDS = 36, GATHER = 0.075, HEM = 0.75, DUR = 9;
       var Wp = CW / 2 + OV, ys = [CY0, CY0 + HEM, CY0 + HEM, CY1];
       function panel(sd) {
-        var pos = new Float32Array(4 * (NC + 1) * 3), col = new Float32Array(4 * (NC + 1) * 3), idx = [], i, r;
+        var pos = new Float32Array(4 * (NC + 1) * 3), col = new Float32Array(4 * (NC + 1) * 3), uv = new Float32Array(4 * (NC + 1) * 2), idx = [], i, r;
         for (i = 0; i < NC; i++) for (r = 0; r < 4; r += 2) { var a = r * (NC + 1) + i, b = a + 1, c = a + (NC + 1), d = c + 1; idx.push(a, c, b, b, c, d); }
         var geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
-        var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); mesh.frustumCulled = false; g.add(mesh);
-        return { sd: sd, pos: pos, col: col, geo: geo };
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+        var mesh = new THREE.Mesh(geo, starMatUV().clone()); mesh.material.side = THREE.DoubleSide; mesh.frustumCulled = false; g.add(mesh);   // même noir à points blancs que les murs : ouvert, on ne le voit plus
+        return { sd: sd, pos: pos, col: col, uv: uv, geo: geo };
       }
       var panels = [panel(-1), panel(1)];
       function shape(k) {                                  // k : 0 = fermé, 1 = ouvert (les plis se resserrent sur les côtés, deviennent plus profonds)
@@ -1897,12 +1897,13 @@
             sh *= 1 - 0.3 * k * (1 - Math.abs(sn));
             for (r = 0; r < 4; r++) {
               var o = (r * (NC + 1) + i) * 3, gold = r < 2, f = gold ? (r === 0 ? 0.85 : 1) : (r === 2 ? 1 : 0.6);
+              p.uv[(r * (NC + 1) + i) * 2] = x; p.uv[(r * (NC + 1) + i) * 2 + 1] = ys[r];
               p.pos[o] = x; p.pos[o + 1] = ys[r]; p.pos[o + 2] = z + (r === 3 ? -0.05 * k : 0);
               if (gold) { p.col[o] = Math.min(1, (0.05 * sh + shine * 0.3) * f); p.col[o + 1] = Math.min(1, (0.05 * sh + shine * 0.3) * f); p.col[o + 2] = Math.min(1, (0.06 * sh + shine * 0.35) * f); }
               else { p.col[o] = Math.min(1, (0.07 * sh + shine * 0.5) * f); p.col[o + 1] = Math.min(1, (0.07 * sh + shine * 0.5) * f); p.col[o + 2] = Math.min(1, (0.085 * sh + shine * 0.6) * f); }
             }
           }
-          p.geo.attributes.position.needsUpdate = true; p.geo.attributes.color.needsUpdate = true;
+          p.geo.attributes.position.needsUpdate = true; p.geo.attributes.uv.needsUpdate = true;
         });
       }
       var raw = 0, kShown = -1;
