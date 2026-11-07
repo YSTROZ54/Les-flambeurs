@@ -251,8 +251,10 @@
   }
   function playFile(id, list, force) {
     var b = bus, el = new Audio(), slot = syncSlot(id, list), file;
-    if (slot) { if (force != null && slot.i === force.i && slot.dur - slot.off < 3) slot = { i: (force.i + 1) % list.length, off: 0, dur: 0 }; file = list[slot.i]; M.last[id] = file; }
-    else file = nextFile(id, list);
+    if (slot) {
+      if (force != null && slot.i === force.i) slot = { i: (force.i + 1) % list.length, off: 0, dur: 0 };   // le titre vient de finir : on passe toujours au suivant (jamais deux fois le même)
+      file = list[slot.i]; M.last[id] = file;
+    } else file = nextFile(id, list);
     el.preload = 'auto'; el.src = 'assets/musique/' + file;
     var src, g;
     try { src = b.c.createMediaElementSource(el); g = b.c.createGain(); g.gain.value = 0.0001; src.connect(g); g.connect(b.music); }
@@ -260,23 +262,34 @@
     var track = { el: el, gain: g };
     var old = M.el; M.el = track;
     if (old) dropTrack(old);
-    el.addEventListener('canplay', function () {
-      if (M.el !== track) return;
-      if (slot) {                                                  // on se cale sur l'horloge commune, puis on revérifie toutes les 3 s (un navigateur qui a pris du retard rattrape)
+    var vol = FILE_GAIN * (ROOM_GAIN[id] || 1);
+    function begin() {                                             // le son n'est lancé qu'une fois le titre placé au bon endroit : plus de départ à zéro puis de saut
+      if (M.el !== track || track.began) return; track.began = true;
+      var pr = el.play(); if (pr && pr.catch) pr.catch(function () { M.pending = true; });
+      fade(g, vol, 0.8);
+      if (slot) track.sync = setInterval(function () {             // recalage rare et seulement si l'écart est net (sinon on laisse jouer sans toucher)
+        if (M.el !== track || el.paused || el.seeking) return;
+        var s3 = syncSlot(id, list);
+        if (s3 && s3.i === slot.i && Math.abs(el.currentTime - s3.off) > 2.5) { try { el.currentTime = s3.off; } catch (e) { /* ok */ } }
+      }, 10000);
+    }
+    if (slot) {
+      el.addEventListener('canplay', function () {
+        if (M.el !== track) return;
         var s2 = syncSlot(id, list);
-        if (s2 && s2.i === slot.i) { try { el.currentTime = s2.off; } catch (e) { /* ok */ } }
-        else if (s2) { playFile(id, list); return; }
-        track.sync = setInterval(function () {
-          if (M.el !== track || el.paused) return;
-          var s3 = syncSlot(id, list);
-          if (s3 && s3.i === slot.i && Math.abs(el.currentTime - s3.off) > 1.2) { try { el.currentTime = s3.off; } catch (e) { /* ok */ } }
-        }, 3000);
-      }
-      fade(g, FILE_GAIN * (ROOM_GAIN[id] || 1), 0.8);
-    }, { once: true });
+        if (!s2) { begin(); return; }
+        if (s2.i !== slot.i) { playFile(id, list); return; }
+        if (s2.off < 0.5) { begin(); return; }
+        el.addEventListener('seeked', begin, { once: true });
+        try { el.currentTime = s2.off; } catch (e) { begin(); }
+        setTimeout(begin, 3000);                                   // si le navigateur ne peut pas se déplacer dans le fichier, on joue quand même
+      }, { once: true });
+    } else {
+      el.addEventListener('canplay', begin, { once: true });
+    }
     el.addEventListener('ended', function () { if (M.el === track && A.room === id) playFile(id, list, slot ? { i: slot.i } : null); });
     el.addEventListener('error', function () { if (M.el === track) { M.el = null; dropTrack(track); startSynth(id); } });   // fichier introuvable : musique synthétisée
-    var pr = el.play(); if (pr && pr.catch) pr.catch(function () { M.pending = true; });
+    if (!slot) { var pr0 = el.play(); if (pr0 && pr0.catch) pr0.catch(function () { M.pending = true; }); }
   }
 
   function tick() {
