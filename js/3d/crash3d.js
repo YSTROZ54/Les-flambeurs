@@ -56,7 +56,8 @@
     rail(-(HX + DX) / 2, YB, HZ - 0.04, HX - DX, 0.07, 0.07); rail((HX + DX) / 2, YB, HZ - 0.04, HX - DX, 0.07, 0.07);   // mur de la porte : le néon du bas monte le long du cadre, passe au-dessus et redescend
     [-DX, DX].forEach(function (x) { rail(x, DT / 2, HZ - 0.04, 0.07, DT, 0.07); }); rail(0, DT, HZ - 0.04, DX * 2, 0.07, 0.07);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x050812 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
-    for (i = -3; i <= 3; i++) box(g, 0.2, 0.08, HZ * 2 - 2, new THREE.MeshBasicMaterial({ color: 0xbfd7ff }), i * 4.2, H - 0.04, 0);
+    var ceilGlow = new THREE.MeshBasicMaterial({ color: 0xbfd7ff });                  // les barres du plafond suivent la couleur des LED (voir ledStep)
+    for (i = -3; i <= 3; i++) box(g, 0.2, 0.08, HZ * 2 - 2, ceilGlow, i * 4.2, H - 0.04, 0);
 
     /* --- tour de lancement vitrée et fusée --- */
     var steel = new THREE.MeshStandardMaterial({ color: 0x8c96ac, roughness: 0.35, metalness: 0.85 });
@@ -400,10 +401,27 @@
     room.onLeave = function () { stand(); };
 
     var crashAnim = 0, lastRocketY = 0.2, shake = 0, sndRound = 0;
+    // LED de la salle : bleues en attente, elles changent de couleur pendant le vol, flash vert quand quelqu'un encaisse, rouges au crash
+    var LED_BLUE = new THREE.Color(0x4d8bff), LED_GREEN = new THREE.Color(0x22ff77), LED_RED = new THREE.Color(0xff2626), CEIL_BASE = new THREE.Color(0xbfd7ff);
+    var ledTarget = new THREE.Color(), ledHue = 0, ledGreen = 0, ledCashN = 0, ledRound = 0;
+    function ledStep(dt) {
+      var n = 0; Object.keys(S.bets || {}).forEach(function (k) { if (S.bets[k] && S.bets[k].cashedOut) n++; });
+      if (S.launchTime !== ledRound) { ledRound = S.launchTime; ledCashN = n; }               // nouveau vol : on repart de zéro
+      if (S.status === 'flying' && n > ledCashN) ledGreen = 0.9;                               // quelqu'un vient de récupérer sa mise
+      ledCashN = n; if (ledGreen > 0) ledGreen -= dt;
+      var k = 1 - Math.exp(-dt * 10);
+      if (S.status === 'flying') {
+        ledHue = (ledHue + dt * 0.22) % 1;
+        if (ledGreen > 0) glow.color.lerp(LED_GREEN, 1 - Math.exp(-dt * 25));
+        else { ledTarget.setHSL(ledHue, 1, 0.55); glow.color.lerp(ledTarget, k); }
+      } else glow.color.lerp(S.status === 'crashed' ? LED_RED : LED_BLUE, S.status === 'crashed' ? 1 - Math.exp(-dt * 25) : k);
+      ceilGlow.color.copy(CEIL_BASE).lerp(glow.color, 0.55);
+    }
     room.update = function (dt) {
       pollT += dt; if (pollT > ((S.status === 'flying' || S.status === 'countdown') ? 0.2 : 0.45)) { pollT = 0; poll(); }
       for (i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { var f = timers[i].fn; timers.splice(i, 1); try { f(); } catch (e) { /* ok */ } } }
       var mult = multNow();
+      ledStep(dt);
       // son de décollage : lancé pile à l'heure du décollage fixée par le serveur (une fois par vol, jamais pour un vol déjà bien entamé)
       if (S.launchTime && S.launchTime !== sndRound && (S.status === 'countdown' || S.status === 'flying') && nowS() >= S.launchTime - 40) {
         sndRound = S.launchTime;
