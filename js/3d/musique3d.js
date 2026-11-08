@@ -74,43 +74,46 @@
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x08050f }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
-    /* ---------- mur du fond : l'enseigne (l'égaliseur et la cabine du DJ ont laissé la place au groupe sur scène) ---------- */
+    /* ---------- mur du fond : égaliseur géant au-dessus de la cabine du DJ ---------- */
     var NBAR = 24, bars = [], barMat = [];
+    var frame = new THREE.Mesh(new THREE.BoxGeometry(HX * 2 - 3.4, 5.3, 0.1), gold); frame.position.set(0, 4.6, -HZ + 0.06); g.add(frame);
+    var back = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2 - 3.6, 5.1), new THREE.MeshBasicMaterial({ color: 0x06030c })); back.position.set(0, 4.6, -HZ + 0.12); g.add(back);
+    var bw = (HX * 2 - 4.2) / NBAR;
+    for (i = 0; i < NBAR; i++) {
+      var mat = new THREE.MeshBasicMaterial({ color: 0xb98cff }); barMat.push(mat);
+      var bar = new THREE.Mesh(new THREE.BoxGeometry(bw * 0.7, 1, 0.08), mat);
+      bar.position.set(-HX + 2.1 + (i + 0.5) * bw, 2.2, -HZ + 0.2); g.add(bar); bars.push(bar);
+    }
     // enseigne
     var sc = mkCanvas(1024, 128), sx = sc.getContext('2d');
     sx.fillStyle = '#0c0618'; sx.fillRect(0, 0, 1024, 128); sx.strokeStyle = '#b98cff'; sx.lineWidth = 8; sx.shadowColor = '#b98cff'; sx.shadowBlur = 24; sx.strokeRect(8, 8, 1008, 112);
     sx.shadowBlur = 16; sx.fillStyle = '#f4e8ff'; sx.font = '900 66px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('♪  SALLE DE MUSIQUE  ♪', 512, 68, 940);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: mkTex(sc) })); sign.position.set(0, 7.0, -HZ + 0.1); g.add(sign);
-    // crédit du modèle du groupe (licence CC BY 4.0) : caché derrière l'enseigne, tourné vers le mur, donc jamais visible
-    var crc = mkCanvas(1024, 64), crx = crc.getContext('2d'); crx.fillStyle = '#0c0618'; crx.fillRect(0, 0, 1024, 64); crx.fillStyle = '#d9c8ff'; crx.font = '600 26px ' + SERIF; crx.textAlign = 'center'; crx.textBaseline = 'middle';
-    crx.fillText('Groupe : « Pomme Play With Marmots\'Band » par TG13730 · Sketchfab · licence CC BY 4.0', 512, 33, 1000);
-    var credit = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 0.47), new THREE.MeshBasicMaterial({ map: mkTex(crc) })); credit.rotation.y = Math.PI; credit.position.set(0, 7.0, -HZ + 0.05); g.add(credit);
 
-    /* ---------- sur scène : le groupe de marmottes (modèle « Pomme Play With Marmots'Band »), qui joue en boucle ---------- */
-    var discs = [], knobs = [], woofers = [], band = null, bandMixer = null;
-    var stageLight = new THREE.DirectionalLight(0xffffff, 0.85); stageLight.position.set(0, 6.5, -HZ + 10); stageLight.target.position.set(0, 1.5, -HZ + 1); g.add(stageLight); g.add(stageLight.target);
-    if (THREE.GLTFLoader) {
-      try {
-        new THREE.GLTFLoader().load('assets/musique/groupe.glb?v=2', function (gl) {
-          band = gl.scene;
-          band.traverse(function (o) { if (o.isMesh) o.frustumCulled = false; });          // personnages animés : jamais coupés au bord de l'écran
-          band.updateMatrixWorld(true);
-          // taille réelle : les objets fixes + les os des personnages (la boîte d'un personnage animé est celle de sa pose de repos, trompeuse)
-          var box = new THREE.Box3(), bp = new THREE.Vector3(), sz = new THREE.Vector3();
-          band.traverse(function (o) { if (o.isMesh && !o.isSkinnedMesh) box.union(new THREE.Box3().setFromObject(o)); if (o.isBone) { o.getWorldPosition(bp); box.expandByPoint(bp); } });
-          box.getSize(sz);
-          var k = Math.min(12 / Math.max(sz.x, 0.01), 6.2 / Math.max(sz.z, 0.01), 5.2 / Math.max(sz.y, 0.01));
-          band.scale.setScalar(k);
-          band.position.set(-(box.min.x + box.max.x) / 2 * k, -box.min.y * k, (-HZ + 0.5) - box.min.z * k);
-          g.add(band);
-          if (gl.animations && gl.animations.length) { bandMixer = new THREE.AnimationMixer(band); gl.animations.forEach(function (cl) { bandMixer.clipAction(cl).play(); }); }
-          // on ne traverse pas la scène : une rangée d'obstacles devant et sur les côtés
-          var x0 = -sz.x * k / 2, x1 = sz.x * k / 2, zb = -HZ + 0.5, zf = zb + sz.z * k, xx, zz;
-          for (xx = x0; xx <= x1 + 0.01; xx += 0.7) room.colliders.push({ x: xx, z: zf, r: 0.45 });
-          for (zz = zb; zz <= zf; zz += 0.7) { room.colliders.push({ x: x0, z: zz, r: 0.45 }); room.colliders.push({ x: x1, z: zz, r: 0.45 }); }
-        }, undefined, function () { /* pas de modèle : la scène reste vide */ });
-      } catch (e) { /* idem */ }
-    }
+    /* ---------- cabine du DJ : table, deux platines qui tournent, deux enceintes qui battent ---------- */
+    var dark = new THREE.MeshStandardMaterial({ color: 0x15111c, roughness: 0.45, metalness: 0.35 });
+    var DZ = -HZ + 2.0;
+    var desk = new THREE.Mesh(new THREE.BoxGeometry(5, 1.0, 1.3), dark); desk.position.set(0, 0.5, DZ); g.add(desk);
+    var trim = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.06, 1.4), gold); trim.position.set(0, 1.02, DZ); g.add(trim);
+    var discs = [];
+    [-1.4, 1.4].forEach(function (x) {
+      var pl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 28), new THREE.MeshStandardMaterial({ color: 0x090909, roughness: 0.3, metalness: 0.6 })); pl.position.set(x, 1.08, DZ); g.add(pl);
+      var lab = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 18), new THREE.MeshBasicMaterial({ color: 0xb98cff })); lab.position.set(x, 1.1, DZ); g.add(lab);
+      var tick = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.012, 0.03), new THREE.MeshBasicMaterial({ color: 0xffffff })); tick.position.set(x, 1.115, DZ); g.add(tick);
+      discs.push([pl, lab, tick]);
+    });
+    var mixer = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.9), dark); mixer.position.set(0, 1.07, DZ); g.add(mixer);
+    var knobs = [];
+    for (i = 0; i < 4; i++) { var kn = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.12), new THREE.MeshBasicMaterial({ color: 0xffd36a })); kn.position.set(-0.24 + i * 0.16, 1.15, DZ); g.add(kn); knobs.push(kn); }
+    var woofers = [];
+    [-4.6, 4.6].forEach(function (x) {
+      var sp = new THREE.Mesh(new THREE.BoxGeometry(1.3, 3.0, 1.2), dark); sp.position.set(x, 1.5, DZ); g.add(sp);
+      [[0.95, 0.45], [2.15, 0.3]].forEach(function (c) {
+        var w = new THREE.Mesh(new THREE.CylinderGeometry(c[1], c[1], 0.1, 24), new THREE.MeshStandardMaterial({ color: 0x1b1822, roughness: 0.5, metalness: 0.5 })); w.rotation.x = Math.PI / 2; w.position.set(x, c[0] + 0.1, DZ + 0.63); g.add(w);
+        var cone = new THREE.Mesh(new THREE.SphereGeometry(c[1] * 0.7, 14, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x4a2e80 })); cone.rotation.x = Math.PI / 2; cone.position.set(x, c[0] + 0.1, DZ + 0.69); g.add(cone);
+        woofers.push({ m: cone, z: DZ + 0.69, big: c[1] > 0.4 });
+      });
+    });
 
     /* ---------- boule à facettes et bandeaux lumineux aux murs ---------- */
     // la boule : un noyau sombre recouvert de vraies facettes (petits carrés lumineux, chacun sa couleur qui suit la musique) ;
@@ -213,13 +216,12 @@
         glowA.instanceColor.needsUpdate = true; glowB.instanceColor.needsUpdate = true; glass.instanceColor.needsUpdate = true;
       }
       // mur d'égaliseur
-      for (i = 0; i < bars.length; i++) {
+      for (i = 0; i < NBAR; i++) {
         var b = sm[Math.min(NB - 1, Math.floor(i / NBAR * NB))], hh = 0.12 + b * 4.7;
         bars[i].scale.y = hh; bars[i].position.y = 2.05 + hh / 2;
         neon(hue0b(i), 0.45 + b * 0.2, barMat[i].color);
       }
       function hue0b(n) { return clock * 0.05 + n / NBAR * 0.85; }
-      if (bandMixer) bandMixer.update(dt);                                                  // le groupe joue
       // enceintes, platines, boule, bandeaux
       var pulse = 1 + bass * 0.22;
       woofers.forEach(function (w) { w.m.scale.set(1, 1, 1 + (w.big ? bass : sm[8]) * 0.8); w.m.position.z = w.z + (w.big ? bass : sm[8]) * 0.03; });
