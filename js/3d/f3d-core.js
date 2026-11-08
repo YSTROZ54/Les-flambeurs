@@ -166,19 +166,25 @@
     var mats = [skin, shirt, pants, hairM, dark];
     var g = new THREE.Group();
     function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); return m; }
-    add(G.hips, pants, 0, 0.98, 0); add(G.torso, shirt, 0, 1.3, 0); add(G.neck, skin, 0, 1.62, 0);
-    var head = add(G.head, skin, 0, 1.75, 0);
+    add(G.hips, pants, 0, 0.98, 0);
+    // haut du corps : pivote et se penche sur les hanches (danses) ; tête : hoche et penche sur le cou
+    var upper = new THREE.Group(); upper.position.set(0, 0.98, 0); upper.rotation.order = 'YXZ'; g.add(upper);
+    add(G.torso, shirt, 0, 0.32, 0, upper); add(G.neck, skin, 0, 0.64, 0, upper);
+    var headG = new THREE.Group(); headG.position.set(0, 0.64, 0); headG.rotation.order = 'YXZ'; upper.add(headG);
+    var head = add(G.head, skin, 0, 0.13, 0, headG);
     var headParts = [{ m: head, x: 0, z: 0 }];                                  // pièces qui suivent le mouvement de tête (look)
-    if ((h >> 9) % 5 !== 0) headParts.push({ m: add(G.hair, hairM, 0, 1.76, -0.005), x: 0, z: -0.005 });          // 1 personne sur 5 est chauve
-    headParts.push({ m: add(G.eye, dark, -0.05, 1.77, 0.125), x: -0.05, z: 0.125 }, { m: add(G.eye, dark, 0.05, 1.77, 0.125), x: 0.05, z: 0.125 });
-    var hips = [], knees = [], arms = [];
+    if ((h >> 9) % 5 !== 0) headParts.push({ m: add(G.hair, hairM, 0, 0.14, -0.005, headG), x: 0, z: -0.005 });          // 1 personne sur 5 est chauve
+    headParts.push({ m: add(G.eye, dark, -0.05, 0.15, 0.125, headG), x: -0.05, z: 0.125 }, { m: add(G.eye, dark, 0.05, 0.15, 0.125, headG), x: 0.05, z: 0.125 });
+    var hips = [], knees = [], arms = [], elbows = [];
     [-1, 1].forEach(function (s) {
       var hip = new THREE.Group(); hip.position.set(s * 0.09, 0.92, 0); g.add(hip); hips.push(hip);
       add(G.thigh, pants, 0, -0.23, 0, hip);
       var knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee); knees.push(knee);
       add(G.shin, pants, 0, -0.23, 0, knee); add(G.foot, dark, 0, -0.49, 0.04, knee);
-      var sh = new THREE.Group(); sh.position.set(s * 0.26, 1.5, 0); g.add(sh); arms.push(sh);
-      add(G.arm, shirt, 0, -0.28, 0, sh); add(G.hand, skin, 0, -0.58, 0, sh);
+      var sh = new THREE.Group(); sh.position.set(s * 0.26, 0.52, 0); upper.add(sh); arms.push(sh);
+      add(G.arm, shirt, 0, -0.14, 0, sh).scale.y = 0.5;                                   // bras : épaule -> coude -> main
+      var el = new THREE.Group(); el.position.set(0, -0.28, 0); sh.add(el); elbows.push(el);
+      add(G.arm, shirt, 0, -0.15, 0, el).scale.y = 0.54; add(G.hand, skin, 0, -0.31, 0, el);
     });
     // étiquette au-dessus de la tête : avatar + pseudo, et le rôle en dégradé juste en dessous (si fourni)
     var rIcon = role && ROLE_ICON[role[0]], rLabel = role && role[1], rGrad = role && ROLE_GRAD[role[2]];
@@ -299,7 +305,7 @@
           heldUp.set(0, 0.06, 0).applyQuaternion(heldQ); heldItem.position.set(heldUp.x, -0.6 + heldUp.y, heldUp.z);
         }
       },
-      group: g, hips: hips, knees: knees, arms: arms, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
+      group: g, hips: hips, knees: knees, arms: arms, elbows: elbows, upper: upper, head: headG, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
       // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.
       startEmote: function (id) { this.emoT = 0; if (F.emoteById && F.emoteById(id)) this.emoId = id; else this.clearEmote(); },
       clearEmote: function () {
@@ -307,6 +313,7 @@
         this.emoId = ''; this.emoT = 0;
         g.rotation.y -= this.emoYaw; this.emoYaw = 0; g.rotation.x = 0; g.rotation.z = 0;
         hips.forEach(function (hp) { hp.rotation.set(0, 0, 0); }); knees.forEach(function (kn) { kn.rotation.set(0, 0, 0); }); arms.forEach(function (ar) { ar.rotation.set(0, 0, 0); });
+        elbows.forEach(function (e2) { e2.rotation.set(0, 0, 0); }); upper.rotation.set(0, 0, 0); headG.rotation.set(0, 0, 0); tag.position.y = 2.1;
       },
       playEmote: function (dt) {
         var e = this.emoId && F.emoteById ? F.emoteById(this.emoId) : null;
@@ -321,6 +328,13 @@
         hips[0].rotation.set((p.h0 || 0) * k, 0, -(p.hz0 || 0) * k); hips[1].rotation.set((p.h1 || 0) * k, 0, (p.hz1 || 0) * k);
         knees[0].rotation.x = (p.k0 || 0) * k; knees[1].rotation.x = (p.k1 || 0) * k;
         arms[0].rotation.set(-a0[1] * k, a0[2] * k, -a0[0] * k); arms[1].rotation.set(-a1[1] * k, -a1[2] * k, a1[0] * k);
+        // coudes [plié vers l'avant, replié dans le plan du corps (vers la tête quand le bras est levé)], haut du corps et tête
+        var e0 = p.e0 || Z, e1 = p.e1 || Z;
+        elbows[0].rotation.set(-e0[0] * k, 0, -e0[1] * k); elbows[1].rotation.set(-e1[0] * k, 0, e1[1] * k);
+        upper.rotation.set((p.ux || 0) * k, (p.uy || 0) * k, (p.uz || 0) * k);
+        headG.rotation.set((p.nx || 0) * k, (p.ny || 0) * k, (p.nz || 0) * k);
+        var cl = Math.cos(g.rotation.x);                                   // tête en bas (breakdance) : l'étiquette du pseudo reste au-dessus, côté plafond
+        tag.position.y = cl < -0.3 ? (2.2 - (p.y || 0) * k) / cl : 2.1;
         return true;
       },
       setSeated: function (on, spec) {
