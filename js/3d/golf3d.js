@@ -809,8 +809,8 @@
     var credit = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.28), new THREE.MeshBasicMaterial({ map: mkTex(cc) })); credit.rotation.y = Math.PI; credit.position.set(0, 3.0, -HZ + 0.03); g.add(credit);
     g.add(new THREE.AmbientLight(0xeaf6ee, 1.15));
     if (!low) { var l = new THREE.PointLight(0xfff2d0, 0.8, 14); l.position.set(0, 3.8, 0); g.add(l); }
-    world.addDoor(room, { x: -6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: COURSES.golfjardin.title, sub: 'DEHORS · ' + COURSES.golfjardin.holes.length + ' TROUS', color: 0x5dff8a, target: 'golfjardin' });
-    world.addDoor(room, { x: 6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: COURSES.golfneon.title, sub: 'DEDANS · ' + COURSES.golfneon.holes.length + ' TROUS', color: 0xff3df0, target: 'golfneon' });
+    world.addDoor(room, { x: -6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: COURSES.golfjardin.title, sub: 'DEHORS · ' + COURSES.golfjardin.holes.length + ' TROUS', color: 0x5dff8a, target: 'golfjardin', theme: 'golfjardin' });
+    world.addDoor(room, { x: 6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: COURSES.golfneon.title, sub: 'DEDANS · ' + COURSES.golfneon.holes.length + ' TROUS', color: 0xff3df0, target: 'golfneon', theme: 'golfneon' });
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🎮 MINI JEUX', sub: 'RETOUR AU SALON', color: 0xffd24a, target: 'minijeux', theme: 'exitUno' });
     room.spawn = function (from) {
       if (from === 'golfjardin') return { x: -6, z: -HZ + 2.6, yaw: F.yawFor(0, 1) };

@@ -102,6 +102,28 @@
       c.fillStyle = bg; c.beginPath(); c.ellipse(8.6, 12.4, 1.7, 1.2, 0.4, 0, TAU); c.fill(); c.beginPath(); c.ellipse(15.4, 12.4, 1.7, 1.2, -0.4, 0, TAU); c.fill();
       c.beginPath(); c.moveTo(10.4, 17); c.lineTo(13.6, 17); c.lineTo(12, 19.4); c.closePath(); c.fill();
     },
+    spy: function (c, col, bg) {                           // une loupe avec un point d'interrogation (on cherche qui se cache)
+      c.strokeStyle = col; c.lineWidth = 3; c.beginPath(); c.arc(10, 10, 6.8, 0, TAU); c.stroke();
+      c.lineWidth = 3.8; c.lineCap = 'round'; c.beginPath(); c.moveTo(15, 15); c.lineTo(21, 21); c.stroke();
+      c.fillStyle = col; c.font = '900 10px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', 10, 10.6);
+    },
+    palette: function (c, col, bg) {                       // une palette de peintre
+      c.fillStyle = col; c.beginPath(); c.moveTo(12, 2.6); c.bezierCurveTo(18.5, 2.6, 22, 6.6, 22, 11.2); c.bezierCurveTo(22, 15, 19, 15.4, 17, 15.2);
+      c.bezierCurveTo(14.6, 15, 14.4, 17.4, 15.8, 18.6); c.bezierCurveTo(17, 20.4, 15, 21.6, 12, 21.6); c.bezierCurveTo(6, 21.6, 2, 17.4, 2, 12); c.bezierCurveTo(2, 6.4, 6.4, 2.6, 12, 2.6); c.closePath(); c.fill();
+      c.fillStyle = bg; [[7, 9], [11.4, 6.4], [16.2, 8], [6.6, 14.4]].forEach(function (q) { c.beginPath(); c.arc(q[0], q[1], 1.7, 0, TAU); c.fill(); });
+    },
+    golf: function (c, col, bg) {                          // un drapeau planté dans un trou, avec la balle
+      c.fillStyle = col; c.fillRect(11, 2.4, 1.6, 16); c.beginPath(); c.moveTo(12.6, 2.4); c.lineTo(20.6, 5.8); c.lineTo(12.6, 9.4); c.closePath(); c.fill();
+      c.beginPath(); c.ellipse(12, 19.6, 8.6, 2.6, 0, 0, TAU); c.fill(); c.fillStyle = bg; c.beginPath(); c.ellipse(12, 19.6, 3, 1.1, 0, 0, TAU); c.fill();
+      c.fillStyle = col; c.beginPath(); c.arc(5.4, 16.6, 2, 0, TAU); c.fill();
+    },
+    tree: function (c, col, bg) {                          // un arbre
+      c.fillStyle = col; c.beginPath(); c.arc(12, 9, 6.4, 0, TAU); c.arc(6.6, 12.6, 4.4, 0, TAU); c.arc(17.4, 12.6, 4.4, 0, TAU); c.fill();
+      c.fillRect(10.8, 13, 2.4, 8.4); c.fillRect(7.5, 20.2, 9, 1.8);
+    },
+    bolt: function (c, col, bg) {                          // un éclair (lumière noire)
+      c.fillStyle = col; c.beginPath(); c.moveTo(14, 1.8); c.lineTo(4.6, 13.2); c.lineTo(10.8, 13.2); c.lineTo(9, 22.2); c.lineTo(19.4, 9.8); c.lineTo(13, 9.8); c.closePath(); c.fill();
+    },
     cinema: function (c, col, bg) {                       // secours si la photo du serveur n'est pas chargée : un clap
       c.fillStyle = col; rr(c, 2.5, 9, 19, 12, 1.5); c.fill(); c.save(); c.translate(3, 8); c.rotate(-0.2); rr(c, 0, -4, 19, 4.2, 1); c.fill(); c.restore();
       c.fillStyle = bg; for (var i = 0; i < 4; i++) c.fillRect(5 + i * 4.4, 4.8 - i * 0.2, 2, 2);
@@ -348,6 +370,99 @@
         for (var i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random() * 0.6) + ')'; c.fillRect(20 + Math.random() * (W - 40), 20 + Math.random() * (H * 0.5), 2, 2); }
         var mg = c.createRadialGradient(W / 2, H * 0.34, 10, W / 2, H * 0.34, W * 0.34); mg.addColorStop(0, '#fffbe6'); mg.addColorStop(0.7, '#f4e9b8'); mg.addColorStop(1, 'rgba(244,233,184,0)'); c.fillStyle = mg; c.beginPath(); c.arc(W / 2, H * 0.34, W * 0.34, 0, TAU); c.fill();
         c.fillStyle = '#04040a'; c.save(); c.translate(W / 2, H * 0.78); c.scale(6.2, 6.2); c.translate(-12, -14); ICONS.wolf(c, '#04040a', '#f4e9b8'); c.restore();
+      }
+    },
+    prophunt: {
+      frame: 0xb8641e, leaf: 0x4a2c14, rgb: '255, 122, 61', logo: 'spy',
+      paint: function (c, W, H) {                              // planches de bois, deux caisses marquées d'un « ? » (les objets où l'on se cache)
+        c.fillStyle = '#5a361a'; c.fillRect(0, 0, W, H);
+        c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 3; for (var x = 0; x < W; x += 44) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+        noise(c, W, H, 600, 'rgba(0,0,0,0.12)'); border(c, W, H, '#ff9a4d', 8);
+        [H * 0.08, H * 0.54].forEach(function (y) {
+          var bx = 36, bw = W - 72, bh = H * 0.38;
+          c.fillStyle = '#b9803c'; rr(c, bx, y, bw, bh, 8); c.fill(); c.strokeStyle = '#6b4219'; c.lineWidth = 8; rr(c, bx + 4, y + 4, bw - 8, bh - 8, 6); c.stroke();
+          c.lineWidth = 6; c.beginPath(); c.moveTo(bx + 8, y + 8); c.lineTo(bx + bw - 8, y + bh - 8); c.moveTo(bx + bw - 8, y + 8); c.lineTo(bx + 8, y + bh - 8); c.stroke();
+          c.fillStyle = '#ffe2c2'; c.beginPath(); c.arc(W / 2, y + bh / 2, bw * 0.2, 0, TAU); c.fill();
+          c.fillStyle = '#5a2a0a'; c.font = '900 ' + Math.round(bw * 0.3) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', W / 2, y + bh / 2 + 3);
+        });
+      },
+      deco: function (g, w, h) {                               // des caisses empilées à côté de la porte
+        var m = new THREE.MeshStandardMaterial({ color: 0xa8742f, roughness: 0.85 }), band = new THREE.MeshStandardMaterial({ color: 0x5a3514, roughness: 0.9 });
+        function crate(x, y, z, s, ry) { var b = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), m); b.position.set(x, y + s / 2, z); b.rotation.y = ry; g.add(b); var t = new THREE.Mesh(new THREE.BoxGeometry(s * 1.03, s * 0.12, s * 1.03), band); t.position.set(x, y + s * 0.5, z); t.rotation.y = ry; g.add(t); }
+        crate(-w / 2 - 0.75, 0, 0.55, 0.6, 0.2); crate(-w / 2 - 0.7, 0.6, 0.5, 0.42, -0.3); crate(w / 2 + 0.7, 0, 0.55, 0.55, -0.15);
+      }
+    },
+    dessin: {
+      frame: 0x1c8fb8, leaf: 0xf4f1e8, rgb: '74, 208, 255', logo: 'palette',
+      paint: function (c, W, H) {                              // toile blanche éclaboussée de peinture, trait de pinceau en bas
+        c.fillStyle = '#f4f1e8'; c.fillRect(0, 0, W, H); noise(c, W, H, 500, 'rgba(120,110,90,0.10)'); border(c, W, H, '#1c8fb8', 9);
+        [['#ff4d6d', 0.3, 0.2, 52], ['#ffd23f', 0.7, 0.3, 44], ['#4ad0ff', 0.45, 0.5, 60], ['#7bd957', 0.75, 0.66, 40], ['#b36bff', 0.28, 0.76, 46]].forEach(function (b) {
+          c.fillStyle = b[0]; c.beginPath(); c.arc(W * b[1], H * b[2], b[3], 0, TAU); c.fill();
+          for (var i = 0; i < 6; i++) { var a = Math.random() * TAU, d = b[3] * (1.1 + Math.random() * 0.7); c.beginPath(); c.arc(W * b[1] + Math.cos(a) * d, H * b[2] + Math.sin(a) * d, 4 + Math.random() * 6, 0, TAU); c.fill(); }
+        });
+        c.strokeStyle = '#2b2b2b'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(W * 0.22, H * 0.92); c.bezierCurveTo(W * 0.4, H * 0.82, W * 0.6, H * 0.98, W * 0.8, H * 0.88); c.stroke();
+      },
+      deco: function (g, w, h) {                               // un chevalet avec une toile, et un pot de peinture au sol
+        var wood = new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: 0.8 }), x = w / 2 + 0.8;
+        [[-0.3, 0.18], [0.3, 0.18], [0, -0.22]].forEach(function (l, i) { var leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.5, 0.05), wood); leg.position.set(x + l[0] * 0.8, 0.75, 0.5 + l[1]); leg.rotation.z = i === 2 ? 0 : l[0] * 0.25; leg.rotation.x = i === 2 ? -0.18 : 0.08; g.add(leg); });
+        var cv = document.createElement('canvas'); cv.width = 128; cv.height = 160; var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, 128, 160);
+        cx.fillStyle = '#4ad0ff'; cx.fillRect(0, 100, 128, 60); cx.fillStyle = '#ffd23f'; cx.beginPath(); cx.arc(95, 40, 22, 0, TAU); cx.fill(); cx.fillStyle = '#7bd957'; cx.beginPath(); cx.moveTo(0, 130); cx.lineTo(50, 80); cx.lineTo(100, 130); cx.fill();
+        var board = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.75), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) })); board.position.set(x, 1.05, 0.57); g.add(board);
+        var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.16, 14), new THREE.MeshLambertMaterial({ color: 0xff4d6d })); pot.position.set(x - 0.5, 0.08, 0.9); g.add(pot);
+      }
+    },
+    golf: {
+      frame: 0x2f9d52, leaf: 0x1f6b3a, rgb: '93, 255, 138', logo: 'golf',
+      paint: function (c, W, H) {                              // green rayé, trou, drapeau et balle
+        c.fillStyle = '#1f7a3f'; c.fillRect(0, 0, W, H);
+        for (var y = 0; y < H; y += 56) { c.fillStyle = (y / 56) % 2 ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'; c.fillRect(0, y, W, 56); }
+        border(c, W, H, '#f4f4f4', 8);
+        c.fillStyle = '#0a2a14'; c.beginPath(); c.ellipse(W / 2, H * 0.78, 40, 14, 0, 0, TAU); c.fill();
+        c.fillStyle = '#f4f4f4'; c.fillRect(W / 2 - 3, H * 0.2, 6, H * 0.58); c.fillStyle = '#ff4040'; c.beginPath(); c.moveTo(W / 2 + 3, H * 0.2); c.lineTo(W / 2 + 90, H * 0.29); c.lineTo(W / 2 + 3, H * 0.38); c.closePath(); c.fill();
+        c.fillStyle = '#fff'; c.beginPath(); c.arc(W * 0.28, H * 0.88, 14, 0, TAU); c.fill();
+      },
+      deco: function (g, w, h) {                               // gazon devant la porte et un drapeau à côté
+        var t = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.4, 2.4), new THREE.MeshLambertMaterial({ color: 0x2e8b4a })); t.rotation.x = -Math.PI / 2; t.position.set(0, 0.015, 1.3); g.add(t);
+        var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.6, 8), new THREE.MeshLambertMaterial({ color: 0xf4f4f4 })); pole.position.set(w / 2 + 0.7, 0.8, 0.6); g.add(pole);
+        var fl = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.26), new THREE.MeshBasicMaterial({ color: 0xff4040, side: THREE.DoubleSide })); fl.position.set(w / 2 + 0.9, 1.45, 0.6); g.add(fl);
+      }
+    },
+    golfjardin: {
+      frame: 0x8a8a80, leaf: 0x6fc2f0, rgb: '93, 255, 138', logo: 'tree',
+      paint: function (c, W, H) {                              // ciel bleu, colline verte et petit moulin
+        var sk = c.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, '#5db6ee'); sk.addColorStop(1, '#bfe6fb'); c.fillStyle = sk; c.fillRect(0, 0, W, H);
+        c.fillStyle = 'rgba(255,255,255,0.9)'; [[0.3, 0.14], [0.7, 0.24]].forEach(function (q) { c.beginPath(); c.arc(W * q[0], H * q[1], 22, 0, TAU); c.arc(W * q[0] + 24, H * q[1] + 4, 17, 0, TAU); c.arc(W * q[0] - 24, H * q[1] + 5, 15, 0, TAU); c.fill(); });
+        c.fillStyle = '#4fae52'; c.beginPath(); c.moveTo(0, H); c.lineTo(0, H * 0.72); c.quadraticCurveTo(W * 0.5, H * 0.58, W, H * 0.74); c.lineTo(W, H); c.fill();
+        var mx = W / 2, my = H * 0.74; c.fillStyle = '#f2ead8'; c.beginPath(); c.moveTo(mx - 28, my); c.lineTo(mx - 18, my - 80); c.lineTo(mx + 18, my - 80); c.lineTo(mx + 28, my); c.closePath(); c.fill();
+        c.fillStyle = '#b33a2a'; c.beginPath(); c.moveTo(mx - 24, my - 78); c.lineTo(mx, my - 108); c.lineTo(mx + 24, my - 78); c.closePath(); c.fill();
+        c.strokeStyle = '#8a5a2a'; c.lineWidth = 6; c.lineCap = 'round'; for (var i = 0; i < 4; i++) { var a = i * Math.PI / 2 + 0.5; c.beginPath(); c.moveTo(mx, my - 62); c.lineTo(mx + Math.cos(a) * 58, my - 62 + Math.sin(a) * 58); c.stroke(); }
+        border(c, W, H, '#8a8a80', 9);
+      },
+      deco: function (g, w, h) {                               // deux bacs en pierre avec un arbre stylisé
+        [-1, 1].forEach(function (sd) {
+          var x = sd * (w / 2 + 0.75), stone = new THREE.MeshStandardMaterial({ color: 0x9a9a90, roughness: 0.9 });
+          var pot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.5), stone); pot.position.set(x, 0.2, 0.55); g.add(pot);
+          var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.7, 8), new THREE.MeshLambertMaterial({ color: 0x6b4a2a })); trunk.position.set(x, 0.75, 0.55); g.add(trunk);
+          var crown = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10), new THREE.MeshLambertMaterial({ color: 0x3f9d4a })); crown.position.set(x, 1.3, 0.55); g.add(crown);
+        });
+      }
+    },
+    golfneon: {
+      frame: 0xff3df0, leaf: 0x0a0414, rgb: '255, 61, 240', logo: 'bolt',
+      paint: function (c, W, H) {                              // lumière noire : anneaux néon et bumpers
+        c.fillStyle = '#0a0414'; c.fillRect(0, 0, W, H); border(c, W, H, '#ff3df0', 7);
+        c.shadowColor = '#ff3df0'; c.shadowBlur = 18;
+        [['#ff3df0', 0.5, 0.26, 62], ['#35e8ff', 0.3, 0.64, 40], ['#a8ff3d', 0.7, 0.68, 40]].forEach(function (b) {
+          c.strokeStyle = b[0]; c.lineWidth = 8; c.beginPath(); c.arc(W * b[1], H * b[2], b[3], 0, TAU); c.stroke();
+          c.fillStyle = b[0]; c.beginPath(); c.arc(W * b[1], H * b[2], b[3] * 0.32, 0, TAU); c.fill();
+        });
+        c.strokeStyle = '#35e8ff'; c.lineWidth = 5; c.beginPath(); c.moveTo(W * 0.12, H * 0.92); c.lineTo(W * 0.5, H * 0.84); c.lineTo(W * 0.88, H * 0.92); c.stroke();
+        c.shadowBlur = 0;
+      },
+      deco: function (g, w, h) {                               // tapis sombre bordé de rose et deux tubes néon
+        var lis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.46, 2.52), new THREE.MeshBasicMaterial({ color: 0xff3df0 })); lis.rotation.x = -Math.PI / 2; lis.position.set(0, 0.012, 1.3); g.add(lis);
+        var tapis = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, 2.4), new THREE.MeshBasicMaterial({ color: 0x120618 })); tapis.rotation.x = -Math.PI / 2; tapis.position.set(0, 0.015, 1.3); g.add(tapis);
+        [[-1, 0x35e8ff], [1, 0xa8ff3d]].forEach(function (s) { var tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8, 8), new THREE.MeshBasicMaterial({ color: s[1] })); tube.position.set(s[0] * (w / 2 + 0.7), 1.1, 0.4); g.add(tube); });
       }
     },
     cinemapremium: {
