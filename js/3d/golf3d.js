@@ -195,6 +195,24 @@
     return '';
   }
 
+  /* ------------------------------------------------------------------ la balle : modèle « Golf Ball » (germydan, Sketchfab, CC BY 4.0) ------------------------------------------------------------------
+     Une sphère à alvéoles (carte de relief) : on garde sa forme et son relief, ramenés à la taille de la balle du jeu. En attendant le chargement, une simple sphère blanche. */
+  var BALL_GEO = null, BALL_NORMAL = null, ballWaiters = [], ballLoading = false;
+  function loadBall() {
+    if (ballLoading || !THREE.GLTFLoader) return; ballLoading = true;
+    try {
+      new THREE.GLTFLoader().load('assets/golf/golf_ball.glb?v=1', function (gl) {
+        var mesh = null; gl.scene.updateMatrixWorld(true); gl.scene.traverse(function (o) { if (o.isMesh && !mesh) mesh = o; });
+        if (!mesh) return;
+        var geo = mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld); geo.computeBoundingBox();
+        var c = new THREE.Vector3(), sz = new THREE.Vector3(); geo.boundingBox.getCenter(c); geo.boundingBox.getSize(sz);
+        geo.translate(-c.x, -c.y, -c.z); var k = 2 * R / Math.max(sz.x, sz.y, sz.z); geo.scale(k, k, k); geo.computeBoundingSphere();
+        BALL_GEO = geo; BALL_NORMAL = mesh.material && mesh.material.normalMap ? mesh.material.normalMap : null;
+        var wl = ballWaiters; ballWaiters = []; wl.forEach(function (f) { try { f(); } catch (e) { /* ok */ } });
+      }, undefined, function () { /* pas de modèle : la sphère blanche reste */ });
+    } catch (e) { /* idem */ }
+  }
+
   /* ------------------------------------------------------------------ petits utilitaires de dessin ------------------------------------------------------------------ */
   function hashStr(s) { var h = 2166136261; s = String(s || ''); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function rng(seed) { var s = seed >>> 0; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -379,25 +397,62 @@
     if (!neon) {
       var skc = mkCanvas(64, 256), skx = skc.getContext('2d'), sg = skx.createLinearGradient(0, 0, 0, 256); sg.addColorStop(0, '#2f7fe0'); sg.addColorStop(0.5, '#8cc8ff'); sg.addColorStop(0.62, '#dff1ff'); sg.addColorStop(1, '#cfe9c8'); skx.fillStyle = sg; skx.fillRect(0, 0, 64, 256);
       var sky = new THREE.Mesh(new THREE.SphereGeometry(74, 24, 16), new THREE.MeshBasicMaterial({ map: mkTex(skc), side: THREE.BackSide, depthWrite: false, fog: false })); sky.position.set(CX, 0, CZ); g.add(sky);
-      var gc = mkCanvas(256, 256), gx2 = gc.getContext('2d'); gx2.fillStyle = '#4f8f3a'; gx2.fillRect(0, 0, 256, 256); for (i = 0; i < 2500; i++) { gx2.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,180,80' : '30,70,20') + ',' + (0.2 + Math.random() * 0.3) + ')'; gx2.fillRect(Math.random() * 256, Math.random() * 256, 2, 3); }
-      var gt = mkTex(gc); gt.wrapS = gt.wrapT = THREE.RepeatWrapping; gt.repeat.set(40, 40);
-      var ground = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.position.set(CX, -0.16, CZ); g.add(ground);
-      g.add(new THREE.HemisphereLight(0xdff1ff, 0x3a5a2a, 0.85)); g.add(new THREE.AmbientLight(0xffffff, 0.25));
-      var sun = new THREE.DirectionalLight(0xfff4dc, 0.95); sun.position.set(CX + 20, 30, CZ + 12); g.add(sun);
-      // arbres, buissons et fleurs, loin des pistes
-      var rnd = rng(hashStr(cid)), trunkM = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.9 }), leafMs = [0x2f7d32, 0x3f9a3a, 0x2a6b2e].map(function (c) { return new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 }); });
-      var clear = function (x, z, m) { return HOLES.every(function (H) { return x < H.box[0] - m || x > H.box[2] + m || z < H.box[1] - m || z > H.box[3] + m; }); };
-      var nT = low ? 28 : 60, made = 0, tries = 0;
-      while (made < nT && tries++ < 900) {
-        var tx = CX + (rnd() - 0.5) * 70, tz = CZ + (rnd() - 0.5) * 60; if (!clear(tx, tz, 1.6)) continue; made++;
-        var s = 0.7 + rnd() * 0.9, tr = new THREE.Group(); tr.position.set(tx, -0.16, tz); g.add(tr);
-        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.16 * s, 1.2 * s, 7), trunkM); trunk.position.y = 0.6 * s; tr.add(trunk);
-        var lm = leafMs[Math.floor(rnd() * 3)];
-        if (rnd() < 0.5) { var c1 = new THREE.Mesh(new THREE.ConeGeometry(0.8 * s, 1.8 * s, 8), lm); c1.position.y = 1.9 * s; tr.add(c1); }
-        else { var b1 = new THREE.Mesh(new THREE.SphereGeometry(0.85 * s, 10, 8), lm); b1.position.y = 1.75 * s; tr.add(b1); }
+      // le sol : grandes dalles de pierre claire, joints fins, légères nuances (plus d'herbe : le vert reste pour les pistes)
+      var gc = mkCanvas(512, 512), gx2 = gc.getContext('2d'), TS = 128, rs = rng(97);
+      gx2.fillStyle = '#6f6555'; gx2.fillRect(0, 0, 512, 512);
+      for (var ty = 0; ty < 4; ty++) for (var txx = 0; txx < 4; txx++) {
+        var lv = 150 + Math.floor(rs() * 22), ox2 = (ty % 2) * TS / 2;
+        for (var half = -1; half <= 0; half++) {
+          var X0 = txx * TS + ox2 + half * 512; if (X0 > 512 || X0 + TS < 0) continue;
+          gx2.fillStyle = 'rgb(' + lv + ',' + (lv - 10) + ',' + (lv - 26) + ')'; gx2.fillRect(X0 + 3, ty * TS + 3, TS - 6, TS - 6);
+        }
       }
-      var flowerCols = [0xff5fa2, 0xffd23f, 0xffffff, 0xb46bff];
-      for (i = 0; i < (low ? 60 : 160); i++) { var fx2 = CX + (rnd() - 0.5) * 40, fz2 = CZ + (rnd() - 0.5) * 36; if (!clear(fx2, fz2, 0.4)) continue; var fl = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: flowerCols[i % 4] })); fl.position.set(fx2, -0.1, fz2); g.add(fl); }
+      for (i = 0; i < 2600; i++) { gx2.fillStyle = 'rgba(' + (rs() < 0.5 ? '255,255,255' : '90,80,64') + ',' + (rs() * 0.12) + ')'; gx2.fillRect(rs() * 512, rs() * 512, 2, 2); }
+      var gt = mkTex(gc); gt.wrapS = gt.wrapT = THREE.RepeatWrapping; gt.repeat.set(150 / 4, 150 / 4); gt.anisotropy = 8;
+      var ground = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ map: gt, roughness: 0.92 })); ground.rotation.x = -Math.PI / 2; ground.position.set(CX, -0.16, CZ); g.add(ground);
+      g.add(new THREE.HemisphereLight(0xeaf4ff, 0x8f8270, 0.75)); g.add(new THREE.AmbientLight(0xffffff, 0.2));
+      var sun = new THREE.DirectionalLight(0xfff4dc, 0.95); sun.position.set(CX + 20, 30, CZ + 12); g.add(sun);
+      // arbres stylisés (feuillage à facettes) dans des bacs de pierre, loin des pistes
+      var rnd = rng(hashStr(cid)), Y0 = -0.16;
+      var trunkM = new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 0.9, flatShading: true });
+      var leafMs = [0x4f9d3a, 0x5fb046, 0x3f8a34, 0x6cbf4f].map(function (c) { return new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, flatShading: true }); });
+      var pineM = new THREE.MeshStandardMaterial({ color: 0x2f7d4a, roughness: 0.85, flatShading: true });
+      var stoneM = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.8 }), soilM = new THREE.MeshStandardMaterial({ color: 0x4a3526, roughness: 1 });
+      var clear = function (x, z, m) { return HOLES.every(function (H) { return x < H.box[0] - m || x > H.box[2] + m || z < H.box[1] - m || z > H.box[3] + m; }); };
+      function planter(grp, r, h) {
+        var p = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.84, h, 18), stoneM); p.position.y = h / 2; grp.add(p);
+        var rim = new THREE.Mesh(new THREE.TorusGeometry(r, 0.04, 6, 24), stoneM); rim.rotation.x = Math.PI / 2; rim.position.y = h; grp.add(rim);
+        var soil = new THREE.Mesh(new THREE.CircleGeometry(r * 0.95, 18), soilM); soil.rotation.x = -Math.PI / 2; soil.position.y = h - 0.03; grp.add(soil);
+      }
+      function makeTree(x, z, sc, pine) {
+        var tr = new THREE.Group(); tr.position.set(x, Y0, z); tr.rotation.y = rnd() * TAU; g.add(tr);
+        planter(tr, 0.55 * sc, 0.42 * sc);
+        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * sc, 0.13 * sc, 1.25 * sc, 7), trunkM); trunk.position.y = 0.42 * sc + 0.6 * sc; tr.add(trunk);
+        if (pine) {
+          [[0.78, 0.95, 1.35], [0.6, 0.85, 1.85], [0.4, 0.7, 2.3]].forEach(function (c) { var cn = new THREE.Mesh(new THREE.ConeGeometry(c[0] * sc, c[1] * sc, 8), pineM); cn.position.y = c[2] * sc; tr.add(cn); });
+        } else {
+          var lm = leafMs[Math.floor(rnd() * leafMs.length)], lm2 = leafMs[Math.floor(rnd() * leafMs.length)];
+          var top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.72 * sc, 1), lm); top.position.y = 2.05 * sc; tr.add(top);
+          for (var b2 = 0; b2 < 4; b2++) { var a2 = b2 / 4 * TAU + rnd() * 0.6, bl = new THREE.Mesh(new THREE.IcosahedronGeometry((0.45 + rnd() * 0.15) * sc, 1), b2 % 2 ? lm : lm2); bl.position.set(Math.cos(a2) * 0.48 * sc, (1.68 + rnd() * 0.25) * sc, Math.sin(a2) * 0.48 * sc); tr.add(bl); }
+        }
+      }
+      var nT = low ? 16 : 32, made = 0, tries = 0, placed = [];
+      while (made < nT && tries++ < 1200) {
+        var tx = CX + (rnd() - 0.5) * 64, tz = CZ + (rnd() - 0.5) * 54; if (!clear(tx, tz, 1.8)) continue;
+        if (placed.some(function (p) { return Math.hypot(p[0] - tx, p[1] - tz) < 3.2; })) continue;
+        placed.push([tx, tz]); made++; makeTree(tx, tz, 0.85 + rnd() * 0.5, rnd() < 0.35);
+      }
+      // un pot de fleurs au bord de chaque piste, en face du panneau du trou (assez loin pour ne pas boucher la vue)
+      var flowerCols = [0xff5fa2, 0xffd23f, 0xffffff, 0xb46bff, 0xff7a3d];
+      HOLES.forEach(function (H) {
+        var d0 = H.D[0], sd = { x: -d0.z, z: d0.x };
+        [-1].forEach(function (k2) {
+          var px = H.P[0][0] + sd.x * k2 * (H.w / 2 + 0.6) + d0.x * 1.6, pz = H.P[0][1] + sd.z * k2 * (H.w / 2 + 0.6) + d0.z * 1.6;
+          var pot = new THREE.Group(); pot.position.set(px, Y0, pz); g.add(pot); planter(pot, 0.28, 0.34);
+          var bush = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 1), leafMs[1]); bush.position.y = 0.42; pot.add(bush);
+          for (var f3 = 0; f3 < 7; f3++) { var fa = rnd() * TAU, fr = 0.1 + rnd() * 0.12, fl = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), new THREE.MeshBasicMaterial({ color: flowerCols[(f3 + Math.floor(rnd() * 5)) % 5] })); fl.position.set(Math.cos(fa) * fr, 0.5 + rnd() * 0.12, Math.sin(fa) * fr); pot.add(fl); }
+        });
+      });
       for (i = 0; i < 8; i++) { var cl = new THREE.Group(); cl.position.set(CX + (rnd() - 0.5) * 100, 22 + rnd() * 8, CZ - 30 - rnd() * 30); for (var q = 0; q < 4; q++) { var cs = new THREE.Mesh(new THREE.SphereGeometry(2 + rnd() * 1.5, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false })); cs.position.set(q * 2.2 - 3, rnd(), rnd()); cl.add(cs); } g.add(cl); }
     } else {
       var floorC = mkCanvas(256, 256), fl3 = floorC.getContext('2d'); fl3.fillStyle = '#05030c'; fl3.fillRect(0, 0, 256, 256); fl3.strokeStyle = 'rgba(160,60,255,0.35)'; fl3.lineWidth = 2; fl3.strokeRect(0, 0, 256, 256);
@@ -411,7 +466,7 @@
       [[RW * 2, 0, -RD, 0], [RW * 2, 0, RD, Math.PI], [RD * 2, -RW, 0, Math.PI / 2], [RD * 2, RW, 0, -Math.PI / 2]].forEach(function (wd) { var m = new THREE.Mesh(new THREE.PlaneGeometry(wd[0], RH), wallM); m.position.set(CX + wd[1], RH / 2 - 0.16, CZ + wd[2]); m.rotation.y = wd[3]; g.add(m); });
       var ceil = new THREE.Mesh(new THREE.PlaneGeometry(RW * 2, RD * 2), new THREE.MeshBasicMaterial({ color: 0x030208 })); ceil.rotation.x = Math.PI / 2; ceil.position.set(CX, RH - 0.16, CZ); g.add(ceil);
       [0x22e5ff, 0xff3df0, 0x7dff5a, 0xffb02e].forEach(function (c, k) { var tube = new THREE.Mesh(new THREE.BoxGeometry(RW * 2 - 2, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: c })); tube.position.set(CX, 1.2 + k * 1.6, CZ - RD + 0.1); g.add(tube); var tube2 = tube.clone(); tube2.position.z = CZ + RD - 0.1; g.add(tube2); });
-      g.add(new THREE.AmbientLight(0xffffff, 0.6));
+      g.add(new THREE.AmbientLight(0xffffff, 0.75)); var nl = new THREE.DirectionalLight(0xffffff, 0.9); nl.position.set(CX + 8, 20, CZ + 14); g.add(nl);
     }
 
     /* ---------- l'état du jeu ---------- */
@@ -423,9 +478,13 @@
     function myName() { try { return String(state.username || '').slice(0, 20) || 'Invité'; } catch (e) { return 'Invité'; } }
     function cur() { return HOLES[Math.min(me.hole, NH - 1)]; }
 
-    var ballGeo = new THREE.SphereGeometry(R, 20, 14);
-    function ballMat(col) { return neon ? new THREE.MeshBasicMaterial({ color: col }) : new THREE.MeshStandardMaterial({ color: col, roughness: 0.35, metalness: 0.05 }); }
-    var myBall = new THREE.Mesh(ballGeo, ballMat('#ffffff')); myBall.visible = false; g.add(myBall);
+    var ballGeo = new THREE.SphereGeometry(R, 24, 16);
+    // une vraie balle de golf blanche (à peine teintée de la couleur du joueur pour les autres), sans halo
+    function ballMat(col) { var m = new THREE.MeshStandardMaterial({ color: new THREE.Color('#ffffff').lerp(new THREE.Color(col), col === '#ffffff' ? 0 : 0.28), roughness: 0.3, metalness: 0 }); if (BALL_NORMAL) { m.normalMap = BALL_NORMAL; m.normalScale = new THREE.Vector2(1.2, 1.2); } return m; }
+    function ballGeoNow() { return BALL_GEO || ballGeo; }
+    function upgradeBall(mesh) { if (!BALL_GEO) return; mesh.geometry = BALL_GEO; if (BALL_NORMAL) { mesh.material.normalMap = BALL_NORMAL; mesh.material.normalScale = new THREE.Vector2(1.2, 1.2); mesh.material.needsUpdate = true; } }
+    loadBall(); ballWaiters.push(function () { upgradeBall(myBall); Object.keys(remotes).forEach(function (k) { upgradeBall(remotes[k].mesh); }); });
+    var myBall = new THREE.Mesh(ballGeoNow(), ballMat('#ffffff')); myBall.visible = false; g.add(myBall);
     var glowC = mkCanvas(64, 64), glx = glowC.getContext('2d'), glg = glx.createRadialGradient(32, 32, 2, 32, 32, 32); glg.addColorStop(0, 'rgba(255,255,255,0.9)'); glg.addColorStop(1, 'rgba(255,255,255,0)'); glx.fillStyle = glg; glx.fillRect(0, 0, 64, 64);
     var glowTex = mkTex(glowC);
     var myGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: neon ? 0.8 : 0.35 })); myGlow.scale.set(0.45, 0.45, 1); myGlow.visible = false; g.add(myGlow);
@@ -480,7 +539,7 @@
       var r = remotes[m.k];
       if (!r) {
         var col = BALL_COLORS[(+m.c | 0) % BALL_COLORS.length];
-        r = remotes[m.k] = { name: String(m.n || m.k).slice(0, 20), col: col, mesh: new THREE.Mesh(ballGeo, ballMat(col)), tag: nameSprite(String(m.n || m.k), col), x: x, y: y, z: z };
+        r = remotes[m.k] = { name: String(m.n || m.k).slice(0, 20), col: col, mesh: new THREE.Mesh(ballGeoNow(), ballMat(col)), tag: nameSprite(String(m.n || m.k), col), x: x, y: y, z: z };
         g.add(r.mesh); g.add(r.tag);
       }
       r.gid = +m.gid || 0; r.h = +m.h | 0; r.s = +m.s | 0; r.d = !!m.d; r.o = !!m.o; r.sk = !!m.sk; r.card = Array.isArray(m.card) ? m.card.slice(0, NH).map(function (v) { return v == null ? null : +v; }) : [];
@@ -610,7 +669,7 @@
     room.spawn = function () { var H = HOLES[0]; return { x: H.tee[0], z: H.tee[1] + 3, yaw: H.teeYaw }; };
     room.onEnter = function (w) {
       active = true; me.name = myName(); me.col = hashStr(me.name) % BALL_COLORS.length;
-      myBall.material.dispose(); myBall.material = ballMat(BALL_COLORS[me.col]); myBall.visible = true; myGlow.material.color.set(BALL_COLORS[me.col]); myGlow.visible = true;
+      myBall.material.dispose(); myBall.material = ballMat('#ffffff'); myBall.geometry = ballGeoNow(); myBall.visible = true; myGlow.visible = false;   // ma balle : blanche, comme une vraie
       bgOld = world.scene.background; world.scene.background = new THREE.Color(skyCol);
       ui = buildUi(); bind(true);
       newGame();
@@ -687,7 +746,7 @@
       var sinkY = ball.sunk ? -Math.min(0.2, ball.sinkT * 0.6) : 0;
       myBall.position.set(ball.x, ball.y + R + sinkY, ball.z); myBall.visible = !(ball.sunk && ball.sinkT > 0.4) && !me.over;
       myBall.rotation.x += ball.vz * dt / R; myBall.rotation.z -= ball.vx * dt / R;
-      myGlow.position.copy(myBall.position); myGlow.visible = myBall.visible;
+      myGlow.visible = false;
       // la visée
       var showAim = canShoot();
       aimG.visible = showAim;
@@ -743,6 +802,9 @@
     var sc = mkCanvas(1024, 360), sx = sc.getContext('2d'); sx.fillStyle = 'rgba(6,14,9,0.92)'; sx.fillRect(0, 0, 1024, 360); sx.strokeStyle = '#5dff8a'; sx.lineWidth = 10; sx.strokeRect(16, 16, 992, 328);
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#5dff8a'; sx.shadowColor = '#5dff8a'; sx.shadowBlur = 22; sx.font = '900 112px ' + SERIF; sx.fillText('MINI GOLF', 512, 130); sx.shadowBlur = 0;
     sx.fillStyle = '#f4ead2'; sx.font = '700 40px ' + SERIF; sx.fillText('Jouez tous en même temps · le moins de coups gagne', 512, 232, 940); sx.fillStyle = '#ffd23f'; sx.font = '800 34px ' + MONO; sx.fillText('GRATUIT · POUR LE FUN', 512, 295);
+    var cc = mkCanvas(1024, 96), cx2 = cc.getContext('2d'); cx2.fillStyle = 'rgba(6,14,9,0.85)'; cx2.fillRect(0, 0, 1024, 96); cx2.fillStyle = '#c9e8d2'; cx2.font = '600 34px ' + SERIF; cx2.textAlign = 'center'; cx2.textBaseline = 'middle';
+    cx2.fillText('Balle de golf : « Golf Ball » par germydan · Sketchfab · licence CC BY 4.0', 512, 50, 990);
+    var credit = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.39), new THREE.MeshBasicMaterial({ map: mkTex(cc), transparent: true })); credit.position.set(0, 1.5, -HZ + 0.05); g.add(credit);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 2.11), new THREE.MeshBasicMaterial({ map: mkTex(sc) })); sign.position.set(0, 3.0, -HZ + 0.05); g.add(sign);
     g.add(new THREE.AmbientLight(0xeaf6ee, 1.15));
     if (!low) { var l = new THREE.PointLight(0xfff2d0, 0.8, 14); l.position.set(0, 3.8, 0); g.add(l); }
