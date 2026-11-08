@@ -4,7 +4,7 @@
    On y entre par la porte violette du hall (mur de gauche). Le sol reprend le damier de marbre du hall, mais en verre :
    chaque dalle s'allume de la couleur du son qui joue (graves au centre, aigus vers les murs). Une bande d'égaliseur et deux enceintes
    répondent à la même musique. Sans musique, le sol respire doucement.
-   JUKEBOX : un grand écran est suspendu en haut du mur d'en face de la porte, un PC trône au milieu de la salle. Chacun y ajoute un clip YouTube ;
+   JUKEBOX : un grand écran est plaqué en haut du mur d'en face de la porte, un PC trône au milieu de la salle. Chacun y ajoute un clip YouTube ;
    la file d'attente (api/musique.js, le serveur fait l'horloge) passe sur l'écran, avec « demandé par », et le son joue pour tous ceux qui sont dans la salle,
    synchronisé, au volume du curseur « musique » du téléphone (la musique d'ambiance se tait pendant un clip). Une trentaine de fauteuils cosy et des poufs.
    Sans clip, la musique d'ambiance vient de audio3d.js (F.audio.levels) : titres dans assets/musique/salle-musique/ puis « npm run playlist ».
@@ -18,7 +18,7 @@
 
   var HX = 12, HZ = 12, H = 8;             // demi-largeur, demi-profondeur et hauteur de la salle (mètres)
   var NB = 16;                              // bandes de fréquences suivies (graves -> aigus)
-  var SW = 13.6, SH = 5.6, SCY = 4.85, SZ = -HZ + 0.5;   // grand écran : largeur, hauteur, hauteur du centre, profondeur (collé au mur du fond)
+  var SW = 13.6, SH = 5.6, SCY = 4.7, SZ = -HZ + 0.12;   // grand écran : largeur, hauteur, hauteur du centre, profondeur (plaqué contre le mur du fond)
   var VW = SH * 16 / 9;                     // partie vidéo (16/9) à gauche ; la file d'attente occupe le reste de l'écran
 
   function createMusicRoom(world) {
@@ -79,20 +79,21 @@
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x08050f }));
     ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
-    /* ---------- mur du fond : grand écran suspendu au plafond, collé en haut du mur en face de la porte ---------- */
+    /* ---------- mur du fond : grand écran plaqué en haut du mur en face de la porte ---------- */
     var dark = new THREE.MeshStandardMaterial({ color: 0x15111c, roughness: 0.45, metalness: 0.35 });
     var frameBack = new THREE.Mesh(new THREE.BoxGeometry(SW + 0.5, SH + 0.5, 0.1), gold); frameBack.position.set(0, SCY, SZ - 0.09); g.add(frameBack);
     var frame = new THREE.Mesh(new THREE.BoxGeometry(SW + 0.3, SH + 0.3, 0.12), dark); frame.position.set(0, SCY, SZ - 0.03); g.add(frame);
-    [-5.6, 5.6].forEach(function (x) {                                   // deux tiges d'acier qui tiennent l'écran au plafond, deux équerres dorées contre le mur
-      var topY = SCY + SH / 2 + 0.25, rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, H - topY, 8), new THREE.MeshStandardMaterial({ color: 0x9aa0b4, roughness: 0.3, metalness: 0.8 }));
-      rod.position.set(x, topY + (H - topY) / 2, SZ - 0.09); g.add(rod);
-      var br = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, SZ + HZ), gold); br.position.set(x, SCY - SH / 2 - 0.2, -HZ + (SZ + HZ) / 2 - 0.05); g.add(br);
-    });
     var SCW = 2048, SCH = Math.round(SCW * SH / SW), VWP = Math.round(SCW * VW / SW);   // canvas de l'écran, et largeur (en pixels) de la partie vidéo
     var scr = mkCanvas(SCW, SCH), sx = scr.getContext('2d'), scrTex = mkTex(scr); scrTex.anisotropy = 8;
     var screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: scrTex })); screen.position.set(0, SCY, SZ + 0.05); g.add(screen);
     // les quatre coins de la vidéo (haut gauche, haut droit, bas droit, bas gauche) : le lecteur YouTube se plaque dessus
     var vL = -SW / 2, vR = -SW / 2 + VW, vT = SCY + SH / 2, vB = SCY - SH / 2, vZ = SZ + 0.052;
+    // trou dans l'image : ce plan efface l'écran (alpha 0) là où il est visible ; le lecteur YouTube, placé DERRIÈRE le canvas, apparaît alors à cet endroit.
+    // Tout ce qui est devant l'écran (PC, joueurs, boule, faisceaux…) se dessine par-dessus : la vidéo passe derrière.
+    var holeMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    holeMat.blending = THREE.CustomBlending; holeMat.blendEquation = THREE.AddEquation; holeMat.blendEquationAlpha = THREE.AddEquation;
+    holeMat.blendSrc = THREE.ZeroFactor; holeMat.blendDst = THREE.ZeroFactor; holeMat.blendSrcAlpha = THREE.ZeroFactor; holeMat.blendDstAlpha = THREE.ZeroFactor;
+    var hole = new THREE.Mesh(new THREE.PlaneGeometry(VW, SH), holeMat); hole.position.set(vL + VW / 2, SCY, vZ); hole.renderOrder = -10; hole.visible = false; g.add(hole);
     var VIDEO_CORNERS = [new THREE.Vector3(vL, vT, vZ), new THREE.Vector3(vR, vT, vZ), new THREE.Vector3(vR, vB, vZ), new THREE.Vector3(vL, vB, vZ)];
 
     /* ---------- bande d'égaliseur sous l'écran, enceintes de chaque côté ---------- */
@@ -169,26 +170,7 @@
         });
       });
     })();
-    // poufs (décor) devant, tables basses et lampes dans les salons des côtés, quelques plantes
-    var poufs = [[-2.6, -7.6], [-4.7, -6.9], [-6.8, -7.6], [-3.6, -5.3], [-5.7, -4.9], [2.6, -7.6], [4.7, -6.9], [6.8, -7.6], [3.6, -5.3], [5.7, -4.9]];
-    var poufM = new THREE.InstancedMesh(new THREE.SphereGeometry(0.5, 16, 10), fabric, poufs.length); poufM.frustumCulled = false; g.add(poufM);
-    (function () {
-      var m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc2 = new THREE.Vector3(1, 0.62, 1), col = new THREE.Color(), pal = [0xe08aa8, 0x7ac8c4, 0xf0c060, 0xa58be0, 0x8fcf8a];
-      poufs.forEach(function (p, n) { m.compose(v.set(p[0], 0.3, p[1]), q, sc2); poufM.setMatrixAt(n, m); poufM.setColorAt(n, col.setHex(pal[n % pal.length])); room.colliders.push({ x: p[0], z: p[1], r: 0.5 }); });
-    })();
-    var haloSoft = null;
-    [-1, 1].forEach(function (sd) {
-      var tx = sd * 9.2, tz = -3.2;
-      var tt = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 20), gold); tt.position.set(tx, 0.44, tz); g.add(tt);
-      var ts = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.42, 10), dark); ts.position.set(tx, 0.22, tz); g.add(ts);
-      var tb = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.04, 16), dark); tb.position.set(tx, 0.02, tz); g.add(tb);
-      room.colliders.push({ x: tx, z: tz, r: 0.45 });
-      var lx = sd * 10.9, lz = -3.2;                                                      // lampadaire doré, abat-jour allumé
-      var lp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1.6, 8), gold); lp.position.set(lx, 0.8, lz); g.add(lp);
-      var lb = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.1, 14), gold); lb.position.set(lx, 0.05, lz); g.add(lb);
-      var ls = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.34, 0.4, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide })); ls.position.set(lx, 1.8, lz); g.add(ls);
-      room.colliders.push({ x: lx, z: lz, r: 0.3 });
-    });
+    // quelques plantes dans les coins
     [[-11, -10.9], [11, -10.9], [-11, 10.6], [11, 10.6]].forEach(function (p) {
       var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.5, 14), new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.8 })); pot.position.set(p[0], 0.25, p[1]); g.add(pot);
       var bush = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), new THREE.MeshLambertMaterial({ color: 0x2f7d46 })); bush.position.set(p[0], 0.95, p[1]); bush.scale.y = 1.15; g.add(bush);
@@ -202,7 +184,7 @@
        ===================================================================== */
     var net = { state: null, off: 0, ver: 0, busy: false }, clip = { on: false }, active = false, paused = false, lastUpd = 0, W = null, timers = [];
     var yt = { ready: false, player: null, id: '', showing: false, vol: -1, state: -2, startedAt: 0, seekUntil: 0, blocked: false, bad: {}, err: '' };
-    var ov = null, ovBox = null, ovHost = null;
+    var ov = null, ovBox = null, ovHost = null, isoPrev = '', ovContainer = null;
     function srvNow() { return Date.now() + net.off; }
     function fmtT(sec) { sec = Math.max(0, Math.floor(sec)); return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2); }
     function adopt(st, t0) {
@@ -232,10 +214,11 @@
     function ytVars() { var v = { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3, cc_load_policy: 0 }; if (/^https?:$/.test(location.protocol)) v.origin = location.origin; return v; }
     function buildOverlay(w) {
       if (ov) return;
-      ov = document.createElement('div'); ov.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none';
+      ov = document.createElement('div'); ov.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1';       // derrière le canvas : l'écran 3D le laisse voir par son « trou »
+      isoPrev = w.container.style.isolation; w.container.style.isolation = 'isolate';
       ovBox = document.createElement('div'); ovBox.style.cssText = 'position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;background:#000;display:none;will-change:transform;pointer-events:none';
       ovHost = document.createElement('div'); ovHost.style.cssText = 'width:100%;height:100%'; ovBox.appendChild(ovHost); ov.appendChild(ovBox);
-      w.container.insertBefore(ov, w.hud || null);
+      w.container.insertBefore(ov, w.dom || null);
       loadYtApi(function () {
         if (!ov || yt.player) return;
         yt.player = new YT.Player(ovHost, { width: 960, height: 540, playerVars: ytVars(), events: {
@@ -248,8 +231,8 @@
     function destroyOverlay() {
       if (yt.player) { try { yt.player.destroy(); } catch (e) { /* ok */ } }
       yt.player = null; yt.ready = false; yt.id = ''; yt.showing = false; yt.state = -2; yt.vol = -1;
-      if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
-      ov = ovBox = ovHost = null;
+      if (ov && ov.parentNode) { ov.parentNode.style.isolation = isoPrev; ov.parentNode.removeChild(ov); }
+      ov = ovBox = ovHost = null; hole.visible = false;
     }
     function stopClip() {
       if (yt.id && yt.player && yt.ready) { try { yt.player.stopVideo(); } catch (e) { /* ok */ } }
@@ -310,6 +293,7 @@
       }
       var disp = show ? 'block' : 'none';
       if (ovBox.style.display !== disp) ovBox.style.display = disp;
+      hole.visible = show;                                                          // le trou n'existe que si la vidéo est là derrière
     }
 
     /* --- l'écran géant : vidéo à gauche (le lecteur YouTube la recouvre), « demandé par » et file d'attente à droite --- */
@@ -644,13 +628,36 @@
       ball.add(bmesh); beamMats.push(bm); beamFacets.push(fk);
     }
     var chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold); chain.position.set(0, H - 0.6, 0); g.add(chain);
-    var wallLeds = [];
-    [-1, 1].forEach(function (sd) {
-      for (i = 0; i < 6; i++) {
-        var m = new THREE.MeshBasicMaterial({ color: 0xb98cff }), led = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.6, 0.5), m);
-        led.position.set(sd * (HX - 0.1), 3.6, -HZ + 3.4 + i * 3.7); g.add(led); wallLeds.push({ m: m, i: i });
+    /* ---------- LED des murs : bandeaux en haut et en bas, barres verticales ; chacune suit une bande de la musique ---------- */
+    var ledList = [];
+    function addLed(x, y, z, sx, sy, sz, band, ph) { ledList.push({ x: x, y: y, z: z, sx: sx, sy: sy, sz: sz, band: band, ph: ph }); }
+    (function () {
+      var n, x, z, sd, bd, LT = H - 0.55, LB = 1.3;
+      for (n = 0; n < 23; n++) {
+        x = -11.5 + n; z = -11.5 + n; bd = Math.floor(n / 23 * NB);
+        if (Math.abs(x) > 7.6) { addLed(x, LT, -HZ + 0.07, 0.86, 0.1, 0.06, bd, n); addLed(x, LB, -HZ + 0.07, 0.86, 0.1, 0.06, (bd + 5) % NB, n + 3); }   // mur du fond : pas devant l'écran ni la bande d'égaliseur
+        addLed(x, LT, HZ - 0.07, 0.86, 0.1, 0.06, (NB - 1 - bd), n);
+        if (Math.abs(x) > 2.6) addLed(x, LB, HZ - 0.07, 0.86, 0.1, 0.06, (NB - 1 - bd + 5) % NB, n + 3);                                                // mur de la porte : pas devant la porte
+        [-1, 1].forEach(function (s2) { addLed(s2 * (HX - 0.07), LT, z, 0.06, 0.1, 0.86, (bd + (s2 > 0 ? 8 : 0)) % NB, n); addLed(s2 * (HX - 0.07), LB, z, 0.06, 0.1, 0.86, (bd + 5 + (s2 > 0 ? 8 : 0)) % NB, n + 3); });
       }
-    });
+      for (n = 0; n < 12; n++) [-1, 1].forEach(function (s2) { addLed(s2 * (HX - 0.07), 4.3, -10.2 + n * 1.85, 0.08, 3.0, 0.22, (n * 3 + (s2 > 0 ? 1 : 0)) % NB, n * 0.7); });   // barres sur les murs de côté
+      for (n = 0; n < 5; n++) [-1, 1].forEach(function (s2) { addLed(s2 * (3.9 + n * 1.5), 3.9, HZ - 0.07, 0.22, 3.0, 0.08, (n * 3 + 2) % NB, n * 0.9); });                  // de chaque côté de l'enseigne et de la porte
+      for (n = 0; n < 3; n++) [-1, 1].forEach(function (s2) { addLed(s2 * (8.0 + n * 1.4), 4.3, -HZ + 0.07, 0.22, 3.0, 0.08, (n * 5 + 1) % NB, n * 0.9); });               // et de chaque côté de l'écran
+    })();
+    var ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), ledList.length), ledCol = new THREE.Color();
+    (function () {
+      var m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc3 = new THREE.Vector3();
+      ledList.forEach(function (l, n) { m.compose(v.set(l.x, l.y, l.z), q, sc3.set(l.sx, l.sy, l.sz)); ledMesh.setMatrixAt(n, m); ledMesh.setColorAt(n, ledCol.setHex(0x000000)); });
+      ledMesh.frustumCulled = false; g.add(ledMesh);
+    })();
+    function updateLeds() {
+      var on = 1 - sil, nL = ledList.length, n;                              // sans musique : tout est éteint
+      for (n = 0; n < nL; n++) {
+        var l = ledList[n], lv = Math.max(0, Math.min(1, sm[l.band] * (0.7 + 0.3 * Math.sin(clock * 4 + l.ph)))) * on;
+        ledMesh.setColorAt(n, ledCol.setHSL(((clock * 0.05 + n / nL * 0.9) % 1 + 1) % 1, 1, 0.012 + 0.5 * lv * lv));
+      }
+      ledMesh.instanceColor.needsUpdate = true;
+    }
 
     /* ---------- éclairage ---------- */
     g.add(new THREE.AmbientLight(0x8f7fc0, 0.75));
@@ -689,9 +696,15 @@
       clock += dt; jukeUpdate(dt); var hue0 = clock * 0.05;
       // niveaux : lus sur la musique (F.audio.levels) ; sans son, une vague lente qui garde le sol vivant
       var raw = 0, mx = 0;
-      if (clip.on) {                                                       // un clip YouTube joue : son impossible à analyser, on fait battre les bandes en cadence
-        var beat = Math.pow(Math.max(0, Math.sin(clock * 12.6)), 5);
-        for (i = 0; i < NB; i++) bands[i] = Math.max(0, Math.min(1, (0.2 + 0.5 * Math.abs(Math.sin(clock * (1.7 + i * 0.31) + i)) * (0.45 + 0.55 * (1 - i / NB)) + beat * 0.55 * (1 - i / NB)) * 0.55));
+      if (clip.on) {                                                       // un clip YouTube joue : son impossible à analyser ; on simule un rythme, calé sur la position dans le titre (donc identique chez tous)
+        var cs = net.state && net.state.cur, tpos = cs ? Math.max(0, (srvNow() - cs.startedAt) / 1000) : clock, hs = 0;
+        if (cs) for (i = 0; i < cs.videoId.length; i++) hs += cs.videoId.charCodeAt(i) * (i + 1);
+        var ph = tpos * (88 + hs % 52) / 60;                               // tempo propre au clip : 88 à 139 pulsations par minute
+        var kick = Math.pow(Math.max(0, Math.cos(ph * TAU)), 8), hat = Math.pow(Math.max(0, Math.cos((ph * 2 + 0.5) * TAU)), 10), snare = Math.pow(Math.max(0, Math.cos((ph * 0.5 + 0.25) * TAU)), 10);
+        for (i = 0; i < NB; i++) {
+          var fi = i / NB, wob = 0.5 + 0.5 * Math.sin(tpos * (1.3 + i * 0.37) + i * 2.1);
+          bands[i] = Math.max(0, Math.min(1, fi < 0.25 ? 0.06 + 0.95 * kick * (1 - fi) : fi < 0.6 ? 0.08 + 0.55 * wob * (0.4 + 0.6 * snare) + 0.3 * kick : 0.05 + 0.7 * hat * (0.5 + 0.5 * wob) + 0.25 * snare));
+        }
         raw = 0.3;
       } else raw = F.audio && F.audio.levels ? F.audio.levels(bands, NB) : 0;
       for (i = 0; i < NB; i++) if (bands[i] > mx) mx = bands[i];
@@ -712,8 +725,8 @@
           var t = tiles[k], lv = sm[t.band] * (0.8 + 0.35 * Math.sin(clock * 2.1 + t.d * 0.7 - t.ang * 2));   // petite onde qui part du centre
           lv = Math.max(0, Math.min(1, lv));
           neon(hue0 + t.band / NB * 0.85 + t.d * 0.02 + (t.kind ? 0.08 : 0), 0.5, c1);
-          (t.kind ? glowB : glowA).setColorAt(t.k2, c2.copy(c1).multiplyScalar((t.kind ? 0.45 : 0.55) + lv * 1.0));
-          glass.setColorAt(k, c2.copy(c1).multiplyScalar(0.1 + lv * 0.3));
+          (t.kind ? glowB : glowA).setColorAt(t.k2, c2.copy(c1).multiplyScalar(0.02 + lv * (0.25 + 1.5 * (1 - sil))));
+          glass.setColorAt(k, c2.copy(c1).multiplyScalar(0.03 + lv * (0.05 + 0.4 * (1 - sil))));
         }
         glowA.instanceColor.needsUpdate = true; glowB.instanceColor.needsUpdate = true; glass.instanceColor.needsUpdate = true;
       }
@@ -730,9 +743,9 @@
       ball.rotation.y += dt * 0.5; ball.scale.setScalar(pulse * 0.97);                         // facettes et faisceaux sont dans le même groupe : ils tournent d'un seul bloc
       var fcol = ball._fc || (ball._fc = new THREE.Color()), nf = facets.length, k2;
       for (k2 = 0; k2 < nf; k2++) { var tw = 0.5 + 0.5 * Math.sin(clock * 3.2 + facets[k2].ph); neon(facetHue(k2), 0.22 + 0.3 * Math.min(1, tw * (0.5 + bass * 0.9 + sm[(k2 * 3) % NB] * 0.8)), fcol); facetMesh.setColorAt(k2, fcol); }
-      beamMats.forEach(function (bm, n) { neon(facetHue(beamFacets[n]), 0.55, bm.uniforms.uColor.value); bm.uniforms.uOp.value = 0.5 + bass * 0.9; neon(facetHue(beamFacets[n]), 0.75, fcol); facetMesh.setColorAt(beamFacets[n], fcol); });
+      beamMats.forEach(function (bm, n) { neon(facetHue(beamFacets[n]), 0.55, bm.uniforms.uColor.value); var bl = sm[(n * 5 + 2) % NB]; bm.uniforms.uOp.value = (1 - sil) * 1.5 * Math.pow(Math.max(0, bl - 0.28) / 0.72, 1.3); neon(facetHue(beamFacets[n]), 0.75, fcol); facetMesh.setColorAt(beamFacets[n], fcol); });
       if (facetMesh.instanceColor) facetMesh.instanceColor.needsUpdate = true;
-      wallLeds.forEach(function (l) { neon(hue0b(l.i * 3), 0.25 + sm[(l.i * 2) % NB] * 0.4, l.m.color); });
+      if (frame2 % 2 === 1) updateLeds();
             doorLamps.forEach(function (l) {                                                   // les lampes de la porte suivent la musique, une de chaque côté
         var lv = sm[l.i ? 5 : 2], mm = hue0b(l.i * 8 + 3);
         neon(mm, 0.35 + lv * 0.3, l.m.color); l.h.material.color.copy(l.m.color); l.h.material.opacity = 0.35 + lv * 0.65; l.h.scale.setScalar(1.2 + lv * 1.3);
@@ -740,7 +753,7 @@
       if (spotA) {
         spotA.color.setHSL((hue0 + 0.0) % 1, 1, 0.55); spotB.color.setHSL((hue0 + 0.5) % 1, 1, 0.55);
         spotA.position.set(-6 * Math.cos(clock * 0.6), 5, 6 * Math.sin(clock * 0.6)); spotB.position.set(6 * Math.cos(clock * 0.6), 5, -6 * Math.sin(clock * 0.6));
-        spotA.intensity = 0.7 + bass * 1.4; spotB.intensity = 0.7 + bass * 1.4;
+        spotA.intensity = 0.2 + (1 - sil) * bass * 1.8; spotB.intensity = 0.2 + (1 - sil) * bass * 1.8;
       }
     };
     room.dispose = function () { closeDesk(true); jukeStop(); glowGeo.dispose(); glassGeo.dispose(); glowA.dispose(); glowB.dispose(); glass.dispose(); };

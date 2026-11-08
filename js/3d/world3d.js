@@ -82,7 +82,7 @@
     this.low = opts.low !== undefined ? !!opts.low : F.isMobile();
     this.touch = F.isTouch();
     Q.start(this.low);
-    this.renderer = new THREE.WebGLRenderer({ antialias: !this.low, alpha: false, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this.low, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Q.pixelRatio());
     this.renderer.setClearColor(0x07050c, 1);
     var dom = this.dom = this.renderer.domElement;
