@@ -222,7 +222,7 @@
     var DEALER_HAIR = { f: [0x3b2314, 0xb8863b, 0x1a1210, 0x6b4423, 0x8a2b1c], h: [0x1a1210, 0x3b2314, 0x222222, 0x6b4423, 0x1a1210] };
     var dressGeo = null;
     function dressCroupier(p, female, idx) {
-      var gp = p.group, torso = gp.children[1], head = gp.children[3], gold = std(0xd4af37, 0.3, 0.8), red = lam(0x9a1022), black = lam(0x121216);
+      var gp = p.group, torso = p.torso, head = p.headMesh, gold = std(0xd4af37, 0.3, 0.8), red = lam(0x9a1022), black = lam(0x121216);
       if (!dressGeo) dressGeo = {
         vest: new THREE.CylinderGeometry(0.2, 0.178, 0.4, 16), collar: new THREE.CylinderGeometry(0.07, 0.075, 0.045, 12),
         btn: new THREE.SphereGeometry(0.012, 8, 6), badge: new THREE.BoxGeometry(0.07, 0.022, 0.008),
@@ -234,7 +234,7 @@
       function put(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || gp).add(m); return m; }
       if (torso && torso.material) torso.material.color.set(0xf6f3ec);                 // chemise blanche, manches comprises
       if (head && head.material) head.material.color.set(DEALER_SKINS[idx % DEALER_SKINS.length]);   // la peau : tête, cou et mains partagent ce matériau
-      gp.children.forEach(function (c) { var pr = c.geometry && c.geometry.parameters; if (pr && pr.thetaLength && Math.abs(pr.thetaLength - Math.PI * 0.55) < 1e-6) c.visible = false; });   // cheveux d'origine : ils tombent sur les yeux
+      if (p.hairMesh) p.hairMesh.visible = false;   // cheveux d'origine : ils tombent sur les yeux
       put(dressGeo.collar, torso ? torso.material : lam(0xf6f3ec), 0, 1.585, 0);
       put(dressGeo.vest, black, 0, 1.24, 0);                                           // gilet noir, le haut de la chemise reste visible
       [1.12, 1.22, 1.32].forEach(function (y) { put(dressGeo.btn, gold, 0, y, 0.17 + (y - 1.025) / 0.55 * 0.03 + 0.016); });

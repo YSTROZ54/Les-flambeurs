@@ -392,10 +392,8 @@
       // le vendeur (derrière le comptoir, tourné vers la salle)
       var person = F.createPerson(def.name, def.avatar), pg = person.group, wp = toWorld(def, 0, 0.95);
       pg.position.set(wp.x, 0, wp.z); pg.rotation.y = th;
-      var kids = pg.children;
-      kids[0].material.color.setHex(def.pants); kids[1].material.color.setHex(def.shirt); kids[3].material.color.setHex(def.skin);
-      kids.forEach(function (c) { if (c.geometry && c.geometry.parameters && c.geometry.parameters.radius === 0.152) c.material.color.setHex(def.hair); });
-      var tag = kids[kids.length - 1]; tag.position.y = def.tagY || 2.25; tag.scale.set(1.15, 0.255, 1);   // l'étiquette est le dernier élément créé : à lire avant les accessoires
+      person.mats.pants.color.setHex(def.pants); person.mats.shirt.color.setHex(def.shirt); person.mats.skin.color.setHex(def.skin); person.mats.hair.color.setHex(def.hair);
+      var tag = person.tag; tag.position.y = def.tagY || 2.25; tag.scale.set(1.15, 0.255, 1);   // l'étiquette est le dernier élément créé : à lire avant les accessoires
       def.dress(pg, person);
       g.add(pg);
       // zone invisible pour cliquer sur le vendeur

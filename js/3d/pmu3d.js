@@ -313,10 +313,9 @@
     var tabSign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.825), new THREE.MeshBasicMaterial({ map: mkTex(tc), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); tabSign.position.set(-3, 3.7, -HZ + 0.07); g.add(tabSign);
 
     /* --- le vendeur de cartes --- */
-    var person = F.createPerson('Bruno', '🎟️'), pg = person.group, kids = pg.children;
-    kids[0].material.color.setHex(0x1a1a20); kids[1].material.color.setHex(0xf2f2f2); kids[3].material.color.setHex(0xe0ac82);
-    kids.forEach(function (c) { if (c.geometry && c.geometry.parameters && c.geometry.parameters.radius === 0.152) c.material.color.setHex(0x3b2314); });
-    var tag = kids[kids.length - 1]; tag.position.y = 2.2; tag.scale.set(1.15, 0.255, 1);
+    var person = F.createPerson('Bruno', '🎟️'), pg = person.group;
+    person.mats.pants.color.setHex(0x1a1a20); person.mats.shirt.color.setHex(0xf2f2f2); person.mats.skin.color.setHex(0xe0ac82); person.mats.hair.color.setHex(0x3b2314);
+    var tag = person.tag; tag.position.y = 2.2; tag.scale.set(1.15, 0.255, 1);
     box(pg, 0.36, 0.62, 0.03, lam(0x15151a), 0, 1.15, 0.2);                                              // tablier noir
     var cap = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 10, 0, TAU, 0, Math.PI / 2), lam(RED)); cap.position.set(0, 1.8, 0); pg.add(cap);
     box(pg, 0.22, 0.02, 0.16, lam(RED), 0, 1.81, 0.16);

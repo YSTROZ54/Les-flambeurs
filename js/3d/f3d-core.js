@@ -208,11 +208,12 @@
     add(G.hips, pants, 0, 0.98, 0);
     // haut du corps : pivote et se penche sur les hanches (danses) ; tête : hoche et penche sur le cou
     var upper = new THREE.Group(); upper.position.set(0, 0.98, 0); upper.rotation.order = 'YXZ'; g.add(upper);
-    add(G.torso, shirt, 0, 0.32, 0, upper); add(G.neck, skin, 0, 0.64, 0, upper);
+    var torsoM = add(G.torso, shirt, 0, 0.32, 0, upper); add(G.neck, skin, 0, 0.64, 0, upper);
     var headG = new THREE.Group(); headG.position.set(0, 0.64, 0); headG.rotation.order = 'YXZ'; upper.add(headG);
     var head = add(G.head, skin, 0, 0.13, 0, headG);
     var headParts = [{ m: head, x: 0, z: 0 }];                                  // pièces qui suivent le mouvement de tête (look)
-    if ((h >> 9) % 5 !== 0) headParts.push({ m: add(G.hair, hairM, 0, 0.14, -0.005, headG), x: 0, z: -0.005 });          // 1 personne sur 5 est chauve
+    var hairMesh = null;
+    if ((h >> 9) % 5 !== 0) { hairMesh = add(G.hair, hairM, 0, 0.14, -0.005, headG); headParts.push({ m: hairMesh, x: 0, z: -0.005 }); }          // 1 personne sur 5 est chauve
     headParts.push({ m: add(G.eye, dark, -0.05, 0.15, 0.125, headG), x: -0.05, z: 0.125 }, { m: add(G.eye, dark, 0.05, 0.15, 0.125, headG), x: 0.05, z: 0.125 });
     var hips = [], knees = [], arms = [], elbows = [];
     [-1, 1].forEach(function (s) {
@@ -399,6 +400,8 @@
         loadCharacter(id, function (c) { if (!c || charId !== want || disposed) return; attachModel(c); });
       },
       character: function () { return charId; },
+      // pièces et matériaux pour habiller un personnage (vendeurs, croupiers) : ne jamais les chercher par leur rang dans group.children
+      mats: { skin: skin, shirt: shirt, pants: pants, hair: hairM }, torso: torsoM, headMesh: head, hairMesh: hairMesh,
       group: g, hips: hips, knees: knees, arms: arms, elbows: elbows, upper: upper, head: headG, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
       // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.
       startEmote: function (id) { this.emoT = 0; if (F.emoteById && F.emoteById(id)) this.emoId = id; else this.clearEmote(); },
