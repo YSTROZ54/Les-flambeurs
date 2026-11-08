@@ -695,6 +695,7 @@
     var raw = this.last ? (now - this.last) / 1000 : 0.016; this.last = now;
     var dt = Math.min(raw, 0.1);
     this.step(dt);
+    if (F.syncPersons) F.syncPersons();                         // personnages articulés : leurs os suivent les poses de l'image (f3d-core.js)
     this.renderer.render(this.scene, this.camera);
     if (this.vm) this._drawHand(dt);
     if (raw < 1 && Q.frame(raw)) this._applyQuality();
@@ -798,6 +799,9 @@
       this.selfPerson.group.visible = false;
       this.scene.add(this.selfPerson.group);
       this.selfPerson.setHeld(this.heldId);
+    }
+    if (this.selfPerson) {
+      this.selfPerson.setCharacter(F.myCharacter());                       // le personnage choisi au Tropi Shop
     }
     var p = this.player, sp = this.selfPerson;
     this.emoYaw0 = p.yaw;                                    // le personnage garde son cap, la caméra peut tourner autour de lui
@@ -911,7 +915,8 @@
       r.lv = Number(m.lv) || 0;                                                                  // étage (0 = en bas)
       var eid = typeof m.emo === 'string' && F.emoteById(m.emo) ? m.emo : '', en = Number(m.emn) || 0;
       if (eid !== r.emo || en !== r.emn) { r.emo = eid; r.emn = en; r.person.startEmote(eid); }   // nouvelle danse (ou la même relancée) ; '' = il s'arrête
-      r.person.setHeld(typeof m.held === 'string' ? m.held : '');                                    // objet qu'il tient en main
+      r.person.setHeld(typeof m.held === 'string' ? m.held : '');
+      r.person.setCharacter(typeof m.ch === 'string' ? m.ch : F.DEFAULT_CHARACTER);                       // son personnage (Tropi Shop)                                    // objet qu'il tient en main
       if ((m.jmp || 0) !== r.jmp) { if (!r.fresh) r.jt = 0; r.jmp = m.jmp || 0; }
       r.fresh = false;
     } else if (room.onRtMsg) room.onRtMsg(ev, m, this.remote[m.k], this);
@@ -936,7 +941,7 @@
     this.rt.send('pos', {
       k: me, name: nm, avatar: av, seat: seatNow, room: room.id,
       x: r3(seated ? seated.x : p.x), z: r3(seated ? seated.z : p.z), yaw: r3(seated ? seated.yaw : emo ? this.emoYaw0 : p.yaw),   // en danse la caméra tourne, pas le personnage
-      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN, held: this.heldId, lv: room.level ? room.level() : 0
+      vx: seated ? 0 : r3(this.pv.x), vz: seated ? 0 : r3(this.pv.z), run: !!this.running2, jmp: p.jmp || 0, emo: emo, emn: this.emoN, ch: F.myCharacter(), held: this.heldId, lv: room.level ? room.level() : 0
     });
   };
   World.prototype._updateRemotes = function (dt) {

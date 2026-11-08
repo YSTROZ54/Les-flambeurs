@@ -35,7 +35,7 @@
 
   /* ---------- le catalogue vient de la page (SHOP_CATALOG) ---------- */
   function catalog() { try { return (typeof SHOP_CATALOG !== 'undefined' && SHOP_CATALOG) || []; } catch (e) { return []; } }
-  function itemsOf(key) { return catalog().filter(function (i) { return key === 'poker' && i.group === 'poker' && i.category === 'pokerFelt'; }); }   // pour l'instant les vendeurs ne vendent plus rien, sauf les tapis du poker (le reste reviendra plus tard)
+  function itemsOf(key) { return catalog().filter(function (i) { return (key === 'poker' && i.group === 'poker' && i.category === 'pokerFelt') || (key === 'avatar' && i.category === 'character'); }); }   // la photographe vend les personnages 3D   // pour l'instant les vendeurs ne vendent plus rien, sauf les tapis du poker (le reste reviendra plus tard)
   function findItem(id) { return catalog().filter(function (i) { return i.id === id; })[0] || null; }
   var EMO_RE = null;
   try { EMO_RE = new RegExp('^\\s*((?:\\p{Extended_Pictographic}|\\uFE0F|\\u200D)+)\\s*', 'u'); } catch (e) { EMO_RE = null; }
@@ -44,8 +44,8 @@
     return m ? { icon: m[1], text: String(n).slice(m[0].length) } : { icon: '🛍️', text: String(n || '') };
   }
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
-  function owned(id) { var s = st(); return !!(s && s.ownedSkins && s.ownedSkins.indexOf(id) >= 0); }
-  function equipped(it) { var s = st(); return !!(s && s.equipped && s.equipped[it.category] === it.id); }
+  function owned(id) { var s = st(), it = findItem(id); return !!(it && it.price === 0) || !!(s && s.ownedSkins && s.ownedSkins.indexOf(id) >= 0); }   // les articles gratuits sont à tout le monde
+  function equipped(it) { var s = st(), cur = s && s.equipped && s.equipped[it.category]; if (!cur && it.category === 'character') cur = 'char_homme'; return cur === it.id; }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
 
   /* ---------- les six vendeurs : emplacement sur le mur, tenue et accessoires ---------- */

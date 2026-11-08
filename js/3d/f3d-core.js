@@ -150,6 +150,44 @@
   var ROLE_ICON = { 'fa-crown': '👑', 'fa-gem': '💎', 'fa-fire': '🔥' };
   var ROLE_GRAD = { 'role-patron': ['#78350f', '#eab308', '#fef9c3'], 'role-cofondateur': ['#3b0764', '#a855f7', '#f5d0fe'], 'role-flambeur': ['#7f1d1d', '#ef4444', '#ffe08a'] };
 
+  /* ---------- personnages 3D (modèles articulés, assets/personnages/) ----------
+     Les danses, la marche, la position assise… s'appliquent toujours au petit bonhomme de base (son « squelette ») ; quand un joueur a choisi
+     un personnage, ce bonhomme devient invisible et, à chaque image, ses articulations sont recopiées sur les os du modèle
+     (même mouvement, mesuré depuis la pose en T des deux). Modèles : 100Avatars de Polygonal Mind (CC0), squelette Mixamo.
+     Le choix du joueur : state.equipped.character (Tropi Shop, catégorie « Personnages ») ; il part avec la position (ch) vers les autres. */
+  var CHARACTERS = F.CHARACTERS = {
+    char_homme: { file: 'homme.glb', h: 1.8 }, char_femme: { file: 'femme.glb', h: 1.74 },
+    char_business: { file: 'businessman.glb', h: 1.86 }, char_kate: { file: 'kate.glb', h: 1.74 }, char_rose: { file: 'rose.glb', h: 1.72 },
+    char_olivia: { file: 'olivia.glb', h: 1.74 }, char_lydia: { file: 'lydia.glb', h: 1.84 }, char_jimmy: { file: 'jimmy.glb', h: 1.8 },
+    char_robert: { file: 'robert.glb', h: 1.8 }, char_alien: { file: 'alien.glb', h: 1.8 }, char_nain: { file: 'nain.glb', h: 1.35 }
+  };
+  F.DEFAULT_CHARACTER = 'char_homme';
+  F.myCharacter = function () {
+    try { var e = typeof state !== 'undefined' && state && state.equipped && state.equipped.character; if (e === 'char_classic' || CHARACTERS[e]) return e; } catch (er) { /* pas de compte */ }
+    return F.DEFAULT_CHARACTER;
+  };
+  var charCache = {};
+  function loadCharacter(id, cb) {
+    var def = CHARACTERS[id];
+    if (!def || !THREE.GLTFLoader || !THREE.SkeletonUtils) { cb(null); return; }
+    var c = charCache[id];
+    if (c) { if (c.ok === true) cb(c); else if (c.ok === false) cb(null); else c.cbs.push(cb); return; }
+    c = charCache[id] = { cbs: [cb] };
+    new THREE.GLTFLoader().load('assets/personnages/' + def.file + '?v=1', function (gl) {
+      var sc = gl.scene; sc.updateMatrixWorld(true);
+      var box = new THREE.Box3().setFromObject(sc);
+      c.scene = sc; c.minY = box.min.y; c.height = Math.max(0.1, box.max.y - box.min.y); c.ok = true;
+      sc.traverse(function (o) {
+        if (!o.isMesh) return;
+        o.frustumCulled = false;
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (m && m.map) { m.map.encoding = THREE.LinearEncoding; m.map.needsUpdate = true; } });   // couleurs telles que dessinées (le rendu du jeu n'est pas en sRGB)
+      });
+      var q = c.cbs; c.cbs = []; q.forEach(function (f) { f(c); });
+    }, undefined, function () { c.ok = false; var q = c.cbs; c.cbs = []; q.forEach(function (f) { f(null); }); });
+  }
+  var LIVE = [];                                                        // personnes qui portent un modèle : recopiées à chaque image (F.syncPersons, appelé par world3d.js)
+  F.syncPersons = function () { for (var i = 0; i < LIVE.length; i++) { try { LIVE[i](); } catch (e) { /* une personne en panne ne bloque pas les autres */ } } };
+
   // Petit personnage tout simple (comme au poker, en plus basique) : debout ou assis sur le tabouret
   // 3e paramètre : ignoré (réservé).
   // role (optionnel, 4e paramètre) : [icône FA, libellé, classe] comme renvoyé
@@ -165,7 +203,8 @@
     var dark = new THREE.MeshBasicMaterial({ color: 0x111111 });
     var mats = [skin, shirt, pants, hairM, dark];
     var g = new THREE.Group();
-    function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); return m; }
+    var bodyMeshes = [];
+    function add(geom, mat, x, y, z, parent) { var m = new THREE.Mesh(geom, mat); m.position.set(x, y, z); (parent || g).add(m); bodyMeshes.push(m); return m; }
     add(G.hips, pants, 0, 0.98, 0);
     // haut du corps : pivote et se penche sur les hanches (danses) ; tête : hoche et penche sur le cou
     var upper = new THREE.Group(); upper.position.set(0, 0.98, 0); upper.rotation.order = 'YXZ'; g.add(upper);
@@ -247,6 +286,51 @@
     }
     function bubHide() { bub.visible = false; sayOn = false; }
     function bubStopDots() { clearInterval(dotsTimer); dotsTimer = 0; clearTimeout(safeTimer); safeTimer = 0; }
+    // ---- modèle articulé (voir CHARACTERS plus haut) ----
+    var disposed = false, charId = '', model = null, pairs = null, syncFn = null, qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), qc = new THREE.Quaternion(), gInv = new THREE.Quaternion();
+    function relQ(o, out) { o.getWorldQuaternion(out); return out.premultiply(gInv); }   // rotation dans le repère du personnage
+    function dropModel() {
+      if (model) { g.remove(model); model = null; }
+      pairs = null;
+      if (syncFn) { var i = LIVE.indexOf(syncFn); if (i >= 0) LIVE.splice(i, 1); syncFn = null; }
+      bodyMeshes.forEach(function (m) { m.visible = true; });
+    }
+    function attachModel(c) {
+      var inst = THREE.SkeletonUtils.clone(c.scene), wrap = new THREE.Group(), sc = CHARACTERS[charId].h / c.height;
+      wrap.rotation.y = Math.PI;                                       // les modèles VRM regardent vers -Z, le personnage vers +Z
+      wrap.scale.setScalar(sc); wrap.position.y = -c.minY * sc; wrap.add(inst); g.add(wrap); model = wrap;
+      // les os portent des préfixes variés selon le modèle (« mixamorig: », « vis_char_69:mixamorig: », « AvatarsR2_0002: »…, les « : » parfois retirés au chargement) :
+      // on les reconnaît à la fin de leur nom (« RightArm » ne termine pas « RightForeArm », « Spine » ne termine pas « Spine1 »)
+      var boneList = [], bones = {};
+      inst.traverse(function (o) { if (o.isBone) boneList.push(o); });
+      ['Spine', 'Head', 'RightArm', 'RightForeArm', 'LeftArm', 'LeftForeArm', 'RightUpLeg', 'RightLeg', 'LeftUpLeg', 'LeftLeg'].forEach(function (w) {
+        for (var i = 0; i < boneList.length; i++) { if (String(boneList[i].name).replace(/:/g, '').slice(-w.length) === w) { bones[w] = boneList[i]; break; } }
+      });
+      var MAP = [[upper, 'Spine'], [head, 'Head'], [arms[0], 'RightArm'], [elbows[0], 'RightForeArm'], [arms[1], 'LeftArm'], [elbows[1], 'LeftForeArm'],
+        [hips[0], 'RightUpLeg'], [knees[0], 'RightLeg'], [hips[1], 'LeftUpLeg'], [knees[1], 'LeftLeg']];
+      // calibrage : le bonhomme de base en T (bras à l'horizontale, le reste à zéro) face au modèle dans sa pose de repos (en T)
+      var joints = [upper, headG, head, arms[0], arms[1], elbows[0], elbows[1], hips[0], hips[1], knees[0], knees[1]];
+      var saved = joints.map(function (o) { return o.quaternion.clone(); });
+      joints.forEach(function (o) { o.quaternion.set(0, 0, 0, 1); });
+      arms[0].rotation.set(0, 0, -Math.PI / 2); arms[1].rotation.set(0, 0, Math.PI / 2);
+      g.getWorldQuaternion(gInv).invert();
+      pairs = [];
+      MAP.forEach(function (m) { var b = bones[m[1]]; if (b) pairs.push({ p: m[0], b: b, pTinv: relQ(m[0], new THREE.Quaternion()).invert(), bT: relQ(b, new THREE.Quaternion()) }); });
+      joints.forEach(function (o, i) { o.quaternion.copy(saved[i]); });
+      bodyMeshes.forEach(function (m) { m.visible = false; });
+      syncFn = function () {
+        if (!pairs) return;
+        g.getWorldQuaternion(gInv).invert();
+        for (var i = 0; i < pairs.length; i++) {
+          var pr = pairs[i];
+          relQ(pr.p, qa).multiply(pr.pTinv);                             // mouvement de l'articulation depuis la pose en T
+          qb.copy(qa).multiply(pr.bT);                                    // même mouvement appliqué à l'os du modèle
+          relQ(pr.b.parent, qc).invert();
+          pr.b.quaternion.copy(qc.multiply(qb));
+        }
+      };
+      LIVE.push(syncFn);
+    }
     g.rotation.order = 'YXZ';                                          // cap, puis penché en avant, puis de côté (danses)
     arms.forEach(function (a) { a.rotation.order = 'YXZ'; });          // bras : écart sur le côté, puis élan, puis rentré
     // objet en main : le bras droit se lève devant le personnage avec l'objet ; sans objet il reste le long du corps (les autres joueurs voient la différence)
@@ -305,6 +389,16 @@
           heldUp.set(0, 0.06, 0).applyQuaternion(heldQ); heldItem.position.set(heldUp.x, -0.6 + heldUp.y, heldUp.z);
         }
       },
+      // personnage articulé : id de F.CHARACTERS ; 'classic' ou inconnu : le petit bonhomme de base
+      setCharacter: function (id) {
+        id = CHARACTERS[id] ? id : '';
+        if (id === charId) return;
+        charId = id; dropModel();
+        if (!id) return;
+        var want = id;
+        loadCharacter(id, function (c) { if (!c || charId !== want || disposed) return; attachModel(c); });
+      },
+      character: function () { return charId; },
       group: g, hips: hips, knees: knees, arms: arms, elbows: elbows, upper: upper, head: headG, tag: tag, phase: 0, seated: false, emoId: '', emoT: 0, emoYaw: 0,
       // Danses et emotes (catalogue dans emotes3d.js). L'appelant fixe d'abord la position et le cap, puis appelle playEmote à chaque image.
       startEmote: function (id) { this.emoT = 0; if (F.emoteById && F.emoteById(id)) this.emoId = id; else this.clearEmote(); },
@@ -356,6 +450,7 @@
       },
       stopWalk: function () { if (!this.seated) { hips.forEach(function (hp) { hp.rotation.x = 0; }); arms.forEach(function (a) { a.rotation.x = 0; }); } },
       dispose: function () {
+        disposed = true; dropModel();
         clearTimeout(bubTimer); bubStopDots();
         mats.forEach(function (m) { m.dispose(); }); tex.dispose(); tag.material.dispose();
         if (bub.material.map) bub.material.map.dispose(); bub.material.dispose();

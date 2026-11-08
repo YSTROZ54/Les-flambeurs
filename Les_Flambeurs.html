@@ -25,17 +25,17 @@
   <script src="js/poker/poker3d-scene.js?v=2.2"></script>
   <script src="js/poker/poker3d-anim.js?v=1.3"></script>
   <script src="js/poker/poker-multi.js?v=2.4"></script>
-  <script src="js/3d/f3d-core.js?v=2.10"></script>
+  <script src="js/3d/f3d-core.js?v=2.11"></script>
   <script src="js/3d/emotes3d.js?v=1.1"></script>
   <script src="js/3d/hand3d.js?v=1.9"></script>
   <script src="js/3d/audio3d.js?v=2.6"></script>
   <script src="js/3d/hud3d.js?v=5.3"></script>
   <script src="js/3d/portes3d.js?v=2.19"></script>
-  <script src="js/3d/world3d.js?v=5.21"></script>
+  <script src="js/3d/world3d.js?v=5.22"></script>
   <script src="js/3d/hall3d.js?v=5.8"></script>
   <script src="js/3d/slots3d.js?v=7.14"></script>
   <script src="js/3d/pokerroom3d.js?v=3.3"></script>
-  <script src="js/3d/shop3d.js?v=2.5"></script>
+  <script src="js/3d/shop3d.js?v=2.6"></script>
   <script src="js/3d/pmu3d.js?v=2.6"></script>
   <script src="js/3d/blackjack3d.js?v=4.8"></script>
   <script src="js/3d/loupgarou3d.js?v=3.1"></script>
@@ -3918,7 +3918,8 @@
       { key: 'poker', title: '♠️ Catégorie Poker', subtitle: 'Tapis de table & styles de cartes de Poker' },
       { key: 'bjCardSkin', title: '🃏 Catégorie Blackjack', subtitle: 'Styles de cartes exclusifs pour la table de Blackjack' },
       { key: 'slotCabinet', title: '🎰 Catégorie Machines à Sous', subtitle: 'Habillages complets de bornes de machines à sous' },
-      { key: 'avatar', title: '👤 Catégorie Avatars / Profil', subtitle: 'Images de profil rigolotes à côté de ton blase (Plafond max : 10 000 🪙)' }
+      { key: 'avatar', title: '👤 Catégorie Avatars / Profil', subtitle: 'Images de profil rigolotes à côté de ton blase (Plafond max : 10 000 🪙)' },
+      { key: 'character', title: '🧍 Catégorie Personnages', subtitle: 'Ton personnage 3D dans le casino : il marche, s\'assoit et danse (les autres joueurs le voient)' }
     ];
 
     const SHOP_CATALOG = [
@@ -3960,7 +3961,21 @@
       { id: 'av_duck', group: 'avatar', category: 'avatar', name: '🦆 Canard VIP', desc: 'Le canard porte-bonheur.', price: 4000, emoji: '🦆' },
       { id: 'av_boss', group: 'avatar', category: 'avatar', name: '🎩 Le Parrain', desc: 'Haut-de-forme mystérieux.', price: 6000, emoji: '🎩' },
       { id: 'av_fox', group: 'avatar', category: 'avatar', name: '🦊 Renard Rusé', desc: 'Le roi du bluff autour de la table.', price: 8000, emoji: '🦊' },
-      { id: 'av_crown', group: 'avatar', category: 'avatar', name: '👑 Couronne d\'Or', desc: 'L\'avatar prestige maximum (10 000 🪙).', price: 10000, emoji: '👑' }
+      { id: 'av_crown', group: 'avatar', category: 'avatar', name: '👑 Couronne d\'Or', desc: 'L\'avatar prestige maximum (10 000 🪙).', price: 10000, emoji: '👑' },
+
+      // 7. PERSONNAGES 3D (js/3d/f3d-core.js : F.CHARACTERS, modèles dans assets/personnages/)
+      { id: 'char_classic', group: 'character', category: 'character', name: '🤖 Bonhomme classique', desc: 'Le petit bonhomme d\'origine des Flambeurs.', price: 0 },
+      { id: 'char_homme', group: 'character', category: 'character', name: '🧍 Homme', desc: 'Le flambeur de base : pull et jean, prêt à danser.', price: 0 },
+      { id: 'char_femme', group: 'character', category: 'character', name: '🧍‍♀️ Femme', desc: 'La flambeuse de base : tenue décontractée, prête à danser.', price: 0 },
+      { id: 'char_kate', group: 'character', category: 'character', name: '💗 Kate', desc: 'Cheveux roses et pull émeraude.', price: 3000 },
+      { id: 'char_jimmy', group: 'character', category: 'character', name: '🩳 Jimmy', desc: 'Torse nu et short : la plage, même au casino.', price: 3000 },
+      { id: 'char_robert', group: 'character', category: 'character', name: '🌈 Robert', desc: 'Des couleurs qui flashent sur la piste.', price: 4000 },
+      { id: 'char_rose', group: 'character', category: 'character', name: '🌹 Rose', desc: 'Tenue bohème et couronne de fleurs.', price: 5000 },
+      { id: 'char_olivia', group: 'character', category: 'character', name: '✨ Olivia', desc: 'Combinaison noire et or, la classe.', price: 5000 },
+      { id: 'char_lydia', group: 'character', category: 'character', name: '💜 Lydia', desc: 'Grande, fine et élégante.', price: 6000 },
+      { id: 'char_business', group: 'character', category: 'character', name: '💼 Le Businessman', desc: 'Costume, cravate et barbe : le vrai flambeur.', price: 8000 },
+      { id: 'char_alien', group: 'character', category: 'character', name: '👽 L\'Alien', desc: 'Venu d\'une autre galaxie pour tout miser.', price: 10000 },
+      { id: 'char_nain', group: 'character', category: 'character', name: '🎅 Le Nain de Jardin', desc: 'Petit, barbu, chapeau rouge : porte-bonheur assuré.', price: 10000 }
     ];
 
     /* ================= GESTION DES COMPTES & AUTHENTIFICATION ================= */
@@ -5929,8 +5944,8 @@
       box.innerHTML = SHOP_CATEGORIES.map(cat => {
         const items = SHOP_CATALOG.filter(i => i.group === cat.key);
         const cardsHTML = items.map(item => {
-          const owned = state.ownedSkins.includes(item.id);
-          const equipped = state.equipped[item.category] === item.id;
+          const owned = state.ownedSkins.includes(item.id) || item.price === 0;
+          const equipped = (state.equipped[item.category] || (item.category === 'character' ? 'char_homme' : '')) === item.id;
           let btnHTML = '';
           if (equipped) {
             btnHTML = `<button disabled class="w-full py-2.5 rounded-xl bg-emerald-500/25 border border-emerald-400 text-emerald-300 font-extrabold text-xs">✔ Équipé</button>`;
