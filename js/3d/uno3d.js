@@ -114,11 +114,7 @@
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.35, metalness: 0.7 }), woodM = new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.15, side: THREE.DoubleSide });
     var DG = 1.5;                                                  // demi-ouverture laissée libre devant la porte de sortie
-    [[HX * 2, 0, -HZ + 0.04, 0], [HX - DG, -(HX + DG) / 2, HZ - 0.04, Math.PI], [HX - DG, (HX + DG) / 2, HZ - 0.04, Math.PI], [HZ * 2, -HX + 0.04, 0, Math.PI / 2], [HZ * 2, HX - 0.04, 0, -Math.PI / 2]].forEach(function (d) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(d[0], 1.2), new THREE.MeshStandardMaterial({ color: 0x3a1f10, roughness: 0.5, metalness: 0.15 })); m.position.set(d[1], 0.6, d[2]); m.rotation.y = d[3]; g.add(m);
-    });
-    [[HX * 2, 0.12, 0.1, 0, 1.2, -HZ + 0.05], [HX - DG, 0.12, 0.1, -(HX + DG) / 2, 1.2, HZ - 0.05], [HX - DG, 0.12, 0.1, (HX + DG) / 2, 1.2, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 1.2, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 1.2, 0],
-      [HX * 2, 0.2, 0.2, 0, H - 0.1, -HZ + 0.1], [HX * 2, 0.2, 0.2, 0, H - 0.1, HZ - 0.1], [0.2, 0.2, HZ * 2, -HX + 0.1, H - 0.1, 0], [0.2, 0.2, HZ * 2, HX - 0.1, H - 0.1, 0]].forEach(function (d) { box(g, d[0], d[1], d[2], gold, d[3], d[4], d[5]); });
+    // (plus de lambris ni de bandes dorées : les murs sont seulement tapissés)
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a0608 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
     /* --- fauteuils capitonnés (le même modèle que le blackjack et les gobelets) --- */
@@ -207,7 +203,7 @@
     var arrowOutM = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, color: 0x1a1208, transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     var headArrowGeo = new THREE.ConeGeometry(0.13, 0.3, 18); headArrowGeo.rotateX(Math.PI); var headArrowM = new THREE.MeshBasicMaterial({ color: 0xffe35a });
     var cardGeo = new THREE.PlaneGeometry(0.29, 0.435), bigCardGeo = new THREE.PlaneGeometry(0.48, 0.72), pileCardGeo = new THREE.PlaneGeometry(0.24, 0.36), backM = new THREE.MeshBasicMaterial({ map: unoBackTex() });
-    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.62, 48);
+    var chairs = [], TV = {}, ringGeo = new THREE.CircleGeometry(0.5, 48);
     function addChair(ch) {                                          // une place : le fauteuil, la zone cliquable pour s'asseoir et ses repères
       ch.yaw = Math.atan2(ch.tx - ch.x, -(ch.tz - ch.z)); ch.sx = ch.x + (ch.x - ch.tx) * 0.45; ch.sz = ch.z + (ch.z - ch.tz) * 0.45; chairs.push(ch);
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(ch.x, 0.7, ch.z); g.add(hit);
@@ -221,28 +217,32 @@
       chars.forEach(function (ch) { var w = c.measureText(ch).width; a -= w / 2 / R; c.save(); c.rotate(a + Math.PI / 2); c.translate(0, -R); c.rotate(Math.PI); c.fillText(ch, 0, 0); c.restore(); a -= w / 2 / R; });   // haut des lettres vers la table : lisible quand on est autour
       c.strokeStyle = 'rgba(230,199,102,0.55)'; c.lineWidth = 5; [R - fs1 * 0.85, R + fs1 * 0.85].forEach(function (r) { c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); });
       return new THREE.MeshBasicMaterial({ map: mkTex(cv), transparent: true, depthWrite: false });
-    })(), creditGeo = new THREE.PlaneGeometry(6.4, 6.4);   // l'anneau de texte passe à 2,6 m du centre : au pied de la table, juste au bord du plateau (lisible debout)
+    })(), creditGeo = new THREE.PlaneGeometry(2.44, 2.44);   // l'anneau de texte passe à 1 m du centre : caché sous le plateau, autour du pied
+    var DECK_X = -0.36, DISC_X = 0.3;                      // la pioche et la défausse, côte à côte au centre de la table
     UNO_P.forEach(function (pp, ti) {
       var tz = pp[1], UNO_X = pp[0];
       var t = new THREE.Group(), tid = 'u' + ti; t.position.set(UNO_X, 0, tz); g.add(t);
       var rug = new THREE.Mesh(new THREE.CircleGeometry(4.15, 64), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
-      var credit = new THREE.Mesh(creditGeo, creditMat); credit.rotation.x = -Math.PI / 2; credit.position.y = 0.016; t.add(credit);   // crédit de l'auteur des cartes, au pied de la table
+      var credit = new THREE.Mesh(creditGeo, creditMat); credit.rotation.x = -Math.PI / 2; credit.position.y = 0.016; t.add(credit);   // crédit de l'auteur des cartes, caché sous la table
       cyl(t, UR, UR, 0.1, [edgeM, unoFelt, edgeM], 0, 0.8, 0, 64);
       var rim = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.105, 12, 80), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.86; t.add(rim);
       cyl(t, UR - 0.05, UR - 0.05, 0.13, edgeM, 0, 0.72, 0, 64); var skirt = new THREE.Mesh(new THREE.TorusGeometry(UR - 0.05, 0.024, 8, 80), gold); skirt.rotation.x = Math.PI / 2; skirt.position.y = 0.655; t.add(skirt);
       var inl = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.013, 6, 64), gold); inl.rotation.x = Math.PI / 2; inl.position.y = 0.915; t.add(inl);
       lathe(t, [[0.001, 0.0], [0.5, 0.0], [0.52, 0.03], [0.44, 0.07], [0.28, 0.12], [0.18, 0.22], [0.15, 0.4], [0.19, 0.55], [0.26, 0.68], [0.001, 0.75]].map(function (q) { return [q[0] * 1.35, q[1]]; }), woodM, 32);
       [[0.5 * 1.35, 0.03, 0.03], [0.18 * 1.35, 0.22, 0.024]].forEach(function (d) { var r = new THREE.Mesh(new THREE.TorusGeometry(d[0], d[2], 8, 32), gold); r.rotation.x = Math.PI / 2; r.position.y = d[1]; t.add(r); });
-      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.07, 0.375), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(-0.62, 0.885, 0); pile.rotation.y = 0.15; t.add(pile);
-      var pt = new THREE.Mesh(pileCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(-0.62, 0.922, 0); t.add(pt);
+      var pile = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.07, 0.375), new THREE.MeshBasicMaterial({ color: 0x15151a })); pile.position.set(DECK_X, 0.885, 0); pile.rotation.y = 0.15; t.add(pile);
+      var pt = new THREE.Mesh(pileCardGeo, backM); pt.rotation.x = -Math.PI / 2; pt.rotation.z = 0.15; pt.position.set(DECK_X, 0.922, 0); t.add(pt);
       var tv = TV[tid] = { kind: 'u', group: t, hands: [], labels: [], heads: [], arrows: [], badges: [] };
+      tv.deckHit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.62), new THREE.MeshBasicMaterial({ visible: false })); tv.deckHit.position.set(DECK_X, 0.95, 0); t.add(tv.deckHit);   // on pioche en cliquant sur le paquet
+      tv.deckArrow = new THREE.Group(); tv.deckArrow.position.set(DECK_X, 1.2, 0); tv.deckArrow.visible = false; t.add(tv.deckArrow);                                                        // petite flèche : « pioche ici »
+      (function () { var am2 = new THREE.MeshBasicMaterial({ color: 0xffe35a }), cone = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 20), am2); cone.rotation.x = Math.PI; tv.deckArrow.add(cone); var st2 = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.12, 12), am2); st2.position.y = 0.12; tv.deckArrow.add(st2); })();
       for (var aq = 0; aq < 4; aq++) {                                       // flèches de sens de jeu, dans les espaces entre les mains
         var am = (aq + 0.5) / 4 * TAU + Math.PI / 4, ag = new THREE.Group(); ag.position.set(Math.cos(am) * UARR, 0.884, Math.sin(am) * UARR);
         var ash0 = new THREE.Mesh(arrowGeoOut, arrowOutM); ash0.rotation.x = -Math.PI / 2; ash0.renderOrder = 5; ag.add(ash0); var ash = new THREE.Mesh(arrowGeo, arrowM); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.002; ash.renderOrder = 6; ag.add(ash); ag.visible = false; t.add(ag); tv.arrows.push({ g: ag, am: am, phi: am + Math.PI / 2 });
       }
-      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(0.5, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
-      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(0.44, 0.866, 0.08); tv.top2.visible = false; t.add(tv.top2);
-      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(0.5, 0.873, 0); tv.top.visible = false; t.add(tv.top);
+      tv.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x888888 })); tv.ring.rotation.x = -Math.PI / 2; tv.ring.position.set(DISC_X, 0.861, 0); tv.ring.visible = false; t.add(tv.ring);
+      tv.top2 = new THREE.Mesh(bigCardGeo, backM); tv.top2.rotation.x = -Math.PI / 2; tv.top2.rotation.z = 0.5; tv.top2.position.set(DISC_X - 0.06, 0.866, 0.08); tv.top2.visible = false; t.add(tv.top2);
+      tv.top = new THREE.Mesh(bigCardGeo, backM); tv.top.rotation.x = -Math.PI / 2; tv.top.rotation.z = -0.2; tv.top.position.set(DISC_X, 0.873, 0); tv.top.visible = false; t.add(tv.top);
       for (var s = 0; s < 4; s++) {
         var sa = s / 4 * TAU + Math.PI / 4, hg = [];
         for (var k = 0; k < 9; k++) { var hc = new THREE.Mesh(cardGeo, backM); hc.rotation.x = -Math.PI / 2; hc.visible = false; t.add(hc); hg.push(hc); }
@@ -310,7 +310,7 @@
        Chaque table a un « état » (voir minijeux-regles.js) avec un numéro de version. Celui qui joue modifie l'état, le numéro augmente
        et l'état complet est envoyé à tous ; chacun garde la version la plus récente. Quelqu'un qui arrive demande l'état des tables.
        ===================================================================== */
-    var MJ = F.mj, TIDS = Object.keys(TV), G = {}, seat = null, ui = null, view = { yaw: 0, pitch: 0 }, pendingWild = -1, errMsg = '', errT = 0, standEl = null, missing = {}, anims = [], pruneT = 0;
+    var MJ = F.mj, TIDS = Object.keys(TV), G = {}, seat = null, ui = null, showAll = false, autoKey = '', autoAt = 0, view = { yaw: 0, pitch: 0 }, pendingWild = -1, errMsg = '', errT = 0, standEl = null, missing = {}, anims = [], pruneT = 0;
     var CARD_RE = /^[0-4][0-9SRDWF]$/;
     function me() { return F.me(); }
     function myName() { try { return String(state.username || '').slice(0, 20); } catch (e) { return ''; } }
@@ -374,10 +374,12 @@
       var tv = TV[tid], st = G[tid]; if (!tv || !st) return;
       if (tv.kind === 'u') renderUno(tv, st, tid); else renderC4(tv, st, tid);
     }
+    function topRot(tid) { var hh = seat && seat.tid === tid && TV[tid] && TV[tid].hands[seat.local]; return hh ? Math.PI / 2 - hh.sa - 0.2 : -0.2; }
     function renderUno(tv, st, tid) {
       var di = tv.pendingTop ? st.disc.length - 2 : st.disc.length - 1, top = st.disc[di];
       tv.top.visible = tv.ring.visible = !!top;
       var prev = st.disc[di - 1]; tv.top2.visible = !!prev; if (prev) tv.top2.material = faceMat(prev);
+      var rz0 = topRot(tid); tv.top.rotation.z = rz0; tv.top2.rotation.z = rz0 + 0.7;
       if (top) { tv.top.material = faceMat(top, st.col); tv.ring.material.color.set(st.col >= 0 && st.col < 4 ? COLORS[st.col] : '#888888'); }
       for (var s = 0; s < 4; s++) {
         var e = st.seats[s], hand = st.hands[s], n = hand ? hand.length : 0, h = tv.hands[s], vis = (seat && seat.tid === tid && seat.local === s) ? 0 : Math.min(n, 9), sa = h.sa, lb = tv.labels[s];
@@ -430,7 +432,8 @@
         '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       s.textContent += '.mj3d.uno{background:transparent;border:0;box-shadow:none;width:min(1000px,98%);bottom:52px;animation:none}.mj3d.uno .mj-msg,.mj3d.uno .mj-pl{align-self:center;background:rgba(8,5,12,.62);border-radius:999px;padding:3px 16px;text-shadow:0 1px 3px #000}.mj3d.uno .mj-hand{padding-top:26px}.mj3d.uno .mj-hand img{width:86px;box-shadow:0 8px 18px rgba(0,0,0,.55)}.mj3d.uno .mj-hand button.ok{transform:translateY(-16px)}.mj3d.uno .mj-hand button:hover{transform:translateY(-24px)}';
-      s.textContent += '.mj-badge{position:absolute;left:50%;top:70px;transform:translateX(-50%) scale(.9);z-index:4;pointer-events:none;padding:12px 34px;border-radius:999px;background:linear-gradient(180deg,rgba(255,214,77,.96),rgba(214,150,20,.96));border:2px solid #fff3b0;color:#2a1a00;font-weight:900;font-size:24px;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 0 0 rgba(255,214,77,0);opacity:0;transition:opacity .3s,transform .3s}.mj-badge.on{opacity:1;transform:translateX(-50%) scale(1);animation:mjTurn 1.1s ease-in-out infinite alternate}@keyframes mjTurn{from{box-shadow:0 0 12px rgba(255,214,77,.5)}to{box-shadow:0 0 40px rgba(255,214,77,1),0 0 90px rgba(255,180,40,.55)}}.mj3d .mj-msg:empty{display:none}';
+      s.textContent += '.mj-badge{position:absolute;left:50%;top:70px;transform:translateX(-50%) scale(.9);z-index:4;pointer-events:none;padding:12px 34px;border-radius:999px;background:linear-gradient(180deg,rgba(255,214,77,.96),rgba(214,150,20,.96));border:2px solid #fff3b0;color:#2a1a00;font-weight:900;font-size:24px;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 0 0 rgba(255,214,77,0);opacity:0;transition:opacity .3s,transform .3s}.mj-badge.on{opacity:1;transform:translateX(-50%) scale(1);animation:mjTurn 1.1s ease-in-out infinite alternate}@keyframes mjTurn{from{box-shadow:0 0 12px rgba(255,214,77,.5)}to{box-shadow:0 0 40px rgba(255,214,77,1),0 0 90px rgba(255,180,40,.55)}}.mj3d .mj-msg:empty{display:none}.mj3d.uno .mj-pl{display:none!important}' +
+        '.mj3d .mj-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-height:58vh;overflow-y:auto;padding:12px;background:rgba(8,5,12,.93);border:1px solid rgba(201,162,39,.6);border-radius:14px}.mj3d .mj-grid button{border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;opacity:.5}.mj3d .mj-grid button.ok{opacity:1;border-color:#ffe35a}.mj3d .mj-grid img{display:block;width:78px;height:auto;border-radius:6px}@media (max-height:520px){.mj3d .mj-grid{max-height:62vh;gap:5px;padding:8px}.mj3d .mj-grid img{width:50px}}';
       s.textContent += '.mj-fxpop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:9;pointer-events:none;font-weight:900;font-size:clamp(54px,10vw,120px);color:#fff;text-shadow:0 5px 0 #000,0 0 34px currentColor;animation:mjFx 1.5s ease-out forwards}@keyframes mjFx{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}35%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.1)}}';
       s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}}';
       document.head.appendChild(s);
@@ -456,7 +459,7 @@
       if (st.ph !== 'play') return;
       if (kindOf(tid) === 'u') {
         var oh = old.hands && old.hands[loc], nh = st.hands && st.hands[loc];
-        if (st.org !== me() && mine && st.pend > 0 && old.pend !== st.pend) { toast('⚠️ +' + st.pend + ' !', 'hit', 'Réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche ' + st.pend + ' cartes'); return; }
+        if (st.org !== me() && mine && st.pend > 0 && old.pend !== st.pend) { var canSt = (st.hands[loc] || []).some(function (c) { return MJ.unoCanPlay(st, c); }); toast('⚠️ +' + st.pend + ' !', 'hit', canSt ? 'Réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou touche le paquet pour piocher ' + st.pend + ' cartes' : 'Tu pioches ' + st.pend + ' cartes'); return; }
         if (st.org !== me() && old.vuln === loc && st.vuln === -1 && oh && nh && nh.length >= oh.length + 2) { toast('😱 Contre UNO !', 'hit', 'Tu avais oublié de dire UNO : +2 cartes'); return; }
         if (st.org !== me() && st.hands && st.hands[loc] && st.vuln >= 0 && st.vuln !== loc && old.vuln !== st.vuln) { toast('⚠️ ' + ((st.seats[st.vuln] || {}).name || 'Un joueur') + " n'a pas dit UNO !", 'skip', 'Vite : appuie sur CONTRE UNO (C)'); return; }
         if (st.org !== me() && /crie UNO|: UNO !/.test(msg) && old.msg !== msg && !mine) toast('📣 UNO !', 'info', msg);
@@ -464,7 +467,7 @@
         if (st.org !== me() && msg.indexOf(nm0 + ' passe son tour') >= 0) { toast('⛔ Ton tour est passé !', 'skip', msg); return; }
         if (st.org !== me() && /Le sens change|Sens inversé/.test(msg) && !mine) toast('🔄 Le sens du jeu change', 'info');
       }
-      if (mine && (old.ph !== 'play' || old.turn !== loc)) toast('👉 À toi de jouer', 'turn');
+      if (mine && (old.ph !== 'play' || old.turn !== loc)) ding([660, 880]);          // le grand bandeau jaune suffit : plus de petit bandeau vert
     }
     /* --- animations des cartes spéciales : +2, +4, UNO (visibles de toute la salle, dessinées sur la table) --- */
     var fxs = [];
@@ -483,7 +486,7 @@
       for (var q = 0; q < Math.min(n, 8); q++) (function (q) {
         var m = new THREE.Mesh(cardGeo, backM); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
         var tx = Math.cos(h.sa) * UHR, tz = Math.sin(h.sa) * UHR;
-        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(-0.62 + (tx + 0.62) * e, 0.95 + Math.sin(v * Math.PI) * 0.6, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
+        fxAdd({ dur: 0.85 + q * 0.16, upd: function (u, t) { var d = q * 0.16; if (t < d) { m.visible = false; return; } var v = Math.min(1, (t - d) / 0.85); m.visible = true; var e = v * v * (3 - 2 * v); m.position.set(DECK_X + (tx - DECK_X) * e, 0.95 + Math.sin(v * Math.PI) * 0.6, (tz) * e); m.rotation.z = v * 9; }, end: function () { tv.group.remove(m); } });
       })(q);
     }
     var lastFxVer = {}, lastVoice = { f: '', t: 0 }, vq = [], vNow = null, COLOR_VOICE = ['rouge', 'jaune', 'vert', 'bleu'];
@@ -491,7 +494,7 @@
     function vPump() {
       if (vNow || !vq.length) return;
       var o = vq.shift(); if (performance.now() - o.t > 9000) { vPump(); return; }
-      var vol = Math.min(1, masterVol() * 0.45);      // voix du jeu : très basses if (vol <= 0) { vPump(); return; }
+      var vol = Math.min(1, masterVol() * 0.2);      // voix du jeu : très basses if (vol <= 0) { vPump(); return; }
       try {
         var a = new Audio('assets/sons/' + (o.f.indexOf('/') >= 0 ? o.f : 'uno/' + o.f) + '.mp3'); a.volume = vol; vNow = a;
         var done = function () { if (vNow === a) { vNow = null; vPump(); } };
@@ -506,8 +509,8 @@
       var m = new THREE.Mesh(bigCardGeo, faceMat(card)); m.rotation.x = -Math.PI / 2; m.visible = false; tv.group.add(m);
       var x0 = Math.cos(hh.sa) * (UHR + 0.5), z0 = Math.sin(hh.sa) * (UHR + 0.5), r0 = -hh.sa - Math.PI / 2;
       tv.pendingTop = true; renderTable(tid);
-      fxAdd({ dur: 0.55, upd: function (u) { m.visible = true; var e = u * u * (3 - 2 * u); m.position.set(x0 + (0.5 - x0) * e, 0.95 + Math.sin(u * Math.PI) * 0.5, z0 + (0 - z0) * e); m.rotation.z = r0 + (-0.2 - r0) * e + (1 - e) * 2.2; var k = 1.25 - 0.25 * e; m.scale.set(k, k, 1); },
-        end: function () { tv.group.remove(m); tv.pendingTop = false; renderTable(tid); fxRing(tv, 0xffffff, 0.5, 0); } });
+      fxAdd({ dur: 0.55, upd: function (u) { m.visible = true; var e = u * u * (3 - 2 * u); m.position.set(x0 + (DISC_X - x0) * e, 0.95 + Math.sin(u * Math.PI) * 0.5, z0 + (0 - z0) * e); m.rotation.z = r0 + (topRot(tid) - r0) * e + (1 - e) * 2.2; var k = 1.25 - 0.25 * e; m.scale.set(k, k, 1); },
+        end: function () { tv.group.remove(m); tv.pendingTop = false; renderTable(tid); fxRing(tv, 0xffffff, DISC_X, 0); } });
     }
     function fx3d(tid, old, st) {
       try {
@@ -519,7 +522,7 @@
         if ((lastFxVer[tid] || 0) >= st.ver) return; lastFxVer[tid] = st.ver;                 // chaque changement d'état n'est traité qu'une fois : jamais deux sons d'affilée
         var seatNow = seat && seat.tid === tid, said = {};
         // voix du jeu : entendues seulement par ceux qui sont assis à cette table (pas par les gens autour) ; celle du gagnant n'est entendue que par lui
-        function voice(file) { var now = performance.now(); if (!seatNow || (lastVoice.f === file && now - lastVoice.t < 1500)) return; lastVoice = { f: file, t: now }; vq.push({ f: file, t: now }); vPump(); }
+        function voice(file) { var now = performance.now(); if (!seatNow || (lastVoice.f === file && now - lastVoice.t < 6000) || vq.some(function (q) { return q.f === file; })) return; lastVoice = { f: file, t: now }; vq.push({ f: file, t: now }); vPump(); }
         var chance = function (k, pct) { return hash(st.ver * 31 + k) % 100 < pct; };                // tirage identique pour tous les joueurs de la table
         // voix des +2 / +4 / +6 / +8 : parfois aucune, et deux enregistrements pour chaque +2, +4, +6, +8 (le nouveau plus souvent). Le tirage vient du numéro de l'état : tous les joueurs de la table entendent la même chose.
         function plusVoice(n) { var r = hash(st.ver) % 100; if (r < 25) return; voice('plus' + n + (hash(st.ver + 7) % 3 !== 0 ? 'b' : '')); }
@@ -532,12 +535,12 @@
           if (vict >= 0 && tv.hands[vict]) { var vp = seatFxPos(tv, vict); if (v === 'S') fxText(tv, '⛔', '#ffd24a', vp[0], vp[1]); else if (v === 'D' || v === 'F') fxText(tv, v === 'D' ? '+2' : '+4', v === 'D' ? '#ff6a4a' : '#d946ef', vp[0], vp[1]); }
           if (v === 'D' || v === 'F') {
             var col = v === 'D' ? '#ff6a4a' : '#d946ef';
-            fxText(tv, v === 'D' ? '+2' : '+4', col, 0.5, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, 0.5, 0);
+            fxText(tv, v === 'D' ? '+2' : '+4', col, DISC_X, 0); fxRing(tv, v === 'D' ? 0xff6a4a : 0xd946ef, DISC_X, 0);
             var pn = Math.max(2, Math.min(8, Math.round((st.pend > 0 ? st.pend : (v === 'D' ? 2 : 4)) / 2) * 2)); plusVoice(pn);
             if (old.pend > 0 && st.pend > old.pend && (v === 'D' || v === 'F')) voice('quipioche');       // un +2 sur un +2, un +4 sur un +4 : qui va devoir piocher ?
             if (seatNow) { ding([330, 220, 165]); if (st.turn !== seat.local && st.org !== me()) toast('💥 ' + ((st.seats[old.turn] || {}).name || 'Un joueur') + ' joue un ' + (v === 'D' ? '+2' : '+4') + ' !', 'info'); }
-          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', 0.5, 0);
-          if ((v === 'W' || v === 'F') && st.col >= 0 && st.col < 4) fxRing(tv, new THREE.Color(COLORS[st.col]).getHex(), 0.5, 0);
+          } else if (v === 'S' || v === 'R') fxText(tv, v === 'S' ? '⛔' : '🔄', '#ffd24a', DISC_X, 0);
+          if ((v === 'W' || v === 'F') && st.col >= 0 && st.col < 4) fxRing(tv, new THREE.Color(COLORS[st.col]).getHex(), DISC_X, 0);
           if (v === 'W' || v === 'F') {                                                  // changement de couleur : la même qu'avant -> Cléa ; sinon, parfois, « changement de couleur » puis la couleur choisie
             if (st.col === old.col) voice('clea'); else if (chance(2, 65)) { voice('changement'); voice(COLOR_VOICE[st.col]); }
           }
@@ -547,7 +550,7 @@
           if (nh.length >= oh.length + 1) fxFlyers(tv, s, nh.length - oh.length);
           if (old.pend > 0 && st.pend === 0 && nh.length >= oh.length + 2 && seat && seat.local === s) voice('tupioche');      // celui qui paie la pénalité : « tu pioches »
           if (st.said && st.said[s] && !(old.said && old.said[s])) voice('uno');
-          if ((nh.length === 1 && oh.length !== 1) || (st.said && st.said[s] && !(old.said && old.said[s]))) {
+          if (st.said && st.said[s] && !(old.said && old.said[s])) {                  // seulement quand le joueur dit UNO (plus une deuxième fois en posant l'avant-dernière carte)
             if (said[s]) continue; said[s] = 1; var hh = tv.hands[s];
             fxText(tv, 'UNO !', '#ffe35a', Math.cos(hh.sa) * (UHR + 0.1), Math.sin(hh.sa) * (UHR + 0.1)); fxRing(tv, 0xffe35a, Math.cos(hh.sa) * UHR, Math.sin(hh.sa) * UHR);
             if (seatNow) ding([660, 880, 1100]);
@@ -566,12 +569,12 @@
         var b = e.target.closest('button'); if (!b || b.disabled || !seat) return;
         var a = b.dataset.a, tid = seat.tid, loc = seat.local, err = '';
         if (a === 'start') err = mutate(tid, function (st) { return kindOf(tid) === 'u' ? MJ.unoStart(st) : MJ.c4Start(st); });
-        else if (a === 'draw') err = mutate(tid, function (st) { return MJ.unoDrawTurn(st, loc); });
+        else if (a === 'all') { showAll = !showAll; refreshUi(); }
         else if (a === 'pass') err = mutate(tid, function (st) { return MJ.unoPass(st, loc); });
         else if (a === 'uno') err = mutate(tid, function (st) { return MJ.unoSayUno(st, loc); });
         else if (a === 'counter') err = mutate(tid, function (st) { return MJ.unoCounter(st, loc); });
         else if (a === 'card') playCard(+b.dataset.i);
-        else if (a === 'color') { var i = pendingWild; pendingWild = -1; err = mutate(tid, function (st) { return MJ.unoPlay(st, loc, i, +b.dataset.c); }); }
+        else if (a === 'color') { var i = pendingWild; pendingWild = -1; showAll = false; err = mutate(tid, function (st) { return MJ.unoPlay(st, loc, i, +b.dataset.c); }); }
         else if (a === 'nocolor') { pendingWild = -1; refreshUi(); }
         else if (a === 'col') err = dropCol(+b.dataset.c);
         if (err) { errMsg = err; errT = 3; refreshUi(); }
@@ -584,7 +587,23 @@
       if (!MJ.unoCanPlay(st, hand[i])) { errMsg = st.pend > 0 ? 'Il y a un +' + st.pend + ' en attente : réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche.' : 'Cette carte ne va pas.'; errT = 3; refreshUi(); return; }
       if (MJ.cardColor(hand[i]) === 4) { if (st.drawn && hand[i] !== st.drawn) { errMsg = 'Tu peux seulement poser la carte piochée, ou passer.'; errT = 3; } else pendingWild = i; refreshUi(); return; }
       var e = mutate(seat.tid, function (s2) { return MJ.unoPlay(s2, seat.local, i, -1); });
-      if (e) { errMsg = e; errT = 3; refreshUi(); }
+      if (e) { errMsg = e; errT = 3; refreshUi(); } else if (showAll) { showAll = false; refreshUi(); }
+    }
+    // piocher : on clique sur le paquet au centre de la table, seulement quand on ne peut rien poser (ou pour payer un +2 / +4)
+    function mustDraw(st) {
+      if (!seat || !st || st.ph !== 'play' || st.turn !== seat.local || st.wait >= 0 || st.drawn) return false;
+      var hd = st.hands[seat.local]; if (!hd) return false;
+      return st.pend > 0 || !hd.some(function (c) { return MJ.unoCanPlay(st, c); });
+    }
+    function drawFromDeck() {
+      if (!seat || kindOf(seat.tid) !== 'u') return;
+      var st = getSt(seat.tid), loc = seat.local, err = '';
+      if (st.ph !== 'play' || !st.hands[loc]) return;
+      if (st.turn !== loc || st.wait >= 0) err = 'Ce n\'est pas ton tour.';
+      else if (st.drawn) err = 'Pose la carte piochée ou passe.';
+      else if (!mustDraw(st)) err = 'Tu as une carte que tu peux poser : on pioche seulement quand on ne peut rien jouer.';
+      else err = mutate(seat.tid, function (s2) { return MJ.unoDrawTurn(s2, loc); });
+      if (err) { errMsg = err; errT = 3; refreshUi(); }
     }
     function dropCol(c) { var tid = seat.tid, loc = seat.local; return mutate(tid, function (st) { return MJ.c4Drop(st, loc, c); }); }
     function refreshUi() {
@@ -605,12 +624,13 @@
         var hand = st.hands[seat.local] || [];
         if (pendingWild >= 0) body = '<div class="mj-row">' + COLORS.map(function (c, k) { return '<button class="mj-clr" data-a="color" data-c="' + k + '" style="background:' + c + '"></button>'; }).join('') + '<button class="mj-b alt" data-a="nocolor">Annuler</button></div>';
         else {
-          if (hand.length) {                                  // toute la main tient sur la largeur : plus il y a de cartes, plus elles se chevauchent
+          if (hand.length && showAll) body += '<div class="mj-grid">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';   // toutes mes cartes, en grand, sans chevauchement
+          else if (hand.length) {                                  // toute la main tient sur la largeur : plus il y a de cartes, plus elles se chevauchent
             var bw = (window.matchMedia && window.matchMedia('(max-height:520px)').matches ? 40 : 86) + 4, availW = Math.max(240, ui.el.clientWidth - 30), step = hand.length > 1 ? Math.min(bw + 6, (availW - bw) / (hand.length - 1)) : 0;
             body += '<div class="mj-hand">' + hand.map(function (c, i) { return '<button data-a="card" data-i="' + i + '" style="' + (i ? 'margin-left:' + Math.round(step - bw) + 'px;' : '') + 'z-index:' + i + '" class="' + (mine && MJ.unoCanPlay(st, c) && (!st.drawn || st.drawn === c) ? 'ok' : '') + '"><img src="' + faceImg(c) + '" alt=""></button>'; }).join('') + '</div>';
           }
           body += '<div class="mj-row">';
-          if (st.ph === 'play' && hand.length) body += '<button class="mj-b" data-a="draw"' + (mine && !st.drawn ? '' : ' disabled') + '>🂠 Piocher' + (st.pend > 0 ? ' ' + st.pend : '') + '</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
+          if (st.ph === 'play' && hand.length) body += '<button class="mj-b alt" data-a="all">' + (showAll ? '✖ Fermer' : '🃏 Mes cartes (' + hand.length + ')') + '</button>' + (st.drawn && mine ? '<button class="mj-b alt" data-a="pass">Passer</button>' : '')
             + ((st.vuln === seat.local || (mine && hand.length === 2 && !(st.said && st.said[seat.local]) && hand.some(function (c) { return MJ.unoCanPlay(st, c); }))) ? '<button class="mj-b uno" data-a="uno">📣 UNO ! <kbd>U</kbd></button>' : '')
             + (st.vuln >= 0 && st.vuln !== seat.local ? '<button class="mj-b red" data-a="counter">⚡ CONTRE UNO ! <kbd>C</kbd></button>' : '');
           else if (st.ph === 'play') body += '<div style="font-weight:800;font-size:13px;color:#c9b88a;text-align:center">👀 Une partie est en cours : tu joueras à la prochaine manche, quand elle sera finie.</div>';
@@ -652,7 +672,7 @@
     }
     function stand(silent) {
       if (!seat) return;
-      var s = seat; seat = null; pendingWild = -1; if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl); toastEl = null; if (badgeEl && badgeEl.parentNode) badgeEl.parentNode.removeChild(badgeEl); badgeEl = null; renderTable(s.tid);
+      var s = seat; seat = null; pendingWild = -1; showAll = false; if (TV[s.tid] && TV[s.tid].deckArrow) TV[s.tid].deckArrow.visible = false; if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl); toastEl = null; if (badgeEl && badgeEl.parentNode) badgeEl.parentNode.removeChild(badgeEl); badgeEl = null; renderTable(s.tid);
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
@@ -678,6 +698,7 @@
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: u ? 72 : 62 };
     };
     room.seatClick = function (ray) {
+      if (seat && kindOf(seat.tid) === 'u') { var tvd = TV[seat.tid]; if (tvd && tvd.deckHit && ray.intersectObject(tvd.deckHit, false)[0]) drawFromDeck(); return; }
       if (!seat || kindOf(seat.tid) !== 'c') return;
       var hit = ray.intersectObjects(TV[seat.tid].hits, false)[0];
       if (!hit) return;
@@ -734,11 +755,20 @@
         tv.arrows.forEach(function (a) {
           a.g.visible = on; if (!on) return;
           var target = a.am + dir * Math.PI / 2, d = target - a.phi; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
-          a.phi += d * Math.min(1, dt * 5); a.g.rotation.y = -a.phi; a.g.scale.setScalar(pulse);
+          a.phi += d * Math.min(1, dt * 5); a.g.rotation.y = -a.phi; a.g.scale.setScalar(pulse * 0.6);
           a.g.children.forEach(function (m) { m.scale.y = dir > 0 ? -1 : 1; });          // la flèche courbe se plie toujours autour de la table
         });
         tv.heads.forEach(function (h, s2) { var act = on && st.turn === s2 && st.hands[s2] && !(st.wait >= 0 && false); h.visible = act; if (act) { h.position.y = 2.8 + 0.09 * Math.sin(arrowClock * 5); h.rotation.y += dt * 2; } });
       });
+      TIDS.forEach(function (tid3) { var tv3 = TV[tid3]; if (!tv3 || tv3.kind !== 'u' || !tv3.deckArrow) return; var on3 = !!seat && seat.tid === tid3 && mustDraw(G[tid3]); tv3.deckArrow.visible = on3; if (on3) { tv3.deckArrow.position.y = 1.2 + 0.06 * Math.sin(arrowClock * 5); tv3.deckArrow.rotation.y += dt * 2; } });
+      if (seat && kindOf(seat.tid) === 'u') {                                              // +2 / +4 reçu et rien pour répondre : les cartes sont piochées toutes seules (1,3 s plus tard)
+        var ast = G[seat.tid], aloc = seat.local, ahd = ast && ast.hands[aloc];
+        if (ast && ahd && ast.ph === 'play' && ast.turn === aloc && ast.pend > 0 && !(ast.wait >= 0) && !ast.drawn && !ahd.some(function (c) { return MJ.unoCanPlay(ast, c); })) {
+          var akey = seat.tid + '|' + ast.ver;
+          if (autoKey !== akey) { autoKey = akey; autoAt = performance.now() + 1300; }
+          else if (autoAt && performance.now() >= autoAt) { autoAt = 0; var aerr = mutate(seat.tid, function (s2) { return MJ.unoDrawTurn(s2, aloc); }); if (aerr) { errMsg = aerr; errT = 3; refreshUi(); } }
+        }
+      }
       if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
         var sst = G[seat.tid], skey = sst && sst.ph === 'play' && Object.keys(sst.hands).length > 1 ? sst.turn + '|' + sst.disc.length + '|' + (sst.pend | 0) + '|' + (sst.drawn || '') : '';
         if (skey !== slow.key) { slow.key = skey; slow.t = 0; slow.done = false; } else if (skey && !slow.done && (slow.t += dt) > 22) { slow.done = true; lastVoice = { f: 'trop-long', t: performance.now() }; vq.push({ f: 'trop-long', t: performance.now() }); vPump(); }
