@@ -392,7 +392,7 @@
         '.mus-now,.mus-q{background:rgba(255,255,255,.05);border-radius:12px;padding:10px}.mus-q{flex:1;overflow-y:auto}.mus-lab{font-size:11px;font-weight:800;letter-spacing:.12em;color:#b98cff;margin-bottom:6px}' +
         '.mus-it{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.07)}.mus-it:first-of-type{border-top:0}.mus-it img{width:64px;height:36px;object-fit:cover;border-radius:6px;background:#000;flex:none}' +
         '.mus-it div{min-width:0;flex:1;font-size:13px;font-weight:700;line-height:1.25}.mus-it small{display:block;font-size:11px;color:#ffd36a;font-weight:700}.mus-it span.t{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-        '.mus-it button{padding:5px 9px;font-size:12px}' +
+        '.mus-it button{padding:5px 9px;font-size:12px;flex:none}.mus-res{flex:1;overflow-y:auto;background:rgba(255,255,255,.05);border-radius:12px;padding:10px}.mus-res .mus-lab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mus-res .mus-lab button{padding:4px 8px;font-size:11px}' +
         '.mus-stand{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:6}.mus-stand button{cursor:pointer;background:rgba(8,5,12,.85);color:#fff;border:1.5px solid #b98cff;border-radius:12px;font-weight:800;font-size:13px;padding:10px 16px}.mus-stand kbd{opacity:.6;font-size:11px;margin-left:6px}' +
         '.mus-sound{position:absolute;left:50%;top:70px;transform:translateX(-50%);z-index:6;background:rgba(12,6,24,.92);border:1.5px solid #ffd36a;color:#ffe9a8;border-radius:12px;padding:8px 14px;font-weight:800;font-size:13px;pointer-events:none}';
       document.head.appendChild(st);
@@ -435,19 +435,62 @@
       });
     }
     var adding = false;
-    function doAdd() {
-      if (!desk || adding) return;
-      var inp = desk.el.querySelector('input'), id = parseVideoId(inp.value);
-      if (!F.token()) { setMsg('🔒 Connecte-toi pour ajouter une musique.', '#ff8a80'); return; }
-      if (!id) { setMsg('Colle un lien YouTube valide (youtube.com/watch?v=… ou youtu.be/…).', '#ff8a80'); return; }
+    function fmtDur(n) { return fmtT(n); }
+    function showQueue() { if (!desk) return; desk.results = null; desk.tracks = null; desk.el.querySelector('.mus-res').style.display = 'none'; desk.el.querySelector('.mus-now').style.display = ''; desk.el.querySelector('.mus-q').style.display = ''; }
+    function showResults(head, html) {
+      var box = desk.el.querySelector('.mus-res'); box.style.display = ''; desk.el.querySelector('.mus-now').style.display = 'none'; desk.el.querySelector('.mus-q').style.display = 'none';
+      box.innerHTML = '<div class="mus-lab"><button data-a="back">← File d\'attente</button> ' + esc(head) + '</div>' + html; box.scrollTop = 0;
+    }
+    function resultRow(r, i) {
+      return '<div class="mus-it"><img src="https://i.ytimg.com/vi/' + esc(r.videoId) + '/default.jpg" alt=""><div><span class="t">' + esc(r.title) + '</span><small>' + esc(r.by) + ' · ' + fmtDur(r.dur) + '</small></div><button data-a="pick" data-i="' + i + '">＋ Ajouter</button></div>';
+    }
+    // vérifie le clip (il doit pouvoir être lu ici) puis l'ajoute à la file ; done(true) si ajouté
+    function addVideo(id, done) {
       adding = true; setMsg('Vérification du clip…', '#d9cbff');
       probe(id, function (err, info) {
-        if (err || !info) { adding = false; setMsg(err || 'Clip inutilisable.', '#ff8a80'); return; }
+        if (err || !info) { adding = false; setMsg(err || 'Clip inutilisable.', '#ff8a80'); if (done) done(false); return; }
         apiPost({ action: 'add', videoId: id, title: info.title, dur: info.dur }).then(function (r) {
           adding = false;
-          if (r && r.ok) { adopt(r); if (desk) { inp.value = ''; setMsg(r.playing ? '▶ C\'est parti : ton clip passe maintenant !' : '✅ Ajouté : position ' + r.position + ' dans la file.', '#7ee0a0'); } syncClip(); }
-          else setMsg((r && r.error) || 'Ajout impossible.', '#ff8a80');
+          if (r && r.ok) {
+            adopt(r); syncClip();
+            if (desk) { desk.el.querySelector('input').value = ''; showQueue(); setMsg(r.playing ? '▶ C\'est parti : ton clip passe maintenant !' : '✅ Ajouté : position ' + r.position + ' dans la file.', '#7ee0a0'); }
+            if (done) done(true);
+          } else { setMsg((r && r.error) || 'Ajout impossible.', '#ff8a80'); if (done) done(false); }
         });
+      });
+    }
+    // titre Spotify : on cherche sa version YouTube et on essaie les meilleurs résultats jusqu'à en trouver un qui se lit ici
+    function addSpotifyTrack(t) {
+      if (adding) return; adding = true; setMsg('Recherche de « ' + t.title + ' »…', '#d9cbff');
+      apiPost({ action: 'search', q: (t.artist + ' ' + t.title).trim() }).then(function (r) {
+        adding = false;
+        if (!r || !r.ok || !r.results || !r.results.length) { setMsg((r && r.error) || 'Aucun clip trouvé pour ce titre.', '#ff8a80'); return; }
+        var list = r.results.slice(0, 3), k = 0;
+        (function next() {
+          if (k >= list.length) { setMsg('Aucune version lisible ici pour ce titre : cherche-le par son nom.', '#ff8a80'); return; }
+          var item = list[k++]; addVideo(item.videoId, function (ok) { if (!ok && desk) next(); });
+        })();
+      });
+    }
+    function go() {
+      if (!desk || adding) return;
+      var inp = desk.el.querySelector('input'), raw = inp.value.trim(), id = parseVideoId(raw);
+      if (!F.token()) { setMsg('🔒 Connecte-toi pour ajouter une musique.', '#ff8a80'); return; }
+      if (raw.length < 2) { setMsg('Écris un titre, un artiste, ou colle un lien YouTube / Spotify.', '#ff8a80'); return; }
+      if (id) { addVideo(id); return; }
+      adding = true; setMsg('Recherche…', '#d9cbff');
+      apiPost({ action: 'search', q: raw }).then(function (r) {
+        adding = false; if (!desk) return;
+        if (!r || !r.ok) { setMsg((r && r.error) || 'Recherche impossible.', '#ff8a80'); return; }
+        setMsg('', '');
+        if (r.tracks) {                                                   // album / playlist / artiste Spotify : on choisit les titres
+          desk.tracks = r.tracks;
+          showResults('Spotify · ' + (r.spotify.name || r.spotify.type) + ' (' + r.tracks.length + ' titres)', r.tracks.map(function (t, i) { return '<div class="mus-it"><div><span class="t">' + esc(t.title) + '</span><small>' + esc(t.artist) + '</small></div><button data-a="sp" data-i="' + i + '">＋ Ajouter</button></div>'; }).join(''));
+        } else {
+          desk.results = r.results || [];
+          if (!desk.results.length) { showResults('Aucun résultat', '<div class="mus-hint">Rien trouvé : essaie avec le nom de l\'artiste et du titre.</div>'); return; }
+          showResults(r.spotify ? 'Spotify · ' + r.spotify.title + ' — ' + r.spotify.artist : 'Résultats pour « ' + raw + ' »', desk.results.map(resultRow).join(''));
+        }
       });
     }
     function onDeskEsc(e) { if (e.code === 'Escape' && desk) { e.stopImmediatePropagation(); e.preventDefault(); closeDesk(); } }
@@ -456,18 +499,21 @@
       injectCss(); w.sitDown(room);
       var el = document.createElement('div'); el.className = 'mus-ov';
       el.innerHTML = '<div class="mus-h"><span>🎵 JUKEBOX</span><button data-a="close">Fermer ✕</button></div>' +
-        '<div class="mus-add"><input type="text" maxlength="200" placeholder="Colle un lien YouTube…" autocomplete="off" spellcheck="false"><button data-a="add">Ajouter</button></div>' +
-        '<div class="mus-msg"></div><div class="mus-now"></div><div class="mus-q"></div>' +
-        '<div class="mus-hint">Le clip passe sur le grand écran, avec le son, pour tous ceux qui sont dans la salle. 3 titres maximum par personne dans la file.</div>';
+        '<div class="mus-add"><input type="text" maxlength="200" placeholder="Titre, artiste, lien YouTube ou Spotify…" autocomplete="off" spellcheck="false"><button data-a="go">Chercher</button></div>' +
+        '<div class="mus-msg"></div><div class="mus-res" style="display:none"></div><div class="mus-now"></div><div class="mus-q"></div>' +
+        '<div class="mus-hint">Tape le nom d\'une chanson, ou colle un lien YouTube ou Spotify (titre, album, playlist). Le clip passe sur le grand écran, avec le son, pour tous ceux qui sont dans la salle. 3 titres maximum par personne dans la file.</div>';
       w.container.appendChild(el); desk = { el: el };
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b) return;
         var a = b.dataset.a;
         if (a === 'close') closeDesk();
-        else if (a === 'add') doAdd();
+        else if (a === 'go') go();
+        else if (a === 'back') showQueue();
+        else if (a === 'pick' && desk.results && !adding) addVideo(desk.results[+b.dataset.i].videoId);
+        else if (a === 'sp' && desk.tracks) addSpotifyTrack(desk.tracks[+b.dataset.i]);
         else if (a === 'skip' || a === 'remove') { b.disabled = true; apiPost({ action: a, id: b.dataset.id }).then(function (r) { if (r && r.ok) { adopt(r); syncClip(); setMsg(a === 'skip' ? '⏭ Titre passé.' : 'Titre retiré.', '#7ee0a0'); } else { b.disabled = false; setMsg((r && r.error) || 'Impossible.', '#ff8a80'); } }); }
       });
-      el.querySelector('input').addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') doAdd(); });
+      el.querySelector('input').addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go(); });
       window.addEventListener('keydown', onDeskEsc, true);
       renderDesk(); poll(); setMsg(F.token() ? '' : '🔒 Connecte-toi pour ajouter une musique.', '#ff8a80');
       if (!w.touch) setTimeout(function () { try { el.querySelector('input').focus(); } catch (e) { /* ok */ } }, 400);
@@ -484,7 +530,7 @@
     room.interactables.push({
       x: PCX, z: PCZ, radius: 2.8, hit: pcScreen,
       prompt: function () { return '🎵 Ajouter une musique — PC du jukebox  [F]'; },
-      use: function (w) { openDesk(w); }
+      use: function (w) { if (Math.hypot(w.player.x - PCX, w.player.z - PCZ) > 6) { w.flash('Approche-toi du PC.'); return; } openDesk(w); }
     });
 
     /* --- s'asseoir dans un fauteuil --- */
@@ -495,6 +541,7 @@
     function onSeatKey(e) { if (seat && (e.code === 'Escape' || e.code === 'KeyF')) { e.stopImmediatePropagation(); e.preventDefault(); stand(); } }
     function sit(w, s) {
       if (seat || desk || w.mode !== 'room' || w.blend > 0 || w.trans) return;
+      if (Math.hypot(w.player.x - s.x, w.player.z - s.z) > 6) { w.flash('Approche-toi du fauteuil.'); return; }       // clic de loin : trop loin pour s\'asseoir
       if (seatTaken(s)) { w.flash('Ce fauteuil est occupé.'); return; }
       injectCss(); w.sitDown(room); seat = s; view.yaw = view.pitch = 0;
       standEl = document.createElement('div'); standEl.className = 'mus-stand'; standEl.innerHTML = '<button>🛋️ Se lever <kbd>Échap</kbd></button>';
@@ -508,11 +555,13 @@
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
       world.standUp(s.sx, s.sz, s.yaw);
     }
+    var chairHitGeo = new THREE.BoxGeometry(0.95, 1.0, 0.95), chairHitMat = new THREE.MeshBasicMaterial({ visible: false });
     seats.forEach(function (s) {
+      var hm = new THREE.Mesh(chairHitGeo, chairHitMat); hm.position.set(s.x, 0.5, s.z); hm.rotation.y = -s.yaw; g.add(hm);     // zone de clic invisible : clic gauche sur le fauteuil pour s'asseoir
       room.interactables.push({
-        x: s.x, z: s.z, radius: 1.35,
+        x: s.x, z: s.z, radius: 1.35, hit: hm,
         enabled: function () { return !seat && !desk; },
-        prompt: function () { return seatTaken(s) ? '🛋️ Fauteuil occupé' : '🛋️ S\'asseoir dans le fauteuil  [F]'; },
+        prompt: function () { return seatTaken(s) ? '🛋️ Fauteuil occupé' : '🛋️ S\'asseoir dans le fauteuil  [F] ou clic'; },
         use: function (w) { sit(w, s); }
       });
     });
@@ -627,8 +676,8 @@
     });
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
     room.hint = function (w) {
-      return w.touch ? 'Joystick : marcher · approche-toi du PC au centre pour ajouter un clip · fauteuils : touche pour t\'asseoir'
-        : 'ZQSD / flèches : marcher · Maj : courir · F au PC du milieu : ajouter un clip sur le grand écran · F devant un fauteuil : t\'asseoir' + (w.full ? ' · Échap : quitter' : ' · clique-glisse : regarder');
+      return w.touch ? 'Joystick : marcher · touche le PC au centre pour ajouter un clip · touche un fauteuil pour t\'asseoir'
+        : 'ZQSD / flèches : marcher · Maj : courir · F ou clic sur le PC du milieu : chercher et ajouter un clip · F ou clic sur un fauteuil : t\'asseoir' + (w.full ? ' · Échap : quitter' : ' · clique-glisse : regarder');
     };
 
     /* ---------- vie de la salle : tout suit les niveaux de la musique ---------- */
