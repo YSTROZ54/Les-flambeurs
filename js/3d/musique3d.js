@@ -645,18 +645,28 @@
       for (n = 0; n < 3; n++) [-1, 1].forEach(function (s2) { addLed(s2 * (8.0 + n * 1.4), 4.3, -HZ + 0.07, 0.22, 3.0, 0.08, (n * 5 + 1) % NB, n * 0.9); });               // et de chaque côté de l'écran
     })();
     var ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), ledList.length), ledCol = new THREE.Color();
+    // halo : une copie plus épaisse en lumière additive autour de chaque LED (elle brille, la lumière déborde sur le mur)
+    var ledGlow = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), ledList.length);
     (function () {
       var m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc3 = new THREE.Vector3();
-      ledList.forEach(function (l, n) { m.compose(v.set(l.x, l.y, l.z), q, sc3.set(l.sx, l.sy, l.sz)); ledMesh.setMatrixAt(n, m); ledMesh.setColorAt(n, ledCol.setHex(0x000000)); });
-      ledMesh.frustumCulled = false; g.add(ledMesh);
+      function thick(d) { return d < 0.3 ? d * 1.7 : d; }
+      function halo(d) { return d < 0.3 ? d + 0.34 : d; }
+      ledList.forEach(function (l, n) {
+        m.compose(v.set(l.x, l.y, l.z), q, sc3.set(thick(l.sx), thick(l.sy), thick(l.sz))); ledMesh.setMatrixAt(n, m); ledMesh.setColorAt(n, ledCol.setHex(0x000000));
+        m.compose(v.set(l.x, l.y, l.z), q, sc3.set(halo(l.sx), halo(l.sy), halo(l.sz))); ledGlow.setMatrixAt(n, m); ledGlow.setColorAt(n, ledCol.setHex(0x000000));
+      });
+      ledMesh.frustumCulled = false; ledGlow.frustumCulled = false; g.add(ledMesh); g.add(ledGlow);
     })();
     function updateLeds() {
       var on = 1 - sil, nL = ledList.length, n;                              // sans musique : tout est éteint
       for (n = 0; n < nL; n++) {
-        var l = ledList[n], lv = Math.max(0, Math.min(1, sm[l.band] * (0.7 + 0.3 * Math.sin(clock * 4 + l.ph)))) * on;
-        ledMesh.setColorAt(n, ledCol.setHSL(((clock * 0.05 + n / nL * 0.9) % 1 + 1) % 1, 1, 0.012 + 0.5 * lv * lv));
+        var l = ledList[n], lv = Math.max(0, Math.min(1, sm[l.band] * 1.35 * (0.75 + 0.25 * Math.sin(clock * 4 + l.ph)))) * on, hu = ((clock * 0.05 + n / nL * 0.9) % 1 + 1) % 1;
+        ledCol.setHSL(hu, 1, 0.5).multiplyScalar(0.04 + 2.1 * lv);       // couleur pleine, poussée au-delà du blanc quand le son est fort
+        ledMesh.setColorAt(n, ledCol);
+        ledCol.setHSL(hu, 1, 0.5).multiplyScalar(1.4 * lv * lv);          // halo : seulement sur les temps forts
+        ledGlow.setColorAt(n, ledCol);
       }
-      ledMesh.instanceColor.needsUpdate = true;
+      ledMesh.instanceColor.needsUpdate = true; ledGlow.instanceColor.needsUpdate = true;
     }
 
     /* ---------- éclairage ---------- */
