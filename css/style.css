@@ -814,6 +814,18 @@ select {
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
+.init-char-btn {
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.15s ease;
+}
+.init-char-btn:hover { border-color: rgba(245, 158, 11, 0.4); }
+.init-char-btn.active {
+  border-color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
 /* ================= POKER TABLE VERTICALE & JETONS CASINO ================= */
 .poker-vertical-stadium {
   position: relative;

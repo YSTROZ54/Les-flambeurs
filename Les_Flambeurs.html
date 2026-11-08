@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.8">
+  <link rel="stylesheet" href="css/style.css?v=5.9">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -2736,6 +2736,24 @@
         </div>
 
         <div>
+          <label class="block text-xs font-bold text-stone-300 mb-1.5">Ton personnage dans le casino :</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" onclick="selectInitialCharacter('char_homme')" data-char="char_homme"
+              class="init-char-btn active rounded-2xl bg-black/40 p-1.5 flex flex-col items-center">
+              <img src="assets/personnages/apercu-homme.png" alt="" class="h-20 w-auto object-contain pointer-events-none">
+              <span class="text-xs font-extrabold text-white mt-0.5">Homme</span>
+            </button>
+            <button type="button" onclick="selectInitialCharacter('char_femme')" data-char="char_femme"
+              class="init-char-btn rounded-2xl bg-black/40 p-1.5 flex flex-col items-center">
+              <img src="assets/personnages/apercu-femme.png" alt="" class="h-20 w-auto object-contain pointer-events-none">
+              <span class="text-xs font-extrabold text-white mt-0.5">Femme</span>
+            </button>
+          </div>
+          <input id="authRegCharacter" type="hidden" value="char_homme">
+          <p class="text-[10px] text-stone-500 mt-1">D'autres personnages t'attendent au Tropi Shop.</p>
+        </div>
+
+        <div>
           <label class="block text-xs font-bold text-stone-300 mb-1.5">Choisis ton avatar initial :</label>
           <div class="flex items-center justify-between gap-1.5 bg-black/40 p-2 rounded-2xl border border-white/10">
             <button type="button" onclick="selectInitialAvatar('🎭')"
@@ -4716,6 +4734,13 @@
       });
     }
 
+    // inscription : homme ou femme (personnage 3D de départ, voir F3D.CHARACTERS dans js/3d/f3d-core.js)
+    function selectInitialCharacter(id) {
+      const inp = document.getElementById('authRegCharacter');
+      if (inp) inp.value = id;
+      document.querySelectorAll('.init-char-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.char === id));
+    }
+
     async function submitLogin() {
       const userInp = document.getElementById('authLoginUser');
       const passInp = document.getElementById('authLoginPass');
@@ -4767,6 +4792,7 @@
       const password = (passInp?.value || '').trim();
       const passConf = (passConfInp?.value || '').trim();
       const avatar = (avInp?.value || '🎭').trim();
+      const character = (document.getElementById('authRegCharacter')?.value === 'char_femme') ? 'char_femme' : 'char_homme';
 
       if (!username || !password || !passConf) {
         errBox.textContent = '❌ Merci de remplir tous les champs.';
@@ -4825,6 +4851,10 @@
       sessionStorage.setItem('flambeurs_active_session_user', newAcc.username);
       localStorage.setItem(STORAGE_KEY_SESSION, newAcc.username);
       state = { ...newAcc };
+      // le personnage choisi (homme / femme) : équipé tout de suite et enregistré avec le compte
+      state.equipped = { ...(state.equipped || {}), character };
+      saveState();
+      try { pushRemoteAccount(state); } catch (e) { /* enregistré au prochain envoi */ }
 
       closeAuthModal();
       updateGlobalUI();
