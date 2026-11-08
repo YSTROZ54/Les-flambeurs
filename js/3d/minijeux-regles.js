@@ -111,6 +111,12 @@
       st.msg = nm(st, n) + ' pioche ' + k + ' cartes (pénalité) et passe son tour.'; return '';
     }
     var before = st.hands[n].length, found = '';
+    if (st.hands[n].some(function (c) { return unoCanPlay(st, c); })) {                // il pouvait jouer mais choisit de piocher : une seule carte ; si elle va, il peut la poser, sinon le tour passe
+      var g1 = unoDraw(st, n, 1);
+      if (g1.length && unoCanPlay(st, g1[0])) { st.drawn = g1[0]; st.msg = nm(st, n) + ' a pioché 1 carte.'; }
+      else { st.wait = unoNext(st, n); st.msg = nm(st, n) + ' a pioché 1 carte et passe son tour.'; }
+      return '';
+    }
     for (var guard = 0; guard < 120 && !found; guard++) { var g = unoDraw(st, n, 1); if (!g.length) break; if (unoCanPlay(st, g[0])) found = g[0]; }     // on pioche jusqu'à avoir une carte jouable
     var cnt = st.hands[n].length - before;
     if (found) { st.drawn = found; st.msg = nm(st, n) + ' a pioché ' + cnt + ' carte' + (cnt > 1 ? 's' : '') + ' pour en avoir une jouable.'; }

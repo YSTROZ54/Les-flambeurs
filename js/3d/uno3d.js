@@ -589,7 +589,7 @@
       var e = mutate(seat.tid, function (s2) { return MJ.unoPlay(s2, seat.local, i, -1); });
       if (e) { errMsg = e; errT = 3; refreshUi(); } else if (showAll) { showAll = false; refreshUi(); }
     }
-    // piocher : on clique sur le paquet au centre de la table, seulement quand on ne peut rien poser (ou pour payer un +2 / +4)
+    // piocher : on clique sur le paquet au centre de la table, quand on veut pendant son tour (la flèche s'affiche quand on ne peut rien poser, ou pour payer un +2 / +4)
     function mustDraw(st) {
       if (!seat || !st || st.ph !== 'play' || st.turn !== seat.local || st.wait >= 0 || st.drawn) return false;
       var hd = st.hands[seat.local]; if (!hd) return false;
@@ -601,7 +601,6 @@
       if (st.ph !== 'play' || !st.hands[loc]) return;
       if (st.turn !== loc || st.wait >= 0) err = 'Ce n\'est pas ton tour.';
       else if (st.drawn) err = 'Pose la carte piochée ou passe.';
-      else if (!mustDraw(st)) err = 'Tu as une carte que tu peux poser : on pioche seulement quand on ne peut rien jouer.';
       else err = mutate(seat.tid, function (s2) { return MJ.unoDrawTurn(s2, loc); });
       if (err) { errMsg = err; errT = 3; refreshUi(); }
     }
