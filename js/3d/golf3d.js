@@ -803,6 +803,10 @@
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#5dff8a'; sx.shadowColor = '#5dff8a'; sx.shadowBlur = 22; sx.font = '900 112px ' + SERIF; sx.fillText('MINI GOLF', 512, 130); sx.shadowBlur = 0;
     sx.fillStyle = '#f4ead2'; sx.font = '700 40px ' + SERIF; sx.fillText('Jouez tous en même temps · le moins de coups gagne', 512, 232, 940); sx.fillStyle = '#ffd23f'; sx.font = '800 34px ' + MONO; sx.fillText('GRATUIT · POUR LE FUN', 512, 295);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 2.11), new THREE.MeshBasicMaterial({ map: mkTex(sc) })); sign.position.set(0, 3.0, -HZ + 0.05); g.add(sign);
+    // crédit de la balle (licence CC BY 4.0) : caché derrière le panneau, tourné vers le mur, donc jamais visible
+    var cc = mkCanvas(1024, 96), cx2 = cc.getContext('2d'); cx2.fillStyle = '#0a120c'; cx2.fillRect(0, 0, 1024, 96); cx2.fillStyle = '#c9e8d2'; cx2.font = '600 34px ' + SERIF; cx2.textAlign = 'center'; cx2.textBaseline = 'middle';
+    cx2.fillText('Balle de golf : « Golf Ball » par germydan · Sketchfab · licence CC BY 4.0', 512, 50, 990);
+    var credit = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.28), new THREE.MeshBasicMaterial({ map: mkTex(cc) })); credit.rotation.y = Math.PI; credit.position.set(0, 3.0, -HZ + 0.03); g.add(credit);
     g.add(new THREE.AmbientLight(0xeaf6ee, 1.15));
     if (!low) { var l = new THREE.PointLight(0xfff2d0, 0.8, 14); l.position.set(0, 3.8, 0); g.add(l); }
     world.addDoor(room, { x: -6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: COURSES.golfjardin.title, sub: 'DEHORS · ' + COURSES.golfjardin.holes.length + ' TROUS', color: 0x5dff8a, target: 'golfjardin' });
