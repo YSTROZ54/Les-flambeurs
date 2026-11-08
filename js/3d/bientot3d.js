@@ -14,8 +14,7 @@
 
   var GAMES = {
     prophunt: { title: '🕵️ PROP HUNT', name: 'PROP HUNT', sub: 'CACHE-CACHE DÉGUISÉ', color: '#ff7a3d', wall: '#2a1a14' },
-    dessin: { title: '🎨 TABLEAU DESSIN', name: 'TABLEAU DESSIN', sub: 'DESSINE ET DEVINE', color: '#4ad0ff', wall: '#12222c' },
-    golf: { title: '⛳ GOLF', name: 'GOLF', sub: 'MINI GOLF ENTRE JOUEURS', color: '#5dff8a', wall: '#10261a' }
+    dessin: { title: '🎨 TABLEAU DESSIN', name: 'TABLEAU DESSIN', sub: 'DESSINE ET DEVINE', color: '#4ad0ff', wall: '#12222c' }
   };
 
   function createRoom(id, world) {

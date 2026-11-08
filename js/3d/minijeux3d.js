@@ -4,7 +4,7 @@
    On y entre par la porte « MINI JEUX » du hall. Chaque jeu a sa porte, bien séparée des autres (pas de couloir, pas de portes collées) :
      mur du fond : UNO · PUISSANCE 4 · LUDO · CHAMBRE FORTE
      mur de gauche : LOUP-GAROU · BLIND TEST          mur de droite : PROP HUNT · PMU · TABLEAU DESSIN   mur d'entrée : GOLF (+ la sortie)
-     (Prop Hunt, Tableau dessin et Golf : salles vides pour le moment, voir bientot3d.js)
+     (Prop Hunt et Tableau dessin : salles vides pour le moment, voir bientot3d.js ; le golf est dans golf3d.js)
    La porte de sortie (devant) ramène au hall. Les jeux eux-mêmes sont dans uno3d.js (UNO et Puissance 4), ludo3d.js, vault3d.js,
    loupgarou3d.js, blindtest3d.js et pmu3d.js : chacun renvoie vers cette salle quand on ressort.
    Identifiant interne de la salle : « minijeux » (listé dans world3d.js et hall3d.js).
@@ -28,7 +28,7 @@
     // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
     { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🕵️ PROP HUNT', sub: 'BIENTÔT', color: 0xff7a3d, target: 'prophunt' },
     { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'BIENTÔT', color: 0x4ad0ff, target: 'dessin' },
-    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ GOLF', sub: 'BIENTÔT', color: 0x5dff8a, target: 'golf' }
+    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'ENTRE AMIS · 2 PARCOURS', color: 0x5dff8a, target: 'golf' }
   ];
 
   function createMiniJeuxRoom(world) {

@@ -1053,7 +1053,7 @@
   }
   // le monde complet n'est proposé que sur ordinateur
   // PC : tout le monde. Téléphone : seulement les salles terminées ; le reste (blackjack, poker, uno, loup-garou) garde le menu classique
-  var PHONE_ROOMS = ['hall', 'slots', 'shop', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique', 'prophunt', 'dessin', 'golf'];
+  var PHONE_ROOMS = ['hall', 'slots', 'shop', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique', 'prophunt', 'dessin', 'golf', 'golfjardin', 'golfneon'];
   F.isPhone = function () { return F.isMobile() || F.isTouch(); };
   F.canWorld = function (room) { return webgl() && !mainFailed && !!document.getElementById('world3dStage') && (!F.isPhone() || !room || PHONE_ROOMS.indexOf(room) >= 0); };
   F.wantsWorldForSlots = function () { return F.canWorld('slots'); };
@@ -1086,7 +1086,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique'] : ['hall', 'slots', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'crash', 'blindtest', 'ludo', 'musique', 'prophunt', 'dessin', 'golf'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique', 'golf', 'golfjardin', 'golfneon'] : ['hall', 'slots', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'crash', 'blindtest', 'ludo', 'musique', 'prophunt', 'dessin', 'golf', 'golfjardin', 'golfneon'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });
