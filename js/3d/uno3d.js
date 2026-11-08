@@ -22,7 +22,37 @@
   function cyl(p, rt, rb, h, m, x, y, z, seg) { var o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m); o.position.set(x, y, z); p.add(o); return o; }
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
-  /* ---------- cartes UNO : face (couleur + chiffre) et dos ---------- */
+  /* ---------- cartes UNO : celles du modèle « Uno Cards 3D » (alifwicaksana, Sketchfab, licence CC BY 4.0) ----------
+     Une seule image (assets/uno/cartes-uno.png) contient toutes les faces, rangées en grille ; chaque case y est retournée
+     verticalement (convention des modèles 3D), on la remet à l'endroit en la dessinant. Tant que l'image n'est pas chargée,
+     les anciennes cartes dessinées servent de secours. */
+  var UNO_ATLAS = new Image(), atlasOk = false, atlasWait = [];
+  UNO_ATLAS.onload = function () { atlasOk = true; var wl = atlasWait; atlasWait = []; wl.forEach(function (f) { try { f(); } catch (e) { /* ok */ } }); };
+  UNO_ATLAS.src = 'assets/uno/cartes-uno.png?v=1';
+  // case [ligne, colonne] de chaque carte, par couleur du jeu (0 rouge, 1 jaune, 2 vert, 3 bleu) ; n1 = la carte « 1 », les 2 à 9 suivent
+  var ATL = [
+    { n1: [3, 1], z: [3, 10], D: [3, 11], S: [2, 0], R: [2, 1] },
+    { n1: [4, 0], z: [4, 9], D: [4, 10], S: [4, 11], R: [3, 0] },
+    { n1: [1, 3], z: [0, 0], D: [0, 1], S: [0, 2], R: [0, 3] },
+    { n1: [2, 2], z: [2, 11], D: [1, 0], S: [1, 1], R: [1, 2] }
+  ];
+  function atlasCell(card, col) {
+    var ci = +card.charAt(0), v = card.slice(1);
+    if (ci === 4) {                                          // joker / +4 : noir en main, sur la table au fond de la couleur choisie
+      var base = v === 'F' ? 6 : 1;
+      return [5, typeof col === 'number' && col >= 0 && col < 4 ? base + [2, 1, 4, 3][col] : base];
+    }
+    var a = ATL[ci]; if (!a) return null;
+    if (v === '0') return a.z;
+    if (/^[1-9]$/.test(v)) return [a.n1[0], a.n1[1] + (+v) - 1];
+    return a[v] || null;
+  }
+  function drawCell(c, rc, W, H) {                          // une case de l'image, remise à l'endroit, aux coins arrondis
+    c.save(); rr(c, 0, 0, W, H, W * 0.075); c.clip(); c.translate(0, H); c.scale(1, -1);
+    c.drawImage(UNO_ATLAS, rc[1] * 167.5 + 1, 499 + rc[0] * 258.6 + 1, 163, 254, 0, 0, W, H); c.restore();
+  }
+
+  /* ---------- anciennes cartes dessinées (secours) : face (couleur + chiffre) et dos ---------- */
   function faceSym(c, kind, x, y, s, col) {                  // symboles des cartes « passe » et « sens »
     c.save(); c.translate(x, y); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = s * 0.16; c.lineCap = 'round';
     if (kind === 'S') { c.beginPath(); c.arc(0, 0, s * 0.62, 0, TAU); c.stroke(); c.beginPath(); c.moveTo(-s * 0.44, s * 0.44); c.lineTo(s * 0.44, -s * 0.44); c.stroke(); }
@@ -31,7 +61,9 @@
     c.restore();
   }
   // face d'une carte du jeu : couleur + chiffre ou symbole ; les jokers sont noirs avec un ovale aux quatre couleurs
-  function unoFaceCanvas(card) {
+  function unoFaceCanvas(card, chosen) {
+    var cell = atlasOk ? atlasCell(card, chosen) : null;
+    if (cell) { var cva = mkCanvas(330, 495); drawCell(cva.getContext('2d'), cell, 330, 495); return cva; }
     var ci = +card.charAt(0), v = card.slice(1), wild = ci === 4, col = wild ? '#15151a' : COLORS[ci];
     var cv = mkCanvas(640, 960), c = cv.getContext('2d'); c.scale(2, 2);
     rr(c, 8, 8, 304, 464, 36); c.fillStyle = '#fff'; c.fill(); rr(c, 24, 24, 272, 432, 24); c.fillStyle = col; c.fill();
@@ -48,11 +80,14 @@
     return cv;
   }
   function unoBackTex() {
-    var cv = mkCanvas(640, 960), c = cv.getContext('2d'); c.scale(2, 2);
+    var cv = mkCanvas(640, 960), c = cv.getContext('2d'), tex = null;
+    function paintAtlas() { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 640, 960); drawCell(c, [5, 0], 640, 960); if (tex) tex.needsUpdate = true; }   // le dos « UNO » du modèle
+    if (atlasOk) { paintAtlas(); return (tex = mkTex(cv)); }
+    atlasWait.push(paintAtlas); c.scale(2, 2);
     rr(c, 8, 8, 304, 464, 36); c.fillStyle = '#fff'; c.fill(); rr(c, 24, 24, 272, 432, 24); c.fillStyle = '#15151a'; c.fill();
     c.save(); c.translate(160, 240); c.rotate(-0.5); c.fillStyle = '#d6221e'; c.beginPath(); c.ellipse(0, 0, 100, 190, 0, 0, TAU); c.fill(); c.restore();
     c.save(); c.translate(160, 240); c.rotate(-0.5); c.fillStyle = '#f2c200'; c.strokeStyle = '#111'; c.lineWidth = 10; c.font = '900 84px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.strokeText('UNO', 0, 4); c.fillText('UNO', 0, 4); c.restore();
-    return mkTex(cv);
+    return (tex = mkTex(cv));
   }
 
   function createUnoRoom(world, kind) {
@@ -123,7 +158,14 @@
 
     /* --- cartes UNO du jeu : une texture par carte (créée à la demande), une miniature nette pour la main du joueur --- */
     var faceTexCache = {}, faceMatCache = {}, imgCache = {};
-    function faceMat(card) { return faceMatCache[card] || (faceMatCache[card] = new THREE.MeshBasicMaterial({ map: (function (t) { t.anisotropy = 16; t.generateMipmaps = true; t.minFilter = THREE.LinearMipMapLinearFilter; return t; })(mkTex(unoFaceCanvas(card))) })); }
+    function faceMat(card, col) {
+      var wc = card.charAt(0) === '4' && typeof col === 'number' && col >= 0 && col < 4 ? col : -1, key = card + (wc >= 0 ? '|' + wc : '');
+      if (faceMatCache[key]) return faceMatCache[key];
+      var t = mkTex(unoFaceCanvas(card, wc)); t.anisotropy = 16; t.generateMipmaps = true; t.minFilter = THREE.LinearMipMapLinearFilter;
+      if (!atlasOk) atlasWait.push(function () { t.image = unoFaceCanvas(card, wc); t.needsUpdate = true; });
+      return (faceMatCache[key] = new THREE.MeshBasicMaterial({ map: t }));
+    }
+    atlasWait.push(function () { imgCache = {}; });          // les miniatures de la main sont refaites avec les nouvelles cartes
     function faceImg(card) {
       if (imgCache[card]) return imgCache[card];
       var cv = mkCanvas(160, 240), x = cv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(unoFaceCanvas(card), 0, 0, 160, 240);
@@ -171,10 +213,20 @@
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.4, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(ch.x, 0.7, ch.z); g.add(hit);
       room.interactables.push({ hit: hit, x: ch.x, z: ch.z, radius: 1.5, enabled: function () { return !seat && !chairTaken(ch); }, prompt: function () { return '🪑 S\'asseoir — ' + (ch.tid.charAt(0) === 'u' ? 'UNO' : 'Puissance 4') + ' · table ' + (ch.ti + 1); }, use: function (w) { sit(w, ch); } });
     }
+    var creditMat = (function () {
+      var cv = mkCanvas(2048, 2048), c = cv.getContext('2d'), R = 840, txt = '✦  CARTES « UNO CARDS 3D » PAR ALIFWICAKSANA · SKETCHFAB · LICENCE CC BY 4.0  ', fs0 = 60;
+      c.font = '700 ' + fs0 + 'px ' + SERIF; var fs1 = Math.min(50, fs0 * TAU * R * 0.97 / (c.measureText(txt).width * 2));
+      c.translate(1024, 1024); c.font = '700 ' + fs1.toFixed(1) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#e6c766';
+      var a = -Math.PI / 2, chars = (txt + txt).split('');
+      chars.forEach(function (ch) { var w = c.measureText(ch).width; a -= w / 2 / R; c.save(); c.rotate(a + Math.PI / 2); c.translate(0, -R); c.rotate(Math.PI); c.fillText(ch, 0, 0); c.restore(); a -= w / 2 / R; });   // haut des lettres vers la table : lisible quand on est autour
+      c.strokeStyle = 'rgba(230,199,102,0.55)'; c.lineWidth = 5; [R - fs1 * 0.85, R + fs1 * 0.85].forEach(function (r) { c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); });
+      return new THREE.MeshBasicMaterial({ map: mkTex(cv), transparent: true, depthWrite: false });
+    })(), creditGeo = new THREE.PlaneGeometry(6.4, 6.4);   // l'anneau de texte passe à 2,6 m du centre : au pied de la table, juste au bord du plateau (lisible debout)
     UNO_P.forEach(function (pp, ti) {
       var tz = pp[1], UNO_X = pp[0];
       var t = new THREE.Group(), tid = 'u' + ti; t.position.set(UNO_X, 0, tz); g.add(t);
       var rug = new THREE.Mesh(new THREE.CircleGeometry(4.15, 64), rugMat); rug.rotation.x = -Math.PI / 2; rug.position.y = 0.012; t.add(rug);
+      var credit = new THREE.Mesh(creditGeo, creditMat); credit.rotation.x = -Math.PI / 2; credit.position.y = 0.016; t.add(credit);   // crédit de l'auteur des cartes, au pied de la table
       cyl(t, UR, UR, 0.1, [edgeM, unoFelt, edgeM], 0, 0.8, 0, 64);
       var rim = new THREE.Mesh(new THREE.TorusGeometry(UR, 0.105, 12, 80), leatherM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.86; t.add(rim);
       cyl(t, UR - 0.05, UR - 0.05, 0.13, edgeM, 0, 0.72, 0, 64); var skirt = new THREE.Mesh(new THREE.TorusGeometry(UR - 0.05, 0.024, 8, 80), gold); skirt.rotation.x = Math.PI / 2; skirt.position.y = 0.655; t.add(skirt);
@@ -326,7 +378,7 @@
       var di = tv.pendingTop ? st.disc.length - 2 : st.disc.length - 1, top = st.disc[di];
       tv.top.visible = tv.ring.visible = !!top;
       var prev = st.disc[di - 1]; tv.top2.visible = !!prev; if (prev) tv.top2.material = faceMat(prev);
-      if (top) { tv.top.material = faceMat(top); tv.ring.material.color.set(st.col >= 0 && st.col < 4 ? COLORS[st.col] : '#888888'); }
+      if (top) { tv.top.material = faceMat(top, st.col); tv.ring.material.color.set(st.col >= 0 && st.col < 4 ? COLORS[st.col] : '#888888'); }
       for (var s = 0; s < 4; s++) {
         var e = st.seats[s], hand = st.hands[s], n = hand ? hand.length : 0, h = tv.hands[s], vis = (seat && seat.tid === tid && seat.local === s) ? 0 : Math.min(n, 9), sa = h.sa, lb = tv.labels[s];
         for (var k = 0; k < 9; k++) {
