@@ -373,7 +373,7 @@
       }
     },
     prophunt: {
-      frame: 0xb8641e, leaf: 0x4a2c14, rgb: '255, 122, 61', logo: 'spy',
+      frame: 0xb8641e, leaf: 0x4a2c14, rgb: '255, 122, 61', logo: 'spy', image: 'assets/icones/jeux/prop-hunt.png', square: true,
       paint: function (c, W, H) {                              // planches de bois, deux caisses marquées d'un « ? » (les objets où l'on se cache)
         c.fillStyle = '#5a361a'; c.fillRect(0, 0, W, H);
         c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 3; for (var x = 0; x < W; x += 44) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
@@ -393,7 +393,7 @@
       }
     },
     dessin: {
-      frame: 0x1c8fb8, leaf: 0xf4f1e8, rgb: '74, 208, 255', logo: 'palette',
+      frame: 0x1c8fb8, leaf: 0xf4f1e8, rgb: '74, 208, 255', logo: 'palette', image: 'assets/icones/jeux/tableau-dessin.png', square: true,
       paint: function (c, W, H) {                              // toile blanche éclaboussée de peinture, trait de pinceau en bas
         c.fillStyle = '#f4f1e8'; c.fillRect(0, 0, W, H); noise(c, W, H, 500, 'rgba(120,110,90,0.10)'); border(c, W, H, '#1c8fb8', 9);
         [['#ff4d6d', 0.3, 0.2, 52], ['#ffd23f', 0.7, 0.3, 44], ['#4ad0ff', 0.45, 0.5, 60], ['#7bd957', 0.75, 0.66, 40], ['#b36bff', 0.28, 0.76, 46]].forEach(function (b) {
@@ -412,7 +412,7 @@
       }
     },
     golf: {
-      frame: 0x2f9d52, leaf: 0x1f6b3a, rgb: '93, 255, 138', logo: 'golf',
+      frame: 0x2f9d52, leaf: 0x1f6b3a, rgb: '93, 255, 138', logo: 'golf', image: 'assets/icones/jeux/mini-golf.png', square: true,
       paint: function (c, W, H) {                              // green rayé, trou, drapeau et balle
         c.fillStyle = '#1f7a3f'; c.fillRect(0, 0, W, H);
         for (var y = 0; y < H; y += 56) { c.fillStyle = (y / 56) % 2 ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'; c.fillRect(0, y, W, 56); }
@@ -428,7 +428,7 @@
       }
     },
     golfjardin: {
-      frame: 0x8a8a80, leaf: 0x6fc2f0, rgb: '93, 255, 138', logo: 'tree',
+      frame: 0x8a8a80, leaf: 0x6fc2f0, rgb: '93, 255, 138', logo: 'tree', image: 'assets/icones/jeux/golf-jardin.png', square: true,
       paint: function (c, W, H) {                              // ciel bleu, colline verte et petit moulin
         var sk = c.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, '#5db6ee'); sk.addColorStop(1, '#bfe6fb'); c.fillStyle = sk; c.fillRect(0, 0, W, H);
         c.fillStyle = 'rgba(255,255,255,0.9)'; [[0.3, 0.14], [0.7, 0.24]].forEach(function (q) { c.beginPath(); c.arc(W * q[0], H * q[1], 22, 0, TAU); c.arc(W * q[0] + 24, H * q[1] + 4, 17, 0, TAU); c.arc(W * q[0] - 24, H * q[1] + 5, 15, 0, TAU); c.fill(); });
@@ -448,7 +448,7 @@
       }
     },
     golfneon: {
-      frame: 0xff3df0, leaf: 0x0a0414, rgb: '255, 61, 240', logo: 'bolt',
+      frame: 0xff3df0, leaf: 0x0a0414, rgb: '255, 61, 240', logo: 'bolt', image: 'assets/icones/jeux/golf-neon.png', square: true,
       paint: function (c, W, H) {                              // lumière noire : anneaux néon et bumpers
         c.fillStyle = '#0a0414'; c.fillRect(0, 0, W, H); border(c, W, H, '#ff3df0', 7);
         c.shadowColor = '#ff3df0'; c.shadowBlur = 18;
