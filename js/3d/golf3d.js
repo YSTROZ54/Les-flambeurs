@@ -802,9 +802,6 @@
     var sc = mkCanvas(1024, 360), sx = sc.getContext('2d'); sx.fillStyle = 'rgba(6,14,9,0.92)'; sx.fillRect(0, 0, 1024, 360); sx.strokeStyle = '#5dff8a'; sx.lineWidth = 10; sx.strokeRect(16, 16, 992, 328);
     sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillStyle = '#5dff8a'; sx.shadowColor = '#5dff8a'; sx.shadowBlur = 22; sx.font = '900 112px ' + SERIF; sx.fillText('MINI GOLF', 512, 130); sx.shadowBlur = 0;
     sx.fillStyle = '#f4ead2'; sx.font = '700 40px ' + SERIF; sx.fillText('Jouez tous en même temps · le moins de coups gagne', 512, 232, 940); sx.fillStyle = '#ffd23f'; sx.font = '800 34px ' + MONO; sx.fillText('GRATUIT · POUR LE FUN', 512, 295);
-    var cc = mkCanvas(1024, 96), cx2 = cc.getContext('2d'); cx2.fillStyle = 'rgba(6,14,9,0.85)'; cx2.fillRect(0, 0, 1024, 96); cx2.fillStyle = '#c9e8d2'; cx2.font = '600 34px ' + SERIF; cx2.textAlign = 'center'; cx2.textBaseline = 'middle';
-    cx2.fillText('Balle de golf : « Golf Ball » par germydan · Sketchfab · licence CC BY 4.0', 512, 50, 990);
-    var credit = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.39), new THREE.MeshBasicMaterial({ map: mkTex(cc), transparent: true })); credit.position.set(0, 1.5, -HZ + 0.05); g.add(credit);
     var sign = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 2.11), new THREE.MeshBasicMaterial({ map: mkTex(sc) })); sign.position.set(0, 3.0, -HZ + 0.05); g.add(sign);
     g.add(new THREE.AmbientLight(0xeaf6ee, 1.15));
     if (!low) { var l = new THREE.PointLight(0xfff2d0, 0.8, 14); l.position.set(0, 3.8, 0); g.add(l); }
