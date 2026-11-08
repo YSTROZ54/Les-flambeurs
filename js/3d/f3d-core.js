@@ -156,8 +156,9 @@
      (même mouvement, mesuré depuis la pose en T des deux). Modèles : 100Avatars de Polygonal Mind (CC0), squelette Mixamo.
      Le choix du joueur : state.equipped.character (Tropi Shop, catégorie « Personnages ») ; il part avec la position (ch) vers les autres. */
   var CHARACTERS = F.CHARACTERS = {
-    char_homme: { file: 'homme.glb', h: 1.8 }, char_femme: { file: 'femme.glb', h: 1.74 },
-    char_business: { file: 'businessman.glb', h: 1.86 }, char_kate: { file: 'kate.glb', h: 1.74 }, char_rose: { file: 'rose.glb', h: 1.72 },
+    char_homme: { file: 'businessman.glb', h: 1.86 }, char_femme: { file: 'femme.glb', h: 1.74 },        // par défaut : le businessman et Erika
+    char_business: { file: 'businessman.glb', h: 1.86 },   // ancien article du shop, devenu l'homme par défaut (gardé pour ceux qui l'avaient équipé)
+    char_kate: { file: 'kate.glb', h: 1.74 }, char_rose: { file: 'rose.glb', h: 1.72 },
     char_olivia: { file: 'olivia.glb', h: 1.74 }, char_lydia: { file: 'lydia.glb', h: 1.84 }, char_jimmy: { file: 'jimmy.glb', h: 1.8 },
     char_robert: { file: 'robert.glb', h: 1.8 }, char_alien: { file: 'alien.glb', h: 1.8 }, char_nain: { file: 'nain.glb', h: 1.35 }
   };
