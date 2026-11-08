@@ -2643,9 +2643,9 @@
   <!-- MODAL : AUTHENTIFICATION (CONNEXION & INSCRIPTION DES JOUEURS)     -->
   <!-- ================================================================= -->
   <div id="authModal"
-    class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-start justify-center p-4 overflow-y-auto hidden">
     <div
-      class="bg-stone-900 border-2 border-amber-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      class="bg-stone-900 border-2 border-amber-500/50 rounded-3xl max-w-md w-full my-auto p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
       <!-- Bouton fermer / mode spectateur -->
       <button type="button"
         onclick="closeAuthModal(); showToast('👀 Mode Spectateur actif : connecte-toi pour miser et recevoir des jetons.');"
@@ -2740,12 +2740,12 @@
           <div class="grid grid-cols-2 gap-3">
             <button type="button" onclick="selectInitialCharacter('char_homme')" data-char="char_homme"
               class="init-char-btn active rounded-2xl bg-black/40 p-1.5 flex flex-col items-center">
-              <img src="assets/personnages/apercu-homme.png" alt="" class="h-20 w-auto object-contain pointer-events-none">
+              <img src="assets/personnages/apercu-homme.png" alt="" class="h-16 w-auto object-contain pointer-events-none">
               <span class="text-xs font-extrabold text-white mt-0.5">Homme</span>
             </button>
             <button type="button" onclick="selectInitialCharacter('char_femme')" data-char="char_femme"
               class="init-char-btn rounded-2xl bg-black/40 p-1.5 flex flex-col items-center">
-              <img src="assets/personnages/apercu-femme.png" alt="" class="h-20 w-auto object-contain pointer-events-none">
+              <img src="assets/personnages/apercu-femme.png" alt="" class="h-16 w-auto object-contain pointer-events-none">
               <span class="text-xs font-extrabold text-white mt-0.5">Femme</span>
             </button>
           </div>
