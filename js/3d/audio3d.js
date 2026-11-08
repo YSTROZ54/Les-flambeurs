@@ -15,10 +15,13 @@
   if (!F) return;
 
   var KEYS = { music: 'f3d_music_vol', sfx: 'f3d_sfx_vol' };
-  var A = F.audio = { musicVol: 0.5, sfxVol: 0.7, room: '' };
+  var A = F.audio = { musicVol: 0.5, sfxVol: 0.7, room: '', duck: 1 };   // duck : 0 coupe la musique d'ambiance (la salle de musique joue ses clips YouTube par-dessus), 1 la laisse
   function load(k, d) { try { var v = parseFloat(localStorage.getItem(k)); return isFinite(v) ? Math.max(0, Math.min(1, v)) : d; } catch (e) { return d; } }
   A.musicVol = load(KEYS.music, 0.5); A.sfxVol = load(KEYS.sfx, 0.7);
   A.setMusicVol = function (v) { A.musicVol = Math.max(0, Math.min(1, v)); try { localStorage.setItem(KEYS.music, String(A.musicVol)); } catch (e) { /* ok */ } A.update(); };
+  A.setDuck = function (v) { v = Math.max(0, Math.min(1, v)); if (v === A.duck) return; A.duck = v; A.update(); };
+  // volume (0 à 1) d'un son extérieur au jeu (clip YouTube) pour qu'il suive les mêmes réglages que la musique d'ambiance : curseur « musique » du téléphone x volume général
+  A.externalVol = function () { return Math.max(0, Math.min(1, A.musicVol * master() * 1.6)); };
   A.setSfxVol = function (v) { A.sfxVol = Math.max(0, Math.min(1, v)); try { localStorage.setItem(KEYS.sfx, String(A.sfxVol)); } catch (e) { /* ok */ } A.update(); };
 
   var bus = null, noiseBuf = null;
@@ -44,7 +47,7 @@
   A.update = function () {
     var b = getBus(); if (!b) return;
     var m = master(), t = b.c.currentTime;
-    b.music.gain.setTargetAtTime(A.musicVol * m * 1.4, t, 0.15); b.sfx.gain.setTargetAtTime(A.sfxVol * m * 1.3, t, 0.05);
+    b.music.gain.setTargetAtTime(A.musicVol * m * 1.4 * A.duck, t, A.duck < 1 ? 0.5 : 0.15); b.sfx.gain.setTargetAtTime(A.sfxVol * m * 1.3, t, 0.05);
   };
   function wake() {
     var c = ctx(); if (!c) return;
