@@ -292,7 +292,7 @@
       }
     },
     music: {
-      frame: 0xb98cff, leaf: 0x1a0d33, rgb: '185, 140, 255', logo: 'music',
+      frame: 0xb98cff, leaf: 0x1a0d33, rgb: '185, 140, 255', logo: 'music', image: 'assets/icones/jeux/salle-musique.png', square: true,
       paint: function (c, W, H) {                              // violet nuit, portées dorées et notes
         var g0 = c.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#2a1652'); g0.addColorStop(1, '#0e0720'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
         border(c, W, H, '#d4af37', 7);
