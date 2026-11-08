@@ -39,10 +39,10 @@
 
   /* ---------- touches de déplacement : personnalisables (téléphone › Réglages › Touches), gardées d'une visite à l'autre ----------
      Flèches, Maj (droite ou gauche) et ZQSD restent toujours actives en plus de la touche choisie : on ne peut jamais se retrouver bloqué. */
-  var KEY_ACTIONS = ['f', 'b', 'l', 'r', 'jump', 'run', 'inv'];
-  var KEY_DEFAULTS = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD', jump: 'Space', run: 'ShiftLeft', inv: 'KeyI' };
+  var KEY_ACTIONS = ['f', 'b', 'l', 'r', 'jump', 'run', 'inv', 'mic', 'deafen'];
+  var KEY_DEFAULTS = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD', jump: 'Space', run: 'ShiftLeft', inv: 'KeyI', mic: 'KeyM', deafen: 'KeyC' };
   F.keyActions = KEY_ACTIONS;
-  F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir', inv: 'Inventaire' };
+  F.keyNames = { f: 'Avancer', b: 'Reculer', l: 'Aller à gauche', r: 'Aller à droite', jump: 'Sauter', run: 'Courir', inv: 'Inventaire', mic: 'Couper le micro', deafen: 'Couper le son des autres (casque)' };
   // touches déjà utilisées ailleurs dans le jeu (interagir, vues, émotes…) : on ne laisse pas les reprendre, pour ne rien casser
   var KEY_RESERVED = { Escape: 1, KeyF: 1, Enter: 1, KeyP: 1, Tab: 1, KeyV: 1 };
   var KEY_LABELS = {
@@ -359,6 +359,7 @@
       '<button class="s3d-sit s3d-room-only" data-s3d="sit" style="display:none"></button>' +
       '<div class="s3d-stick s3d-room-only" data-s3d="stick" style="display:none"><i></i></div>' +
       (this.touch ? '<button class="s3d-tbtn s3d-tjump s3d-room-only" data-s3d="jump" aria-label="Sauter"><i class="fa-solid fa-angles-up"></i></button>' : '') +
+      (this.opts.hall ? '<div class="s3d-voice s3d-room-only" data-s3d="voice"></div>' : '') +
       '<div data-s3d="roombottom" style="display:contents"></div>' +
       '<div class="s3d-fade" data-s3d="fade"></div>';
     if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small></div>'); }
@@ -370,6 +371,7 @@
     this.elRoomTop = q('roomtop'); this.elRoomBottom = q('roombottom');
     this._paintFullBtn();
     if (this.opts.hall && F.initPlayerHud) this.ph = F.initPlayerHud(this);   // HUD du joueur, roue des emotes et téléphone (hud3d.js) : monde complet seulement
+    if (this.opts.hall && F.voice && F.voice.mountHud) F.voice.mountHud(q('voice'));   // chat vocal de proximité (voice3d.js)
     if (this.touch) this.elStick.style.display = '';
     this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
     this.elQual.addEventListener('click', function () { Q.cycle(); self._applyQuality(); self.syncHud(); });
@@ -463,6 +465,7 @@
     this.elQual.innerHTML = '<i class="fa-solid fa-gear"></i> ' + Q.label();
     this.hud.setAttribute('data-mode', this.blend > 0.5 ? 'seat' : 'room');
     if (this.ph) this.ph.sync();
+    if (F.voice && F.voice.syncHud) F.voice.syncHud();
     if (F.audio) F.audio.update();
     if (this.room && this.room.syncHud) this.room.syncHud(this);
   };
@@ -711,6 +714,7 @@
     if (this.clock - (this.hintShown || 0) > 9 && this.elHint.style.display !== 'none') this.elHint.style.display = 'none';
     if (room.update) room.update(dt, this);
     this._updateRemotes(dt);
+    if (F.voice && F.voice.update) F.voice.update(this);   // chat vocal de proximité : volume selon la distance à chacun (voice3d.js)
     this._rtSend(false, dt);
 
     var target = this.mode === 'seat' ? 1 : 0;
@@ -862,6 +866,7 @@
       this.rt = F.createRealtime(room.topic, function (ev, m) { self._rtMsg(ev, m); });
       this.rt.onReady = function () { self._rtSend(true); self.rt.send('hello', { k: self._me() }); };
     }
+    if (this.opts.hall && F.voice && F.voice.enterRoom) F.voice.enterRoom(this);   // chat vocal de proximité : une salle = un canal de signalisation (voice3d.js)
     if (room.netStart) room.netStart(this);
   };
   World.prototype._rtBye = function () { if (this.rt) this.rt.send('bye', { k: this._me() }); };
@@ -870,6 +875,7 @@
     this.netOn = false;
     var room = this.room;
     if (room && room.netStop) room.netStop(this);
+    if (F.voice && F.voice.leaveRoom) F.voice.leaveRoom();
     if (this.rt) { this._rtBye(); var old = this.rt; this.rt = null; setTimeout(function () { old.close(); }, 150); }
   };
   World.prototype._clearRemotes = function () { var self = this; Object.keys(this.remote).forEach(function (k) { self.removeRemote(k); }); };
@@ -1034,6 +1040,7 @@
     window.removeEventListener('keydown', this._kd); window.removeEventListener('keyup', this._ku); window.removeEventListener('blur', this._blur);
     window.removeEventListener('keydown', this._esc); window.removeEventListener('pagehide', this._ph);
     this.setFull(false); this._netStop(); this._clearRemotes();
+    if (F.voice && F.voice.shutdown) F.voice.shutdown();
     if (this.ph) this.ph.dispose();
     if (this.selfPerson) { this.scene.remove(this.selfPerson.group); this.selfPerson.dispose(); this.selfPerson = null; }
     Object.keys(this.rooms).forEach(function (k) { var r = this.rooms[k]; if (r.dispose) r.dispose(); }, this);

@@ -475,6 +475,23 @@
       else closePhone(true);
     }
 
+    /* ---------- Réglages › Chat vocal ---------- */
+    function voiceHtml() {
+      var vv = Math.round((F.voice.vol || 0) * 100);
+      return '<div class="ph-card-setting">' +
+        '<div class="ph-row-head">' +
+          '<div class="ph-row-title">' + logo(fa('fa-tower-broadcast'), '74,222,128') + '<span><b>Chat vocal</b><small>Avec les joueurs à proximité</small></span></div>' +
+          '<span class="ph-val-badge" data-ph="voiceval">' + (vv === 0 ? 'Coupé' : vv + '%') + '</span>' +
+        '</div>' +
+        '<input type="range" min="0" max="100" step="1" value="' + vv + '" class="ph-slider" data-set="voice">' +
+        '<div class="ph-setting-actions">' +
+          '<button class="ph-btn-action" data-act="voice-mic">' + (F.voice.micMuted ? fa('fa-microphone') + ' Activer mon micro' : fa('fa-microphone-slash') + ' Couper mon micro') + '</button>' +
+          '<button class="ph-btn-action" data-act="voice-deaf">' + (F.voice.deafened ? fa('fa-headphones') + ' Réentendre les autres' : fa('fa-volume-xmark') + ' Couper le son des autres') + '</button>' +
+        '</div>' +
+        (F.voice.micBlocked ? '<div class="ph-row-head"><small style="color:#f29595;font-size:10.5px">🎙️ Micro refusé par le navigateur : autorise-le dans les réglages du site puis recharge la page.</small></div>' : '') +
+      '</div>';
+    }
+
     /* ---------- Réglages › Touches : un clic sur une touche, puis on écoute la prochaine, capturée dans kd() ci-dessous ---------- */
     var keyListening = '';
     function keysHtml() {
@@ -649,10 +666,12 @@
             '</div>' +
             '<input type="range" min="0" max="100" step="1" value="' + sfx + '" class="ph-slider" data-set="sfx">' +
           '</div>' +
+          // Chat vocal de proximité (voice3d.js) : on s'entend d'autant moins fort qu'on est loin l'un de l'autre
+          (F.voice && F.voice.supported() ? voiceHtml() : '') +
           // Touches : flèches et ZQSD restent toujours actives en plus de la touche choisie (world3d.js)
           '<div class="ph-card-setting">' +
             '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-keyboard'), '96,165,250') + '<span><b>Touches</b><small>Déplacements, saut, course</small></span></div>' +
+              '<div class="ph-row-title">' + logo(fa('fa-keyboard'), '96,165,250') + '<span><b>Touches</b><small>Déplacements, saut, course, chat vocal</small></span></div>' +
             '</div>' +
             keysHtml() +
             '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="key-reset">' + fa('fa-rotate-left') + ' Touches par défaut</button></div>' +
@@ -1099,6 +1118,11 @@
         if (F.audio) { if (s === 'music') F.audio.setMusicVol(pv / 100); else F.audio.setSfxVol(pv / 100); if (s === 'sfx' && pv > 0) F.audio.step(false, (w.room && w.room.id) || ''); }   // un pas pour entendre le réglage
         var bd = root.querySelector('[data-ph="' + (s === 'music' ? 'musicval' : 'sfxval') + '"]');
         if (bd) bd.textContent = pv === 0 ? (s === 'music' ? 'Coupée' : 'Coupés') : pv + '%';
+      } else if (s === 'voice') {
+        var vv2 = parseInt(t.value, 10) || 0;
+        if (F.voice) F.voice.setVolume(vv2 / 100);
+        var bv = root.querySelector('[data-ph="voiceval"]');
+        if (bv) bv.textContent = vv2 === 0 ? 'Coupé' : vv2 + '%';
       } else if (s === 'sound') {
         var pct = parseInt(t.value, 10);
         try {
@@ -1189,6 +1213,8 @@
         stopKeyCapture(); renderPhone();
       }
       else if (a === 'classic-menu') { closeAll(); if (w.opts.onMenu) w.opts.onMenu(); else w.exitGame('hall'); }
+      else if (a === 'voice-mic') { if (F.voice) F.voice.toggleMic(); renderPhone(); }
+      else if (a === 'voice-deaf') { if (F.voice) F.voice.toggleDeafen(); renderPhone(); }
       else if (a === 'toggle-mute') {
         try { if (typeof toggleSoundMute === 'function') toggleSoundMute(); } catch (e) {}
         renderPhone();
@@ -1252,6 +1278,7 @@
         return;
       }
       if (ev.ctrlKey || ev.metaKey || ev.altKey || typing(ev) || !w.running || w.dead || !w.container.clientWidth || w.modalOpen) return;   // modalOpen : un ticket à gratter est ouvert, il gère ses touches
+      if (F.voice && F.voice.handleKey && F.voice.handleKey(ev)) { ev.preventDefault(); return; }   // micro / casque : toujours actifs, assis ou non
       if (ev.code === 'Escape') {
         if (pauseOpen) {
           if (performance.now() - pauseT < 250) { ev.stopImmediatePropagation(); ev.preventDefault(); return; }   // même geste que celui qui vient d'ouvrir la pause
