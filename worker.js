@@ -198,10 +198,26 @@ export default {
 
     if (pathname === '/api/cinema-video') return cinemaVideo(request, url);
 
+    // Prop Hunt : combien de joueurs dans chaque salle publique (affiché sur les murs de l'accueil), mis en cache 4 s
+    if (pathname === '/api/prophunt-info') {
+      if (!env.PROP) return new Response('{}', { status: 503 });
+      if (!globalThis.__prInfo || Date.now() - globalThis.__prInfo.t > 4000) {
+        const out = {};
+        await Promise.all(['manoir', 'casino', 'marche', 'station', 'musee', 'port'].map(async (m) => { try { const r = await env.PROP.get(env.PROP.idFromName('pub-' + m)).fetch('https://prop/?info=1'); out[m] = await r.json(); } catch (e) { out[m] = { n: 0, ph: 'lobby' }; } }));
+        globalThis.__prInfo = { t: Date.now(), d: out };
+      }
+      return new Response(JSON.stringify(globalThis.__prInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+
     // WebSocket des jeux temps réel : /ws/kart (la course) et /ws/golf?course=golfjardin|golfneon
     if (pathname === '/ws/kart' || pathname === '/ws/golf' || pathname === '/ws/prophunt') {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
-      if (pathname === '/ws/prophunt') { if (!env.PROP) return new Response('Prop Hunt indisponible', { status: 503 }); return env.PROP.get(env.PROP.idFromName('main')).fetch(request); }
+      if (pathname === '/ws/prophunt') {
+        if (!env.PROP) return new Response('Prop Hunt indisponible', { status: 503 });
+        const prRoom = url.searchParams.get('room') || '';
+        if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(prRoom)) return new Response('Salon invalide', { status: 404 });
+        return env.PROP.get(env.PROP.idFromName(prRoom)).fetch(request);          // une salle (Durable Object) par carte publique et par salon privé
+      }
       if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); return env.KART.get(env.KART.idFromName('main')).fetch(request); }
       const course = url.searchParams.get('course');
       if (!env.GOLF || (course !== 'golfjardin' && course !== 'golfneon')) return new Response('Parcours inconnu', { status: 404 });

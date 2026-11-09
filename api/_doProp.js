@@ -20,7 +20,9 @@ export class PropRoom {
     this.state = state; this.env = env;
     for (const k of Object.keys(env || {})) if (typeof env[k] === 'string') process.env[k] = env[k];
     this.players = new Map(); this.timer = null; this.last = 0; this.acc = 0; this.n = 0;
-    this.ph = 'lobby'; this.tl = PS.TIMES.lobby; this.mapId = PS.MAP_IDS[0]; this.map = PS.makeMap(this.mapId); this.t = 0; this.lastSeekers = new Set(); this.votes = new Map(); this.win = '';
+    this.ph = 'lobby'; this.tl = PS.TIMES.lobby; this.mapId = PS.MAP_IDS[0]; this.map = PS.makeMap(this.mapId); this.t = 0; this.lastSeekers = new Set(); this.win = '';
+    // la salle : « pub-<carte> » (publique, une par carte, la manche démarre toute seule) ou « priv-<CODE> » (salon privé : le chef de salle lance la manche)
+    this.cfg = null; this.host = ''; this.starting = false;
   }
 
   async admit(url) {
@@ -28,11 +30,23 @@ export class PropRoom {
     if (!tok) return { error: 'Connexion requise', status: 401 };
     const key = String(tok.u).toLowerCase();
     if (!(await isStaffActor(key))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // le Prop Hunt est encore en test
+    const room = String(url.searchParams.get('room') || '');
+    if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(room)) return { error: 'Salon invalide', status: 404 };
+    if (!this.cfg) {
+      if (room.startsWith('pub-')) this.cfg = { map: room.slice(4), priv: false, code: '' };
+      else {
+        const m = String(url.searchParams.get('map') || '');
+        if (url.searchParams.get('create') !== '1') return { error: 'Salon introuvable : vérifie le code', status: 404 };
+        if (!PS.MAPS[m]) return { error: 'Carte inconnue', status: 400 };
+        this.cfg = { map: m, priv: true, code: room.slice(5) };
+      }
+    }
     if (this.players.size >= MAX_PLAYERS && !this.players.has(key)) return { error: 'Salle complète', status: 503 };
     return { key, name: String(url.searchParams.get('name') || tok.u).slice(0, 20) };
   }
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.searchParams.get('info') === '1') return new Response(JSON.stringify({ n: this.players.size, ph: this.ph }), { headers: { 'Content-Type': 'application/json' } });   // pour l'écran d'accueil : combien de joueurs ?
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
     const a = await this.admit(url);
     if (a.error) return new Response(a.error, { status: a.status });
@@ -48,7 +62,9 @@ export class PropRoom {
     if (old) { try { old.ws.close(1000, 'autre connexion'); } catch (e) { /* ok */ } this.players.delete(key); }
     const p = { k: key, n: name, ws, c: PS.newPlayer(), queue: [], last: { f: 0, s: 0, run: false, jump: false, yaw: 0, pitch: 0 }, ack: 0, r: 'h', type: '', lock: false, hp: 100, sc: 0, rc: 0,
       w: 'pistolet', ammo: {}, cd: 0, rel: 0, stun: 0, morphCd: 0, tauntCd: 0, dead: false };
+    if (!this.players.size && this.cfg && this.cfg.map !== this.mapId) { this.mapId = this.cfg.map; this.map = PS.makeMap(this.mapId); }
     this.players.set(key, p);
+    if (!this.host || !this.players.has(this.host)) this.host = key;
     this.respawn(p, this.ph === 'hunt' ? 's' : 'h');                    // arrivé en pleine chasse : on est chasseur
     ws.addEventListener('message', (ev) => this.onMessage(p, ev));
     const bye = () => this.leave(p);
@@ -58,8 +74,9 @@ export class PropRoom {
   }
   leave(p) {
     if (this.players.get(p.k) !== p) return;
-    this.players.delete(p.k); this.votes.delete(p.k);
-    if (!this.players.size) { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.toLobby(); }
+    this.players.delete(p.k);
+    if (this.host === p.k) this.host = this.players.size ? [...this.players.keys()][0] : '';
+    if (!this.players.size) { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.toLobby(); if (this.cfg && this.cfg.priv) this.cfg = null; }   // un salon privé disparaît quand le dernier part
   }
   // remet un joueur sur un point de départ avec le rôle voulu
   respawn(p, role, spawnIndex) {
@@ -73,20 +90,15 @@ export class PropRoom {
 
   /* ------------------------------ manches ------------------------------ */
   toLobby() {
-    this.ph = 'lobby'; this.tl = PS.TIMES.lobby; this.win = '';
+    this.ph = 'lobby'; this.tl = PS.TIMES.lobby; this.win = ''; this.starting = false;
     this.players.forEach((p) => this.respawn(p, 'h'));
   }
   startRound() {
     const ids = [...this.players.keys()];
-    if (ids.length < 2) { this.tl = PS.TIMES.lobby; return; }
-    // la carte : la plus votée, sinon une autre que la précédente
-    const tally = {}; this.votes.forEach((m) => { tally[m] = (tally[m] || 0) + 1; });
-    let best = null, bn = 0; Object.keys(tally).forEach((m) => { if (tally[m] > bn || (tally[m] === bn && Math.random() < 0.5)) { best = m; bn = tally[m]; } });
-    if (!best) { const others = PS.MAP_IDS.filter((m) => m !== this.mapId); best = others[Math.floor(Math.random() * others.length)]; }
-    this.votes.clear(); this.mapId = best; this.map = PS.makeMap(best);
-    // les chasseurs : 1 pour 4 joueurs, de préférence ceux qui ne l'étaient pas à la manche d'avant
-    const nS = Math.max(1, Math.floor(ids.length / 4)), pool = ids.filter((k) => !this.lastSeekers.has(k)), rest = ids.filter((k) => this.lastSeekers.has(k));
-    const shuf = (a) => a.sort(() => Math.random() - 0.5), chosen = shuf(pool).concat(shuf(rest)).slice(0, nS);
+    if (ids.length < 2) { this.tl = PS.TIMES.lobby; this.starting = false; return; }
+    // les chasseurs : au hasard, 1 pour 4 joueurs
+    const nS = Math.max(1, Math.floor(ids.length / 4));
+    const shuf = (a) => a.sort(() => Math.random() - 0.5), chosen = shuf(ids.slice()).slice(0, nS);
     this.lastSeekers = new Set(chosen);
     const hs = shuf(this.map.spawnH.map((_, i) => i)); let hi = 0, si = 0;
     this.players.forEach((p) => { p.sc = 0; if (chosen.includes(p.k)) this.respawn(p, 's', si++); else this.respawn(p, 'h', hs[hi++ % hs.length]); });
@@ -123,15 +135,15 @@ export class PropRoom {
       if (p.r === 's' && PS.WEAPONS[m.w] && p.rel <= this.t) { p.w = m.w; p.cd = this.t + 0.3; }
     } else if (m.t === 'reload') {
       this.reload(p);
-    } else if (m.t === 'vote') {
-      if (this.ph === 'lobby' && PS.MAPS[m.map]) { this.votes.set(p.k, m.map); }
+    } else if (m.t === 'start') {                                                  // salon privé : le chef de salle lance la manche (2 joueurs minimum)
+      if (this.cfg && this.cfg.priv && p.k === this.host && this.ph === 'lobby' && this.players.size >= 2 && !this.starting) { this.starting = true; this.tl = 5; }
     } else if (m.t === 'shoot') {
       this.shoot(p, num(m.yaw, -1000, 1000), num(m.pitch, -1.5, 1.5));
     }
   }
   reload(p) {
     if (p.r !== 's' || p.dead || this.ph !== 'hunt' || p.rel > this.t) return;
-    const W = PS.WEAPONS[p.w]; if (p.ammo[p.w] >= W.mag) return;
+    const W = PS.WEAPONS[p.w]; if (p.ammo[p.w] >= W.mag || !(W.reload > 0)) return;       // le lance-grenade ne se recharge pas
     p.rel = this.t + W.reload; this.send(p.ws, { t: 'ev', e: 'reload', w: p.w, d: W.reload });
   }
   shoot(p, yaw, pitch) {
@@ -147,15 +159,27 @@ export class PropRoom {
     const hit = PS.raycast(this.map, ox, oy, oz, jy, jp, 70, hiders);
     const cp = Math.cos(jp), tx = ox + Math.sin(jy) * cp * hit.t, ty = oy + Math.sin(jp) * hit.t, tz = oz - Math.cos(jy) * cp * hit.t;
     const ev = { t: 'ev', e: 'shot', k: p.k, w: p.w, ox: R(ox, 2), oy: R(oy, 2), oz: R(oz, 2), tx: R(tx, 2), ty: R(ty, 2), tz: R(tz, 2), h: hit.kind || '' };
-    if (hit.kind === 'hider') {
-      const v = hit.ref.p; v.hp -= W.dmg; ev.v = v.k; ev.hp = Math.max(0, v.hp);
-      this.send(v.ws, { t: 'ev', e: 'hurt', hp: Math.max(0, v.hp), by: p.k });
-      if (v.hp <= 0) { v.dead = true; p.sc += 100; ev.kill = 1; this.killed(v, p); }
-    } else if (hit.kind === 'prop') {                                              // un objet « normal » : le chasseur se blesse
+    const victims = [];
+    if (W.radius) {
+      // grenade : explosion à l'impact, tous les cachés dans le rayon sont touchés (moins fort quand on est loin du centre)
+      ev.ex = W.radius;
+      for (const q of this.players.values()) {
+        if (q.r !== 'h' || q.dead) continue;
+        const d = Math.max(0, Math.hypot(q.c.x - tx, q.c.y + q.c.h / 2 - ty, q.c.z - tz) - q.c.r);
+        if (d <= W.radius) victims.push([q, Math.round(W.dmg * (1 - 0.6 * d / W.radius))]);
+      }
+    } else if (hit.kind === 'hider') victims.push([hit.ref.p, W.dmg]);
+    else if (hit.kind === 'prop') {                                                // un objet « normal » : le chasseur se blesse
       p.hp -= 4; this.send(p.ws, { t: 'ev', e: 'ouch', hp: Math.max(0, p.hp) });
       if (p.hp <= 0) { p.stun = this.t + 4; p.hp = 60; this.send(p.ws, { t: 'ev', e: 'stun', d: 4 }); }
     }
+    ev.hit = victims.length; const dead = [];
+    victims.forEach(([v, dmg]) => {
+      v.hp -= dmg; this.send(v.ws, { t: 'ev', e: 'hurt', hp: Math.max(0, v.hp), by: p.k });
+      if (v.hp <= 0) { v.dead = true; p.sc += 100; ev.kill = 1; dead.push(v); }
+    });
     this.broadcast(ev);
+    dead.forEach((v) => this.killed(v, p));
   }
   killed(v, by) {
     this.broadcast({ t: 'ev', e: 'kill', k: v.k, by: by.k });
@@ -174,8 +198,10 @@ export class PropRoom {
     const list = [...this.players.values()], n = list.length;
     // phases
     if (this.ph === 'lobby') {
-      if (n < 2) this.tl = PS.TIMES.lobby;
-      else if (this.tl <= 0) this.startRound();
+      const priv = !!(this.cfg && this.cfg.priv);
+      if (n < 2) { this.tl = PS.TIMES.lobby; this.starting = false; }
+      else if (!priv || this.starting) { if (this.tl <= 0) this.startRound(); }      // salon public : compte à rebours automatique ; privé : seulement après « Lancer »
+      else this.tl = PS.TIMES.lobby;
     } else if (this.ph === 'hide') {
       if (this.tl <= 0) { this.ph = 'hunt'; this.tl = PS.TIMES.hunt; this.broadcast({ t: 'ev', e: 'hunt' }); }
     } else if (this.ph === 'hunt') {
@@ -203,8 +229,7 @@ export class PropRoom {
 
   /* ------------------------------ envoi ------------------------------ */
   snapshots(list) {
-    const base = { t: 's', ph: this.ph, tl: R(Math.max(0, this.tl), 1), m: this.mapId, win: this.win, nv: this.votes.size };
-    const vt = {}; this.votes.forEach((m) => { vt[m] = (vt[m] || 0) + 1; }); base.vt = vt;
+    const base = { t: 's', ph: this.ph, tl: R(Math.max(0, this.tl), 1), m: this.mapId, win: this.win, pv: this.cfg && this.cfg.priv ? 1 : 0, code: this.cfg ? this.cfg.code : '', host: this.host, go: this.starting ? 1 : 0 };
     list.forEach((viewer) => {
       const hideHiders = viewer.r === 's' && this.ph === 'hide';                  // pendant la cachette, les chasseurs ne reçoivent rien sur les cachés
       const pl = [];

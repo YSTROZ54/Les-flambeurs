@@ -32,12 +32,12 @@ const SIM = (function () {
 
   /* ------------------------------ les cartes ------------------------------ */
   var MAPS = {
-    manoir: { name: 'Le Manoir', icon: '🏚️', style: 'manoir', indoor: true, desc: 'Un vieux manoir : salons, bibliothèque, cuisine et chambres', W: 64, D: 44, H: 4.6, seed: 11, cols: [18, 26, 20], rows: [[20, 24], [24, 20], [22, 22]], target: 80,
+    manoir: { name: 'Le Manoir', icon: '🏠', style: 'manoir', indoor: true, desc: 'Un vieux manoir : salons, bibliothèque, cuisine et chambres', W: 64, D: 44, H: 4.6, seed: 11, cols: [18, 26, 20], rows: [[20, 24], [24, 20], [22, 22]], target: 80,
       kinds: [['bibliotheque', 'salle'], ['grandhall', 'salon', 'salle'], ['cuisine', 'chambre']] },
     casino: { name: 'Casino des Flambeurs', icon: '🎰', style: 'casino', indoor: true, desc: 'Machines à sous, roulettes, bar et salon VIP', W: 72, D: 48, H: 5.2, seed: 23, cols: [24, 24, 24], rows: [[24, 24], [48], [24, 24]], target: 95,
       kinds: [['slots', 'vip'], ['salle'], ['poker', 'bar']] },
-    marche: { name: 'Marché de nuit', icon: '🏮', style: 'marche', indoor: false, desc: 'Ruelles, étals, lanternes et néons sous la pluie', W: 70, D: 56, H: 9, seed: 37, target: 110 },
-    station: { name: 'Station Orion', icon: '🛰️', style: 'station', indoor: true, desc: 'Une station orbitale : sas, labo, hangar et réacteur', W: 70, D: 50, H: 5.0, seed: 41, cols: [20, 30, 20], rows: [[25, 25], [50], [25, 25]], target: 90,
+    marche: { name: 'Marché de nuit', icon: '🌙', style: 'marche', indoor: false, desc: 'Ruelles, étals, lanternes et néons sous la pluie', W: 70, D: 56, H: 9, seed: 37, target: 110 },
+    station: { name: 'Station Orion', icon: '🚀', style: 'station', indoor: true, desc: 'Une station orbitale : sas, labo, hangar et réacteur', W: 70, D: 50, H: 5.0, seed: 41, cols: [20, 30, 20], rows: [[25, 25], [50], [25, 25]], target: 90,
       kinds: [['cryo', 'labo'], ['reacteur'], ['hangar', 'quartiers']] },
     musee: { name: 'Musée des Merveilles', icon: '🏛️', style: 'musee', indoor: true, desc: 'Galeries de marbre : statues, vitrines, sarcophages et dinosaure', W: 68, D: 46, H: 6.4, seed: 53, cols: [22, 24, 22], rows: [[23, 23], [46], [23, 23]], target: 85,
       kinds: [['egypte', 'antique'], ['rotonde'], ['art', 'dino']] },
@@ -243,9 +243,11 @@ const SIM = (function () {
     pistolet: { name: 'Pistolet', dmg: 34, cd: 0.34, mag: 12, reload: 1.5, spread: 0.006, auto: false },
     revolver: { name: 'Revolver', dmg: 75, cd: 0.85, mag: 6, reload: 2.4, spread: 0.003, auto: false },
     fusil: { name: 'Fusil d\'assaut', dmg: 22, cd: 0.11, mag: 30, reload: 2.0, spread: 0.014, auto: true },
-    carabine: { name: 'Carabine', dmg: 55, cd: 0.62, mag: 8, reload: 2.2, spread: 0.0015, auto: false }
+    carabine: { name: 'Carabine', dmg: 55, cd: 0.62, mag: 8, reload: 2.2, spread: 0.0015, auto: false },
+    // une seule grenade (pas de rechargement) : elle explose là où elle tombe et blesse tous les cachés autour (rayon en mètres)
+    lance: { name: 'Lance-grenade', dmg: 120, cd: 1.0, mag: 1, reload: 0, spread: 0.002, auto: false, radius: 4.2 }
   };
-  var WEAPON_IDS = ['pistolet', 'revolver', 'fusil', 'carabine'];
+  var WEAPON_IDS = ['pistolet', 'revolver', 'fusil', 'carabine', 'lance'];
   var TIMES = { lobby: 20, hide: 30, hunt: 240, results: 12 };
 
   var API = { WEAPONS: WEAPONS, WEAPON_IDS: WEAPON_IDS, TIMES: TIMES, PROPS: PROPS, PROP_IDS: PROP_IDS, MAPS: MAPS, MAP_IDS: MAP_IDS, makeMap: makeMap, newPlayer: newPlayer, setShape: setShape, stepPlayer: stepPlayer, raycast: raycast, rectsOf: rectsOf, RADIUS: RADIUS, EYE: EYE, WALK: WALK, RUN: RUN, rng: rng };

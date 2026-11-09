@@ -58,6 +58,10 @@ const server = http.createServer(async (req, res) => {
     res.end('ok'); return;
   }
 
+  if (path === '/api/prophunt-info') {          // nombre de joueurs par salle publique (comme sur Cloudflare)
+    const out = {}; for (const mp of ['manoir', 'casino', 'marche', 'station', 'musee', 'port']) { const r = rooms['/ws/prophunt:pub-' + mp]; out[mp] = { n: r ? r.players.size : 0, ph: r ? r.ph : 'lobby' }; }
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(out)); return;
+  }
   const m = path.match(/^\/api\/([a-z-]+)$/);
   if (m && API.includes(m[1])) {
     try {
@@ -102,7 +106,7 @@ server.on('upgrade', async (req, socket, head) => {
     const url = new URL(req.url, 'http://' + req.headers.host);
     if (url.pathname !== '/ws/kart' && url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt') { socket.destroy(); return; }
     let room, key = url.pathname;
-    if (url.pathname === '/ws/prophunt') { if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
+    if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
     else if (url.pathname === '/ws/kart') { if (!rooms[key]) { const kr = new (await import(pathToFileURL(join(ROOT, 'api', '_doKart.js')).href)).KartRoom({}, {}); kr.offset = globalThis.__kartOffset || 0; rooms[key] = kr; } room = rooms[key]; }
     else { key += ':' + url.searchParams.get('course'); if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
     const a = await room.admit(url);

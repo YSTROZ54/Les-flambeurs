@@ -15,6 +15,9 @@
   if (window.FL_LOGOS) return;
 
   var MAP = {
+    // Prop Hunt
+    '🔫': ['fa-crosshairs', '#f87171'], '🎭': ['fa-masks-theater', '#c084fc'], '❤': ['fa-heart', '#ef4444'], '🏠': ['fa-house', '#d6a066'], '🌙': ['fa-moon', '#c4b5fd'], '⚓': ['fa-anchor', '#7dd3fc'],
+    '🔍': ['fa-magnifying-glass', '#fbbf24'], '🗺': ['fa-map', '#34d399'], '🕵': ['fa-user-secret', '#cbd5e1'], '🏮': ['fa-lightbulb', '#f97316'], '🛰': ['fa-satellite', '#38bdf8'], '🏚': ['fa-house-chimney-crack', '#a8a29e'],
     '❌': ['fa-circle-xmark', '#ef4444'], '✅': ['fa-circle-check', '#22c55e'], '✔': ['fa-check', '#22c55e'], '✓': ['fa-check', '#22c55e'], '✕': ['fa-xmark', '#9ca3af'], '✖': ['fa-xmark', '#9ca3af'],
     '⚠': ['fa-triangle-exclamation', '#f59e0b'], '⛔': ['fa-ban', '#ef4444'], '🚫': ['fa-ban', '#ef4444'], 'ℹ': ['fa-circle-info', '#38bdf8'], '❓': ['fa-circle-question', '#38bdf8'],
     '➕': ['fa-plus', '#22c55e'], '➔': ['fa-arrow-right', '#cbd5e1'], '↩': ['fa-rotate-left', '#cbd5e1'], '🔄': ['fa-rotate', '#38bdf8'], '🌀': ['fa-hurricane', '#38bdf8'],
