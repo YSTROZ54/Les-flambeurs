@@ -104,7 +104,7 @@ server.on('upgrade', async (req, socket, head) => {
     let room, key = url.pathname;
     if (url.pathname === '/ws/kart') { if (!rooms[key]) { const kr = new (await import(pathToFileURL(join(ROOT, 'api', '_doKart.js')).href)).KartRoom({}, {}); kr.offset = globalThis.__kartOffset || 0; rooms[key] = kr; } room = rooms[key]; }
     else { key += ':' + url.searchParams.get('course'); if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
-    const a = room.admit(url);
+    const a = await room.admit(url);
     if (a.error) { socket.write('HTTP/1.1 ' + a.status + ' ' + a.error.replace(/[^a-zA-Z ]/g, '') + '\r\n\r\n'); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => {
       const adapter = { send: (m) => { if (ws.readyState === 1) ws.send(m); }, close: () => { try { ws.close(); } catch (e) { /* ok */ } }, addEventListener: (ev, fn) => { if (ev === 'message') ws.on('message', (d) => fn({ data: d.toString() })); else ws.on(ev, fn); } };

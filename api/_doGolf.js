@@ -7,6 +7,7 @@
 // Messages du serveur : welcome · players · hole · shot · over.
 import { readToken } from './_auth.js';
 import GS from './_golfSim.js';
+import { isStaffActor } from './_roles.js';
 
 const TICK_MS = 500, DONE_DELAY_MS = 2600, OVER_MS = 14000, MAX_SIM_S = 30, TRAJ_DT = 1 / 30;
 const COLORS = 8;
@@ -22,18 +23,19 @@ export class GolfRoom {
   }
 
   // vérifie la demande de connexion ; renvoie { error, status } ou { key, name }
-  admit(url) {
+  async admit(url) {
     const course = url.searchParams.get('course');
     if (!COURSE_IDS.includes(course)) return { error: 'Parcours inconnu', status: 404 };
     const tok = readToken(String(url.searchParams.get('token') || ''));
     if (!tok) return { error: 'Connexion requise', status: 401 };
+    if (!(await isStaffActor(String(tok.u).toLowerCase()))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // le golf est encore en test
     if (!this.course) { this.course = course; this.holes = GS.COURSES[course].holes.map((h) => GS.buildHoleData(h)); }
     return { key: String(tok.u).toLowerCase(), name: String(url.searchParams.get('name') || tok.u).slice(0, 20) };
   }
   async fetch(request) {
     const url = new URL(request.url);
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
-    const a = this.admit(url);
+    const a = await this.admit(url);
     if (a.error) return new Response(a.error, { status: a.status });
     const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
     server.accept();

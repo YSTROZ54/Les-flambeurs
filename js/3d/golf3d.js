@@ -533,6 +533,7 @@
       myBall.material.dispose(); myBall.material = ballMat('#ffffff'); myBall.geometry = ballGeoNow(); myBall.visible = true; myGlow.visible = false;   // ma balle : blanche, comme une vraie
       bgOld = world.scene.background; world.scene.background = new THREE.Color(skyCol);
       ui = buildUi(); bind(true);
+      if (F.isStaff && !F.isStaff()) { w.flash('⛳ Golf en test', 'Réservé au Patron, au Co Fondateur et au Staff'); setTimeout(function () { world.goRoom('golf', cid); }, 300); return; }
       me.ready = false; myKey = F.me(); netErr = ''; ball.anim = null; ball.pending = 0; ball.sunk = false;
       connect();
       w.sitDown(room);

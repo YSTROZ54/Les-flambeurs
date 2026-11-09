@@ -9,6 +9,7 @@
 // Messages du serveur : welcome · s (instantané de toutes les voitures, 15 fois par seconde) · ev (tour, arrivée…) · fin.
 import { readToken } from './_auth.js';
 import KS from './_kartSim.js';
+import { isStaffActor } from './_roles.js';
 
 const STEP_MS = 1000 / 30, SUB = 3, SNAP_EVERY = 2, MAX_PLAYERS = 12, MAX_QUEUE = 8;
 export const CAR_IDS = ['eb110', 'gt3r', 'ferrari', 'rb22', 'bolide', 'noire', 'muscle', 'mystery'];
@@ -24,10 +25,11 @@ export class KartRoom {
   now() { return Date.now() + this.offset; }
 
   // vérifie la demande de connexion ; renvoie { error, status } ou { key, name, car }
-  admit(url) {
+  async admit(url) {
     const tok = readToken(String(url.searchParams.get('token') || ''));
     if (!tok) return { error: 'Connexion requise', status: 401 };
     const key = String(tok.u).toLowerCase();
+    if (!(await isStaffActor(key))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // la course est encore en test
     if (this.players.size >= MAX_PLAYERS && !this.players.has(key)) return { error: 'Course complète', status: 503 };
     const car = url.searchParams.get('car');
     return { key, name: String(url.searchParams.get('name') || tok.u).slice(0, 20), car: CAR_IDS.includes(car) ? car : CAR_IDS[0] };
@@ -35,7 +37,7 @@ export class KartRoom {
   async fetch(request) {
     const url = new URL(request.url);
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
-    const a = this.admit(url);
+    const a = await this.admit(url);
     if (a.error) return new Response(a.error, { status: a.status });
     const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
     server.accept();

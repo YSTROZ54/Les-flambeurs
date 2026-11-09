@@ -26,10 +26,10 @@
     { id: 'blindtest', x: -HX, z: 3, nx: 1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
     { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' },
     // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
-    { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🕵️ PROP HUNT', sub: 'BIENTÔT', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt' },
-    { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'BIENTÔT', color: 0x4ad0ff, target: 'dessin', theme: 'dessin' },
-    { id: 'kart', x: -9, z: HZ, nx: 0, nz: -1, label: '🏎️ COURSE', sub: 'GRAND PRIX · PC · MANETTE', color: 0xff4d4d, target: 'kart', pcOnly: true },
-    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'ENTRE AMIS · 2 PARCOURS', color: 0x5dff8a, target: 'golf', theme: 'golf' }
+    { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🕵️ PROP HUNT', sub: 'EN TEST · STAFF', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt', staff: true },
+    { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'EN TEST · STAFF', color: 0x4ad0ff, target: 'dessin', theme: 'dessin', staff: true },
+    { id: 'kart', x: -9, z: HZ, nx: 0, nz: -1, label: '🏎️ COURSE', sub: 'EN TEST · STAFF', color: 0xff4d4d, target: 'kart', pcOnly: true, staff: true },
+    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'EN TEST · STAFF', color: 0x5dff8a, target: 'golf', theme: 'golf', staff: true }
   ];
 
   function createMiniJeuxRoom(world) {
@@ -81,6 +81,7 @@
       if (d.pcOnly && F.isPhone && F.isPhone()) return;                  // la course n'existe que sur ordinateur
       var spec = { x: d.x, z: d.z, nx: d.nx, nz: d.nz, w: 2.2, h: 3.2, label: d.label, sub: d.sub, color: d.color, target: d.target };
       if (d.theme) spec.theme = d.theme;
+      if (d.staff) spec.enabled = function () { return !!(F.isStaff && F.isStaff()); };   // ces jeux sont en test : seuls le Patron, le Co Fondateur et le Staff peuvent pousser la porte
       world.addDoor(room, spec);
     });
     // on arrive devant la porte par laquelle on vient de ressortir ; depuis le hall : devant la porte de sortie

@@ -28,6 +28,13 @@
 
   // direction (dx, dz) -> angle de regard du joueur (0 = vers -z)
   F.yawFor = function (dx, dz) { return Math.atan2(dx, -dz); };
+  // Patron, Co Fondateur ou Staff (les jeux encore en test ne leur sont ouverts qu'à eux ; le serveur revérifie)
+  F.isStaff = function () {
+    try {
+      if ((typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder())) return true;
+      var r = typeof state !== 'undefined' && state ? state.roles : null; return !!(r && r.indexOf && r.indexOf('staff') >= 0);
+    } catch (e) { return false; }
+  };
   // Sensibilité de la souris verrouillée (×1 = 0,0022 rad par pixel), gardée d'une visite à l'autre
   F.sensi = function (v) {
     try {

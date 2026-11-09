@@ -474,6 +474,7 @@
       carMeshId = ''; setMyCar(CAR_BY[saved] ? saved : CARS[Math.floor(Math.random() * CARS.length)].id);
       window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKey, true);
       var a = ac(); if (a) { try { var o1 = a.createOscillator(), o2 = a.createOscillator(), fl = a.createBiquadFilter(), gn = a.createGain(); o1.type = 'sawtooth'; o2.type = 'square'; fl.type = 'lowpass'; fl.frequency.value = 700; gn.gain.value = 0; o1.connect(fl); o2.connect(fl); fl.connect(gn); gn.connect(a.destination); o1.start(); o2.start(); eng = { o1: o1, o2: o2, g: gn, f: fl }; } catch (e) { eng = null; } }
+      if (F.isStaff && !F.isStaff()) { w.flash('🏎️ Course en test', 'Réservée au Patron, au Co Fondateur et au Staff'); setTimeout(function () { world.goRoom('minijeux', 'kart'); }, 300); return; }
       myKey = F.me(); me.ready = false; me.rc = -1; pending = []; seq = 0; inpAcc = 0; netErr = ''; lastPhase = '';
       connect();
       w.sitDown(room);
