@@ -85,8 +85,14 @@
     box(0.016, 0.05, 0.03, dark, 0, 0.06, 0.0); box(0.008, 0.06, 0.012, steel, 0, 0.1, 0.0); box(0.01, 0.022, 0.008, red, 0, 0.048, -0.44); cyl(0.004, 0.004, 0.03, steel, 0, 0.05, -0.44);   // hausse et guidon
     g.traverse(function (o) { o.frustumCulled = false; }); return g;
   }
-  var WFILE = { pistolet: { f: 'assets/armes/pistolet.glb', L: 0.27, rot: 0 }, revolver: { f: 'assets/armes/revolver.glb', L: 0.34, rot: 0 }, fusil: { f: 'assets/armes/fusil.glb', L: 0.8, rot: Math.PI / 2 }, carabine: { f: 'assets/armes/carabine.glb', L: 0.86, rot: Math.PI / 2 }, lance: { proc: makeLauncher, L: 0.82 } };
+  var WFILE = { pistolet: { f: 'assets/armes/pistolet.glb', L: 0.27, rot: Math.PI }, revolver: { f: 'assets/armes/revolver.glb', L: 0.34, rot: 0 }, fusil: { f: 'assets/armes/fusil.glb', L: 0.8, rot: Math.PI / 2 }, carabine: { f: 'assets/armes/carabine.glb', L: 0.86, rot: Math.PI / 2, strip: function (x, y) { return x > 0.2 && y < -0.42; } }, lance: { proc: makeLauncher, L: 0.82 } };
   var wCache = {}, wWait = {};
+  // retire du modèle les pièces posées à côté de l'arme (chargeur de rechange, douilles) : tous les triangles dont le centre est dans la zone désignée par strip(x, y)
+  function stripTris(geo, strip) {
+    var idx = geo.index.array, pos = geo.attributes.position, keep = [], i;
+    for (i = 0; i < idx.length; i += 3) { var a = idx[i], b = idx[i + 1], c = idx[i + 2]; if (!strip((pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3, (pos.getY(a) + pos.getY(b) + pos.getY(c)) / 3)) keep.push(a, b, c); }
+    geo.setIndex(keep);
+  }
   // renvoie (de façon asynchrone) un groupe dont le canon pointe vers -z, centré, à la bonne longueur
   function loadWeapon(id, cb) {
     var cfg = WFILE[id]; if (!cfg) return;
@@ -94,7 +100,8 @@
     if (wCache[id]) { cb(wCache[id].clone(true)); return; }
     (wWait[id] = wWait[id] || []).push(cb);
     if (wWait[id].length > 1 || !THREE.GLTFLoader) return;
-    new THREE.GLTFLoader().load(cfg.f + '?v=2', function (gl) {
+    new THREE.GLTFLoader().load(cfg.f + '?v=3', function (gl) {
+      if (cfg.strip) gl.scene.traverse(function (o) { if (o.isMesh && o.geometry && o.geometry.index) stripTris(o.geometry, cfg.strip); });
       var inner = new THREE.Group(); inner.add(gl.scene); inner.rotation.y = cfg.rot; var root = new THREE.Group(); root.add(inner); root.updateMatrixWorld(true);
       var b = new THREE.Box3().setFromObject(root), s = new THREE.Vector3(), c = new THREE.Vector3(); b.getSize(s); b.getCenter(c);
       var k = cfg.L / Math.max(0.001, s.z); inner.scale.setScalar(k); inner.position.set(-c.x * k, -c.y * k, -c.z * k);
@@ -132,8 +139,8 @@
     var head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 16, 12), skin); head.position.y = 1.7; g.add(head);
     var hel = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 10, 0, TAU, 0, Math.PI * 0.55), dark); hel.position.y = 1.72; g.add(hel);
     var gog = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.07, 0.06), PM.glow('goggle', 0x39d6ff, 1.4)); gog.position.set(0, 1.72, 0.13); g.add(gog);
-    var gunHolder = new THREE.Group(); gunHolder.position.set(0.1, 1.25, 0.3); gunHolder.rotation.y = Math.PI; g.add(gunHolder);
-    [[-0.34, 1.34, 0.1, 0.5], [0.3, 1.32, 0.2, 1.0]].forEach(function (a, i) { var ar = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.14), suit); ar.geometry.translate(0, -0.25, 0); ar.position.set(a[0], a[1], a[2] * 0.4); ar.rotation.x = -a[3]; g.add(ar); arms.push(ar); });
+    var gunHolder = new THREE.Group(); gunHolder.position.set(0.17, 1.2, 0.5); gunHolder.rotation.y = Math.PI; g.add(gunHolder);
+    [[-0.33, 1.4, 1.35, 0.35], [0.31, 1.4, 1.25, -0.25]].forEach(function (a) { var ar = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.14), suit); ar.geometry.translate(0, -0.25, 0); ar.position.set(a[0], a[1], 0.02); ar.rotation.set(-a[2], 0, a[3]); g.add(ar); arms.push(ar); });
     g.userData = { legs: legs, gun: gunHolder, w: '' }; return g;
   }
 
@@ -282,7 +289,7 @@
         r.key = key; if (r.body) r.grp.remove(r.body);
         r.body = p.r === 'h' ? PM.build(p.ty || 'crate') : makeSoldier(0x3c4a3a); r.grp.add(r.body); if (p.r === 's') r.lastW = '';
       }
-      if (p.r === 's' && r.lastW !== r.w) { r.lastW = r.w; var holder = r.body.userData.gun; while (holder.children.length) holder.remove(holder.children[0]); if (r.w) loadWeapon(r.w, function (m) { if (r.body && r.body.userData.gun === holder) holder.add(m); }); }
+      if (p.r === 's' && r.lastW !== r.w) { r.lastW = r.w; var holder = r.body.userData.gun; while (holder.children.length) holder.remove(holder.children[0]); holder.position.z = 0.22 + ((WFILE[r.w] && WFILE[r.w].L) || 0.4) / 2; if (r.w) loadWeapon(r.w, function (m) { if (r.body && r.body.userData.gun === holder) holder.add(m); }); }
     }
     function dropRemote(k) { var r = remotes[k]; if (!r) return; g.remove(r.grp); g.remove(r.tag); r.tag.material.map.dispose(); delete remotes[k]; }
 
@@ -351,14 +358,14 @@
       if (!origRender) { var r = world.renderer; origRender = r.render; r.render = function (s, c) { origRender.call(r, s, c); if (s === world.scene) drawVm(); }; }
       vm.visible = true; setViewWeapon(me.w, true);
     }
-    var VMBASE = { pistolet: { x: 0.12, y: -0.115, z: -0.4 }, revolver: { x: 0.12, y: -0.115, z: -0.42 }, fusil: { x: 0.12, y: -0.13, z: -0.84 }, carabine: { x: 0.12, y: -0.13, z: -0.86 }, lance: { x: 0.12, y: -0.115, z: -0.82 } };
+    var VMBASE = { pistolet: { x: 0.12, y: -0.115, z: -0.4 }, revolver: { x: 0.12, y: -0.115, z: -0.42 }, fusil: { x: 0.12, y: -0.14, z: -0.64 }, carabine: { x: 0.12, y: -0.14, z: -0.66 }, lance: { x: 0.12, y: -0.12, z: -0.7 } };
     function setViewWeapon(w, force) {
       if (!vmHolder || (vmW === w && !force)) return; vmW = w;
       while (vmHolder.children.length) vmHolder.remove(vmHolder.children[0]);
       loadWeapon(w, function (m) {
         if (vmW !== w || !vmHolder) return;
         vmHolder.add(m); var b = VMBASE[w] || VMBASE.pistolet;
-        vm.scale.setScalar(w === 'pistolet' || w === 'revolver' ? 0.78 : 0.8); vm.userData.base = b; vm.userData.muz = (WFILE[w] ? WFILE[w].L : 0.3) / 2; vm.userData.yaw = 0.035;
+        vm.scale.setScalar(w === 'pistolet' || w === 'revolver' ? 0.78 : 0.88); vm.userData.base = b; vm.userData.muz = (WFILE[w] ? WFILE[w].L : 0.3) / 2; vm.userData.yaw = 0.035;
       });
     }
 
@@ -589,9 +596,10 @@
       if (hurtT > 0) hurtT -= dt;
       if (mapObj) mapObj.update(dt, world.camera);
     };
-    room._dbg = { me: me, remotes: remotes, cam: cam, keys: function () { return keys; }, snap: function () { return snap; }, net: function () { return { wsOk: wsOk, pending: pending.length, netErr: netErr, map: mapId, ph: curPh }; }, fire: fire, boom: boomFx, ev: onEvent, setPaused: function (v) { paused = v; }, setCam: function (y, p) { cam.yaw = y; cam.pitch = p; }, key: function (c, v) { keys[c] = v; } };
+    room._dbg = { me: me, remotes: remotes, cam: cam, keys: function () { return keys; }, snap: function () { return snap; }, net: function () { return { wsOk: wsOk, pending: pending.length, netErr: netErr, map: mapId, ph: curPh }; }, fire: fire, force: function (w) { me.r = 's'; curPh = 'hunt'; if (w) me.w = w; ensureViewmodel(); setViewWeapon(me.w, true); }, boom: boomFx, ev: onEvent, setPaused: function (v) { paused = v; }, setCam: function (y, p) { cam.yaw = y; cam.pitch = p; }, key: function (c, v) { keys[c] = v; } };
     return room;
   }
 
+  F.propDbg = { makeSoldier: makeSoldier, loadWeapon: loadWeapon, WFILE: WFILE };
   F.registerRoom('prophuntgame', createRoom);
 })();
