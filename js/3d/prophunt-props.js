@@ -243,11 +243,11 @@
   // jouets / secours : au cas où un type manque
   function fallback(h) { h.b(0.6, 0.6, 0.6, M('fallback', 0xaa66ff, 0.5), 0, 0, 0); }
 
-  function build(type) {
+  function build(type, variant) {
     var g = new THREE.Group(), h = H(g), fn = BUILD[type] || fallback;
-    try { fn(h); } catch (e) { if (window.console) console.warn('prop', type, e); g.children.length = 0; fallback(h); }
+    try { fn(h, variant || 0); } catch (e) { if (window.console) console.warn('prop', type, e); g.children.length = 0; fallback(h); }
     g.traverse(function (o) { if (o.isMesh) { o.frustumCulled = true; } });
     return g;
   }
-  F.propModels = { build: build, names: NAMES, types: Object.keys(BUILD), M: M, H: H, glow: glow, canvasMat: canvasMat, plane: plane, gold: gold, steel: steel, dsteel: dsteel, marble: marble, bmarble: bmarble, darkwood: darkwood, wood: wood, oak: oak, cloth: cloth, leather: leather, glassM: glassM, paint: paint, brass: brass, porcelain: porcelain };
+  F.propModels = { def: def, build: build, names: NAMES, types: Object.keys(BUILD), M: M, H: H, glow: glow, canvasMat: canvasMat, plane: plane, gold: gold, steel: steel, dsteel: dsteel, marble: marble, bmarble: bmarble, darkwood: darkwood, wood: wood, oak: oak, cloth: cloth, leather: leather, glassM: glassM, paint: paint, brass: brass, porcelain: porcelain };
 })();

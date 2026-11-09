@@ -83,7 +83,7 @@ export class PropRoom {
     p.r = role; p.hp = 100; p.dead = false; p.lock = false; p.stun = 0; p.rc++; p.queue = [];
     const list = role === 's' ? this.map.spawnS : this.map.spawnH, s = list[(spawnIndex === undefined ? Math.floor(Math.random() * list.length) : spawnIndex) % list.length] || [0, 0];
     Object.assign(p.c, { x: s[0], y: 0, z: s[1], vx: 0, vz: 0, vy: 0, air: false });
-    if (role === 'h') { p.type = this.map.props.length ? this.map.props[Math.floor(Math.random() * this.map.props.length)].t : 'crate'; PS.setShape(p.c, p.type); }
+    if (role === 'h') { const cand = this.map.props.filter((q) => q.y === 0 && !PS.WALLT[q.t]), o = cand.length ? cand[Math.floor(Math.random() * cand.length)] : null; p.type = o ? o.t : 'crate'; p.pvar = o ? (o.v || 0) : 0; PS.setShape(p.c, p.type); }
     else { p.type = ''; PS.setShape(p.c, ''); }
     p.w = 'pistolet'; PS.WEAPON_IDS.forEach((w) => { p.ammo[w] = PS.WEAPONS[w].mag; }); p.cd = 0; p.rel = 0;
   }
@@ -124,7 +124,7 @@ export class PropRoom {
       if (p.r !== 'h' || p.dead || this.ph === 'results' || p.morphCd > this.t) return;
       const o = this.map.props[Math.floor(Number(m.i))]; if (!o) return;
       if (Math.hypot(o.x - p.c.x, o.z - p.c.z) > 5.5) return;                 // il faut être tout près de l'objet
-      p.type = o.t; PS.setShape(p.c, o.t); p.morphCd = this.t + 0.35;
+      p.type = o.t; p.pvar = o.v || 0; PS.setShape(p.c, o.t); p.morphCd = this.t + 0.35;
     } else if (m.t === 'lock') {
       if (p.r === 'h' && !p.dead) p.lock = !p.lock;
     } else if (m.t === 'taunt') {
@@ -155,7 +155,7 @@ export class PropRoom {
     p.ammo[p.w]--; p.cd = this.t + W.cd * 0.92;
     const c = p.c, ox = c.x, oy = c.y + c.eye, oz = c.z;
     const jy = yaw + (Math.random() - 0.5) * 2 * W.spread, jp = pitch + (Math.random() - 0.5) * 2 * W.spread;
-    const hiders = [...this.players.values()].filter((q) => q.r === 'h' && !q.dead).map((q) => ({ k: q.k, x: q.c.x, z: q.c.z, r: q.c.r, h: q.c.y + q.c.h, p: q }));
+    const hiders = [...this.players.values()].filter((q) => q.r === 'h' && !q.dead).map((q) => ({ k: q.k, x: q.c.x, z: q.c.z, r: q.c.r, y0: q.c.y, h: q.c.y + q.c.h, p: q }));
     const hit = PS.raycast(this.map, ox, oy, oz, jy, jp, 70, hiders);
     const cp = Math.cos(jp), tx = ox + Math.sin(jy) * cp * hit.t, ty = oy + Math.sin(jp) * hit.t, tz = oz - Math.cos(jy) * cp * hit.t;
     const ev = { t: 'ev', e: 'shot', k: p.k, w: p.w, ox: R(ox, 2), oy: R(oy, 2), oz: R(oz, 2), tx: R(tx, 2), ty: R(ty, 2), tz: R(tz, 2), h: hit.kind || '' };
@@ -236,7 +236,7 @@ export class PropRoom {
       list.forEach((p) => {
         if (hideHiders && p.r === 'h') return;
         const c = p.c, o = { k: p.k, n: p.n, r: p.r, x: R(c.x, 2), y: R(c.y, 2), z: R(c.z, 2), a: R(c.yaw, 3), vx: R(c.vx, 2), vz: R(c.vz, 2), sc: p.sc };
-        if (p.r === 'h') { o.ty = p.type; o.d = p.dead ? 1 : 0; o.lk = p.lock ? 1 : 0; } else { o.w = p.w; o.pi = R(c.pitch, 2); }
+        if (p.r === 'h') { o.ty = p.type; o.vr = p.pvar || 0; o.d = p.dead ? 1 : 0; o.lk = p.lock ? 1 : 0; } else { o.w = p.w; o.pi = R(c.pitch, 2); }
         if (p === viewer) { o.ack = p.ack; o.rc = p.rc; o.hp = p.hp; o.am = p.ammo[p.w]; o.mg = PS.WEAPONS[p.w].mag; o.rl = p.rel ? R(Math.max(0, p.rel - this.t), 2) : 0; o.st = p.stun > this.t ? R(p.stun - this.t, 1) : 0; o.tc = R(Math.max(0, p.tauntCd - this.t), 1); }
         pl.push(o);
       });

@@ -180,19 +180,34 @@
 
     var active = false, ui = null, keys = {}, ws = null, wsOk = false, netErr = '', reconnectT = 0, myKey = '', seq = 0, pending = [], inpAcc = 0, snap = null, hudT = 0, toastT = 0, paused = true;
     var mapId = '', map = null, mapObj = null, propRoot = null, remotes = {}, myBody = null, myBodyKey = '', myHeading = 0, curPh = '', lastRole = '', lastTl = 0, firing = false, fireT = 0, targetProp = null;
-    var me = { c: PS.newPlayer(), r: 'h', type: '', hp: 100, ready: false, rc: -1, am: 12, mg: 12, rl: 0, st: 0, tc: 0, w: 'pistolet', sc: 0 };
+    var me = { c: PS.newPlayer(), r: 'h', type: '', vr: 0, hp: 100, ready: false, rc: -1, am: 12, mg: 12, rl: 0, st: 0, tc: 0, w: 'pistolet', sc: 0 };
     var cam = { yaw: 0, pitch: 0, x: 0, y: 0, z: 0 }, kick = 0, bob = 0, vm = null, vmW = '', vmHolder = null, muzzle = null, hurtT = 0, hitT = 0, flashT = 0, oldFog = null, oldBg = null, oldEnv = null;
     var fx = [], tracers = [], mflash = null;
 
     function myName() { try { return (typeof state !== 'undefined' && state && state.username) ? state.username : F.me(); } catch (e) { return F.me(); } }
 
     /* ---------- la carte ---------- */
+    // fusionne tous les petits morceaux d'objets en un seul maillage par matériau (des centaines d'objets restent légers pour la carte graphique)
+    function mergeStatic(root) {
+      root.updateMatrixWorld(true); var groups = {}, order = [];
+      root.traverse(function (o) { if (!o.isMesh || !o.geometry || !o.visible || Array.isArray(o.material)) return; var k = o.material.uuid; if (!groups[k]) { groups[k] = { mat: o.material, list: [] }; order.push(k); } groups[k].list.push(o); });
+      var out = new THREE.Group();
+      order.forEach(function (k) {
+        var gr = groups[k], n = 0, parts = gr.list.map(function (m) { var geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); geo.applyMatrix4(m.matrixWorld); n += geo.attributes.position.count; return geo; });
+        var pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), o3 = 0, o2 = 0;
+        parts.forEach(function (geo) { var p = geo.attributes.position, nm = geo.attributes.normal, u = geo.attributes.uv; pos.set(p.array, o3); if (nm) nor.set(nm.array, o3); if (u) uv.set(u.array, o2); o3 += p.count * 3; o2 += p.count * 2; geo.dispose(); });
+        var mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); mg.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); mg.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        var mesh = new THREE.Mesh(mg, gr.mat); mesh.frustumCulled = false; out.add(mesh);
+      });
+      root.traverse(function (o) { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+      return out;
+    }
     function applyMap(id) {
       if (id === mapId || !PS.MAPS[id]) return;
       if (propRoot) { g.remove(propRoot); propRoot.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); propRoot = null; }
       if (mapObj) { mapObj.dispose(); mapObj = null; }
       mapId = id; map = PS.makeMap(id); mapObj = F.propMaps.build(map); propRoot = new THREE.Group(); propRoot.add(mapObj.group);
-      map.props.forEach(function (p) { var m = PM.build(p.t); m.position.set(p.x, p.y, p.z); m.rotation.y = p.yaw; propRoot.add(m); });
+      var raw = new THREE.Group(); map.props.forEach(function (p) { var m = PM.build(p.t, p.v); m.position.set(p.x, p.y, p.z); m.rotation.y = p.yaw; raw.add(m); }); propRoot.add(mergeStatic(raw));
       g.add(propRoot);
       world.scene.fog = new THREE.FogExp2(mapObj.fog.color, mapObj.fog.density); world.scene.background = new THREE.Color(mapObj.bg || 0x000000); world.scene.environment = envFor(map.style);
       if (world.renderer && world.renderer.setClearColor) world.renderer.setClearColor(mapObj.bg || 0x000000);
@@ -256,11 +271,11 @@
       else if (to === 'lobby') { if (ui) ui.res.classList.remove('on'); }
     }
     function reconcile(p) {
-      var c = me.c, roleChanged = p.r !== me.r, typeChanged = (p.ty || '') !== me.type;
+      var c = me.c, roleChanged = p.r !== me.r, typeChanged = (p.ty || '') !== me.type || (p.vr || 0) !== me.vr;
       me.hp = p.hp; me.am = p.am; me.mg = p.mg; me.rl = p.rl; me.st = p.st; me.tc = p.tc; me.sc = p.sc; me.lk = p.lk;
       if (p.r === 's' && p.w && p.w !== me.w && roleChanged) me.w = p.w;
       if (p.r === 's' && p.w) me.w = me.w; // le choix local fait foi tant que le serveur ne dit pas autre chose
-      if (roleChanged || typeChanged || !me.ready) { me.r = p.r; me.type = p.ty || ''; PS.setShape(c, me.r === 'h' ? me.type : ''); if (me.r === 's' && p.w) me.w = p.w; if (roleChanged) { setupRoleView(); } }
+      if (roleChanged || typeChanged || !me.ready) { me.r = p.r; me.type = p.ty || ''; me.vr = p.vr || 0; PS.setShape(c, me.r === 'h' ? me.type : ''); if (me.r === 's' && p.w) me.w = p.w; if (roleChanged) { setupRoleView(); } }
       if (p.rc !== me.rc || !me.ready) {                      // placement décidé par le serveur : on s'y met tout de suite
         me.rc = p.rc; me.ready = true; c.x = p.x; c.y = p.y; c.z = p.z; c.vx = p.vx; c.vz = p.vz; c.vy = 0; c.air = p.y > 0.02; cam.yaw = p.a; cam.pitch = 0; pending = []; return;
       }
@@ -284,10 +299,10 @@
       var r = remotes[p.k];
       if (!r) { r = remotes[p.k] = { k: p.k, name: String(p.n || p.k).slice(0, 20), grp: new THREE.Group(), body: null, key: '', tag: nameTag(p.n || p.k, '#fff'), x: p.x, y: p.y, z: p.z, yaw: p.a || 0, heading: 0, walk: 0, tx: p.x, ty: p.y, tz: p.z, vx: 0, vz: 0, ta: 0, r: p.r, recv: performance.now() }; g.add(r.grp); g.add(r.tag); }
       r.tx = p.x; r.ty = p.y; r.tz = p.z; r.ta = p.a || 0; r.vx = p.vx || 0; r.vz = p.vz || 0; r.r = p.r; r.type = p.ty || ''; r.w = p.w || ''; r.lk = p.lk; r.sc = p.sc; r.recv = performance.now();
-      var key = p.r === 'h' ? 'h:' + (p.ty || '') : 's';
+      var key = p.r === 'h' ? 'h:' + (p.ty || '') + ':' + (p.vr || 0) : 's';
       if (key !== r.key) {
         r.key = key; if (r.body) r.grp.remove(r.body);
-        r.body = p.r === 'h' ? PM.build(p.ty || 'crate') : makeSoldier(0x3c4a3a); r.grp.add(r.body); if (p.r === 's') r.lastW = '';
+        r.body = p.r === 'h' ? PM.build(p.ty || 'crate', p.vr || 0) : makeSoldier(0x3c4a3a); r.grp.add(r.body); if (p.r === 's') r.lastW = '';
       }
       if (p.r === 's' && r.lastW !== r.w) { r.lastW = r.w; var holder = r.body.userData.gun; while (holder.children.length) holder.remove(holder.children[0]); holder.position.z = 0.22 + ((WFILE[r.w] && WFILE[r.w].L) || 0.4) / 2; if (r.w) loadWeapon(r.w, function (m) { if (r.body && r.body.userData.gun === holder) holder.add(m); }); }
     }
@@ -553,7 +568,7 @@
       var spd = Math.hypot(c.vx, c.vz); bob += dt * Math.min(1.5, spd / 4);
       // mon corps (objet) en 3e personne
       if (me.r === 'h' && me.ready) {
-        var key = 'h:' + me.type; if (key !== myBodyKey) { myBodyKey = key; if (myBody) g.remove(myBody); myBody = PM.build(me.type || 'crate'); g.add(myBody); }
+        var key = 'h:' + me.type + ':' + me.vr; if (key !== myBodyKey) { myBodyKey = key; if (myBody) g.remove(myBody); myBody = PM.build(me.type || 'crate', me.vr); g.add(myBody); }
         if (spd > 0.6 && !me.lk) { var want = Math.atan2(c.vx, c.vz); myHeading += angDiff(want, myHeading) * Math.min(1, dt * 12); }
         myBody.position.set(c.x, c.y, c.z); myBody.rotation.y = myHeading; myBody.visible = true;
       } else if (myBody) myBody.visible = false;

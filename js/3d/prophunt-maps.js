@@ -85,30 +85,28 @@
   var STYLE = {
     manoir: { wall: function () { return mat('w_manoir', { map: T('damask', 0x1d3a2c, 0x56805a, 1, 1, 2), roughness: 0.9 }); }, base: 'wood', crown: 0x6a4a2a, ceil: function () { return mat('c_manoir', { map: T('plaster', 0xd6cdb8, 0, 1, 1, 3), roughness: 1 }); }, hemi: [0xffe6c8, 0x3a2a20, 0.95], bg: 0x0a0806, fog: [0x14100c, 0.008] },
     casino: { wall: function () { return mat('w_casino', { map: T('damask', 0x1a0a26, 0x7a2a8a, 1, 1, 4), roughness: 0.8 }); }, base: 'gold', crown: 0xd4af37, ceil: function () { return mat('c_casino', { color: 0x120818, roughness: 0.6, metalness: 0.2 }); }, hemi: [0xffd9ff, 0x2a1030, 0.9], bg: 0x05020a, fog: [0x0c0414, 0.007] },
-    station: { wall: function () { return mat('w_station', { map: T('panel', 0x4a5664, 0x39d6ff, 1, 1, 5), roughness: 0.5, metalness: 0.4 }); }, base: 'dark', crown: 0x2a303a, ceil: function () { return mat('c_station', { map: T('metal', 0x39424e, 0, 3, 3, 6), roughness: 0.5, metalness: 0.5 }); }, hemi: [0xc8e8ff, 0x20303a, 1.0], bg: 0x02060a, fog: [0x061018, 0.007] },
-    musee: { wall: function () { return mat('w_musee', { map: T('plaster', 0xe6e0d2, 0, 1, 1, 7), roughness: 0.95 }); }, base: 'marble', crown: 0xcbb98a, ceil: function () { return mat('c_musee', { map: T('plaster', 0xf0ece2, 0, 1, 1, 8), roughness: 1 }); }, hemi: [0xfff4e0, 0x504a42, 1.05], bg: 0x0a0908, fog: [0x1a1814, 0.004] }
+    station: { wall: function () { return mat('w_station', { map: T('panel', 0x4a5664, 0x39d6ff, 1, 1, 5), roughness: 0.5, metalness: 0.4 }); }, base: 'dark', crown: 0x2a303a, ceil: function () { return mat('c_station', { map: T('metal', 0x39424e, 0, 3, 3, 6), roughness: 0.5, metalness: 0.5 }); }, hemi: [0xc8e8ff, 0x20303a, 0.8], bg: 0x02060a, fog: [0x061018, 0.007] },
+    musee: { wall: function () { return mat('w_musee', { map: T('plaster', 0xe6e0d2, 0, 1, 1, 7), roughness: 0.95 }); }, base: 'marble', crown: 0xcbb98a, ceil: function () { return mat('c_musee', { map: T('plaster', 0xf0ece2, 0, 1, 1, 8), roughness: 1 }); }, hemi: [0xfff4e0, 0x504a42, 0.7], bg: 0x0a0908, fog: [0x1a1814, 0.004] }
   };
 
   // quel sol pour quelle pièce
   function floorFor(style, kind) {
-    var M2 = function (k, o) { return mat(k, o); };
     var tbl = {
-      bibliotheque: ['parquet', 0x5a3a22], grandhall: ['checker', 0xf0ece4, 0x1a1a22], salon: ['parquet', 0x8a5a30], salle: ['planks', 0x7a4a26], cuisine: ['tile', 0x9a9a8e], chambre: ['planks', 0x9a7040],
-      slots: ['carpet', 0x5a0a1c, 0xd4af37], vip: ['marble', 0x16161c], poker: ['carpet', 0x0e3a2a, 0xd4af37], bar: ['checker', 0xf0ece4, 0x14141a],
-      cryo: ['panel', 0x34404c, 0x39d6ff], labo: ['tile', 0xc5d0d8], reacteur: ['grating', 0x6a7886], hangar: ['concrete', 0x6a7078], quartiers: ['carpet', 0x2a3a4a, 0x39d6ff],
-      egypte: ['tile', 0xc9a56a], antique: ['marble', 0xeeeae2], rotonde: ['checker', 0xf0ece4, 0x2a2a30], art: ['parquet', 0x9a6a3a], dino: ['concrete', 0x8a8478]
+      bibliotheque: ['parquet', 0x5a3a22], hall: ['checker', 0xd8d2c6, 0x1a1a22], salon: ['parquet', 0x8a5a30], salle: ['planks', 0x7a4a26], cuisine: ['tile', 0x9a9a8e], chambre: ['planks', 0x9a7040], bureau: ['parquet', 0x6a4426], bain: ['tile', 0xb8d0d8], toilettes: ['tile', 0xc5d0d8],
+      garde: ['concrete', 0x77706a], bal: ['marble', 0xd0cabc], enfant: ['carpet', 0x2a4a6a, 0xe0b030],
+      entree: ['marble', 0x16161c], vestiaire: ['carpet', 0x3a0a2a, 0xd4af37], cage: ['tile', 0x8a8a90], slots: ['carpet', 0x5a0a1c, 0xd4af37], tables: ['carpet', 0x0e3a2a, 0xd4af37], bar: ['checker', 0xf0ece4, 0x14141a], poker: ['carpet', 0x14305a, 0xd4af37], vip: ['marble', 0x16161c], direction: ['parquet', 0x4a2a1a], securite: ['tile', 0x6a707a],
+      quartiers: ['carpet', 0x2a3a4a, 0x39d6ff], cantine: ['tile', 0x7a8890], infirmerie: ['tile', 0x9aa8b0], reunion: ['carpet', 0x2a3040, 0x39d6ff], cryo: ['panel', 0x34404c, 0x39d6ff], labo: ['tile', 0x8a98a2], reacteur: ['grating', 0x6a7886], passerelle: ['panel', 0x2a3a4c, 0xff9a2e], hangar: ['concrete', 0x6a7078], machines: ['grating', 0x5a6674], douches: ['tile', 0x6a8490],
+      accueil: ['marble', 0xcdc7b9], egypte: ['tile', 0xa8885a], antique: ['marble', 0xcdc7b9], boutique: ['parquet', 0x9a6a3a], dino: ['concrete', 0x8a8478], rotonde: ['checker', 0xd0cabc, 0x2a2a30], art: ['parquet', 0x9a6a3a], cafe: ['checker', 0xc8c0b0, 0x4a3a2a], reserve: ['concrete', 0x8a8478]
     };
     var d = tbl[kind] || ['planks', 0x7a4a26], key = 'f_' + kind;
-    var o = { map: T(d[0], d[1], d[2], 1, 1, kind.length * 7), roughness: d[0] === 'marble' || d[0] === 'checker' ? 0.25 : 0.7, metalness: d[0] === 'grating' ? 0.5 : 0 };
-    return M2(key, o);
+    return mat(key, { map: T(d[0], d[1], d[2], 1, 1, kind.length * 7), roughness: d[0] === 'marble' || d[0] === 'checker' ? 0.25 : 0.7, metalness: d[0] === 'grating' ? 0.5 : 0 });
   }
-  var FLOOR_TS = { parquet: 3, checker: 3.2, planks: 3, tile: 3, carpet: 5, marble: 4, panel: 4, grating: 3, concrete: 4 };
-  function tsFor(kind) {
-    var m = { bibliotheque: 3, grandhall: 3.2, salon: 3, salle: 3, cuisine: 3, chambre: 3, slots: 5, vip: 4, poker: 5, bar: 3.2, cryo: 4, labo: 3, reacteur: 3, hangar: 4, quartiers: 5, egypte: 3, antique: 4, rotonde: 3.2, art: 3, dino: 4 };
-    return m[kind] || 3;
-  }
-  // lumière de chaque pièce : couleur, intensité
-  var ROOMLIGHT = { bibliotheque: 0xffc88a, grandhall: 0xffe0b0, salon: 0xffc890, salle: 0xffd9a0, cuisine: 0xffe8c0, chambre: 0xffb878, slots: 0xff7ad0, vip: 0xffd070, poker: 0x7af0b0, bar: 0xff5ad0, cryo: 0x7ad8ff, labo: 0xe8f4ff, reacteur: 0x5affd0, hangar: 0xffe0a0, quartiers: 0xa8c8ff, egypte: 0xffd890, antique: 0xfff0d8, rotonde: 0xfff4e0, art: 0xffecd0, dino: 0xe8f0ff };
+  function tsFor(kind) { return { carpet: 5, slots: 5, tables: 5, poker: 5, vestiaire: 5, enfant: 5, vip: 4, entree: 4, bal: 4 }[kind] || 3; }
+  // lumière de chaque pièce : couleur
+  var ROOMLIGHT = { bibliotheque: 0xffc88a, hall: 0xffe0b0, salon: 0xffc890, salle: 0xffd9a0, cuisine: 0xfff0d8, chambre: 0xffb878, bureau: 0xffd090, bain: 0xf0f8ff, toilettes: 0xf0f8ff, garde: 0xffd8a0, bal: 0xfff0d0, enfant: 0xffe0b0,
+    entree: 0xffd0f0, vestiaire: 0xffc8e8, cage: 0xfff0d0, slots: 0xff7ad0, tables: 0x7af0b0, bar: 0xff5ad0, poker: 0x7ab0ff, vip: 0xffd070, direction: 0xffd8a0, securite: 0xd8e8ff,
+    quartiers: 0xa8c8ff, cantine: 0xfff0d8, infirmerie: 0xf0fbff, reunion: 0xe0eaff, cryo: 0x7ad8ff, labo: 0xe8f4ff, reacteur: 0x5affd0, passerelle: 0x9ad0ff, hangar: 0xffe0a0, machines: 0xffc890, douches: 0xe8f8ff,
+    accueil: 0xfff4e0, egypte: 0xffd890, antique: 0xfff0d8, boutique: 0xfff0e0, dino: 0xe8f0ff, rotonde: 0xfff4e0, art: 0xffecd0, cafe: 0xffe8c8, reserve: 0xe8e8f0 };
 
   /* ------------------------------ construction ------------------------------ */
   function build(map) {
@@ -131,51 +129,28 @@
         var lx = w.x1 - w.x0, lz = w.z1 - w.z0, m = boxT(lx, w.y1, lz, wallM, 2.6); m.position.set((w.x0 + w.x1) / 2, w.y1 / 2, (w.z0 + w.z1) / 2); grp.add(m);
         var b = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.08), 0.24, lz + (lx > lz ? 0.08 : 0)), baseM); b.position.set(m.position.x, 0.12, m.position.z); grp.add(b);
         var cr = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.14), 0.18, lz + (lx > lz ? 0.14 : 0)), mat('crown' + S.crown, { color: S.crown, roughness: 0.5, metalness: st === 'casino' ? 0.8 : 0.1 })); cr.position.set(m.position.x, w.y1 - 0.09, m.position.z); grp.add(cr);
-        if (st === 'manoir' || st === 'musee') { var wt = boxT(lx + (lx > lz ? 0 : 0.06), 1.05, lz + (lx > lz ? 0.06 : 0), st === 'musee' ? PM.marble() : PM.darkwood(), 1.6); wt.position.set(m.position.x, 0.62, m.position.z); grp.add(wt); var ch = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.06, lz + (lx > lz ? 0.1 : 0)), frameGold); ch.position.set(m.position.x, 1.17, m.position.z); grp.add(ch); }
-        if (st === 'station') { var hz = glowMat('wstrip' + (lx > lz ? 'a' : 'b'), 0x39d6ff, 1.2), s1 = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.05, lz + (lx > lz ? 0.1 : 0)), hz); s1.position.set(m.position.x, 2.35, m.position.z); grp.add(s1); }
-        if (st === 'casino') { var gl = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.06, lz + (lx > lz ? 0.1 : 0)), glowMat('nbase', 0xff3bd0, 1.6)); gl.position.set(m.position.x, 0.5, m.position.z); grp.add(gl); }
+        if (st === 'manoir' || st === 'musee') { var wt = boxT(lx + (lx > lz ? 0 : 0.06), 0.9, lz + (lx > lz ? 0.06 : 0), st === 'musee' ? PM.marble() : PM.darkwood(), 1.6); wt.position.set(m.position.x, 0.5, m.position.z); grp.add(wt); }
+        if (st === 'station') { var hz = glowMat('wstrip' + (lx > lz ? 'a' : 'b'), 0x39d6ff, 1.2), s1 = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.05, lz + (lx > lz ? 0.1 : 0)), hz); s1.position.set(m.position.x, H - 0.55, m.position.z); grp.add(s1); }
+        if (st === 'casino') { var gl = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.06, lz + (lx > lz ? 0.1 : 0)), glowMat('nbase', 0xff3bd0, 1.6)); gl.position.set(m.position.x, 0.14, m.position.z); grp.add(gl); }
       });
-      // ----- encadrements de portes
+      // ----- encadrements de portes (à la largeur de chaque porte)
       var frameM = st === 'casino' ? PM.gold() : (st === 'station' ? PM.dsteel() : (st === 'musee' ? PM.marble() : PM.darkwood()));
       map.doors.forEach(function (d) {
-        var alongX = d.axis === 'z';                          // porte dans un mur horizontal (le long de x)
-        var f1 = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.2 : 0.46, H, alongX ? 0.46 : 0.2), frameM), f2 = f1.clone(), lin = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 2.6 : 0.46, 0.9, alongX ? 0.46 : 2.6), frameM);
-        f1.position.set(d.x + (alongX ? -1.2 : 0), H / 2, d.z + (alongX ? 0 : -1.2)); f2.position.set(d.x + (alongX ? 1.2 : 0), H / 2, d.z + (alongX ? 0 : 1.2)); lin.position.set(d.x, H - 0.45, d.z); grp.add(f1, f2, lin);
+        var alongX = d.axis === 'z', hw2 = d.w / 2 + 0.1;
+        var f1 = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.2 : 0.46, H, alongX ? 0.46 : 0.2), frameM), f2 = f1.clone(), lin = new THREE.Mesh(new THREE.BoxGeometry(alongX ? d.w + 0.4 : 0.46, 0.9, alongX ? 0.46 : d.w + 0.4), frameM);
+        f1.position.set(d.x + (alongX ? -hw2 : 0), H / 2, d.z + (alongX ? 0 : -hw2)); f2.position.set(d.x + (alongX ? hw2 : 0), H / 2, d.z + (alongX ? 0 : hw2)); lin.position.set(d.x, H - 0.45, d.z); grp.add(f1, f2, lin);
         if (st === 'station') { var lamp = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.9 : 0.1, 0.08, alongX ? 0.1 : 0.9), glowMat('doorl', 0x3bff6a, 1.8)); lamp.position.set(d.x + (alongX ? 0 : 0.26), H - 0.95, d.z + (alongX ? 0.26 : 0)); grp.add(lamp); }
       });
-      // ----- décor des murs : tableaux, fenêtres, enseignes
-      function nearProp(x, z, rad) { for (var q = 0; q < map.props.length; q++) { var p = map.props[q], e = Math.max(p.hx, p.hz); if (Math.hypot(p.x - x, p.z - z) < e + rad) return true; } return false; }
-      function nearDoor(x, z) { for (var q = 0; q < map.doors.length; q++) if (Math.hypot(map.doors[q].x - x, map.doors[q].z - z) < 2.3) return true; return false; }
-      var artK = 0, signTexts = [['JACKPOT', '#ff3bd0', '#ffd23f'], ['7 7 7', '#39d6ff', '#ffffff'], ['BAR', '#ffd23f', '#ff5a3b'], ['VIP', '#ff3bd0', '#ffffff'], ['LUCKY', '#3bff6a', '#ffffff'], ['♠ ♥ ♦ ♣', '#ffd23f', '#ffffff'], ['CASINO', '#39d6ff', '#ff3bd0'], ['FLAMBEURS', '#ff3b3b', '#ffd23f']];
-      var stationSigns = [['SECTEUR A-3', '#39d6ff', '#ffffff'], ['DANGER', '#ffb020', '#ff3b3b'], ['SAS 04', '#3bff6a', '#ffffff'], ['O2 · NIVEAU 2', '#39d6ff', '#ffffff'], ['ACCÈS RESTREINT', '#ff3b3b', '#ffffff']];
-      map.walls.forEach(function (w, wi) {
-        var lx = w.x1 - w.x0, lz = w.z1 - w.z0, horiz = lx > lz, len = horiz ? lx : lz, n = Math.floor(len / 4.6);
-        for (var k = 0; k < n; k++) for (var side = -1; side <= 1; side += 2) {
-          if (r() < 0.38) continue;
-          var along = (k + 0.5 + (r() - 0.5) * 0.3) * len / n, px = horiz ? w.x0 + along : (side < 0 ? w.x0 - 0.01 : w.x1 + 0.01), pz = horiz ? (side < 0 ? w.z0 - 0.01 : w.z1 + 0.01) : w.z0 + along;
-          if (nearDoor(px, pz)) continue;
-          var inx = horiz ? px : px + side * 0.9, inz = horiz ? pz + side * 0.9 : pz;
-          if (nearProp(inx, inz, 0.75)) continue;
-          var ry = horiz ? (side < 0 ? Math.PI : 0) : (side < 0 ? -Math.PI / 2 : Math.PI / 2);
-          if (wi < 4 && (st === 'manoir' || st === 'station' || st === 'casino') && r() < 0.7) {   // fenêtre sur les murs extérieurs
-            if (!(side === (wi === 0 ? 1 : wi === 1 ? -1 : wi === 2 ? 1 : -1))) continue;
-            var wm = windowMat(st === 'station' ? 'space' : 'night'), ww = st === 'station' ? 2.6 : 1.5, wh = st === 'station' ? 1.9 : 2.2, wy = st === 'station' ? 2.0 : 2.3;
-            var win = pl(grp, ww, wh, wm, px, wy, pz, ry); win.position.x += horiz ? 0 : side * 0.005; win.position.z += horiz ? side * 0.005 : 0;
-            if (st !== 'station') { var cu = new THREE.Mesh(new THREE.BoxGeometry(0.34, wh + 0.5, 0.12), mat('curtain', { color: st === 'casino' ? 0x6a1a5a : 0x7a1a24, roughness: 0.95 })); [-1, 1].forEach(function (cs) { var c2 = cu.clone(); c2.position.set(px + (horiz ? cs * (ww / 2 + 0.2) : side * 0.07), wy, pz + (horiz ? side * 0.07 : cs * (ww / 2 + 0.2))); c2.rotation.y = horiz ? 0 : Math.PI / 2; grp.add(c2); }); }
-            if (st === 'manoir') { var mb = new THREE.PointLight(0x6a8ad8, 0.28, 8, 1.5); mb.position.set(inx, wy - 0.3, inz); grp.add(mb); lights.push(mb); }
-            continue;
-          }
-          if (st === 'casino' && r() < 0.5) { var sg = signTexts[Math.floor(r() * signTexts.length)], sm = signMat(sg[0], sg[1], sg[2]); var sp = pl(grp, 2.4, 0.6, sm, px, 3.0, pz, ry); sp.position.x += horiz ? 0 : side * 0.006; sp.position.z += horiz ? side * 0.006 : 0; continue; }
-          if (st === 'station') { var ss = stationSigns[Math.floor(r() * stationSigns.length)], sm2 = signMat(ss[0], ss[1], ss[2]); var sp2 = pl(grp, 1.8, 0.45, sm2, px, 2.9, pz, ry); sp2.position.x += horiz ? 0 : side * 0.006; sp2.position.z += horiz ? side * 0.006 : 0; continue; }
-          var big = st === 'musee' && r() < 0.5, pw = big ? 1.9 : 1.0, ph = big ? 1.4 : 1.25, pa = paintingMesh(pw, ph, artK++, frameGold); pa.position.set(px + (horiz ? 0 : side * 0.04), st === 'musee' ? 2.7 : 2.3, pz + (horiz ? side * 0.04 : 0)); pa.rotation.y = ry; grp.add(pa);
-          if (st === 'musee') { var spt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.1), mat('spotb', { color: 0x2a2a2a, roughness: 0.4, metalness: 0.7 })); spt.position.set(pa.position.x + (horiz ? 0 : side * 0.3), 4.0, pa.position.z + (horiz ? side * 0.3 : 0)); grp.add(spt); var beam = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.6, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide })); beam.position.set(pa.position.x + (horiz ? 0 : side * 0.4), 3.2, pa.position.z + (horiz ? side * 0.4 : 0)); beam.rotation.x = horiz ? side * 0.4 : 0; beam.rotation.z = horiz ? 0 : -side * 0.4; grp.add(beam); }
-        }
+      // ----- fenêtres (leur place est réservée par le plan : aucun meuble ni tableau ne passe devant)
+      (map.deco || []).forEach(function (d) {
+        if (d.t !== 'window') return; var wm = windowMat(d.kind === 'space' ? 'space' : 'night'), win = pl(grp, d.w, d.h, wm, d.x, d.y + d.h / 2, d.z, d.yaw);
+        if (d.kind !== 'space') { var cu = new THREE.Mesh(new THREE.BoxGeometry(0.3, d.h + 0.4, 0.1), mat('curtain' + st, { color: st === 'casino' ? 0x6a1a5a : 0x7a1a24, roughness: 0.95 })), sx = Math.cos(d.yaw), sz = -Math.sin(d.yaw); [-1, 1].forEach(function (cs) { var c2 = cu.clone(); c2.position.set(d.x + sx * cs * (d.w / 2 + 0.18) + Math.sin(d.yaw) * 0.06, d.y + d.h / 2, d.z + sz * cs * (d.w / 2 + 0.18) + Math.cos(d.yaw) * 0.06); c2.rotation.y = d.yaw; grp.add(c2); }); }
       });
       // ----- lumières de chaque pièce + luminaires
       map.rooms.forEach(function (rm, k) {
         var cx = (rm.x0 + rm.x1) / 2, cz = (rm.z0 + rm.z1) / 2, col = ROOMLIGHT[rm.kind] || 0xffe0b0, big = Math.max(rm.x1 - rm.x0, rm.z1 - rm.z0);
-        var pl0 = new THREE.PointLight(col, st === 'casino' ? 1.15 : (st === 'station' ? 1.0 : 1.05), big * 1.15, 1.6); pl0.position.set(cx, H - 0.9, cz); grp.add(pl0); lights.push(pl0);
-        if (st === 'manoir' || (st === 'casino' && (rm.kind === 'vip' || rm.kind === 'salle'))) {   // lustre
+        var pl0 = new THREE.PointLight(col, st === 'casino' ? 1.15 : (st === 'station' ? 1.0 : (st === 'musee' ? 0.6 : 1.05)), Math.max(8, big * 1.15), 1.6); pl0.position.set(cx, H - 0.9, cz); grp.add(pl0); lights.push(pl0);
+        if ((st === 'manoir' && ['hall', 'salon', 'salle', 'bal', 'bibliotheque'].indexOf(rm.kind) >= 0) || (st === 'casino' && ['vip', 'entree', 'tables'].indexOf(rm.kind) >= 0)) {   // lustre
           var lg = new THREE.Group(), gm = PM.gold(); lg.add(new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.04, 8, 28), gm)); lg.children[0].rotation.x = Math.PI / 2;
           var ch = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.2, 4), gm); ch.position.y = 0.6; lg.add(ch);
           for (var q = 0; q < 8; q++) { var a = q / 8 * TAU, fl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), glowMat('lflame', 0xffc070, 3)); fl.position.set(Math.cos(a) * 0.7, 0.1, Math.sin(a) * 0.7); fl.scale.y = 1.6; lg.add(fl); var cd = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 6), mat('wax', { color: 0xf4ecd8, roughness: 0.8 })); cd.position.set(Math.cos(a) * 0.7, 0.02, Math.sin(a) * 0.7); lg.add(cd); }
@@ -186,7 +161,7 @@
         if (st === 'station' && rm.kind === 'reacteur') { var red = new THREE.PointLight(0xff3b3b, 0.0, 30, 1.5); red.position.set(cx, H - 1.2, cz); grp.add(red); var ph0 = 0; anim.push(function (dt) { ph0 += dt; red.intensity = Math.max(0, Math.sin(ph0 * 3)) * 1.4; }); var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), glowMat('beacon', 0xff3b3b, 2.5)); beacon.position.set(cx, H - 0.3, cz); grp.add(beacon); }
         if (st === 'manoir' && rm.kind === 'bibliotheque') { var rug = floorPlane(cx - 3.5, cz - 2.5, cx + 3.5, cz + 2.5, mat('rug', { map: T('carpet', 0x7a1a2a, 0xd4af37, 1, 1, 3), roughness: 1 }), 7, 0.012); grp.add(rug); }
         if (st === 'manoir' && rm.kind === 'salon') { var rug2 = floorPlane(cx - 3, cz - 3, cx + 3, cz + 3, mat('rug2', { map: T('carpet', 0x1d3a5a, 0xd4af37, 1, 1, 4), roughness: 1 }), 6, 0.012); grp.add(rug2); }
-        if (st === 'casino' && rm.kind === 'salle') { var med = new THREE.Mesh(new THREE.CircleGeometry(7, 48), mat('medal', { map: (function () { var c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#1a0a24'; x.fillRect(0, 0, 256, 256); for (var i = 0; i < 12; i++) { x.fillStyle = i % 2 ? '#d4af37' : '#b01818'; x.beginPath(); x.moveTo(128, 128); x.arc(128, 128, 124, i / 12 * TAU, (i + 1) / 12 * TAU); x.fill(); } x.fillStyle = '#12081a'; x.beginPath(); x.arc(128, 128, 40, 0, TAU); x.fill(); x.fillStyle = '#d4af37'; x.font = '900 38px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('777', 128, 130); return tex(c); })(), roughness: 0.4, metalness: 0.2 })); med.rotation.x = -Math.PI / 2; med.position.set(cx, 0.015, cz); grp.add(med); }
+        if (st === 'casino' && rm.kind === 'entree') { var med = new THREE.Mesh(new THREE.CircleGeometry(5, 48), mat('medal', { map: (function () { var c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#1a0a24'; x.fillRect(0, 0, 256, 256); for (var i = 0; i < 12; i++) { x.fillStyle = i % 2 ? '#d4af37' : '#b01818'; x.beginPath(); x.moveTo(128, 128); x.arc(128, 128, 124, i / 12 * TAU, (i + 1) / 12 * TAU); x.fill(); } x.fillStyle = '#12081a'; x.beginPath(); x.arc(128, 128, 40, 0, TAU); x.fill(); x.fillStyle = '#d4af37'; x.font = '900 38px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('777', 128, 130); return tex(c); })(), roughness: 0.4, metalness: 0.2 })); med.rotation.x = -Math.PI / 2; med.position.set(cx, 0.015, cz); grp.add(med); }
       });
       // ----- éclairage de base + ambiance
       var hemi = new THREE.HemisphereLight(S.hemi[0], S.hemi[1], S.hemi[2]); grp.add(hemi);
@@ -227,7 +202,7 @@
         if (st === 'marche') {
           m = boxT(lx, hh, lz, facadeMat(bl && bl.kind, wi), 8); m.position.set(cxm, hh / 2, czm); grp.add(m);
           var roof = new THREE.Mesh(new THREE.BoxGeometry(lx + 0.5, 0.35, lz + 0.5), mat('roofm', { color: 0x1a1820, roughness: 0.8 })); roof.position.set(cxm, hh + 0.17, czm); grp.add(roof);
-          var ns = neonCols[wi % neonCols.length], sg2 = signMat(mkSigns[wi % mkSigns.length], ns[0], ns[1]); var sgp = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sg2); sgp.position.set(cxm, 3.9, w.z1 + 0.06); grp.add(sgp); var sgp2 = sgp.clone(); sgp2.position.set(cxm, 3.9, w.z0 - 0.06); sgp2.rotation.y = Math.PI; grp.add(sgp2);
+          var ns = neonCols[wi % neonCols.length];
           var pt = new THREE.PointLight(new THREE.Color(ns[0]), 0.9, 15, 1.6); pt.position.set(cxm, 3.6, w.z1 + 1.5); grp.add(pt); lights.push(pt);
         } else if (bl && bl.kind === 'conteneurs') {
           var levels = Math.max(1, Math.round(hh / 2.65)), ncol = Math.max(1, Math.floor(lx / 2.5)), cw = lx / ncol;
