@@ -16,7 +16,7 @@ const MIME = {
   '.mjs': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp'
 };
-const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'loupgarou', 'ludo', 'musique', 'slots', 'cinema', 'cinema-video'];
+const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'loupgarou', 'ludo', 'minijeux', 'musique', 'slots', 'cinema', 'cinema-video'];
 const handlers = {};
 
 async function loadHandler(name) {

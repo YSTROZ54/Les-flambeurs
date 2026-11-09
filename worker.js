@@ -13,6 +13,7 @@ import cinemaVideoHandler from './api/cinema-video.js';
 import crashHandler from './api/crash.js';
 import loupgarouHandler from './api/loupgarou.js';
 import ludoHandler from './api/ludo.js';
+import minijeuxHandler from './api/minijeux.js';
 import musiqueHandler from './api/musique.js';
 import pokerHandler from './api/poker.js';
 import posterHandler from './api/poster.js';
@@ -27,6 +28,7 @@ const ROUTE_HANDLERS = {
   crash: crashHandler,
   loupgarou: loupgarouHandler,
   ludo: ludoHandler,
+  minijeux: minijeuxHandler,
   musique: musiqueHandler,
   poker: pokerHandler,
   poster: posterHandler,

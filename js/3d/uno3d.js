@@ -310,7 +310,7 @@
        Chaque table a un « état » (voir minijeux-regles.js) avec un numéro de version. Celui qui joue modifie l'état, le numéro augmente
        et l'état complet est envoyé à tous ; chacun garde la version la plus récente. Quelqu'un qui arrive demande l'état des tables.
        ===================================================================== */
-    var MJ = F.mj, TIDS = Object.keys(TV), G = {}, seat = null, ui = null, showAll = false, autoKey = '', autoAt = 0, view = { yaw: 0, pitch: 0 }, pendingWild = -1, errMsg = '', errT = 0, standEl = null, missing = {}, anims = [], pruneT = 0;
+    var MJ = F.mj, TIDS = Object.keys(TV), G = {}, seat = null, ui = null, showAll = false, autoKey = '', autoAt = 0, view = { yaw: 0, pitch: 0 }, pendingWild = -1, errMsg = '', errT = 0, standEl = null, anims = [], pollT = 0, polling = false, busyN = 0, seatSure = false;
     var CARD_RE = /^[0-4][0-9SRDWF]$/;
     function me() { return F.me(); }
     function myName() { try { return String(state.username || '').slice(0, 20); } catch (e) { return ''; } }
@@ -321,9 +321,8 @@
     function chairN(tid, local) { for (var k = 0; k < chairs.length; k++) if (chairs[k].tid === tid && chairs[k].local === local) return chairs[k].n; return -1; }
     function chairTaken(ch) {
       var now = performance.now(), st = G[ch.tid], e = st && st.seats[ch.local];
-      return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === ch.n && now - (r.recv || 0) < 4000; }) || !!(e && e.k !== me() && present(ch.tid, ch.local, e));
+      return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === ch.n && now - (r.recv || 0) < 4000; }) || !!(e && e.k !== me());
     }
-    function present(tid, local, e) { var r = world.remote[e.k]; return !!(r && r.seat === chairN(tid, local) && performance.now() - (r.recv || 0) < 4000); }
     function okState(tid, st) {
       try {
         if (!st || typeof st.ver !== 'number' || !st.seats || typeof st.seats !== 'object') return false;
@@ -339,34 +338,40 @@
         return Array.isArray(st.g) && st.g.length === 7 && st.g.every(function (c) { return Array.isArray(c) && c.length <= 6 && c.every(function (v) { return v === 1 || v === 2; }); }) && typeof st.turn === 'number';
       } catch (e) { return false; }
     }
-    function bcast(tid) { if (world.rt && world.rt.ready && G[tid]) { try { world.rt.send('gs', { k: me(), tid: tid, st: G[tid] }); } catch (e) { /* ok */ } } }
-    // modifie l'état d'une table (fn renvoie un texte d'erreur si la règle refuse), puis l'envoie aux autres
-    function mutate(tid, fn) {
-      var before = G[tid], st = clone(getSt(tid)), err = fn(st);
-      if (err) return err;
-      st.ver = (st.ver | 0) + 1; st.org = me(); G[tid] = st; bcast(tid); renderTable(tid); announce(tid, before, st); fx3d(tid, before, st); schedAdvance(tid, st);
-      if (seat && seat.tid === tid) refreshUi();
-      return '';
+    /* --- le serveur (api/minijeux.js) tient les tables : il mélange, distribue (chacun ne reçoit que SA main), vérifie chaque coup et fait avancer la partie.
+       Le navigateur envoie ses actions (s'asseoir, jouer, piocher…) et redemande l'état de la salle ~2 fois par seconde. --- */
+    var ROOM_KEY = isC4 ? 'c4' : 'uno';
+    function applyTables(r) {
+      if (!r || !r.tables) return;
+      Object.keys(r.tables).forEach(function (tid) { if (TIDS.indexOf(tid) >= 0 && okState(tid, r.tables[tid])) adopt(tid, r.tables[tid]); });
+    }
+    function api(body) {
+      busyN++;
+      return world.post('/api/minijeux', body).then(function (r) { busyN--; if (!r) return { ok: false, error: 'Connecte-toi pour jouer aux mini jeux.' }; if (r.ok) applyTables(r); return r; }, function () { busyN--; return { ok: false, error: 'Connexion perdue.' }; });
+    }
+    // une action du joueur assis ; si le serveur la refuse, on affiche pourquoi
+    function srv(action, extra) {
+      if (!seat) return Promise.resolve(null);
+      return api(Object.assign({ action: action, tid: seat.tid, seat: seat.local }, extra || {})).then(function (r) { if (r && !r.ok && seat) { errMsg = r.error || 'Action refusée.'; errT = 3; refreshUi(); } return r; });
+    }
+    function poll() {
+      if (polling || busyN > 0) return; polling = true;
+      fetch('/api/minijeux?room=' + ROOM_KEY, { cache: 'no-store', headers: { 'X-Auth-Token': F.token() || '' } }).then(function (r) { return r.json(); }).then(function (d) { polling = false; if (d && d.ok) applyTables(d); }).catch(function () { polling = false; });
     }
     function adopt(tid, st) {
       var cur = G[tid];
-      if (cur && (st.ver < cur.ver || (st.ver === cur.ver && String(st.org || '') <= String(cur.org || '')))) return;
-      G[tid] = st; renderTable(tid); announce(tid, cur, st); fx3d(tid, cur, st); schedAdvance(tid, st);
-      if (seat && seat.tid === tid) { reconcile(); refreshUi(); }
+      if (cur && st.ver < cur.ver) return;
+      if (cur && st.ver === cur.ver) { checkSeat(tid, st); return; }
+      G[tid] = st; renderTable(tid); announce(tid, cur, st); fx3d(tid, cur, st);
+      if (seat && seat.tid === tid) { checkSeat(tid, st); refreshUi(); }
     }
-    // celui qui vient de piocher laisse les cartes arriver (1,7 s), puis le tour passe au suivant ; si son navigateur ne le fait pas, un autre joueur de la table s'en charge (4,5 s)
-    function schedAdvance(tid, st) {
-      if (kindOf(tid) !== 'u' || !(st.wait >= 0)) return;
-      var v = st.ver, go = function (onlyDrawer) { setTimeout(function () { var cur = G[tid]; if (!cur || cur.ver !== v || !(cur.wait >= 0) || !seat || seat.tid !== tid || (onlyDrawer && seat.local !== cur.turn)) return; mutate(tid, function (s2) { return MJ.unoAdvance(s2); }); }, onlyDrawer ? 1700 : 4500); };
-      go(true); go(false);
-    }
-    function joinFn(ch) { return function (st) { return (ch.tid.charAt(0) === 'u' ? MJ.unoJoin : MJ.c4Join)(st, ch.local, me(), myName()); }; }
-    function reconcile() {              // si l'état reçu ne me connaît pas (deux joueurs arrivés en même temps), je me réinscris ; si ma place est prise, je me lève
-      if (!seat) return;
-      var e = getSt(seat.tid).seats[seat.local];
-      if (e && e.k === me()) return;
+    // si le serveur ne me connaît plus à ma place (retiré pour inactivité, ou place prise par quelqu'un d'autre), je me lève
+    function checkSeat(tid, st) {
+      if (!seat || seat.tid !== tid) return;
+      var e = st.seats[seat.local];
+      if (e && e.k === me()) { seatSure = true; return; }
       if (e) { world.flash('Cette place est prise.'); stand(true); return; }
-      mutate(seat.tid, joinFn(seat));
+      if (seatSure) { world.flash('Tu as été retiré de la table (inactif).'); stand(true); }
     }
 
     /* --- dessin des tables à partir de l'état --- */
@@ -568,13 +573,13 @@
       el.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled || !seat) return;
         var a = b.dataset.a, tid = seat.tid, loc = seat.local, err = '';
-        if (a === 'start') err = mutate(tid, function (st) { return kindOf(tid) === 'u' ? MJ.unoStart(st) : MJ.c4Start(st); });
+        if (a === 'start') srv('start');
         else if (a === 'all') { showAll = !showAll; refreshUi(); }
-        else if (a === 'pass') err = mutate(tid, function (st) { return MJ.unoPass(st, loc); });
-        else if (a === 'uno') err = mutate(tid, function (st) { return MJ.unoSayUno(st, loc); });
-        else if (a === 'counter') err = mutate(tid, function (st) { return MJ.unoCounter(st, loc); });
+        else if (a === 'pass') srv('pass');
+        else if (a === 'uno') srv('uno');
+        else if (a === 'counter') srv('counter');
         else if (a === 'card') playCard(+b.dataset.i);
-        else if (a === 'color') { var i = pendingWild; pendingWild = -1; showAll = false; err = mutate(tid, function (st) { return MJ.unoPlay(st, loc, i, +b.dataset.c); }); }
+        else if (a === 'color') { var i = pendingWild; pendingWild = -1; showAll = false; srv('play', { idx: i, color: +b.dataset.c }); }
         else if (a === 'nocolor') { pendingWild = -1; refreshUi(); }
         else if (a === 'col') err = dropCol(+b.dataset.c);
         if (err) { errMsg = err; errT = 3; refreshUi(); }
@@ -586,8 +591,7 @@
       if (st.turn !== seat.local || st.ph !== 'play') { errMsg = 'Ce n\'est pas ton tour.'; errT = 3; refreshUi(); return; }
       if (!MJ.unoCanPlay(st, hand[i])) { errMsg = st.pend > 0 ? 'Il y a un +' + st.pend + ' en attente : réponds avec un ' + (st.pk === 'F' ? '+4' : '+2') + ' ou pioche.' : 'Cette carte ne va pas.'; errT = 3; refreshUi(); return; }
       if (MJ.cardColor(hand[i]) === 4) { if (st.drawn && hand[i] !== st.drawn) { errMsg = 'Tu peux seulement poser la carte piochée, ou passer.'; errT = 3; } else pendingWild = i; refreshUi(); return; }
-      var e = mutate(seat.tid, function (s2) { return MJ.unoPlay(s2, seat.local, i, -1); });
-      if (e) { errMsg = e; errT = 3; refreshUi(); } else if (showAll) { showAll = false; refreshUi(); }
+      srv('play', { idx: i, color: -1 }); if (showAll) { showAll = false; refreshUi(); }
     }
     // piocher : on clique sur le paquet au centre de la table, quand on veut pendant son tour (la flèche s'affiche quand on ne peut rien poser, ou pour payer un +2 / +4)
     function mustDraw(st) {
@@ -601,10 +605,16 @@
       if (st.ph !== 'play' || !st.hands[loc]) return;
       if (st.turn !== loc || st.wait >= 0) err = 'Ce n\'est pas ton tour.';
       else if (st.drawn) err = 'Pose la carte piochée ou passe.';
-      else err = mutate(seat.tid, function (s2) { return MJ.unoDrawTurn(s2, loc); });
+      else srv('draw');
       if (err) { errMsg = err; errT = 3; refreshUi(); }
     }
-    function dropCol(c) { var tid = seat.tid, loc = seat.local; return mutate(tid, function (st) { return MJ.c4Drop(st, loc, c); }); }
+    function dropCol(c) {
+      var st = getSt(seat.tid);
+      if (st.ph !== 'play') return 'La partie n\'a pas commencé.';
+      if (st.turn !== seat.local) return 'Ce n\'est pas ton tour.';
+      if (!(c >= 0 && c <= 6) || st.g[c].length >= 6) return 'Colonne pleine.';
+      srv('drop', { col: c }); return '';
+    }
     function refreshUi() {
       if (!ui || !seat) return;
       var st = getSt(seat.tid), u = kindOf(seat.tid) === 'u', mine = st.ph === 'play' && st.turn === seat.local && !(st.wait >= 0);
@@ -650,7 +660,7 @@
       if (e.code === 'Escape' || e.code === 'KeyF') { e.stopImmediatePropagation(); e.preventDefault(); stand(); }
       else if (kindOf(seat.tid) === 'u' && (e.code === 'KeyU' || e.code === 'KeyC')) {
         e.stopImmediatePropagation(); e.preventDefault();
-        var loc0 = seat.local, err0 = mutate(seat.tid, function (st) { return e.code === 'KeyU' ? MJ.unoSayUno(st, loc0) : MJ.unoCounter(st, loc0); }); if (err0) { errMsg = err0; errT = 3; refreshUi(); }
+        srv(e.code === 'KeyU' ? 'uno' : 'counter');
       }
       else if (kindOf(seat.tid) === 'c' && /^(Digit|Numpad)[1-7]$/.test(e.code)) {
         e.stopImmediatePropagation(); e.preventDefault();
@@ -666,8 +676,8 @@
       standEl = document.createElement('div'); standEl.className = 'mj3d-stand'; standEl.innerHTML = '<button>🪑 Se lever <kbd>F</kbd></button>'; standEl.firstChild.addEventListener('click', function () { stand(); });
       w.container.appendChild(standEl);
       window.addEventListener('keydown', onSeatKey, true);
-      if (world.rt && world.rt.ready) { try { world.rt.send('gq', { k: me(), tid: ch.tid }); } catch (e) { /* ok */ } }
-      mutate(ch.tid, joinFn(ch)); renderTable(ch.tid); refreshUi();
+      seatSure = false; refreshUi();
+      api({ action: 'join', tid: ch.tid, seat: ch.local }).then(function (r) { if (r && !r.ok && seat === ch) { world.flash(r.error || 'Impossible de s\'asseoir.'); stand(true); } else if (seat === ch) { seatSure = true; refreshUi(); } });
     }
     function stand(silent) {
       if (!seat) return;
@@ -675,7 +685,7 @@
       window.removeEventListener('keydown', onSeatKey, true);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (standEl && standEl.parentNode) standEl.parentNode.removeChild(standEl); standEl = null;
-      if (G[s.tid] && G[s.tid].seats[s.local] && G[s.tid].seats[s.local].k === me()) mutate(s.tid, function (st) { return (kindOf(s.tid) === 'u' ? MJ.unoLeave : MJ.c4Leave)(st, s.local); });
+      if (!silent) { try { world.post('/api/minijeux', { action: 'leave', tid: s.tid, seat: s.local }).then(function (r) { if (r && r.ok) applyTables(r); }); } catch (e) { /* ok */ } }
       world.standUp(s.sx, s.sz, s.yaw);
     }
     room.forceStand = function () { stand(); };
@@ -705,34 +715,7 @@
     };
     room.syncHud = function () { refreshUi(); };
 
-    /* --- réseau : on envoie l'état quand il change, on le redemande en arrivant --- */
-    room.onRtMsg = function (ev, m) {
-      if (ev === 'gs') { if (TIDS.indexOf(m.tid) >= 0 && okState(m.tid, m.st)) adopt(m.tid, m.st); }
-      else if (ev === 'gq') { (m.tid === '*' ? TIDS : [m.tid]).forEach(function (tid) { var st = G[tid]; if (st && Object.keys(st.seats).length) bcast(tid); }); }
-    };
-    room.netStart = function (w) {
-      if (!w.rt) return;
-      var old = w.rt.onReady, ask = function () { try { w.rt.send('gq', { k: me(), tid: '*' }); } catch (e) { /* ok */ } };
-      w.rt.onReady = function () { if (old) old(); ask(); };
-      if (w.rt.ready) ask();
-    };
-    // quelqu'un qui n'envoie plus rien (parti sans se lever) est retiré de sa table au bout de 7 s, par le joueur assis le plus à gauche
-    function prune() {
-      var now = performance.now();
-      TIDS.forEach(function (tid) {
-        var st = G[tid]; if (!st) return;
-        Object.keys(st.seats).forEach(function (ns) {
-          var n = +ns, e = st.seats[n], mk = tid + ':' + n;
-          if (e.k === me() || present(tid, n, e)) { delete missing[mk]; return; }
-          if (!missing[mk]) { missing[mk] = now; return; }
-          if (now - missing[mk] < 7000) return;
-          delete missing[mk];
-          var leave = kindOf(tid) === 'u' ? MJ.unoLeave : MJ.c4Leave;
-          if (seat && seat.tid === tid) { var lowest = Object.keys(st.seats).map(Number).sort()[0]; if (st.seats[lowest] && (st.seats[lowest].k === me() || present(tid, lowest, st.seats[lowest]))) mutate(tid, function (s2) { return leave(s2, n); }); }
-          else if (!seat || seat.tid !== tid) { var c2 = clone(st); leave(c2, n); G[tid] = c2; renderTable(tid); }
-        });
-      });
-    }
+    room.onEnter = function () { pollT = 99; };
 
     // lumières
     g.add(new THREE.AmbientLight(0xf0e0e8, 1.2));
@@ -765,7 +748,7 @@
         if (ast && ahd && ast.ph === 'play' && ast.turn === aloc && ast.pend > 0 && !(ast.wait >= 0) && !ast.drawn && !ahd.some(function (c) { return MJ.unoCanPlay(ast, c); })) {
           var akey = seat.tid + '|' + ast.ver;
           if (autoKey !== akey) { autoKey = akey; autoAt = performance.now() + 1300; }
-          else if (autoAt && performance.now() >= autoAt) { autoAt = 0; var aerr = mutate(seat.tid, function (s2) { return MJ.unoDrawTurn(s2, aloc); }); if (aerr) { errMsg = aerr; errT = 3; refreshUi(); } }
+          else if (autoAt && performance.now() >= autoAt) { autoAt = 0; srv('draw'); }
         }
       }
       if (seat && kindOf(seat.tid) === 'u') {                                              // quelqu'un met trop de temps à jouer : la voix le rappelle à l'ordre (une fois par tour)
@@ -782,7 +765,7 @@
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && toastEl) toastEl.classList.remove('in'); }
       var tnow = performance.now() / 1000;
       TIDS.forEach(function (tid2) { var tv2 = TV[tid2]; if (tv2.kind !== 'c') return; tv2.bars.forEach(function (b) { if (!b.visible) return; b.children[0].material.opacity = 0.16 + 0.12 * Math.sin(tnow * 5); b.children[1].position.y = b.children[1].userData.y0 + 0.035 * Math.sin(tnow * 6); }); });
-      pruneT += dt; if (pruneT > 1.5) { pruneT = 0; prune(); }
+      pollT += dt; if (pollT > (seat ? 0.6 : 2)) { pollT = 0; poll(); }
       for (var k = anims.length - 1; k >= 0; k--) {
         var a = anims[k]; a.t += dt / 0.42; var u = Math.min(1, a.t), y = a.y1 + (a.y0 - a.y1) * (1 - u) * (1 - u);
         if (u >= 0.85) y += Math.sin((u - 0.85) / 0.15 * Math.PI) * 0.012;
