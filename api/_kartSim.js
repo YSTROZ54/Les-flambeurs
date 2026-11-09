@@ -4,7 +4,7 @@ const SIM = (function () {
   var TAU = Math.PI * 2;
   function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
   var LAPS = 3, NCP = 8, ROAD_HALF = 8, CURB_W = 1.4, WALL_OFF = 9.9, CAR_R = 1.0;
-  var GRID_MS = 20000, COUNT_MS = 3000, RACE_MS = 135000, CYC_MS = 175000;
+  var GRID_MS = 20000, COUNT_MS = 3000, RACE_MS = 165000, CYC_MS = 203000;
   var VMAX = 52, ACC = 25, BRK = 38;
   var CTRL = [[0, 0], [110, 0], [190, 0], [238, -28], [250, -88], [218, -135], [160, -142], [120, -112], [88, -120], [70, -158], [20, -176], [-35, -160], [-82, -132], [-86, -82], [-122, -48], [-168, -60], [-198, -18], [-186, 36], [-130, 56], [-74, 44], [-38, 12]];
 
@@ -46,6 +46,14 @@ const SIM = (function () {
     var cyc = Math.floor(t / CYC_MS), ph = t - cyc * CYC_MS, start = cyc * CYC_MS + GRID_MS + COUNT_MS;
     var p = ph < GRID_MS ? 'grid' : ph < GRID_MS + COUNT_MS ? 'count' : ph < GRID_MS + COUNT_MS + RACE_MS ? 'race' : 'results';
     return { cyc: cyc, ph: ph, p: p, raceStart: start, left: p === 'grid' ? GRID_MS - ph : p === 'count' ? GRID_MS + COUNT_MS - ph : p === 'race' ? GRID_MS + COUNT_MS + RACE_MS - ph : CYC_MS - ph };
+  }
+  // phase d'une course qui a commencé à l'instant cs (ms, horloge du serveur) ; cs < 0 : personne ne court, on attend (salle d'attente)
+  var RES_MS = CYC_MS - GRID_MS - COUNT_MS - RACE_MS;
+  function phaseAt(t, cs, cyc, cut) {                      // cut : si tous les pilotes sont arrivés, instant (ms après cs) où les résultats commencent
+    if (!(cs >= 0)) return { cyc: cyc | 0, ph: 0, p: 'wait', raceStart: 0, left: 0 };
+    var ph = t - cs, p = ph < GRID_MS ? 'grid' : ph < GRID_MS + COUNT_MS ? 'count' : ph < GRID_MS + COUNT_MS + RACE_MS ? 'race' : 'results';
+    if (cut > 0 && ph >= cut) { return { cyc: cyc | 0, ph: ph, p: 'results', raceStart: cs + GRID_MS + COUNT_MS, left: RES_MS - (ph - cut), end: ph - cut >= RES_MS }; }
+    return { cyc: cyc | 0, ph: ph, p: p, raceStart: cs + GRID_MS + COUNT_MS, left: p === 'grid' ? GRID_MS - ph : p === 'count' ? GRID_MS + COUNT_MS - ph : p === 'race' ? GRID_MS + COUNT_MS + RACE_MS - ph : CYC_MS - ph, end: ph >= CYC_MS };
   }
   function newCar() {
     return { x: 0, z: 0, yaw: 0, vx: 0, vz: 0, st: 0, boost: 0, driftT: 0, prog: 0, lastFrac: 0, lap: 0, cp: 0, fin: 0, best: 0, lapStart: 0, spd: 0, wrong: 0, shake: 0, ev: [] };
@@ -131,7 +139,20 @@ const SIM = (function () {
     return out;
   }
 
-  var API = { LAPS: LAPS, NCP: NCP, ROAD_HALF: ROAD_HALF, CURB_W: CURB_W, WALL_OFF: WALL_OFF, CAR_R: CAR_R, GRID_MS: GRID_MS, COUNT_MS: COUNT_MS, RACE_MS: RACE_MS, CYC_MS: CYC_MS, VMAX: VMAX, ACC: ACC, BRK: BRK, CTRL: CTRL, TRK: TRK, angDiff: angDiff, phaseInfo: phaseInfo, newCar: newCar, placeAtS: placeAtS, placeOnGrid: placeOnGrid, placeAtCheckpoint: placeAtCheckpoint, stepCar: stepCar, pairCollide: pairCollide, trackProgress: trackProgress };
+  // pilote automatique d'un bot : b = { skill (0.8 à 0.97), lat (décalage voulu sur la piste, m), stuck }. Renvoie les touches { th, br, steer, hand }.
+  var bt1 = {}, bt2 = {};
+  function botInput(c, b, dt) {
+    var pr = TRK.project(c.x, c.z), spd = c.spd, DSx = TRK.DS;
+    var look = 8 + spd * 0.55, p1 = TRK.at(pr.s + look / DSx, bt1), lat = b.lat;
+    var tx = p1.x - p1.tz * lat, tz = p1.z + p1.tx * lat, desired = Math.atan2(tx - c.x, -(tz - c.z)), err = angDiff(desired, c.yaw);
+    var steer = Math.max(-1, Math.min(1, err * 2.4));
+    var a0 = TRK.at(pr.s + (6 + spd * 0.3) / DSx, bt1).yaw, a1 = TRK.at(pr.s + (26 + spd * 1.1) / DSx, bt2).yaw, dh = Math.abs(angDiff(a1, a0));
+    var tv = VMAX * b.skill / (1 + dh * 1.5); if (tv < 18) tv = 18; if (Math.abs(err) > 0.7) tv = Math.min(tv, 14);
+    var th = spd < tv ? 1 : 0, br = spd > tv + 3 ? Math.min(1, (spd - tv) / 14) : 0;
+    if (spd < 2.5) { b.stuck = (b.stuck || 0) + dt; } else b.stuck = 0;
+    return { th: th, br: br, steer: steer, hand: false };
+  }
+  var API = { phaseAt: phaseAt, botInput: botInput, LAPS: LAPS, NCP: NCP, ROAD_HALF: ROAD_HALF, CURB_W: CURB_W, WALL_OFF: WALL_OFF, CAR_R: CAR_R, GRID_MS: GRID_MS, COUNT_MS: COUNT_MS, RACE_MS: RACE_MS, CYC_MS: CYC_MS, VMAX: VMAX, ACC: ACC, BRK: BRK, CTRL: CTRL, TRK: TRK, angDiff: angDiff, phaseInfo: phaseInfo, newCar: newCar, placeAtS: placeAtS, placeOnGrid: placeOnGrid, placeAtCheckpoint: placeAtCheckpoint, stepCar: stepCar, pairCollide: pairCollide, trackProgress: trackProgress };
   return API;
 })();
 export default SIM;
