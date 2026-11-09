@@ -41,7 +41,7 @@
   }
   function paintingMesh(w, h, i, frameMat) {
     var g = new THREE.Group(), f = new THREE.Mesh(new THREE.BoxGeometry(w + 0.18, h + 0.18, 0.07), frameMat); g.add(f);
-    var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), artMat(i)); p.position.z = 0.037; g.add(p); return g;
+    var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), artMat(i)); p.position.z = 0.045; g.add(p); return g;
   }
   var WIN = {};
   function windowMat(kind) {
@@ -125,19 +125,20 @@
       if (st === 'casino') { var neon = [glowMat('n1', 0xff3bd0, 1.8), glowMat('n2', 0x39d6ff, 1.8), glowMat('n3', 0xffd23f, 1.8)]; map.rooms.forEach(function (rm, k) { var cx = (rm.x0 + rm.x1) / 2, cz = (rm.z0 + rm.z1) / 2, rr = Math.min(rm.x1 - rm.x0, rm.z1 - rm.z0) * 0.32; for (var q = 0; q < 3; q++) { var t = new THREE.Mesh(new THREE.TorusGeometry(rr - q * 1.3, 0.07, 6, 48), neon[(k + q) % 3]); t.rotation.x = Math.PI / 2; t.position.set(cx, H - 0.1, cz); grp.add(t); } }); }
       // ----- murs : face texturée, plinthe, corniche, lambris
       var wallM = S.wall(), baseM = st === 'musee' ? PM.marble() : (st === 'casino' ? PM.gold() : (st === 'station' ? PM.dsteel() : PM.darkwood()));
-      map.walls.forEach(function (w) {
-        var lx = w.x1 - w.x0, lz = w.z1 - w.z0, m = boxT(lx, w.y1, lz, wallM, 2.6); m.position.set((w.x0 + w.x1) / 2, w.y1 / 2, (w.z0 + w.z1) / 2); grp.add(m);
-        var b = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.08), 0.24, lz + (lx > lz ? 0.08 : 0)), baseM); b.position.set(m.position.x, 0.12, m.position.z); grp.add(b);
-        var cr = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.14), 0.18, lz + (lx > lz ? 0.14 : 0)), mat('crown' + S.crown, { color: S.crown, roughness: 0.5, metalness: st === 'casino' ? 0.8 : 0.1 })); cr.position.set(m.position.x, w.y1 - 0.09, m.position.z); grp.add(cr);
-        if (st === 'manoir' || st === 'musee') { var wt = boxT(lx + (lx > lz ? 0 : 0.06), 0.9, lz + (lx > lz ? 0.06 : 0), st === 'musee' ? PM.marble() : PM.darkwood(), 1.6); wt.position.set(m.position.x, 0.5, m.position.z); grp.add(wt); }
-        if (st === 'station') { var hz = glowMat('wstrip' + (lx > lz ? 'a' : 'b'), 0x39d6ff, 1.2), s1 = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.05, lz + (lx > lz ? 0.1 : 0)), hz); s1.position.set(m.position.x, H - 0.55, m.position.z); grp.add(s1); }
-        if (st === 'casino') { var gl = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0 : 0.1), 0.06, lz + (lx > lz ? 0.1 : 0)), glowMat('nbase', 0xff3bd0, 1.6)); gl.position.set(m.position.x, 0.14, m.position.z); grp.add(gl); }
+      map.walls.forEach(function (w, wi) {
+        var lx = w.x1 - w.x0, lz = w.z1 - w.z0, hx = lx > lz, ek = 0.004 * (wi % 5), et = 0.003 * (wi % 4), m = boxT(lx, w.y1, lz, wallM, 2.6);
+        m.scale.set((lx + (hx ? ek : et)) / lx, 1, (lz + (hx ? et : ek)) / lz); m.position.set((w.x0 + w.x1) / 2, w.y1 / 2, (w.z0 + w.z1) / 2); grp.add(m);
+        var b = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0.03 : 0.08), 0.24, lz + (lx > lz ? 0.08 : 0.03)), baseM); b.position.set(m.position.x, 0.12, m.position.z); grp.add(b);
+        var cr = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0.03 : 0.14), 0.18, lz + (lx > lz ? 0.14 : 0.03)), mat('crown' + S.crown, { color: S.crown, roughness: 0.5, metalness: st === 'casino' ? 0.8 : 0.1 })); cr.position.set(m.position.x, w.y1 - 0.09, m.position.z); grp.add(cr);
+        if (st === 'manoir' || st === 'musee') { var wt = boxT(lx + (lx > lz ? 0.025 : 0.06), 0.9, lz + (lx > lz ? 0.06 : 0.025), st === 'musee' ? PM.marble() : PM.darkwood(), 1.6); wt.position.set(m.position.x, 0.5, m.position.z); grp.add(wt); }
+        if (st === 'station') { var hz = glowMat('wstrip' + (lx > lz ? 'a' : 'b'), 0x39d6ff, 1.2), s1 = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0.02 : 0.1), 0.05, lz + (lx > lz ? 0.1 : 0.02)), hz); s1.position.set(m.position.x, H - 0.55, m.position.z); grp.add(s1); }
+        if (st === 'casino') { var gl = new THREE.Mesh(new THREE.BoxGeometry(lx + (lx > lz ? 0.02 : 0.1), 0.06, lz + (lx > lz ? 0.1 : 0.02)), glowMat('nbase', 0xff3bd0, 1.6)); gl.position.set(m.position.x, 0.14, m.position.z); grp.add(gl); }
       });
       // ----- encadrements de portes (à la largeur de chaque porte)
       var frameM = st === 'casino' ? PM.gold() : (st === 'station' ? PM.dsteel() : (st === 'musee' ? PM.marble() : PM.darkwood()));
       map.doors.forEach(function (d) {
-        var alongX = d.axis === 'z', hw2 = d.w / 2 + 0.1;
-        var f1 = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.2 : 0.46, H, alongX ? 0.46 : 0.2), frameM), f2 = f1.clone(), lin = new THREE.Mesh(new THREE.BoxGeometry(alongX ? d.w + 0.4 : 0.46, 0.9, alongX ? 0.46 : d.w + 0.4), frameM);
+        var alongX = d.axis === 'z', hw2 = d.w / 2 + 0.085;
+        var f1 = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.2 : 0.46, H - 0.004, alongX ? 0.46 : 0.2), frameM), f2 = f1.clone(), lin = new THREE.Mesh(new THREE.BoxGeometry(alongX ? d.w + 0.43 : 0.47, 0.9, alongX ? 0.47 : d.w + 0.43), frameM);
         f1.position.set(d.x + (alongX ? -hw2 : 0), H / 2, d.z + (alongX ? 0 : -hw2)); f2.position.set(d.x + (alongX ? hw2 : 0), H / 2, d.z + (alongX ? 0 : hw2)); lin.position.set(d.x, H - 0.45, d.z); grp.add(f1, f2, lin);
         if (st === 'station') { var lamp = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.9 : 0.1, 0.08, alongX ? 0.1 : 0.9), glowMat('doorl', 0x3bff6a, 1.8)); lamp.position.set(d.x + (alongX ? 0 : 0.26), H - 0.95, d.z + (alongX ? 0.26 : 0)); grp.add(lamp); }
       });
