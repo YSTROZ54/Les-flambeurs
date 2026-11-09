@@ -5,6 +5,7 @@ import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { WebSocketServer } from 'ws';
 
 process.env.POKER_STORAGE = process.env.POKER_STORAGE || 'memory';
 process.env.ACCOUNTS_STORAGE = process.env.ACCOUNTS_STORAGE || 'memory';
@@ -38,7 +39,7 @@ function readBody(req) {
   });
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = decodeURIComponent(url.pathname);
 
@@ -49,6 +50,12 @@ http.createServer(async (req, res) => {
     if (row) row.balance = Number(url.searchParams.get('value')) || 0;
     res.end(row ? 'ok' : 'inconnu');
     return;
+  }
+
+  // outil de test (E2E_TEST_HOOKS=1) : décale l'horloge de la course pour tomber sur la phase voulue (grille, course, résultats)
+  if (process.env.E2E_TEST_HOOKS === '1' && path === '/__test/kartclock') {
+    const off = Number(url.searchParams.get('offset')) || 0; globalThis.__kartOffset = off; if (rooms['/ws/kart']) rooms['/ws/kart'].offset = off;
+    res.end('ok'); return;
   }
 
   const m = path.match(/^\/api\/([a-z-]+)$/);
@@ -85,4 +92,24 @@ http.createServer(async (req, res) => {
     res.statusCode = 404;
     res.end('Fichier non trouvé : ' + path);
   }
-}).listen(PORT, () => console.log(`Les Flambeurs : http://localhost:${PORT}  (poker en mémoire)`));
+});
+
+// Salles temps réel (golf, course) : en production ce sont des Durable Objects Cloudflare ; ici on utilise les mêmes classes, branchées sur « ws »
+const wss = new WebSocketServer({ noServer: true });
+var rooms = {};
+server.on('upgrade', async (req, socket, head) => {
+  try {
+    const url = new URL(req.url, 'http://' + req.headers.host);
+    if (url.pathname !== '/ws/kart' && url.pathname !== '/ws/golf') { socket.destroy(); return; }
+    let room, key = url.pathname;
+    if (url.pathname === '/ws/kart') { if (!rooms[key]) { const kr = new (await import(pathToFileURL(join(ROOT, 'api', '_doKart.js')).href)).KartRoom({}, {}); kr.offset = globalThis.__kartOffset || 0; rooms[key] = kr; } room = rooms[key]; }
+    else { key += ':' + url.searchParams.get('course'); if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
+    const a = room.admit(url);
+    if (a.error) { socket.write('HTTP/1.1 ' + a.status + ' ' + a.error.replace(/[^a-zA-Z ]/g, '') + '\r\n\r\n'); socket.destroy(); return; }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const adapter = { send: (m) => { if (ws.readyState === 1) ws.send(m); }, close: () => { try { ws.close(); } catch (e) { /* ok */ } }, addEventListener: (ev, fn) => { if (ev === 'message') ws.on('message', (d) => fn({ data: d.toString() })); else ws.on(ev, fn); } };
+      if (url.pathname === '/ws/kart') room.join(adapter, a.key, a.name, a.car); else room.join(adapter, a.key, a.name);
+    });
+  } catch (e) { console.error(e); try { socket.destroy(); } catch (e2) { /* ok */ } }
+});
+server.listen(PORT, () => console.log(`Les Flambeurs : http://localhost:${PORT}  (poker en mémoire)`));

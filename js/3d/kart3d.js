@@ -10,6 +10,8 @@
    • Commandes — clavier : ZQSD / flèches (accélérer, freiner, tourner), Espace : frein à main (dérapage : relâche après un long dérapage = turbo),
      R : replacer au dernier point de contrôle, C : changer de vue, L : regarder derrière.
      Manette : stick gauche (tourner), RT (accélérer), LT (freiner / marche arrière), A ou RB (frein à main), X (replacer), Y (vue), LB/RB sur la grille : voiture.
+   • TOUT passe par le serveur (api/_doKart.js, WebSocket /ws/kart) : il fait avancer toutes les voitures, gère les chocs, les tours et le classement.
+     Ici le navigateur envoie ses touches 30 fois par seconde, PRÉDIT sa propre voiture (pour qu'elle réponde tout de suite) et se recale sur le serveur.
    • Les voitures viennent de assets/voitures/*.glb (modèles allégés : voir le dossier « Voiture » des documents de l'utilisateur).
    ===================================================================== */
 (function () {
@@ -18,10 +20,10 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var LAPS = 3, NCP = 8, ROAD_HALF = 8, CURB_W = 1.4, WALL_OFF = 9.9, CAR_R = 1.0;
-  var GRID_MS = 20000, COUNT_MS = 3000, RACE_MS = 135000, CYC_MS = 175000;
-  var VMAX = 52, ACC = 25, BRK = 38;
-  var CTRL = [[0, 0], [110, 0], [190, 0], [238, -28], [250, -88], [218, -135], [160, -142], [120, -112], [88, -120], [70, -158], [20, -176], [-35, -160], [-82, -132], [-86, -82], [-122, -48], [-168, -60], [-198, -18], [-186, 36], [-130, 56], [-74, 44], [-38, 12]];
+  var KS = F.kartSim;
+  if (!KS) return;
+  var LAPS = KS.LAPS, NCP = KS.NCP, ROAD_HALF = KS.ROAD_HALF, CURB_W = KS.CURB_W, WALL_OFF = KS.WALL_OFF, CAR_R = KS.CAR_R;
+  var GRID_MS = KS.GRID_MS, COUNT_MS = KS.COUNT_MS, RACE_MS = KS.RACE_MS, CYC_MS = KS.CYC_MS, VMAX = KS.VMAX, ACC = KS.ACC, BRK = KS.BRK, CTRL = KS.CTRL;
 
   // les voitures (nose : vers où pointe le nez du modèle d'origine ; L : longueur en mètres dans le jeu)
   var CARS = [
@@ -37,45 +39,15 @@
   var CAR_BY = {}; CARS.forEach(function (c, i) { c.i = i; CAR_BY[c.id] = c; });
 
   /* ------------------------------------------------------------------ le circuit ------------------------------------------------------------------ */
-  var TRK = (function () {
-    function cr(p0, p1, p2, p3, t) { var t2 = t * t, t3 = t2 * t; return [0, 1].map(function (i) { return 0.5 * ((2 * p1[i]) + (-p0[i] + p2[i]) * t + (2 * p0[i] - 5 * p1[i] + 4 * p2[i] - p3[i]) * t2 + (-p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]) * t3); }); }
-    var n = CTRL.length, dense = [], i, j;
-    for (i = 0; i < n; i++) { var a = CTRL[(i - 1 + n) % n], b = CTRL[i], c = CTRL[(i + 1) % n], d = CTRL[(i + 2) % n]; for (j = 0; j < 40; j++) dense.push(cr(a, b, c, d, j / 40)); }
-    var L = 0, cum = [0]; for (i = 1; i <= dense.length; i++) { var p = dense[i - 1], q = dense[i % dense.length]; L += Math.hypot(q[0] - p[0], q[1] - p[1]); cum.push(L); }
-    var DS = 2, N = Math.round(L / DS), PX = new Float32Array(N), PZ = new Float32Array(N), k = 0;
-    for (i = 0; i < N; i++) { var s = i * L / N; while (cum[k + 1] < s) k++; var f = (s - cum[k]) / (cum[k + 1] - cum[k]), a2 = dense[k], b2 = dense[(k + 1) % dense.length]; PX[i] = a2[0] + (b2[0] - a2[0]) * f; PZ[i] = a2[1] + (b2[1] - a2[1]) * f; }
-    var TXa = new Float32Array(N), TZa = new Float32Array(N);
-    for (i = 0; i < N; i++) { var nx = PX[(i + 1) % N] - PX[(i - 1 + N) % N], nz = PZ[(i + 1) % N] - PZ[(i - 1 + N) % N], ln = Math.hypot(nx, nz); TXa[i] = nx / ln; TZa[i] = nz / ln; }
-    var T = { N: N, L: L, DS: L / N, PX: PX, PZ: PZ, TX: TXa, TZ: TZa };
-    var pr = { s: 0, d: 0, qx: 0, qz: 0, tx: 0, tz: 0, dist: 0 };
-    T.project = function (x, z) {
-      var best = 1e18, bi = 0, i2;
-      for (i2 = 0; i2 < N; i2++) { var dx = PX[i2] - x, dz = PZ[i2] - z, dd = dx * dx + dz * dz; if (dd < best) { best = dd; bi = i2; } }
-      var bd = 1e18, bs = 0, bq = null, sg;
-      for (sg = -1; sg <= 0; sg++) {
-        var ia = (bi + sg + N) % N, ib = (ia + 1) % N, ex = PX[ib] - PX[ia], ez = PZ[ib] - PZ[ia], l2 = ex * ex + ez * ez, t = ((x - PX[ia]) * ex + (z - PZ[ia]) * ez) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
-        var qx = PX[ia] + ex * t, qz = PZ[ia] + ez * t, d2 = (x - qx) * (x - qx) + (z - qz) * (z - qz);
-        if (d2 < bd) { bd = d2; bs = bi + sg + t; var ln2 = Math.sqrt(l2); bq = [qx, qz, ex / ln2, ez / ln2]; }
-      }
-      pr.s = ((bs % N) + N) % N; pr.qx = bq[0]; pr.qz = bq[1]; pr.tx = bq[2]; pr.tz = bq[3];
-      pr.d = (x - bq[0]) * (-bq[3]) + (z - bq[1]) * bq[2];            // + : à droite du sens de la course
-      pr.dist = Math.sqrt(bd); return pr;
-    };
-    T.at = function (s, out) {                                      // point de la piste à l'abscisse s (en points, fractionnaire, avec retour)
-      s = ((s % N) + N) % N; var i1 = Math.floor(s), f = s - i1, i2 = (i1 + 1) % N;
-      out.x = PX[i1] + (PX[i2] - PX[i1]) * f; out.z = PZ[i1] + (PZ[i2] - PZ[i1]) * f;
-      var tx = TXa[i1] + (TXa[i2] - TXa[i1]) * f, tz = TZa[i1] + (TZa[i2] - TZa[i1]) * f, ln = Math.hypot(tx, tz); out.tx = tx / ln; out.tz = tz / ln; out.yaw = Math.atan2(out.tx, -out.tz); return out;
-    };
-    return T;
-  })();
+  var TRK = KS.TRK;
 
   /* ------------------------------------------------------------------ petits utilitaires ------------------------------------------------------------------ */
   function rng(seed) { var s = seed >>> 0; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
+  var angDiff = KS.angDiff;
   function fmtT(ms) { if (!(ms >= 0)) return '--:--.-'; var s = ms / 1000, m = Math.floor(s / 60); return m + ':' + ('0' + (s - m * 60).toFixed(1)).slice(-4); }
-  var clockOff = 0;                                         // (décalage d'horloge : uniquement pour les tests)
-  function nowMs() { return Date.now() + clockOff; }
+  var srvOff = 0;                                           // écart entre l'horloge du serveur et la mienne (mise à jour à chaque instantané)
+  function nowMs() { return Date.now() + srvOff; }
   var AC = null;
   function ac() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; } catch (e) { return null; } }
   function sfxVol() { try { var A = F.audio; return A && typeof A.sfxVol === 'number' ? A.sfxVol : 0.7; } catch (e) { return 0.7; } }
@@ -279,7 +251,7 @@
     g.add(new THREE.HemisphereLight(0xb8c4ff, 0x50506e, 1.5)); var carSun = new THREE.DirectionalLight(0xfff0e0, 1.1); carSun.position.set(60, 90, 40); g.add(carSun);
 
     /* ---------- état de la course ---------- */
-    var me = { name: '', carId: CARS[0].id, x: 0, z: 0, yaw: 0, vx: 0, vz: 0, st: 0, boost: 0, driftT: 0, prog: 0, lastFrac: 0, lap: 0, best: 0, lapStart: 0, fin: 0, cp: 0, shake: 0, wrong: 0, hand: false, th: 0, spd: 0, slot: 0, cyc: -1 };
+    var me = KS.newCar(); me.name = ''; me.carId = CARS[0].id; me.cyc = -1; me.rc = -1; me.ready = false;
     var remotes = {}, active = false, ui = null, keys = {}, padPrev = [], camFar = true, lookBack = false, sendT = 0, hudT = 0, toastT = 0, resShown = false, lastPhase = '', lastCount = -1;
     var cam = { yaw: 0, shake: 0 }, carMesh = null, carMeshId = '', fx = [], eng = null, flame = null, tmp = {}, pcache = {};
     var myRoot = new THREE.Group(); g.add(myRoot);
@@ -294,16 +266,12 @@
     flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); flame.scale.set(2.2, 2.2, 1); flame.visible = false; g.add(flame);
 
     function myName() { try { return String(state.username || '').slice(0, 20) || 'Invité'; } catch (e) { return 'Invité'; } }
-    function phaseInfo(t) {
-      var cyc = Math.floor(t / CYC_MS), ph = t - cyc * CYC_MS, start = cyc * CYC_MS + GRID_MS + COUNT_MS;
-      var p = ph < GRID_MS ? 'grid' : ph < GRID_MS + COUNT_MS ? 'count' : ph < GRID_MS + COUNT_MS + RACE_MS ? 'race' : 'results';
-      return { cyc: cyc, ph: ph, p: p, raceStart: start, left: p === 'grid' ? GRID_MS - ph : p === 'count' ? GRID_MS + COUNT_MS - ph : p === 'race' ? GRID_MS + COUNT_MS + RACE_MS - ph : CYC_MS - ph };
-    }
-    function presentList() { var now = performance.now(), out = []; Object.keys(remotes).forEach(function (k) { var r = remotes[k]; if (now - r.recv > 5000) dropRemote(k); else out.push(r); }); return out; }
+    function phaseInfo(t) { return KS.phaseInfo(t); }
 
     function setMyCar(id) {
       me.carId = id; try { localStorage.setItem('f3d_kartcar', id); } catch (e) { /* ok */ }
       if (ui) { var c = CAR_BY[id]; ui.gridName.innerHTML = esc(c.name) + '<small>' + (c.i + 1) + ' / ' + CARS.length + '</small>'; }
+      if (carMeshId !== id && phaseInfo(nowMs()).p === 'grid') wsSend({ t: 'car', id: id });
       if (carMeshId === id) return;
       carMeshId = id; if (carMesh) { myRoot.remove(carMesh); carMesh = null; }
       var ph = placeholderCar(0x888888); myRoot.add(ph); carMesh = ph;
@@ -311,45 +279,74 @@
     }
     function cycleCar(d) { var ph = phaseInfo(nowMs()); if (ph.p !== 'grid') return; setMyCar(CARS[(CAR_BY[me.carId].i + d + CARS.length) % CARS.length].id); }
 
-    /* ---------- placement : grille, replacement ---------- */
-    function gridSlot() {
-      var names = [me.name.toLowerCase()].concat(presentList().map(function (r) { return r.name.toLowerCase(); })).sort(), k = names.indexOf(me.name.toLowerCase());
-      return Math.max(0, k);
+    /* ---------- le serveur (WebSocket /ws/kart) ---------- */
+    var ws = null, wsOk = false, seq = 0, pending = [], inpAcc = 0, netErr = '', myKey = '', reconnectT = 0, lastSh = 0;
+    function wsSend(o) { if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify(o)); } catch (e) { /* ok */ } } }
+    function connect() {
+      var tok = F.token();
+      if (!tok) { netErr = 'Connecte-toi pour courir.'; return; }
+      var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/kart?token=' + encodeURIComponent(tok) + '&name=' + encodeURIComponent(me.name) + '&car=' + encodeURIComponent(me.carId);
+      try { ws = new WebSocket(url); } catch (e) { netErr = 'Serveur de course indisponible.'; return; }
+      var mine = ws;
+      ws.onopen = function () { if (ws !== mine) return; wsOk = true; netErr = ''; };
+      ws.onmessage = function (ev) { if (ws !== mine) return; var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onNet(m); };
+      ws.onclose = function () { if (ws !== mine) return; wsOk = false; me.ready = false; if (active) { netErr = 'Connexion au serveur…'; reconnectT = 1.5; } };
+      ws.onerror = function () { /* onclose suit */ };
     }
-    function placeAtS(s, lat) {                                 // s : points de piste (peut être négatif = derrière la ligne), lat : décalage à droite (m)
-      var p = TRK.at(s, tmp); me.x = p.x - p.tz * lat; me.z = p.z + p.tx * lat; me.yaw = p.yaw; me.vx = me.vz = 0; me.st = 0; me.boost = 0; me.driftT = 0;
-      var fr = (((s % N) + N) % N) / N; me.lastFrac = fr; me.prog = s < 0 ? s / N : fr; if (me.prog > 0.5 && s >= 0) me.prog = fr; me.shake = 0;
+    function onNet(m) {
+      if (m.t === 'welcome') { srvOff = m.now - Date.now(); applyCars(m.cars, null); }
+      else if (m.t === 's') { srvOff += ((m.n - Date.now()) - srvOff) * 0.25; applyCars(m.cars, m.cyc); }
+      else if (m.t === 'ev') {
+        var e = m.e;
+        if (e.k === 'lap') { toast('Tour ' + (e.lap + 1) + ' / ' + LAPS + ' · ' + fmtT(e.time), '#fff', 1.8); tone(660, 880, 0.2, 'sine', 0.16); }
+        else if (e.k === 'cp') { cpFlash[e.cp] = 0.7; tone(880, 1100, 0.1, 'sine', 0.1); }
+      } else if (m.t === 'fin') {
+        if (m.k === myKey) {
+          var pos = ranking(phaseInfo(nowMs())).findIndex(function (r) { return r.me; }) + 1;
+          toast('🏁 Arrivée ! ' + pos + (pos === 1 ? 'er' : 'e') + ' · ' + fmtT(m.time), '#ffd24a', 3.5); tone(523, 523, 0.2, 'triangle', 0.18); tone(659, 659, 0.2, 'triangle', 0.18, 0.15); tone(784, 784, 0.4, 'triangle', 0.18, 0.3);
+        }
+      }
     }
-    function startCycle(pi) {
-      me.cyc = pi.cyc; me.slot = gridSlot(); me.lap = 0; me.cp = 0; me.fin = 0; me.best = 0; me.wrong = 0; resShown = false; if (ui) ui.res.classList.remove('on');
-      var row = Math.floor(me.slot / 2), side = me.slot % 2 ? 3.6 : -3.6;
-      placeAtS(-(7 + row * 7.5) / DS, side);
-      me.lapStart = pi.raceStart; lastCount = -1;
+    function upsertRemote(c, cyc) {
+      var r = remotes[c.k];
+      if (!r) {
+        var grp = new THREE.Group(), ph = placeholderCar(0x888888); grp.add(ph); addShadow(grp); g.add(grp);
+        var tag = (function (name) { var cv = mkCanvas(256, 64), x2 = cv.getContext('2d'); x2.fillStyle = 'rgba(8,6,20,0.72)'; F.roundRectPath(x2, 4, 8, 248, 48, 22); x2.fill(); x2.fillStyle = '#fff'; x2.font = '800 28px ' + SERIF; x2.textAlign = 'center'; x2.textBaseline = 'middle'; x2.fillText(name.slice(0, 14), 128, 33, 230); var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(cv), transparent: true, depthWrite: false, depthTest: false })); sp.scale.set(2.2, 0.55, 1); sp.renderOrder = 30; return sp; })(String(c.n || c.k));
+        g.add(tag); r = remotes[c.k] = { k: c.k, name: String(c.n || c.k).slice(0, 20), grp: grp, car: ph, tag: tag, carId: '', x: c.x, z: c.z, yaw: c.a || 0 };
+      }
+      r.tx = c.x; r.tz = c.z; r.ta = c.a || 0; r.vx = c.vx || 0; r.vz = c.vz || 0; r.prog = c.p || 0; r.fin = c.f || 0; r.best = c.b || 0; r.cy = cyc; r.recv = performance.now();
+      var cid = CAR_BY[c.c] ? c.c : CARS[0].id;
+      if (r.carId !== cid) { r.carId = cid; loadCar(cid, function (mm) { if (!remotes[r.k] || r.carId !== cid) return; r.grp.remove(r.car); r.car = mm; r.grp.add(mm); }); }
+    }
+    function applyCars(cars, cyc) {
+      var seen = {};
+      cars.forEach(function (c) {
+        seen[c.k] = true;
+        if (c.k === myKey) reconcile(c, cyc); else upsertRemote(c, cyc);
+      });
+      Object.keys(remotes).forEach(function (k) { if (!seen[k]) dropRemote(k); });
+    }
+    // le serveur a le dernier mot : je pars de SON état, puis je rejoue mes touches qu'il n'a pas encore prises en compte (« prédiction »)
+    function reconcile(c, cyc) {
+      me.prog = c.p; me.lap = c.l; me.fin = c.f; me.best = c.b; me.cp = c.cp; me.wrong = c.w ? 2 : 0;
+      if (c.sh > me.shake && c.sh - lastSh > 0.25) { tone(200, 80, 0.12, 'square', 0.1); noise(0.08, 0.15, 2000); } lastSh = c.sh; me.shake = Math.max(me.shake, c.sh);
+      if (c.rc !== me.rc || !me.ready) {                       // placement décidé par le serveur (grille, replacement) : on s'y met tout de suite
+        me.rc = c.rc; me.ready = true; me.x = c.x; me.z = c.z; me.yaw = c.a; me.vx = c.vx; me.vz = c.vz; me.st = c.st; me.boost = c.bo; me.driftT = c.dr; me.spd = Math.hypot(c.vx, c.vz); pending = []; cam.yaw = c.a; return;
+      }
+      pending = pending.filter(function (p) { return p.seq > c.ack; });
+      var pc = KS.newCar(); pc.x = c.x; pc.z = c.z; pc.yaw = c.a; pc.vx = c.vx; pc.vz = c.vz; pc.st = c.st; pc.boost = c.bo; pc.driftT = c.dr;
+      var locked = (function (p) { return p === 'grid' || p === 'count'; })(phaseInfo(nowMs()).p), k, i;
+      for (k = 0; k < pending.length; k++) { for (i = 0; i < 3; i++) KS.stepCar(pc, pending[k].inp, 1 / 90, locked); pc.ev.length = 0; }
+      var err = Math.hypot(pc.x - me.x, pc.z - me.z);
+      if (err > 2.5) { me.x = pc.x; me.z = pc.z; me.yaw = pc.yaw; me.vx = pc.vx; me.vz = pc.vz; }
+      else { var f = 0.3; me.x += (pc.x - me.x) * f; me.z += (pc.z - me.z) * f; me.yaw += angDiff(pc.yaw, me.yaw) * f; me.vx += (pc.vx - me.vx) * f; me.vz += (pc.vz - me.vz) * f; }
+      me.st = pc.st; me.boost = pc.boost; me.driftT = pc.driftT;
     }
     function respawn() {
       var pi = phaseInfo(nowMs()); if (pi.p === 'grid' || pi.p === 'count') return;
-      var cpf = Math.max(0, Math.floor(Math.max(0, me.prog) * NCP)) / NCP, s = (cpf % 1) * N; placeAtS(s, 0); me.prog = cpf; toast('↺ Replacé', '#ffd24a', 1.2);
+      wsSend({ t: 'respawn' }); toast('↺ Replacé', '#ffd24a', 1.2);
     }
-
-    /* ---------- réseau ---------- */
-    function send(force) {
-      if (!world.rt || !world.rt.ready || !F.me()) return;
-      try { world.rt.send('kp', { k: F.me(), n: me.name, c: me.carId, x: +me.x.toFixed(2), z: +me.z.toFixed(2), a: +me.yaw.toFixed(3), vx: +me.vx.toFixed(2), vz: +me.vz.toFixed(2), p: +me.prog.toFixed(4), f: me.fin | 0, cy: me.cyc, b: me.best | 0 }); } catch (e) { /* ok */ }
-    }
-    room.onRtMsg = function (ev, m) {
-      if (ev === 'kbye') { dropRemote(m.k); return; }
-      if (ev !== 'kp' || !active) return;
-      var x = +m.x, z = +m.z; if (!isFinite(x) || !isFinite(z)) return;
-      var r = remotes[m.k];
-      if (!r) {
-        var grp = new THREE.Group(), ph = placeholderCar(0x888888); grp.add(ph); addShadow(grp); g.add(grp);
-        var tag = (function (name) { var c = mkCanvas(256, 64), x2 = c.getContext('2d'); x2.fillStyle = 'rgba(8,6,20,0.72)'; F.roundRectPath(x2, 4, 8, 248, 48, 22); x2.fill(); x2.fillStyle = '#fff'; x2.font = '800 28px ' + SERIF; x2.textAlign = 'center'; x2.textBaseline = 'middle'; x2.fillText(name.slice(0, 14), 128, 33, 230); var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: mkTex(c), transparent: true, depthWrite: false, depthTest: false })); s.scale.set(2.2, 0.55, 1); s.renderOrder = 30; return s; })(String(m.n || m.k));
-        g.add(tag); r = remotes[m.k] = { k: m.k, name: String(m.n || m.k).slice(0, 20), grp: grp, car: ph, tag: tag, carId: '', x: x, z: z, yaw: +m.a || 0 };
-      }
-      r.tx = x; r.tz = z; r.ta = +m.a || 0; r.vx = +m.vx || 0; r.vz = +m.vz || 0; r.prog = +m.p || 0; r.fin = +m.f || 0; r.cy = +m.cy; r.best = +m.b || 0; r.recv = performance.now();
-      var cid = CAR_BY[m.c] ? m.c : CARS[0].id;
-      if (r.carId !== cid) { r.carId = cid; loadCar(cid, function (mm) { if (!remotes[r.k] || r.carId !== cid) return; r.grp.remove(r.car); r.car = mm; r.grp.add(mm); }); }
-    };
+    function presentList() { return Object.keys(remotes).map(function (k) { return remotes[k]; }); }
     function dropRemote(k) { var r = remotes[k]; if (!r) return; g.remove(r.grp); g.remove(r.tag); r.tag.material.map.dispose(); delete remotes[k]; }
 
     /* ---------- interface ---------- */
@@ -386,6 +383,7 @@
     }
     function refreshHud(pi) {
       if (!ui) return;
+      if (!me.ready) { ui.big.innerHTML = esc(netErr || 'Connexion au serveur…'); ui.grid.classList.remove('on'); return; }
       var rows = ranking(pi), pos = rows.findIndex(function (r) { return r.me; }) + 1, lap = Math.min(LAPS, Math.max(1, Math.floor(Math.max(0, me.prog)) + 1));
       ui.p.innerHTML = pos + '<small>/' + rows.length + '</small>';
       ui.l.textContent = me.fin ? '🏁 Terminé · ' + fmtT(me.fin) : 'Tour ' + lap + ' / ' + LAPS;
@@ -443,74 +441,19 @@
       return inp;
     }
 
-    /* ---------- physique ---------- */
-    function stepCar(inp, dt, locked) {
-      var sy = Math.sin(me.yaw), cy = Math.cos(me.yaw), fx2 = sy, fz2 = -cy, rx2 = cy, rz2 = sy;
-      var vf = me.vx * fx2 + me.vz * fz2, vl = me.vx * rx2 + me.vz * rz2;
-      if (locked) { me.vx = me.vz = 0; me.spd = 0; return; }
-      var maxV = VMAX * (me.boost > 0 ? 1.28 : 1), th = inp.th, br = inp.br;
-      if (th > 0) vf += (ACC * (me.boost > 0 ? 1.8 : 1) * th * (1 - Math.max(0, vf) / maxV) + (vf < 0 ? BRK * th : 0)) * dt;
-      if (br > 0) { if (vf > 0.6) vf -= BRK * br * dt; else vf -= ACC * 0.55 * br * (1 - (-vf) / (VMAX * 0.3)) * dt; }
-      vf -= vf * 0.1 * dt + Math.sign(vf) * Math.min(Math.abs(vf), 1.4 * dt);
-      me.vx = fx2 * vf + rx2 * vl; me.vz = fz2 * vf + rz2 * vl;               // l'accélération est appliquée à la vitesse du monde
-      me.st += (inp.steer - me.st) * Math.min(1, dt * 9);
-      var sgn = vf >= 0 ? 1 : -1, grip = inp.hand ? 1.7 : 8.2, vv = Math.abs(vf);
-      var yr = me.st * 2.15 / (1 + Math.pow(vv / 30, 2)) * Math.min(1, vv / 5) * sgn * (inp.hand ? 1.45 : 1);
-      me.yaw += yr * dt;
-      var nx = Math.sin(me.yaw), nz = -Math.cos(me.yaw), nrx = Math.cos(me.yaw), nrz = Math.sin(me.yaw);
-      // la vitesse du monde est conservée quand la voiture tourne : l'adhérence ramène ensuite la vitesse latérale vers zéro
-      vf = me.vx * nx + me.vz * nz; vl = me.vx * nrx + me.vz * nrz;
-      vl *= Math.exp(-grip * dt); if (inp.hand) vf -= vf * 0.12 * dt;
-      me.vx = nx * vf + nrx * vl; me.vz = nz * vf + nrz * vl;
-      // dérapage : une longue glissade puis relâcher le frein à main donne un turbo
-      if (inp.hand && vv > 14 && Math.abs(me.st) > 0.25) me.driftT += dt; else { if (me.driftT > 0.7 && !inp.hand) { me.boost = me.driftT > 1.6 ? 1.5 : 0.9; toast('⚡ TURBO', '#ffb02e', 0.9); tone(300, 900, 0.3, 'sawtooth', 0.12); } if (!inp.hand) me.driftT = 0; }
-      if (me.boost > 0) me.boost -= dt;
-      me.x += me.vx * dt; me.z += me.vz * dt;
-      me.spd = Math.hypot(me.vx, me.vz);
-      // fumée des pneus
-      if ((inp.hand && me.spd > 10) || (Math.abs(vl) > 4.5 && me.spd > 12)) { if (Math.random() < dt * 40) puff(me.x - nx * 1.6 + nrx * (Math.random() < 0.5 ? 0.8 : -0.8), 0.3, me.z - nz * 1.6 + nrz * (Math.random() < 0.5 ? 0.8 : -0.8), -me.vx * 0.1, -me.vz * 0.1, 1.5, 0.9); }
-      // barrière : on rebondit contre elle
-      var pr = TRK.project(me.x, me.z), lim = WALL_OFF - CAR_R * 0.9;
-      if (Math.abs(pr.d) > lim) {
-        var sd = pr.d > 0 ? 1 : -1, rnx = -pr.tz * sd, rnz = pr.tx * sd;           // normale vers l'extérieur
-        me.x = pr.qx + (-pr.tz) * sd * lim; me.z = pr.qz + pr.tx * sd * lim;
-        var vn = me.vx * rnx + me.vz * rnz;
-        if (vn > 0) { me.vx -= 1.35 * vn * rnx; me.vz -= 1.35 * vn * rnz; me.vx *= 0.93; me.vz *= 0.93; me.shake = Math.min(1, vn / 18); if (vn > 3) { noise(0.12, 0.2 + Math.min(0.3, vn / 40), 1500); tone(120, 60, 0.15, 'square', 0.1); for (var q = 0; q < 4; q++) puff(me.x + rnx * 0.8, 0.6, me.z + rnz * 0.8, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, 0.9, 0.5, 0xffb060); } }
-        var dyaw = angDiff(Math.atan2(pr.tx, -pr.tz), me.yaw); me.yaw += dyaw * Math.min(1, dt * 3);
+    /* ---------- prédiction locale : la même physique que le serveur (kart-sim.js) ---------- */
+    function stepLocal(inp, dt, locked) {
+      var left = Math.min(dt, 0.1), sub;
+      me.ev.length = 0;
+      while (left > 1e-5) {
+        sub = Math.min(left, 1 / 90); KS.stepCar(me, inp, sub, locked); left -= sub;
+        me.ev.forEach(function (e) {
+          if (e.k === 'smoke') puff(e.x, 0.3, e.z, e.vx, e.vz, 1.5, 0.9);
+          else if (e.k === 'turbo') { toast('⚡ TURBO', '#ffb02e', 0.9); tone(300, 900, 0.3, 'sawtooth', 0.12); }
+          else if (e.k === 'wall') { noise(0.12, 0.2 + Math.min(0.3, e.vn / 40), 1500); tone(120, 60, 0.15, 'square', 0.1); for (var q = 0; q < 4; q++) puff(e.x, 0.6, e.z, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, 0.9, 0.5, 0xffb060); }
+        });
+        me.ev.length = 0;
       }
-    }
-    var cA = [[0, 1.2], [0, -1.2]];
-    function carCollisions(dt) {
-      var list = presentList(), k, a, b;
-      for (k = 0; k < list.length; k++) {
-        var r = list[k], d0x = r.x - me.x, d0z = r.z - me.z; if (d0x * d0x + d0z * d0z > 36) continue;
-        var msy = Math.sin(me.yaw), mcy = Math.cos(me.yaw), rsy = Math.sin(r.yaw), rcy = Math.cos(r.yaw), sx = 0, sz = 0, ovm = 0;
-        for (a = 0; a < 2; a++) for (b = 0; b < 2; b++) {        // deux cercles par voiture : on regroupe les contacts en un seul choc
-          var ax = me.x + msy * cA[a][1], az = me.z - mcy * cA[a][1], bx = r.x + rsy * cA[b][1], bz = r.z - rcy * cA[b][1], dx = ax - bx, dz = az - bz, d = Math.hypot(dx, dz);
-          if (d < CAR_R * 2 && d > 1e-4) { var ov = CAR_R * 2 - d; sx += dx / d * ov; sz += dz / d * ov; ovm = Math.max(ovm, ov); }
-        }
-        if (ovm > 0) {
-          var sl = Math.hypot(sx, sz) || 1, nx = sx / sl, nz = sz / sl; me.x += nx * ovm; me.z += nz * ovm;
-          var rvx = me.vx - (r.vx || 0), rvz = me.vz - (r.vz || 0), vn = rvx * nx + rvz * nz;
-          if (vn < 0) { me.vx -= 0.65 * vn * nx; me.vz -= 0.65 * vn * nz; me.shake = Math.max(me.shake, Math.min(0.8, -vn / 20)); if (-vn > 3) { tone(200, 80, 0.12, 'square', 0.1); noise(0.08, 0.15, 2000); } }
-        }
-      }
-    }
-    function updateProgress(pi) {
-      var pr = TRK.project(me.x, me.z), frac = pr.s / N, dl = frac - me.lastFrac; if (dl > 0.5) dl -= 1; else if (dl < -0.5) dl += 1;
-      if (Math.abs(dl) < 0.15) me.prog += dl; me.lastFrac = frac;
-      var fl = Math.floor(me.prog * 1e6) / 1e6, lapNow = Math.floor(me.prog), cpNow = Math.floor(me.prog * NCP);
-      if (pi.p === 'race' && !me.fin) {
-        if (lapNow > me.lap && lapNow >= 1) {
-          var lt = nowMs() - me.lapStart; me.lap = lapNow; me.lapStart = nowMs();
-          if (lapNow < LAPS) { if (!me.best || lt < me.best) me.best = lt; toast('Tour ' + (lapNow + 1) + ' / ' + LAPS + ' · ' + fmtT(lt), '#fff', 1.8); tone(660, 880, 0.2, 'sine', 0.16); }
-          else { me.fin = Math.max(1, nowMs() - pi.raceStart); if (!me.best || lt < me.best) me.best = lt; var pos = ranking(pi).findIndex(function (r) { return r.me; }) + 1; toast('🏁 Arrivée ! ' + pos + (pos === 1 ? 'er' : 'e') + ' · ' + fmtT(me.fin), '#ffd24a', 3.5); tone(523, 523, 0.2, 'triangle', 0.18); tone(659, 659, 0.2, 'triangle', 0.18, 0.15); tone(784, 784, 0.4, 'triangle', 0.18, 0.3); }
-        }
-        if (cpNow > me.cp && me.prog > 0 && cpNow % NCP !== 0) { me.cp = cpNow; var gi = cpNow % NCP; cpFlash[gi] = 0.7; tone(880, 1100, 0.1, 'sine', 0.1); }
-        else if (cpNow % NCP === 0) me.cp = cpNow;
-      }
-      // mauvais sens
-      var vt = me.vx * pr.tx + me.vz * pr.tz; me.wrong = (vt < -4 && pi.p === 'race') ? me.wrong + 1 / 60 : Math.max(0, me.wrong - 0.05);
     }
     room.seatPos = function () { return null; };
     room.hint = function () { return 'ZQSD / flèches : conduire · Espace : frein à main · R : replacer · C : vue · manette : stick + RT / LT'; };
@@ -531,14 +474,16 @@
       carMeshId = ''; setMyCar(CAR_BY[saved] ? saved : CARS[Math.floor(Math.random() * CARS.length)].id);
       window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKey, true);
       var a = ac(); if (a) { try { var o1 = a.createOscillator(), o2 = a.createOscillator(), fl = a.createBiquadFilter(), gn = a.createGain(); o1.type = 'sawtooth'; o2.type = 'square'; fl.type = 'lowpass'; fl.frequency.value = 700; gn.gain.value = 0; o1.connect(fl); o2.connect(fl); fl.connect(gn); gn.connect(a.destination); o1.start(); o2.start(); eng = { o1: o1, o2: o2, g: gn, f: fl }; } catch (e) { eng = null; } }
-      var pi = phaseInfo(nowMs()); startCycle(pi); lastPhase = ''; cam.yaw = me.yaw;
-      w.sitDown(room); sendT = 0.6;
+      myKey = F.me(); me.ready = false; me.rc = -1; pending = []; seq = 0; inpAcc = 0; netErr = ''; lastPhase = '';
+      connect();
+      w.sitDown(room);
+      if (!F.token()) setTimeout(function () { if (active) world.goRoom('minijeux', 'kart'); }, 2500);
     };
     function cleanup() {
       if (!active) return; active = false; keys = {};
       window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKey, true);
       if (eng) { try { eng.o1.stop(); eng.o2.stop(); eng.g.disconnect(); } catch (e) { /* ok */ } eng = null; }
-      if (world.rt && world.rt.ready && F.me()) { try { world.rt.send('kbye', { k: F.me() }); } catch (e) { /* ok */ } }
+      if (ws) { var old = ws; ws = null; wsOk = false; try { old.close(); } catch (e) { /* ok */ } }
       Object.keys(remotes).forEach(dropRemote);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       world.scene.fog = oldFog; if (oldBg) world.scene.background = oldBg;
@@ -554,18 +499,20 @@
       cpMats.forEach(function (m, k) { if (cpFlash[k] > 0) { cpFlash[k] -= dt; m.color.setHex(k === 0 ? 0xffffff : 0x3dff7a); } else m.color.setHex(k === 0 ? 0xffffff : 0x22e5ff); });
       if (!active) return;
       var now = nowMs(), pi = phaseInfo(now);
-      if (pi.cyc !== me.cyc) startCycle(pi);
-      if (pi.p !== lastPhase) { lastPhase = pi.p; if (pi.p === 'race') me.lapStart = pi.raceStart; }
+      if (reconnectT > 0) { reconnectT -= dt; if (reconnectT <= 0 && active && (!ws || ws.readyState > 1)) connect(); }
+      if (pi.cyc !== me.cyc) { me.cyc = pi.cyc; resShown = false; if (ui) ui.res.classList.remove('on'); lastCount = -1; }
+      if (pi.p !== lastPhase) lastPhase = pi.p;
       if (pi.p === 'count') { var c = Math.ceil(pi.left / 1000); if (c !== lastCount) { lastCount = c; tone(c > 0 ? 440 : 880, c > 0 ? 440 : 880, 0.15, 'square', 0.12); } }
-      var inp = readInput(), locked = pi.p === 'grid' || pi.p === 'count';
-      if (pi.p === 'results') { inp.th = 0; inp.br = 0.6; }
-      // la physique, par petits pas
-      var left = Math.min(dt, 0.1), sub;
-      while (left > 1e-5) { sub = Math.min(left, 1 / 90); stepCar(inp, sub, locked); left -= sub; }
-      if (!locked) carCollisions(dt);
+      var inp = readInput(), locked = pi.p === 'grid' || pi.p === 'count' || !me.ready;
+      if (pi.p === 'results') { var vf1 = me.vx * Math.sin(me.yaw) - me.vz * Math.cos(me.yaw); inp = { th: 0, br: vf1 > 0.6 ? 0.6 : 0, steer: inp.steer, hand: false }; }
+      // mes touches partent vers le serveur 30 fois par seconde ; ma voiture avance tout de suite (prédiction), le serveur la recale
+      if (me.ready) {
+        inpAcc += dt; var nsend = 0;
+        while (inpAcc >= 1 / 30 && nsend++ < 3) { inpAcc -= 1 / 30; seq++; pending.push({ seq: seq, inp: { th: inp.th, br: inp.br, steer: inp.steer, hand: inp.hand } }); if (pending.length > 150) pending.shift(); wsSend({ t: 'in', seq: seq, th: +inp.th.toFixed(2), br: +inp.br.toFixed(2), st: +inp.steer.toFixed(2), h: inp.hand ? 1 : 0 }); }
+        if (inpAcc > 0.2) inpAcc = 0;
+        stepLocal(inp, dt, locked);
+      }
       me.shake = Math.max(0, me.shake - dt * 2.5);
-      updateProgress(pi);
-      if (me.wrong > 1.5 && pi.p === 'race' && me.spd < 3) me.wrong = 1.5;
       // ma voiture
       var tilt = -me.st * Math.min(1, me.spd / 40) * 0.06, vf0 = me.vx * Math.sin(me.yaw) - me.vz * Math.cos(me.yaw);
       myRoot.position.set(me.x, 0, me.z); myRoot.rotation.set(0, -me.yaw, 0);
@@ -584,12 +531,11 @@
       // interface
       hudT -= dt; if (hudT <= 0) { hudT = 0.1; refreshHud(pi); drawMini(); if (ui) { ui.wrong.style.display = me.wrong > 1.5 ? 'block' : 'none'; } }
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && ui) ui.toast.classList.remove('in'); }
-      sendT -= dt; if (sendT <= 0) { sendT = 0.085; send(); }
     };
-    room._dbg = { me: me, remotes: remotes, phaseInfo: phaseInfo, keys: function () { return keys; } };
+    room._dbg = { me: me, remotes: remotes, phaseInfo: phaseInfo, keys: function () { return keys; }, net: function () { return { wsOk: wsOk, srvOff: srvOff, pending: pending.length, netErr: netErr }; } };
     return room;
   }
 
   F.registerRoom('kart', createKart);
-  F.kart = { CARS: CARS, TRK: TRK, setClock: function (v) { clockOff = v; } };
+  F.kart = { CARS: CARS, TRK: TRK };
 })();

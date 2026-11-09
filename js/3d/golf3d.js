@@ -11,7 +11,8 @@
      molette : zoom ; Espace maintenu : jauge ; R : replacer ; V : voir le trou ; Tab : scores.
      Téléphone : glisse pour tourner, tire la barre de puissance vers le bas puis relâche.
    • Réseau : canal temps réel de la salle, message « gb » (ma balle, mon trou, mes coups, ma carte de score) ~10 fois/s quand ça bouge.
-     Pas de serveur : chaque joueur simule sa propre balle. Les obstacles qui bougent suivent l'heure, donc tout le monde les voit pareil.
+     TOUT passe par le serveur (api/_doGolf.js, WebSocket /ws/golf) : le navigateur envoie seulement « angle + puissance », le serveur simule le coup avec la
+     même physique (golf-sim.js), compte les coups, gère les manches et renvoie la trajectoire que tout le monde rejoue. Les obstacles qui bougent suivent l'heure du serveur.
    ===================================================================== */
 (function () {
   'use strict';
@@ -19,182 +20,11 @@
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, TAU = F.TAU;
 
-  var R = 0.075, CUP = 0.13, VMAX = 9.5, GRAV = 9.8, MAXSHOTS = 10, WAIT_S = 60, WALL_H = 0.16;
+  var GS = F.golfSim;
+  if (!GS) return;
+  var R = GS.R, CUP = GS.CUP, VMAX = GS.VMAX, GRAV = GS.GRAV, MAXSHOTS = GS.MAXSHOTS, WAIT_S = GS.WAIT_S, WALL_H = GS.WALL_H;
+  var COURSES = GS.COURSES, buildHoleData = GS.buildHoleData, inPoly = GS.inPoly, floorAt = GS.floorAt, floorH = GS.floorH, dynSegs = GS.dynSegs, simStep = GS.simStep, nowS = GS.nowS;
   var BALL_COLORS = ['#ff4d4d', '#ffd23f', '#3ddc84', '#3fa9ff', '#c86bff', '#ff8a3d', '#ff5fb4', '#4df0e0'];
-
-  /* ------------------------------------------------------------------
-     LES PARCOURS. Un trou = un couloir (pts : [x, z, hauteur]) de largeur w ; gaps = numéros des tronçons sans sol (le vide ou l'eau) ;
-     obs = obstacles : post (poteau), bump (bumper qui renvoie fort), mill (tourniquet), slide (bloc qui va et vient), block (bloc fixe).
-     ox, oz : où le trou est posé dans la salle. Le départ est au début du couloir, le trou à la fin.
-     ------------------------------------------------------------------ */
-  var COURSES = {
-    golfjardin: {
-      title: '🌳 LE JARDIN', name: 'Le Jardin', style: 'jardin', sub: 'PARCOURS EN PLEIN AIR',
-      holes: [
-        { name: 'Premier pas', par: 2, ox: -10, oz: 6, pts: [[0, 0, 0], [0, -2.5, 0], [0, -4, 0.25], [0, -7.5, 0.25]] },
-        { name: 'Le virage', par: 3, ox: 0, oz: 6, pts: [[0, 0, 0], [0, -6, 0], [4.5, -6, 0]], obs: [{ t: 'bump', x: -0.38, z: -6.38, r: 0.22 }, { t: 'post', x: 2.2, z: -6.25, r: 0.12 }] },
-        { name: 'Le plateau', par: 3, ox: 10, oz: 6, pts: [[0, 0, 0], [0, -3, 0], [0, -5.5, 0.6], [0, -9, 0.6]], obs: [{ t: 'post', x: -0.35, z: -7.2, r: 0.12 }, { t: 'post', x: 0.35, z: -7.2, r: 0.12 }] },
-        { name: 'Le moulin', par: 3, ox: -10, oz: -10, w: 1.6, pts: [[0, 0, 0], [0, -10, 0]], obs: [{ t: 'mill', x: 0, z: -5, len: 0.74, speed: 1.3, n: 4, house: true }] },
-        { name: 'Le saut de l\'étang', par: 3, ox: 0, oz: -10, pts: [[0, 0, 0], [0, -3, 0], [0, -4.6, 0.45], [0, -6.1, 0], [0, -10, 0]], gaps: [2], water: true },
-        { name: 'Le zigzag', par: 4, ox: 9, oz: -10, pts: [[0, 0, 0], [0, -4, 0], [3, -4, 0], [3, -8, 0], [0, -8, 0], [0, -11, 0]], obs: [{ t: 'slide', x: 3, z: -6, w: 0.5, d: 0.3, ax: 'x', amp: 0.5, speed: 1.4 }, { t: 'post', x: 0.4, z: -9.6, r: 0.12 }] }
-      ]
-    },
-    golfneon: {
-      title: '🌌 NÉON', name: 'Néon', style: 'neon', sub: 'PARCOURS EN LUMIÈRE NOIRE',
-      holes: [
-        { name: 'Lueur', par: 2, ox: -10, oz: 6, pts: [[0, 0, 0], [0, -8, 0]], w: 1.7, obs: [{ t: 'bump', x: 0, z: -4.2, r: 0.2 }, { t: 'bump', x: -0.45, z: -5.2, r: 0.18 }, { t: 'bump', x: 0.45, z: -5.2, r: 0.18 }] },
-        { name: 'Le S', par: 3, ox: 0, oz: 6, pts: [[0, 0, 0], [0, -3, 0], [2.5, -5, 0], [2.5, -8, 0], [0, -10, 0], [0, -12, 0]] },
-        { name: 'Le flipper', par: 3, ox: 10, oz: 6, w: 3.2, pts: [[0, 0, 0], [0, -9, 0]], obs: [{ t: 'bump', x: -0.8, z: -3, r: 0.22 }, { t: 'bump', x: 0.8, z: -3, r: 0.22 }, { t: 'bump', x: 0, z: -4.6, r: 0.26 }, { t: 'bump', x: -1.0, z: -6.2, r: 0.2 }, { t: 'bump', x: 1.0, z: -6.2, r: 0.2 }, { t: 'block', x: 0, z: -7.4, w: 1.4, d: 0.12 }] },
-        { name: 'Tourniquets', par: 3, ox: -10, oz: -10, w: 1.6, pts: [[0, 0, 0], [0, -11, 0]], obs: [{ t: 'mill', x: 0, z: -3.6, len: 0.74, speed: 1.6, n: 3 }, { t: 'mill', x: 0, z: -7.6, len: 0.74, speed: -2.0, n: 4 }] },
-        { name: 'La rampe cosmique', par: 3, ox: 0, oz: -10, pts: [[0, 0, 0], [0, -2, 0], [0, -4.5, 0.7], [0, -6.5, 0.7], [3, -6.5, 0.7], [3, -9, 0], [3, -11, 0]] },
-        { name: 'Le grand final', par: 4, ox: 10, oz: -10, pts: [[0, 0, 0], [0, -3, 0], [0, -4.5, 0.4], [0, -6, 0], [0, -9, 0], [-3, -9, 0], [-3, -12, 0]], gaps: [2], obs: [{ t: 'slide', x: -1.5, z: -9, w: 0.3, d: 0.5, ax: 'z', amp: 0.5, speed: 1.8 }, { t: 'bump', x: -3.4, z: -10.6, r: 0.18 }] }
-      ]
-    }
-  };
-
-  /* ------------------------------------------------------------------ géométrie d'un trou (sol, bordures, obstacles) ------------------------------------------------------------------ */
-  function buildHoleData(spec) {
-    var ox = spec.ox, oz = spec.oz, w = spec.w || 1.5, hw = w / 2, gaps = spec.gaps || [];
-    var P = spec.pts.map(function (p) { return [p[0] + ox, p[1] + oz, p[2] || 0]; }), n = P.length, D = [], i;
-    for (i = 0; i < n - 1; i++) { var dx = P[i + 1][0] - P[i][0], dz = P[i + 1][1] - P[i][1], l = Math.hypot(dx, dz); D.push({ x: dx / l, z: dz / l, len: l }); }
-    function nrm(d) { return { x: -d.z, z: d.x }; }
-    var L = [], Rr = [];
-    for (i = 0; i < n; i++) {
-      var mx, mz;
-      if (i === 0) { var a0 = nrm(D[0]); mx = a0.x * hw; mz = a0.z * hw; }
-      else if (i === n - 1) { var a1 = nrm(D[n - 2]); mx = a1.x * hw; mz = a1.z * hw; }
-      else { var n0 = nrm(D[i - 1]), n1 = nrm(D[i]), sx = n0.x + n1.x, sz = n0.z + n1.z, sl = Math.hypot(sx, sz); sx /= sl; sz /= sl; var k = hw / (sx * n1.x + sz * n1.z); mx = sx * k; mz = sz * k; }
-      L.push([P[i][0] + mx, P[i][1] + mz, P[i][2]]); Rr.push([P[i][0] - mx, P[i][1] - mz, P[i][2]]);
-    }
-    var floors = [], walls = [], minH = 1e9, maxH = -1e9;
-    for (i = 0; i < n - 1; i++) {
-      minH = Math.min(minH, P[i][2], P[i + 1][2]); maxH = Math.max(maxH, P[i][2], P[i + 1][2]);
-      if (gaps.indexOf(i) >= 0) continue;
-      var d = D[i], h0 = P[i][2], h1 = P[i + 1][2];
-      floors.push({ poly: [L[i], L[i + 1], Rr[i + 1], Rr[i]], ax: P[i][0], az: P[i][1], dx: d.x, dz: d.z, len: d.len, h0: h0, h1: h1, gx: (h1 - h0) / d.len * d.x, gz: (h1 - h0) / d.len * d.z, seg: i });
-      walls.push(seg3(L[i], L[i + 1]), seg3(Rr[i], Rr[i + 1]));
-    }
-    if (gaps.indexOf(0) < 0) walls.push(seg3(Rr[0], L[0]));
-    if (gaps.indexOf(n - 2) < 0) walls.push(seg3(L[n - 1], Rr[n - 1]));
-    var dl = D[n - 2], d0 = D[0];
-    var tee = [P[0][0] + d0.x * 0.6, P[0][1] + d0.z * 0.6], cup = [P[n - 1][0] - dl.x * 0.75, P[n - 1][1] - dl.z * 0.75];
-    var bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9;
-    L.concat(Rr).forEach(function (q) { bx0 = Math.min(bx0, q[0]); bx1 = Math.max(bx1, q[0]); bz0 = Math.min(bz0, q[1]); bz1 = Math.max(bz1, q[1]); });
-    var H = { spec: spec, P: P, D: D, L: L, Rr: Rr, w: w, floors: floors, walls: walls, circles: [], dyn: [], tee: tee, cup: cup, minH: minH, maxH: maxH, box: [bx0, bz0, bx1, bz1], par: spec.par, name: spec.name };
-    H.teeYaw = F.yawFor(d0.x, d0.z);
-    (spec.obs || []).forEach(function (o) {
-      var x = o.x + ox, z = o.z + oz, fh = floorH(H, x, z);
-      if (o.t === 'post' || o.t === 'bump') H.circles.push({ x: x, z: z, r: o.r, y0: fh - 0.3, y1: fh + 0.3, e: o.t === 'bump' ? 1.25 : 0.7, bump: o.t === 'bump', o: o, h: fh, flash: 0 });
-      else if (o.t === 'block') { var hw2 = o.w / 2, hd = o.d / 2; [[[-hw2, -hd], [hw2, -hd]], [[hw2, -hd], [hw2, hd]], [[hw2, hd], [-hw2, hd]], [[-hw2, hd], [-hw2, -hd]]].forEach(function (e) { H.walls.push({ ax: x + e[0][0], az: z + e[0][1], bx: x + e[1][0], bz: z + e[1][1], y0: fh - 0.3, y1: fh + WALL_H, e: 0.7 }); }); o.h = fh; o.wx = x; o.wz = z; }
-      else if (o.t === 'mill' || o.t === 'slide') H.dyn.push({ o: o, x: x, z: z, h: fh });
-    });
-    return H;
-    function seg3(a, b) { return { ax: a[0], az: a[1], bx: b[0], bz: b[1], y0: Math.min(a[2], b[2]) - 0.35, y1: Math.max(a[2], b[2]) + WALL_H, e: 0.7, ha: a[2], hb: b[2] }; }
-  }
-  function inPoly(poly, x, z) {
-    var pos = false, neg = false;
-    for (var i = 0; i < poly.length; i++) {
-      var a = poly[i], b = poly[(i + 1) % poly.length], c = (b[0] - a[0]) * (z - a[1]) - (b[1] - a[1]) * (x - a[0]);
-      if (c > 1e-9) pos = true; else if (c < -1e-9) neg = true;
-      if (pos && neg) return false;
-    }
-    return true;
-  }
-  function fH(f, x, z) { var t = ((x - f.ax) * f.dx + (z - f.az) * f.dz) / f.len; t = t < 0 ? 0 : t > 1 ? 1 : t; return f.h0 + (f.h1 - f.h0) * t; }
-  function floorAt(H, x, z, yMax) {
-    var best = null, bh = -1e9;
-    for (var i = 0; i < H.floors.length; i++) { var f = H.floors[i]; if (!inPoly(f.poly, x, z)) continue; var h = fH(f, x, z); if (h <= yMax && h > bh) { bh = h; best = f; } }
-    return best ? { f: best, h: bh } : null;
-  }
-  function floorH(H, x, z) { var r = floorAt(H, x, z, 99); return r ? r.h : 0; }
-  function nowS() { return Date.now() / 1000; }
-  // segments des obstacles qui bougent, à l'instant t (même heure pour tout le monde) ; vx/vz : vitesse de l'obstacle (pour le renvoi)
-  function dynSegs(H, t, out) {
-    out.length = 0;
-    H.dyn.forEach(function (d) {
-      var o = d.o;
-      if (o.t === 'mill') {
-        var th = o.speed * t;
-        for (var k = 0; k < o.n; k++) { var a = th + k * TAU / o.n; out.push({ ax: d.x, az: d.z, bx: d.x + Math.cos(a) * o.len, bz: d.z + Math.sin(a) * o.len, y0: d.h - 0.3, y1: d.h + 0.2, e: 0.6, spin: o.speed, cx: d.x, cz: d.z }); }
-      } else if (o.t === 'slide') {
-        var s = Math.sin(o.speed * t) * o.amp, v = Math.cos(o.speed * t) * o.amp * o.speed, cx = d.x + (o.ax === 'x' ? s : 0), cz = d.z + (o.ax === 'z' ? s : 0), vx = o.ax === 'x' ? v : 0, vz = o.ax === 'z' ? v : 0, hw = o.w / 2, hd = o.d / 2;
-        [[[-hw, -hd], [hw, -hd]], [[hw, -hd], [hw, hd]], [[hw, hd], [-hw, hd]], [[-hw, hd], [-hw, -hd]]].forEach(function (e) { out.push({ ax: cx + e[0][0], az: cz + e[0][1], bx: cx + e[1][0], bz: cz + e[1][1], y0: d.h - 0.3, y1: d.h + 0.22, e: 0.7, vx: vx, vz: vz }); });
-      }
-    });
-    return out;
-  }
-
-  /* ------------------------------------------------------------------ physique de la balle ------------------------------------------------------------------ */
-  var DYN = [];
-  function hitSeg(b, s, sound) {
-    if (b.y > s.y1 + R * 0.4 || b.y < s.y0) return false;
-    var ex = s.bx - s.ax, ez = s.bz - s.az, L2 = ex * ex + ez * ez; if (L2 < 1e-9) return false;
-    var t = ((b.x - s.ax) * ex + (b.z - s.az) * ez) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
-    var cx = s.ax + ex * t, cz = s.az + ez * t, dx = b.x - cx, dz = b.z - cz, d = Math.hypot(dx, dz);
-    if (d >= R || d < 1e-7) return false;
-    var nx = dx / d, nz = dz / d; b.x = cx + nx * R; b.z = cz + nz * R;
-    var svx = s.vx || 0, svz = s.vz || 0;
-    if (s.spin) { svx = -s.spin * (cz - s.cz); svz = s.spin * (cx - s.cx); }
-    var rvx = b.vx - svx, rvz = b.vz - svz, vn = rvx * nx + rvz * nz;
-    if (vn < 0) { var e = s.e || 0.7; rvx -= (1 + e) * vn * nx; rvz -= (1 + e) * vn * nz; rvx *= 0.97; rvz *= 0.97; if (sound) sound(-vn, 'wall'); }
-    else if (s.spin || s.vx || s.vz) { rvx += nx * 0.4; rvz += nz * 0.4; }
-    b.vx = rvx + svx; b.vz = rvz + svz;
-    return true;
-  }
-  function hitCircle(b, c, sound) {
-    if (b.y > c.y1 || b.y < c.y0) return false;
-    var dx = b.x - c.x, dz = b.z - c.z, d = Math.hypot(dx, dz), rr = R + c.r;
-    if (d >= rr || d < 1e-7) return false;
-    var nx = dx / d, nz = dz / d; b.x = c.x + nx * rr; b.z = c.z + nz * rr;
-    var vn = b.vx * nx + b.vz * nz;
-    if (vn < 0) {
-      var e = c.e || 0.7; b.vx -= (1 + e) * vn * nx; b.vz -= (1 + e) * vn * nz;
-      if (c.bump) { var sp = Math.hypot(b.vx, b.vz); if (sp < 2.2) { b.vx += nx * 1.2; b.vz += nz * 1.2; } c.flash = 1; }
-      if (sound) sound(-vn, c.bump ? 'bump' : 'wall');
-    }
-    return true;
-  }
-  // un petit pas de simulation ; renvoie 'cup' (dans le trou), 'out' (tombé dans l'eau ou le vide) ou ''
-  function simStep(b, H, dt, t, others, sound) {
-    var fl;
-    if (!b.air) {
-      var gx = 0, gz = 0;
-      fl = floorAt(H, b.x, b.z, b.y + 0.12);
-      if (fl) { gx = fl.f.gx; gz = fl.f.gz; }
-      var sp = Math.hypot(b.vx, b.vz);
-      var dec = (H.fric || 0.95) + 0.32 * sp;
-      if (sp > 0) { var dd = Math.min(sp, dec * dt); b.vx -= b.vx / sp * dd; b.vz -= b.vz / sp * dd; }
-      b.vx += -GRAV * gx * 0.71 * dt; b.vz += -GRAV * gz * 0.71 * dt;
-      b.x += b.vx * dt; b.z += b.vz * dt;
-      var f2 = floorAt(H, b.x, b.z, b.y + 0.12);
-      var vyg = fl ? fl.f.gx * b.vx + fl.f.gz * b.vz : 0;
-      if (!f2 || b.y - f2.h > 0.02 + Math.abs(vyg) * dt * 2.5) { b.air = true; b.vy = vyg; }
-      else { b.y = f2.h; b.vy = f2.f.gx * b.vx + f2.f.gz * b.vz; }
-    }
-    if (b.air) {
-      b.vy -= GRAV * dt; b.x += b.vx * dt; b.z += b.vz * dt; b.y += b.vy * dt;
-      fl = floorAt(H, b.x, b.z, b.y + 0.06 + Math.max(0, -b.vy * dt));
-      if (fl && b.y <= fl.h) {
-        b.y = fl.h;
-        if (b.vy < -2.2) { b.vy = -b.vy * 0.28; b.vx *= 0.92; b.vz *= 0.92; if (sound) sound(1.2, 'land'); }
-        else { b.vy = 0; b.air = false; b.vx *= 0.94; b.vz *= 0.94; }
-      }
-    }
-    var i;
-    for (i = 0; i < H.walls.length; i++) hitSeg(b, H.walls[i], sound);
-    dynSegs(H, t, DYN); for (i = 0; i < DYN.length; i++) hitSeg(b, DYN[i], sound);
-    for (i = 0; i < H.circles.length; i++) hitCircle(b, H.circles[i], sound);
-    if (others) for (i = 0; i < others.length; i++) hitCircle(b, others[i], sound);
-    if (b.y < H.minH - 0.28) return 'out';
-    // le trou : la balle lente tombe dedans ; à peine plus rapide, le bord l'attire un peu
-    if (!b.air) {
-      var cdx = H.cup[0] - b.x, cdz = H.cup[1] - b.z, cd = Math.hypot(cdx, cdz), spd = Math.hypot(b.vx, b.vz);
-      if (cd < CUP - R * 0.25 && spd < 3.4) return 'cup';
-      if (cd < CUP + R && spd < 1.6 && cd > 1e-4) { b.vx += cdx / cd * 2.4 * dt; b.vz += cdz / cd * 2.4 * dt; }
-    }
-    return '';
-  }
-
   /* ------------------------------------------------------------------ la balle : modèle « Golf Ball » (germydan, Sketchfab, CC BY 4.0) ------------------------------------------------------------------
      Une sphère à alvéoles (carte de relief) : on garde sa forme et son relief, ramenés à la taille de la balle du jeu. En attendant le chargement, une simple sphère blanche. */
   var BALL_GEO = null, BALL_NORMAL = null, ballWaiters = [], ballLoading = false;
@@ -470,11 +300,13 @@
     }
 
     /* ---------- l'état du jeu ---------- */
-    var me = { gid: 0, hole: 0, card: [], strokes: 0, done: false, over: false, overT: 0, waitT: -1, name: '', col: 0 };
-    var ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, air: false, moving: false, sunk: false, sinkT: 0, safe: null, shotT: 0 };
+    var me = { hole: 0, card: [], strokes: 0, done: false, over: false, overT: 0, waitT: -1, name: '', col: 0, ready: false };
+    var ball = { x: 0, y: 0, z: 0, moving: false, sunk: false, sinkT: 0, anim: null, pending: 0, vx: 0, vz: 0 };
     var cam = { yaw: 0, pitch: 0.42, dist: 3.2, tx: 0, ty: 0, tz: 0, view: false, init: false };
     var aim = { power: 0, drag: null, camDrag: null, space: false, spaceT: 0, bar: false };
-    var keys = {}, remotes = {}, active = false, ui = null, sendT = 0, syncT = 0, hudT = 0, toastT = 0, others = [];
+    var keys = {}, remotes = {}, active = false, ui = null, hudT = 0, toastT = 0;
+    var ws = null, wsOk = false, srvOff = 0, myKey = '', netErr = '', reconnectT = 0, game = { gid: 0, hole: 0, phase: 'play', firstDone: 0, overAt: 0 };
+    function nowSrv() { return (Date.now() + srvOff) / 1000; }                  // l'heure du serveur (pour les obstacles qui bougent)
     function myName() { try { return String(state.username || '').slice(0, 20) || 'Invité'; } catch (e) { return 'Invité'; } }
     function cur() { return HOLES[Math.min(me.hole, NH - 1)]; }
 
@@ -495,77 +327,112 @@
     var aimHeadShape = new THREE.Shape(); aimHeadShape.moveTo(0, 0.12); aimHeadShape.lineTo(-0.08, -0.02); aimHeadShape.lineTo(0.08, -0.02); aimHeadShape.closePath();
     var aimHead = new THREE.Mesh(new THREE.ShapeGeometry(aimHeadShape), aimMat); aimHead.rotation.x = -Math.PI / 2; aimG.add(aimHead);
 
-    function placeBallAt(x, z) { var H = cur(); ball.x = x; ball.z = z; ball.y = floorH(H, x, z); ball.vx = ball.vz = ball.vy = 0; ball.air = false; ball.moving = false; ball.sunk = false; ball.safe = { x: x, z: z }; }
-    function startHole(h, fresh) {
-      me.hole = h; me.strokes = 0; me.done = false; me.waitT = -1;
-      if (h >= NH) { me.over = true; me.overT = 14; showCard(true); return; }
-      me.over = false;
-      var H = HOLES[h]; placeBallAt(H.tee[0], H.tee[1]);
-      cam.yaw = H.teeYaw; cam.pitch = 0.42; cam.dist = 3.2; cam.view = false; cam.init = false;
-      if (!fresh) toast('⛳ Trou ' + (h + 1), H.name + ' · Par ' + H.par, '#ffffff', 2.2);
-      sendState(true); refreshHud();
+    function dropRemote(k) { var r = remotes[k]; if (!r) return; g.remove(r.mesh); g.remove(r.tag); r.tag.material.map.dispose(); delete remotes[k]; }
+    function wsSend(o) { if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify(o)); } catch (e) { /* ok */ } } }
+    function connect() {
+      var tok = F.token();
+      if (!tok) { netErr = 'Connecte-toi pour jouer.'; return; }
+      var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/golf?course=' + cid + '&token=' + encodeURIComponent(tok) + '&name=' + encodeURIComponent(me.name);
+      try { ws = new WebSocket(url); } catch (e) { netErr = 'Serveur de golf indisponible.'; return; }
+      var mine = ws;
+      ws.onopen = function () { if (ws !== mine) return; wsOk = true; netErr = ''; };
+      ws.onmessage = function (ev) { if (ws !== mine) return; var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onNet(m); };
+      ws.onclose = function () { if (ws !== mine) return; wsOk = false; me.ready = false; if (active) { netErr = 'Connexion au serveur…'; reconnectT = 1.5; } };
+      ws.onerror = function () { /* onclose suit */ };
     }
-    function newGame() { me.gid = Date.now(); me.card = []; me.over = false; showCard(false); startHole(0); }
-
-    function shoot(power) {
-      if (!active || ball.moving || ball.sunk || me.done || me.over || power < 0.03) return;
-      var a = cam.yaw, sp = Math.pow(power, 1.15) * VMAX;
-      ball.vx = Math.sin(a) * sp; ball.vz = -Math.cos(a) * sp; ball.vy = 0; ball.moving = true; ball.shotT = 0;
-      ball.safe = { x: ball.x, z: ball.z };
-      ball.ghost = {}; present().forEach(function (r) { if (Math.hypot(r.x - ball.x, r.z - ball.z) < R * 2.2) ball.ghost[r.name] = 1; });   // une balle posée au même endroit (le départ) ne nous repousse pas
-      me.strokes++; SND.hit(power); sendState(true); refreshHud();
+    function applyGame(gm) {
+      if (!gm) return; game = gm; if (gm.now) srvOff = gm.now - Date.now();
+      me.over = gm.phase === 'over'; if (!me.over) me.hole = Math.min(NH - 1, gm.hole);
     }
-    function soundCb(v, kind) { if (kind === 'bump') SND.bump(); else if (kind === 'land') SND.land(); else SND.wall(v); }
-    function finishHole(score, how) {
-      me.done = true; me.doneAt = performance.now(); me.card[me.hole] = score; ball.moving = false;
-      var H = cur(), diff = score - H.par, label;
+    function restAt(ent, p) { ent.x = p.x; ent.y = p.y; ent.z = p.z; }
+    // la liste des joueurs : coups, trous finis, fiche de score, balles au repos
+    function applyPlayers(list) {
+      var seen = {};
+      list.forEach(function (p) {
+        seen[p.k] = true;
+        if (p.k === myKey) {
+          me.strokes = p.s; me.done = !!p.d; me.card = p.card || []; ball.sunk = !!p.sk && !ball.anim;
+          if (!ball.anim && !ball.pending) { ball.x = p.x; ball.y = p.y; ball.z = p.z; }
+        } else {
+          var r = remotes[p.k], col = BALL_COLORS[(p.c | 0) % BALL_COLORS.length];
+          if (!r) { r = remotes[p.k] = { name: String(p.n || p.k).slice(0, 20), col: col, mesh: new THREE.Mesh(ballGeoNow(), ballMat(col)), tag: nameSprite(String(p.n || p.k), col), x: p.x, y: p.y, z: p.z, anim: null }; g.add(r.mesh); g.add(r.tag); }
+          r.s = p.s; r.d = !!p.d; r.card = p.card || []; r.sk = !!p.sk;
+          if (!r.anim) { r.x = p.x; r.y = p.y; r.z = p.z; }
+        }
+      });
+      Object.keys(remotes).forEach(function (k) { if (!seen[k]) dropRemote(k); });
+    }
+    function startHoleLocal(announce) {
+      var H = cur(); me.waitT = -1; ball.anim = null; ball.pending = 0; ball.sunk = false; ball.moving = false;
+      cam.yaw = H.teeYaw; cam.pitch = 0.42; cam.dist = 3.2; cam.view = false; cam.init = false; showCard(false);
+      if (announce) toast('⛳ Trou ' + (me.hole + 1), H.name + ' · Par ' + H.par, '#ffffff', 2.2);
+    }
+    function onNet(m) {
+      if (m.t === 'welcome') {
+        myKey = m.you; me.col = m.c | 0; me.ready = true; applyGame(m.game); applyPlayers(m.players); startHoleLocal(false); refreshHud();
+        if (me.over) showCard(true);
+      } else if (m.t === 'players') { applyGame(m.game); applyPlayers(m.players); refreshHud(); }
+      else if (m.t === 'hole') {
+        Object.keys(remotes).forEach(function (k) { remotes[k].anim = null; });
+        applyGame(m.game); applyPlayers(m.players); startHoleLocal(true); refreshHud();
+      } else if (m.t === 'shot') playShot(m);
+      else if (m.t === 'reset') {
+        var e = m.k === myKey ? ball : remotes[m.k]; if (!e) return;
+        e.anim = null; restAt(e, { x: m.end[0], y: m.end[1], z: m.end[2] });
+        if (m.k === myKey) { me.strokes = m.strokes; ball.pending = 0; toast('↺ Replacé', '+1 coup', '#ffb02e', 1.6); refreshHud(); }
+      } else if (m.t === 'done') {
+        applyGame(m.game); applyPlayers(m.players);
+        if (m.k === myKey) holeResult(m.score, m.how, m.par);
+        refreshHud();
+      } else if (m.t === 'over') {
+        applyGame(m.game); applyPlayers(m.players); ball.anim = null; showCard(true); refreshHud();
+      }
+    }
+    function holeResult(score, how, par) {
+      var diff = score - par, label;
       if (how === 'max') label = ['Coups max', 'Trou terminé : ' + score + ' coups', '#ff8a80'];
       else if (how === 'time') label = ['⏱ Temps écoulé', score + ' coups', '#ff8a80'];
       else if (score === 1) { label = ['TROU EN UN !', '🎉 Incroyable !', '#ffd23f']; SND.ace(); }
       else label = diff <= -3 ? ['ALBATROS !', '🦅 ' + score + ' coups', '#ffd23f'] : diff === -2 ? ['EAGLE !', '🦅 ' + score + ' coups', '#ffd23f'] : diff === -1 ? ['BIRDIE !', '🐦 ' + score + ' coups', '#3ddc84'] : diff === 0 ? ['PAR', '👍 ' + score + ' coups', '#ffffff'] : diff === 1 ? ['BOGEY', score + ' coups', '#ffb02e'] : diff === 2 ? ['DOUBLE BOGEY', score + ' coups', '#ff8a80'] : ['+' + diff, score + ' coups', '#ff8a80'];
       toast(label[0], label[1], label[2], 2.6);
-      sendState(true); refreshHud();
+    }
+    // un coup (le mien ou celui d'un autre) : le serveur a calculé la trajectoire, on la rejoue
+    function playShot(m) {
+      var mine = m.k === myKey, e = mine ? ball : remotes[m.k]; if (!e) return;
+      e.anim = { traj: m.traj, dt: m.dt, t: 0, res: m.res, how: m.how, end: m.end, i: 0 };
+      if (mine) { me.strokes = m.strokes; ball.pending = 0; refreshHud(); }
+      else e.s = m.strokes;
+      var dd = Math.hypot(e.x - ball.x, e.z - ball.z); if (mine || dd < 30) SND.hit(Math.min(1, m.power));
+    }
+    function shoot(power) {
+      if (!canShoot() || power < 0.03) return;
+      ball.pending = performance.now() + 1500;
+      wsSend({ t: 'shot', yaw: +cam.yaw.toFixed(4), power: +power.toFixed(3) });
+    }
+    // avance la trajectoire d'une balle ; renvoie true quand elle est terminée
+    function stepAnim(e, dt, mine) {
+      var a = e.anim; a.t += dt; var idx = a.t / a.dt, i0 = Math.floor(idx), f = idx - i0, n = a.traj.length;
+      if (idx >= n - 1) {
+        var last = a.traj[n - 1]; e.x = last[0]; e.y = last[1]; e.z = last[2]; e.vx = e.vz = 0;
+        var res = a.res, how = a.how, end = a.end; e.anim = null;
+        if (res === 'cup') { e.sunk = true; e.sinkT = 0; e.sk = true; if (mine || Math.hypot(e.x - ball.x, e.z - ball.z) < 30) SND.cup(); }
+        else if (res === 'out') {
+          var H = cur(); if (mine) { if (H.spec.water && !neon) SND.splash(); else SND.fall(); toast(H.spec.water && !neon ? '💦 Plouf !' : '🌌 Dans le vide !', '+1 coup', '#3fa9ff', 1.8); }
+          restAt(e, { x: end[0], y: end[1], z: end[2] });
+        } else restAt(e, { x: end[0], y: end[1], z: end[2] });
+        return true;
+      }
+      var A = a.traj[i0], B = a.traj[i0 + 1];
+      var nx = A[0] + (B[0] - A[0]) * f, ny = A[1] + (B[1] - A[1]) * f, nz = A[2] + (B[2] - A[2]) * f;
+      e.vx = (nx - e.x) / Math.max(dt, 1e-3); e.vz = (nz - e.z) / Math.max(dt, 1e-3);
+      if (mine && i0 > 1 && i0 !== a.i) {                       // un rebond : la direction change d'un coup
+        a.i = i0; var P0 = a.traj[i0 - 1], d1x = A[0] - P0[0], d1z = A[2] - P0[2], d2x = B[0] - A[0], d2z = B[2] - A[2], l1 = Math.hypot(d1x, d1z), l2 = Math.hypot(d2x, d2z);
+        if (l1 > 0.02 && l2 > 0.005 && (d1x * d2x + d1z * d2z) / (l1 * l2) < 0.5) SND.wall(Math.min(3, l1 * 30));
+      }
+      e.x = nx; e.y = ny; e.z = nz; return false;
     }
 
-    /* ---------- réseau ---------- */
-    function sendState(force) {
-      if (!world.rt || !world.rt.ready || !F.me()) return;
-      try { world.rt.send('gb', { k: F.me(), n: me.name, c: me.col, gid: me.gid, h: me.hole, s: me.strokes, d: me.done ? 1 : 0, o: me.over ? 1 : 0, card: me.card.slice(0, NH), x: +ball.x.toFixed(3), y: +ball.y.toFixed(3), z: +ball.z.toFixed(3), m: ball.moving ? 1 : 0, sk: ball.sunk ? 1 : 0 }); } catch (e) { /* ok */ }
-    }
-    room.onRtMsg = function (ev, m) {
-      if (ev === 'gbye') { dropRemote(m.k); return; }
-      if (ev !== 'gb' || !active) return;
-      var x = +m.x, y = +m.y, z = +m.z; if (!isFinite(x) || !isFinite(y) || !isFinite(z)) return;
-      var r = remotes[m.k];
-      if (!r) {
-        var col = BALL_COLORS[(+m.c | 0) % BALL_COLORS.length];
-        r = remotes[m.k] = { name: String(m.n || m.k).slice(0, 20), col: col, mesh: new THREE.Mesh(ballGeoNow(), ballMat(col)), tag: nameSprite(String(m.n || m.k), col), x: x, y: y, z: z };
-        g.add(r.mesh); g.add(r.tag);
-      }
-      r.gid = +m.gid || 0; r.h = +m.h | 0; r.s = +m.s | 0; r.d = !!m.d; r.o = !!m.o; r.sk = !!m.sk; r.card = Array.isArray(m.card) ? m.card.slice(0, NH).map(function (v) { return v == null ? null : +v; }) : [];
-      r.tx = x; r.ty = y; r.tz = z; r.recv = performance.now();
-    };
-    function dropRemote(k) { var r = remotes[k]; if (!r) return; g.remove(r.mesh); g.remove(r.tag); r.tag.material.map.dispose(); delete remotes[k]; }
-    function present() { var now = performance.now(), out = []; Object.keys(remotes).forEach(function (k) { var r = remotes[k]; if (now - r.recv > 6000) dropRemote(k); else out.push(r); }); return out; }
-    // tout le monde joue la même partie : on rejoint la plus ancienne en cours, et on passe au trou suivant quand tout le monde a fini
-    function syncGame() {
-      var P = present();
-      var older = P.filter(function (r) { return r.gid && r.gid < me.gid && !r.o && r.h < NH; });
-      if (older.length) {
-        var gid = Math.min.apply(null, older.map(function (r) { return r.gid; })), mates = older.filter(function (r) { return r.gid === gid; }), h = Math.max.apply(null, mates.map(function (r) { return r.h; }));
-        me.gid = gid; me.card = []; showCard(false); startHole(h, true);
-        toast('👋 Tu rejoins la partie', 'Trou ' + (h + 1) + ' / ' + NH, '#ffffff', 2.6);
-        return;
-      }
-      if (me.over) return;
-      var same = P.filter(function (r) { return r.gid === me.gid; });
-      if (me.done) {
-        var allDone = same.every(function (r) { return r.h > me.hole || (r.h === me.hole && r.d); });
-        if (allDone && performance.now() - (me.doneAt || 0) > 2600) startHole(me.hole + 1);   // on laisse le temps de voir son score
-      } else if (me.waitT < 0 && same.some(function (r) { return r.h > me.hole || (r.h === me.hole && r.d); })) me.waitT = WAIT_S;
-    }
 
-    /* ---------- interface ---------- */
     function buildUi() {
       injectCss();
       var el = document.createElement('div'); el.className = 'gf-hud';
@@ -599,7 +466,7 @@
       q.querySelector('.s').textContent = me.over ? '' : me.done ? '✅ Dans le trou · ' + me.card[me.hole] + ' coup' + (me.card[me.hole] > 1 ? 's' : '') : 'Coups : ' + me.strokes + ' / ' + MAXSHOTS;
       q.querySelector('.t').textContent = me.over ? 'Nouvelle partie dans ' + Math.ceil(me.overT) + ' s' : me.done ? '⏳ On attend les autres…' : me.waitT >= 0 ? '⏱ ' + Math.ceil(me.waitT) + ' s pour finir' : '';
       var rows = [{ name: me.name + ' (toi)', col: BALL_COLORS[me.col], card: me.card, h: me.hole, d: me.done, s: me.strokes }];
-      present().forEach(function (r) { if (r.gid === me.gid) rows.push({ name: r.name, col: r.col, card: r.card, h: r.h, d: r.d, s: r.s }); });
+      Object.keys(remotes).forEach(function (k) { var r = remotes[k]; rows.push({ name: r.name, col: r.col, card: r.card || [], h: me.hole, d: r.d, s: r.s | 0 }); });
       ui.pl.innerHTML = rows.map(function (r) { var st = scoreTotal(r.card); return '<div><i style="background:' + r.col + ';color:' + r.col + '"></i>' + esc(r.name) + '<b>' + (r.d ? '⛳ ' : r.h < NH ? r.s + ' · ' : '') + relTxt(st.rel) + '</b></div>'; }).join('');
       ui.pow.classList.toggle('off', !canShoot());
       if (ui.card.classList.contains('on')) showCard(true);
@@ -608,7 +475,7 @@
       if (!ui) return;
       ui.card.classList.toggle('on', !!on); if (!on) return;
       var rows = [{ name: me.name, col: BALL_COLORS[me.col], card: me.card }];
-      present().forEach(function (r) { if (r.gid === me.gid) rows.push({ name: r.name, col: r.col, card: r.card }); });
+      Object.keys(remotes).forEach(function (k) { var r = remotes[k]; rows.push({ name: r.name, col: r.col, card: r.card || [] }); });
       if (me.over) rows.sort(function (a, b) { var A = scoreTotal(a.card), B = scoreTotal(b.card), ma = NH - a.card.filter(function (v) { return v != null; }).length, mb = NH - b.card.filter(function (v) { return v != null; }).length; return (A.t + ma * 99) - (B.t + mb * 99); });
       var html = '<h3>' + (me.over ? '🏆 Classement — ' : '📋 ') + esc(C.name) + '</h3><table><tr><th></th>' + HOLES.map(function (H, k) { return '<th>' + (k + 1) + '</th>'; }).join('') + '<th>Total</th></tr><tr class="par"><td>Par</td>' + HOLES.map(function (H) { return '<td>' + H.par + '</td>'; }).join('') + '<td>' + HOLES.reduce(function (a, H) { return a + H.par; }, 0) + '</td></tr>';
       rows.forEach(function (r, ri) {
@@ -618,14 +485,8 @@
       html += '</table><div class="ft">' + (me.over ? 'Nouvelle partie dans ' + Math.ceil(me.overT) + ' s' : 'Tab ou 📋 pour fermer') + '</div>';
       ui.card.innerHTML = html;
     }
-    function canShoot() { return active && !ball.moving && !ball.sunk && !me.done && !me.over && world.blend > 0.95; }
-    function doReset() {
-      if (!active || me.done || me.over || ball.sunk) return;
-      var s = ball.safe || { x: cur().tee[0], z: cur().tee[1] };
-      if (!ball.moving && Math.hypot(ball.x - s.x, ball.z - s.z) < 0.05) return;
-      placeBallAt(s.x, s.z); me.strokes++; toast('↺ Replacé', '+1 coup', '#ffb02e', 1.6); afterStroke(); sendState(true); refreshHud();
-    }
-    function afterStroke() { if (me.strokes >= MAXSHOTS && !me.done) finishHole(MAXSHOTS + 1, 'max'); }
+    function canShoot() { return active && me.ready && !ball.anim && !(ball.pending && performance.now() < ball.pending) && !ball.sunk && !me.done && !me.over && world.blend > 0.95; }
+    function doReset() { if (!canShoot()) return; wsSend({ t: 'reset' }); }
 
     /* ---------- commandes ---------- */
     function onDown(e) {
@@ -672,14 +533,15 @@
       myBall.material.dispose(); myBall.material = ballMat('#ffffff'); myBall.geometry = ballGeoNow(); myBall.visible = true; myGlow.visible = false;   // ma balle : blanche, comme une vraie
       bgOld = world.scene.background; world.scene.background = new THREE.Color(skyCol);
       ui = buildUi(); bind(true);
-      newGame();
+      me.ready = false; myKey = F.me(); netErr = ''; ball.anim = null; ball.pending = 0; ball.sunk = false;
+      connect();
       w.sitDown(room);
-      syncT = 1.2;                                        // on laisse le temps aux autres de se signaler avant de démarrer seul
+      if (!F.token()) setTimeout(function () { if (active) world.goRoom('golf', cid); }, 2500);
     };
     function cleanup() {
       if (!active) return;
       active = false; bind(false); keys = {}; aim.drag = aim.camDrag = aim.bar = null; aim.space = false;
-      if (world.rt && world.rt.ready && F.me()) { try { world.rt.send('gbye', { k: F.me() }); } catch (e) { /* ok */ } }
+      if (ws) { var old = ws; ws = null; wsOk = false; try { old.close(); } catch (e) { /* ok */ } }
       Object.keys(remotes).forEach(dropRemote);
       if (ui && ui.el.parentNode) ui.el.parentNode.removeChild(ui.el); ui = null;
       if (bgOld) world.scene.background = bgOld;
@@ -706,7 +568,7 @@
 
     /* ---------- la boucle ---------- */
     room.update = function (dt) {
-      var t = nowS(), i2;
+      var t = nowSrv(), i2;
       // obstacles qui bougent (même heure pour tout le monde), bumpers qui clignotent, drapeaux qui flottent
       HOLES.forEach(function (H) {
         H.dyn.forEach(function (d) {
@@ -725,27 +587,14 @@
       var tilt = (keys.ArrowUp || keys.KeyW ? 1 : 0) - (keys.ArrowDown || keys.KeyS ? 1 : 0);
       if (tilt) cam.pitch = Math.max(0.12, Math.min(1.35, cam.pitch + tilt * dt * 0.9));
       if (aim.space) { aim.spaceT += dt; var ph = (aim.spaceT * 0.75) % 2; aim.power = ph < 1 ? ph : 2 - ph; }
-      // ma balle
-      others.length = 0;
-      present().forEach(function (r) { if (r.gid === me.gid && r.h === me.hole && !r.d && !r.sk && !(ball.ghost && ball.ghost[r.name])) others.push({ x: r.x, z: r.z, r: R, y0: r.y - 0.2, y1: r.y + 0.2, e: 0.85 }); });
-      if (ball.moving && !ball.sunk) {
-        ball.shotT += dt;
-        var sp = Math.hypot(ball.vx, ball.vz, ball.vy), n = Math.min(40, Math.max(1, Math.ceil(sp * dt / 0.02))), sub = dt / n, res = '';
-        for (i2 = 0; i2 < n && !res; i2++) res = simStep(ball, H, sub, t, others, soundCb);
-        if (res === 'cup') { ball.sunk = true; ball.sinkT = 0; ball.moving = false; SND.cup(); finishHole(me.strokes, ''); }
-        else if (res === 'out') {
-          if (H.spec.water && !neon) SND.splash(); else SND.fall();
-          toast(H.spec.water && !neon ? '💦 Plouf !' : '🌌 Dans le vide !', '+1 coup', '#3fa9ff', 1.8);
-          me.strokes++; placeBallAt(ball.safe.x, ball.safe.z); afterStroke(); sendState(true); refreshHud();
-        } else {
-          var flr = floorAt(H, ball.x, ball.z, ball.y + 0.12), steep = flr ? Math.hypot(flr.f.gx, flr.f.gz) : 0;
-          if (!ball.air && Math.hypot(ball.vx, ball.vz) < 0.07 && (steep < 0.02 || ball.shotT > 20)) { ball.vx = ball.vz = ball.vy = 0; ball.moving = false; sendState(true); afterStroke(); refreshHud(); }
-        }
-      }
+      // les trajectoires calculées par le serveur
+      if (reconnectT > 0) { reconnectT -= dt; if (reconnectT <= 0 && active && (!ws || ws.readyState > 1)) connect(); }
+      if (ball.anim) stepAnim(ball, dt, true);
+      ball.moving = !!ball.anim;
       if (ball.sunk) { ball.sinkT += dt; ball.x += (H.cup[0] - ball.x) * Math.min(1, dt * 12); ball.z += (H.cup[1] - ball.z) * Math.min(1, dt * 12); }
       var sinkY = ball.sunk ? -Math.min(0.2, ball.sinkT * 0.6) : 0;
-      myBall.position.set(ball.x, ball.y + R + sinkY, ball.z); myBall.visible = !(ball.sunk && ball.sinkT > 0.4) && !me.over;
-      myBall.rotation.x += ball.vz * dt / R; myBall.rotation.z -= ball.vx * dt / R;
+      myBall.position.set(ball.x, ball.y + R + sinkY, ball.z); myBall.visible = me.ready && !(ball.sunk && ball.sinkT > 0.4) && !me.over;
+      myBall.rotation.x += (ball.vz || 0) * dt / R; myBall.rotation.z -= (ball.vx || 0) * dt / R;
       myGlow.visible = false;
       // la visée
       var showAim = canShoot();
@@ -758,21 +607,21 @@
       }
       if (ui) { ui.powF.style.height = Math.round(aim.power * 100) + '%'; }
       // balles des autres
-      var kk = 1 - Math.exp(-dt * 12);
       Object.keys(remotes).forEach(function (k) {
-        var r = remotes[k]; r.x += (r.tx - r.x) * kk; r.y += (r.ty - r.y) * kk; r.z += (r.tz - r.z) * kk;
-        var vis = !r.o && !(r.sk);
+        var r = remotes[k]; if (r.anim) stepAnim(r, dt, false);
+        if (r.sunk) { r.sinkT = (r.sinkT || 0) + dt; r.x += (H.cup[0] - r.x) * Math.min(1, dt * 12); r.z += (H.cup[1] - r.z) * Math.min(1, dt * 12); }
+        var vis = !(r.sk && r.sinkT > 0.4) && !me.over;
         r.mesh.visible = vis; r.mesh.position.set(r.x, r.y + R, r.z);
         r.tag.visible = vis && Math.hypot(r.x - ball.x, r.z - ball.z) < 25; r.tag.position.set(r.x, r.y + 0.42, r.z);
       });
-      // déroulement de la partie
-      syncT -= dt; if (syncT <= 0) { syncT = 0.5; syncGame(); }
-      if (me.waitT >= 0 && !me.done) { me.waitT -= dt; if (me.waitT <= 0) { me.waitT = -1; finishHole(Math.min(MAXSHOTS + 1, Math.max(me.strokes + 2, H.par + 3)), 'time'); } }
-      if (me.over) { me.overT -= dt; if (me.overT <= 0) newGame(); }
-      sendT -= dt; if (sendT <= 0) { sendT = ball.moving || aim.power > 0 ? 0.09 : 1.0; sendState(); }
+      // chrono : dès que quelqu'un a fini, les autres ont 60 s ; fin de partie
+      var snow = nowSrv() * 1000;
+      me.waitT = (game.firstDone && !me.done && !me.over) ? Math.max(0, WAIT_S - (snow - game.firstDone) / 1000) : -1;
+      if (me.over) me.overT = Math.max(0, ((game.overAt || 0) - snow) / 1000);
       hudT -= dt; if (hudT <= 0) { hudT = 0.3; refreshHud(); }
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && ui) ui.toast.classList.remove('in'); }
     };
+    room._dbg = { me: me, ball: ball, remotes: remotes, send: wsSend, game: function () { return game; }, holes: HOLES };
     return room;
   }
 

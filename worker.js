@@ -18,6 +18,11 @@ import musiqueHandler from './api/musique.js';
 import pokerHandler from './api/poker.js';
 import posterHandler from './api/poster.js';
 import slotsHandler from './api/slots.js';
+import { GolfRoom } from './api/_doGolf.js';
+import { KartRoom } from './api/_doKart.js';
+
+// Les salles temps réel (golf, course) sont des Durable Objects : un petit programme toujours allumé par salle, relié aux joueurs par WebSocket.
+export { GolfRoom, KartRoom };
 
 const ROUTE_HANDLERS = {
   accounts: accountsHandler,
@@ -191,6 +196,15 @@ export default {
     const pathname = url.pathname;
 
     if (pathname === '/api/cinema-video') return cinemaVideo(request, url);
+
+    // WebSocket des jeux temps réel : /ws/kart (la course) et /ws/golf?course=golfjardin|golfneon
+    if (pathname === '/ws/kart' || pathname === '/ws/golf') {
+      if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
+      if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); return env.KART.get(env.KART.idFromName('main')).fetch(request); }
+      const course = url.searchParams.get('course');
+      if (!env.GOLF || (course !== 'golfjardin' && course !== 'golfneon')) return new Response('Parcours inconnu', { status: 404 });
+      return env.GOLF.get(env.GOLF.idFromName(course)).fetch(request);
+    }
 
     // Gestion des routes /api/*
     const apiMatch = pathname.match(/^\/api\/([a-z0-9_-]+)$/);
