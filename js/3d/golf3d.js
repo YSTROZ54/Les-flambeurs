@@ -481,7 +481,7 @@
       }
       if (cam.free) { aim.camDrag = { x: e.clientX, y: e.clientY, yaw: cam.f.yaw, pitch: cam.f.pitch, pan: e.button === 2 || e.button === 1, tx: cam.f.tx, tz: cam.f.tz }; return; }
       var bs = ballScreen(), nearBall = bs && Math.hypot(e.clientX - bs.x, e.clientY - bs.y) < Math.max(70, Math.min(world.w, world.h) * 0.16);
-      if (canShoot() && ((e.pointerType === 'mouse' && e.button === 0) || (e.pointerType !== 'mouse' && nearBall))) { aim.drag = { x: e.clientX, y: e.clientY }; aim.power = 0; aim.yaw = cam.yaw; }
+      if (canShoot() && ((e.pointerType === 'mouse' && e.button === 0) || (e.pointerType !== 'mouse' && nearBall))) { aim.drag = { x: e.clientX, y: e.clientY }; aim.power = 0; aim.base = cam.yaw; aim.yaw = cam.yaw; }
       else aim.camDrag = { x: e.clientX, y: e.clientY, yaw: cam.yaw, pitch: cam.pitch };
     }
     function onMove(e) {
@@ -496,7 +496,7 @@
       if (aim.drag) {
         var dx = e.clientX - aim.drag.x, dy = e.clientY - aim.drag.y, len = Math.hypot(dx, dy);
         aim.power = Math.max(0, Math.min(1, (len - 6) / (Math.min(world.w, world.h) * 0.32)));
-        aim.yaw = len > 10 ? cam.yaw + Math.atan2(dx, dy) : cam.yaw;
+        aim.yaw = aim.base + (len > 10 ? Math.atan2(dx, dy) : 0);   // la direction ne dépend que de la souris : ZQSD ne bougent que la caméra
       } else if (aim.camDrag) {
         var c = aim.camDrag, ddx = e.clientX - c.x, ddy = e.clientY - c.y;
         if (cam.free) {
@@ -508,7 +508,7 @@
     function onUp(e) {
       delete aim.touches[e.pointerId];
       if (aim.pinch && Object.keys(aim.touches).length < 2) { aim.pinch = null; return; }
-      if (aim.drag) { var p = aim.power, y = aim.yaw; aim.drag = null; aim.power = 0; if (p >= 0.04) { cam.yaw = y; shoot(p, y); } }
+      if (aim.drag) { var p = aim.power, y = aim.yaw; aim.drag = null; aim.power = 0; if (p >= 0.04) shoot(p, y); }
       aim.camDrag = null;
     }
     function onWheel(e) { if (!active) return; var k = e.deltaY > 0 ? 1.12 : 0.89; if (cam.free) cam.f.dist = Math.max(2, Math.min(160, cam.f.dist * k)); else cam.dist = Math.max(1.4, Math.min(12, cam.dist * k)); e.preventDefault(); }
@@ -717,10 +717,43 @@
     g.add(new THREE.AmbientLight(0xeaf6ee, 1.15));
     if (!low) { var l = new THREE.PointLight(0xfff2d0, 0.8, 14); l.position.set(0, 3.8, 0); g.add(l); }
     doorThemes();
-    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - 2) * 4.2; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '20 TROUS', color: parseInt(MAPS[m].col.slice(1), 16), target: 'golf_' + m, theme: 'golf_' + m }); });
+    // les portes : derrière les battants, un aperçu peint du parcours (ciel, collines, piste qui file vers le drapeau, nuage qui passe)
+    // et le nombre de joueurs en ligne ; trois filets de couleur crème en guise d'encadrement (rien de lumineux)
+    var PREV = {
+      prairie: ['#5db6ee', '#bfe6fb', '#5fbf4a', '#3f9a3a', '#7ad05a'], automne: ['#e9a860', '#f7d9a4', '#9a7a2e', '#6f8a37', '#c9a24a'],
+      canyon: ['#f1b36d', '#fbe2b0', '#c0661f', '#c98f57', '#8fbf5a'], neige: ['#8fc4ff', '#e6f2ff', '#dfe9f5', '#f4f8ff', '#8fd08f'], ile: ['#ff9f5a', '#ffd9a0', '#e6cb93', '#2a9bb0', '#7ad05a']
+    };
+    function preview(m) {
+      var P = PREV[m];
+      return function (c, W, Hh, t) {
+        var g2 = c.createLinearGradient(0, 0, 0, Hh); g2.addColorStop(0, P[0]); g2.addColorStop(0.55, P[1]); c.fillStyle = g2; c.fillRect(0, 0, W, Hh);
+        c.fillStyle = '#fff'; c.globalAlpha = 0.85; var cx3 = ((t * 6) % (W + 80)) - 40; c.beginPath(); c.ellipse(cx3, Hh * 0.2, 26, 8, 0, 0, 7); c.ellipse(cx3 + 14, Hh * 0.2 - 5, 16, 7, 0, 0, 7); c.fill(); c.globalAlpha = 1;
+        c.fillStyle = P[3]; c.beginPath(); c.moveTo(0, Hh * 0.55); c.quadraticCurveTo(W * 0.3, Hh * 0.4, W * 0.6, Hh * 0.52); c.quadraticCurveTo(W * 0.85, Hh * 0.44, W, Hh * 0.54); c.lineTo(W, Hh); c.lineTo(0, Hh); c.fill();
+        c.fillStyle = P[2]; c.fillRect(0, Hh * 0.56, W, Hh * 0.44);
+        c.fillStyle = P[4]; c.beginPath(); c.moveTo(W * 0.46, Hh * 0.56); c.lineTo(W * 0.54, Hh * 0.56); c.lineTo(W * 0.9, Hh); c.lineTo(W * 0.1, Hh); c.fill();
+        c.fillStyle = '#f4f4f4'; c.fillRect(W * 0.5 - 1, Hh * 0.4, 2, Hh * 0.16); c.fillStyle = '#e8392f'; c.beginPath(); c.moveTo(W * 0.5 + 1, Hh * 0.4); c.lineTo(W * 0.5 + 14, Hh * 0.4 + 5); c.lineTo(W * 0.5 + 1, Hh * 0.4 + 10); c.fill();
+        var n = info.rooms && info.rooms[m] ? info.rooms[m].n | 0 : 0;
+        c.fillStyle = 'rgba(6,14,9,0.72)'; c.fillRect(0, Hh - 40, W, 40); c.fillStyle = '#f4ead2'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '800 20px ' + SERIF;
+        c.fillText(n ? n + (n > 1 ? ' joueurs' : ' joueur') : 'Libre', W / 2, Hh - 20, W - 12);
+      };
+    }
+    var CREAM = 0xe8dcc0;
+    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - 2.5) * 3.6; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '20 TROUS', color: CREAM, target: 'golf_' + m, theme: 'golf_' + m, portalDraw: preview(m) }); });
+    // 6e porte : la partie privée (elle ouvre le panneau pour créer une partie avec un code ou en rejoindre une)
+    var privT = 0;
+    world.addDoor(room, {
+      x: 2.5 * 3.6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: '🔒 PARTIE PRIVÉE', sub: 'CRÉER · REJOINDRE', color: CREAM, theme: 'golf_prive',
+      portalDraw: function (c, W, Hh, t) {
+        c.fillStyle = '#10241a'; c.fillRect(0, 0, W, Hh); c.fillStyle = '#1d4a31'; c.fillRect(W * 0.12, Hh * 0.2, W * 0.76, Hh * 0.6);
+        c.fillStyle = '#e8c35a'; c.beginPath(); c.arc(W / 2, Hh * 0.42, 22, Math.PI, 0); c.lineWidth = 8; c.strokeStyle = '#e8c35a'; c.stroke(); c.fillRect(W / 2 - 30, Hh * 0.42, 60, 46);
+        c.fillStyle = '#10241a'; c.beginPath(); c.arc(W / 2, Hh * 0.42 + 18, 6, 0, 7); c.fill(); c.fillRect(W / 2 - 2.5, Hh * 0.42 + 18, 5, 14);
+        c.fillStyle = '#f4ead2'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '800 20px ' + SERIF; c.fillText('Entre amis', W / 2, Hh * 0.74, W - 20); c.font = '700 14px ' + MONO; c.fillText('code à 5 lettres', W / 2, Hh * 0.82, W - 20);
+      },
+      go: function (w) { if (performance.now() - privT < 1500) return; privT = performance.now(); w.player.z = -HZ + 2.3; if (w.pv) { w.pv.x = 0; w.pv.z = 0; } openMenu(); }
+    });
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🎮 MINI JEUX', sub: 'RETOUR AU SALON', color: 0xffd24a, target: 'minijeux', theme: 'exitUno' });
     room.spawn = function (from) { var m = String(from || '').replace('golf_', ''); if (DX[m] !== undefined) return { x: DX[m], z: -HZ + 2.6, yaw: F.yawFor(0, 1) }; return { x: 0, z: HZ - 2.6, yaw: 0 }; };
-    room.hint = function (w) { return w.touch ? 'Avance vers la porte du parcours que tu veux · bouton 🔒 : partie privée et classement' : 'ZQSD : marcher · avance vers la porte du parcours que tu veux · bouton 🔒 : partie privée et classement'; };
+    room.hint = function (w) { return w.touch ? 'Avance vers la porte du parcours que tu veux · porte 🔒 à droite : partie privée' : 'ZQSD : marcher · avance vers la porte du parcours que tu veux · porte 🔒 à droite : partie privée'; };
 
     // petit panneau (bouton en haut à droite) : partie privée par code et classement
     var ui = null, info = { rooms: {}, top: [] }, infoT = 0, active = false;
@@ -731,6 +764,7 @@
       world.container.appendChild(el);
       var menu = el.querySelector('.gf-menu'), tog = el.querySelector('.gf-tog');
       tog.addEventListener('click', function () { var off = menu.classList.toggle('off'); tog.style.display = off ? '' : 'none'; if (!off) render(); });
+      room._openMenu = function () { menu.classList.remove('off'); tog.style.display = 'none'; render(); };
       menu.addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b) return; SND.ui();
         if (b.dataset.a === 'hide') { menu.classList.add('off'); tog.style.display = ''; return; }
@@ -752,12 +786,14 @@
       function flag(c, W, H) { c.fillStyle = '#f4f4f4'; c.fillRect(W * 0.62, H * 0.38, 4, H * 0.46); c.fillStyle = '#e8392f'; c.beginPath(); c.moveTo(W * 0.62 + 4, H * 0.38); c.lineTo(W * 0.62 + 40, H * 0.38 + 14); c.lineTo(W * 0.62 + 4, H * 0.38 + 28); c.fill(); c.fillStyle = '#0a0a0a'; c.beginPath(); c.ellipse(W * 0.62 + 2, H * 0.84, 14, 5, 0, 0, Math.PI * 2); c.fill(); }
       var base = { rgb: '93, 255, 138', logo: 'golf', square: true };
       function mk(frameCol, leafCol, rgb, paint) { return { frame: frameCol, leaf: leafCol, rgb: rgb, logo: 'golf', square: true, paint: paint }; }
+      T.golf_prive = { frame: 0x3a2f22, leaf: 0x2c4a36, rgb: '232, 220, 192', logo: 'golf', square: true, paint: function (c, W, H) { c.fillStyle = '#2c4a36'; c.fillRect(0, 0, W, H); c.strokeStyle = '#e8c35a'; c.lineWidth = 7; c.strokeRect(10, 10, W - 20, H - 20); c.fillStyle = '#e8c35a'; c.beginPath(); c.arc(W / 2, H * 0.42, W * 0.12, Math.PI, 0); c.lineWidth = 9; c.stroke(); c.fillRect(W / 2 - W * 0.17, H * 0.42, W * 0.34, H * 0.12); } };
       T.golf_prairie = T.golfjardin || mk(0x6b8a3a, 0x6fc2f0, '93, 255, 138', function (c, W, H) { sky(c, W, H, '#5db6ee', '#bfe6fb', '#4fae52', '#5fbf4a'); flag(c, W, H); frame(c, W, H, '#6b8a3a'); });
       T.golf_automne = mk(0x9a5a2a, 0xf0b070, '255, 150, 70', function (c, W, H) { sky(c, W, H, '#e9a860', '#f7d9a4', '#6f8a37', '#8a7a2e'); c.fillStyle = '#7a4a2a'; c.fillRect(W * 0.2, H * 0.4, 12, H * 0.4); c.fillStyle = '#d9682a'; c.beginPath(); c.arc(W * 0.2 + 6, H * 0.36, 34, 0, 7); c.fill(); c.fillStyle = '#e8a33a'; c.beginPath(); c.arc(W * 0.2 + 30, H * 0.4, 24, 0, 7); c.fill(); flag(c, W, H); frame(c, W, H, '#9a5a2a'); });
       T.golf_canyon = mk(0xb8743a, 0xf3c07a, '255, 190, 110', function (c, W, H) { sky(c, W, H, '#f1b36d', '#fbe2b0', '#c98f57', '#d9803a'); c.fillStyle = '#b8601f'; c.fillRect(W * 0.08, H * 0.42, W * 0.22, H * 0.42); c.fillRect(W * 0.7, H * 0.5, W * 0.24, H * 0.34); flag(c, W, H); frame(c, W, H, '#b8743a'); });
       T.golf_neige = mk(0x8fb4d8, 0xdcecff, '170, 210, 255', function (c, W, H) { sky(c, W, H, '#8fc4ff', '#e6f2ff', '#f4f8ff', '#e1ecf8'); c.fillStyle = '#d4e2f2'; c.beginPath(); c.moveTo(W * 0.1, H * 0.74); c.lineTo(W * 0.32, H * 0.36); c.lineTo(W * 0.56, H * 0.74); c.fill(); c.fillStyle = '#2f7d4a'; c.beginPath(); c.moveTo(W * 0.78, H * 0.78); c.lineTo(W * 0.86, H * 0.5); c.lineTo(W * 0.94, H * 0.78); c.fill(); flag(c, W, H); frame(c, W, H, '#8fb4d8'); });
       T.golf_ile = mk(0xe08a4a, 0x7fd6e8, '255, 150, 90', function (c, W, H) { sky(c, W, H, '#ff9f5a', '#ffd9a0', '#e6cb93', '#e6cb93'); c.fillStyle = '#2a9bb0'; c.fillRect(0, H * 0.6, W, H * 0.14); c.fillStyle = '#fff3c4'; c.beginPath(); c.arc(W * 0.28, H * 0.5, 22, 0, 7); c.fill(); flag(c, W, H); frame(c, W, H, '#e08a4a'); });
     }
+    function openMenu() { if (ui && room._openMenu) room._openMenu(); }
     function go(roomName, map) { F.golf.pending = { room: roomName, map: map }; world.goRoom('golf_' + map, 'golf'); }
     function render() {
       if (!ui) return;

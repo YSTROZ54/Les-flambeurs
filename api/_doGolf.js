@@ -201,7 +201,7 @@ export class GolfRoom {
   }
   // un bonus de plus quelque part sur la piste (jamais sur du sable ou de la glace, ni près du départ, du trou ou d'un autre bonus)
   spawnDice(H) {
-    if (this.dice.length >= DICE_MAX) return;
+    if (this.dice.length >= (H.diceMax || 1)) return;
     const fl = H.floors.filter((f) => !f.zone && f.len > 0.4);
     for (let k = 0; k < 30 && fl.length; k++) {
       const f = fl[Math.floor(Math.random() * fl.length)], t = Math.random(), lat = (Math.random() - 0.5) * Math.max(0.1, f.w0 - 0.5);

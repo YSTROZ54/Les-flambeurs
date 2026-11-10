@@ -119,7 +119,9 @@
     });
     buildGrid(H);
     // les dés : à 30 %, 55 % et 80 % du trou, au milieu de la piste (jamais sur un saut, une boucle, du sable ou de la glace)
-    [0.3, 0.55, 0.8].forEach(function (f) {
+    H.diceMax = H.len > 30 ? 2 : 1;                      // un seul cube sur les petites pistes, deux sur les grandes
+    (H.diceMax === 2 ? [0.35, 0.7, 0.5, 0.25, 0.6, 0.8] : [0.5, 0.4, 0.6, 0.3, 0.7, 0.8]).forEach(function (f) {
+      if (H.dice.length >= H.diceMax) return;
       var target = H.len * f, best = null;
       floors.forEach(function (fl) { if (fl.zone || best) return; if (fl.s0 <= target && fl.s1 >= target) best = fl; });
       if (!best) return;
