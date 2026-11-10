@@ -6,6 +6,9 @@
 //    le serveur complète alors la grille avec des bots jusqu'à 6 voitures. Les bots sont pilotés ici (KS.botInput), pas dans les navigateurs ;
 //  - le navigateur ne fait que PRÉDIRE sa propre voiture (pour qu'elle réponde tout de suite) et se recale sur le serveur : il rejoue ses touches pas encore
 //    prises en compte (« ack »). Le serveur ne fait avancer une voiture que lorsqu'il a reçu une touche : pas de pas « à vide » qui ferait sauter la voiture en avant.
+//  - TROIS CIRCUITS : une salle (un Durable Object) par circuit, choisie par l'adresse /ws/kart?track=nuit|desert|prairie (worker.js) ;
+//  - CRASH : un choc de mur à plus de KS.CRASH_V m/s renvoie la voiture au dernier point de contrôle après 1,2 s ;
+//  - FIN DE COURSE : quand les 3 premiers ont franchi la ligne, les autres n'ont plus que 15 s ; une fois arrivé, un pilote freine tout seul et regarde les autres.
 // Messages du navigateur : { t:'in', seq, th, br, st, h } · { t:'car', id } · { t:'respawn' } · { t:'solo' }.
 // Messages du serveur : welcome · s (instantané de toutes les voitures, 15 fois par seconde) · ev (tour, point de contrôle…) · fin.
 import { readToken } from './_auth.js';
@@ -13,7 +16,7 @@ import KS from './_kartSim.js';
 import { isStaffActor } from './_roles.js';
 
 const STEP_MS = 1000 / 30, SUB = 3, SNAP_EVERY = 2, MAX_PLAYERS = 12, MAX_QUEUE = 8, GRID_CARS = 6;
-export const CAR_IDS = ['eb110', 'gt3r', 'ferrari', 'rb22', 'bolide', 'noire', 'muscle', 'mystery'];
+export const CAR_IDS = Object.keys(KS.CARQ);      // les 20 voitures et leurs qualités (vitesse, accélération, tenue de route, freinage) viennent de la simulation partagée
 const BOT_NAMES = ['Max', 'Lola', 'Yuki', 'Enzo', 'Sasha', 'Rico', 'Nina', 'Tom', 'Zoé', 'Luca', 'Ines', 'Hugo'];
 
 const num = (v, lo, hi) => { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0; };
@@ -23,7 +26,7 @@ export class KartRoom {
     this.state = state; this.env = env;
     for (const k of Object.keys(env || {})) if (typeof env[k] === 'string') process.env[k] = env[k];   // la clé de vérification des jetons vient des variables d'environnement
     this.players = new Map(); this.bots = []; this.timer = null; this.last = 0; this.acc = 0; this.n = 0; this.offset = 0;   // offset : décalage d'horloge, uniquement pour les tests
-    this.cs = -1; this.cut = 0; this.cyc = 0; this.withBots = false; this.early = false;                                                    // cs : heure de départ de la course en cours (-1 : salle d'attente)
+    this.cs = -1; this.cut = 0; this.cyc = 0; this.withBots = false; this.early = false; this.top3 = false; this.trackId = ''; this.T = null;                                                    // cs : heure de départ de la course en cours (-1 : salle d'attente)
   }
   now() { return Date.now() + this.offset; }
 
@@ -34,6 +37,9 @@ export class KartRoom {
     const key = String(tok.u).toLowerCase();
     if (!(await isStaffActor(key))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // la course est encore en test
     if (this.players.size >= MAX_PLAYERS && !this.players.has(key)) return { error: 'Course complète', status: 503 };
+    const tr = String(url.searchParams.get('track') || 'nuit');
+    if (!KS.TRACKS[tr] || (this.trackId && this.trackId !== tr)) return { error: 'Circuit inconnu', status: 400 };
+    if (!this.trackId) { this.trackId = tr; this.T = KS.TRACKS[tr].trk; }
     const car = url.searchParams.get('car');
     return { key, name: String(url.searchParams.get('name') || tok.u).slice(0, 20), car: CAR_IDS.includes(car) ? car : CAR_IDS[0] };
   }
@@ -52,7 +58,7 @@ export class KartRoom {
   join(ws, key, name, carId) {
     const old = this.players.get(key);
     if (old) { try { old.ws.close(1000, 'autre connexion'); } catch (e) { /* ok */ } this.players.delete(key); }
-    const p = { k: key, n: name, carId, ws, car: KS.newCar(), queue: [], last: { th: 0, br: 0, steer: 0, hand: false }, ack: 0, rc: 0, joined: Date.now() };
+    const p = { k: key, n: name, carId, ws, car: KS.newCar(this.T, carId), queue: [], crashT: 0, last: { th: 0, br: 0, steer: 0, hand: false }, ack: 0, rc: 0, joined: Date.now() };
     this.players.set(key, p);
     this.assignSlot(p);
     ws.addEventListener('message', (ev) => this.onMessage(p, ev));
@@ -64,11 +70,11 @@ export class KartRoom {
   leave(p) {
     if (this.players.get(p.k) !== p) return;
     this.players.delete(p.k);
-    if (!this.players.size) { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.cs = -1; this.cut = 0; this.bots = []; this.withBots = false; this.early = false; }
+    if (!this.players.size) { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.cs = -1; this.cut = 0; this.bots = []; this.withBots = false; this.early = false; this.top3 = false; }
   }
   racers() { return [...[...this.players.values()].sort((a, b) => (a.k < b.k ? -1 : 1)), ...this.bots]; }
   resetCar(p, slot, raceStart) {
-    const c = p.car; KS.placeOnGrid(c, slot); c.lap = 0; c.cp = 0; c.fin = 0; c.best = 0; c.wrong = 0; c.lapStart = raceStart; p.queue = []; p.rc = (p.rc || 0) + 1;
+    const c = p.car; c.q = KS.qOf(p.carId); KS.placeOnGrid(c, slot); p.crashT = 0; c.hit = 0; c.lap = 0; c.cp = 0; c.fin = 0; c.best = 0; c.wrong = 0; c.lapStart = raceStart; p.queue = []; p.rc = (p.rc || 0) + 1;
     if (p.bot) p.b.stuck = 0;
   }
   // un pilote qui arrive : il prend sa place sur la grille
@@ -78,15 +84,15 @@ export class KartRoom {
   }
   // lance une course : grille 20 s, compte à rebours, course. withBots : on complète jusqu'à 6 voitures avec des bots.
   startCycle(now, withBots) {
-    this.cyc++; this.cs = now; this.cut = 0; this.withBots = !!withBots; this.early = false; this.bots = [];
+    this.cyc++; this.cs = now; this.cut = 0; this.withBots = !!withBots; this.early = false; this.top3 = false; this.bots = [];
     if (withBots) {
       const nb = Math.max(0, GRID_CARS - this.players.size), names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
-      for (let i = 0; i < nb; i++) this.bots.push({ bot: true, k: 'bot' + (i + 1), n: 'Bot ' + names[i % names.length], carId: CAR_IDS[Math.floor(Math.random() * CAR_IDS.length)], car: KS.newCar(), b: { skill: 0.88 + Math.random() * 0.1, lat: (Math.random() - 0.5) * 6, stuck: 0 }, rc: 0 });
+      for (let i = 0; i < nb; i++) this.bots.push({ bot: true, k: 'bot' + (i + 1), n: 'Bot ' + names[i % names.length], carId: CAR_IDS[Math.floor(Math.random() * CAR_IDS.length)], car: KS.newCar(this.T), b: { skill: 0.88 + Math.random() * 0.1, lat: (Math.random() - 0.5) * 6, stuck: 0 }, rc: 0 });
     }
     const raceStart = now + KS.GRID_MS + KS.COUNT_MS;
     this.racers().forEach((p, slot) => this.resetCar(p, slot, raceStart));
   }
-  stopCycle() { this.cs = -1; this.cut = 0; this.bots = []; this.withBots = false; this.early = false; this.cyc++; this.racers().forEach((p, slot) => this.resetCar(p, slot, 0)); }
+  stopCycle() { this.cs = -1; this.cut = 0; this.bots = []; this.withBots = false; this.early = false; this.top3 = false; this.cyc++; this.racers().forEach((p, slot) => this.resetCar(p, slot, 0)); }
 
   /* ------------------------------ messages ------------------------------ */
   onMessage(p, ev) {
@@ -98,10 +104,10 @@ export class KartRoom {
       p.queue.push(inp);
     } else if (m.t === 'car') {
       const pi = KS.phaseAt(this.now(), this.cs, this.cyc, this.cut);
-      if (CAR_IDS.includes(m.id) && (pi.p === 'grid' || pi.p === 'wait')) { p.carId = m.id; this.broadcast({ t: 'car', k: p.k, c: p.carId }); }
+      if (CAR_IDS.includes(m.id) && (pi.p === 'grid' || pi.p === 'wait')) { p.carId = m.id; p.car.q = KS.qOf(m.id); this.broadcast({ t: 'car', k: p.k, c: p.carId }); }
     } else if (m.t === 'respawn') {
       const pi = KS.phaseAt(this.now(), this.cs, this.cyc, this.cut);
-      if (pi.p === 'race' || pi.p === 'results') { KS.placeAtCheckpoint(p.car); p.queue = []; p.rc++; }
+      if (pi.p === 'race' || pi.p === 'results') { KS.placeAtCheckpoint(p.car); p.queue = []; p.rc++; p.crashT = 0; p.car.hit = 0; }
     } else if (m.t === 'solo') {                                  // « jouer contre des bots » : seulement si personne ne court et que je suis seul
       const pi = KS.phaseAt(this.now(), this.cs, this.cyc, this.cut);
       if (pi.p === 'wait' && this.players.size === 1) this.startCycle(this.now(), true);
@@ -132,19 +138,26 @@ export class KartRoom {
       p.car.ev.length = 0;
       while (n-- > 0 && p.queue.length) {
         const inp0 = p.queue.shift(); p.ack = inp0.seq; p.last = inp0; let inp = inp0;
-        if (pi.p === 'results') { const vf = p.car.vx * Math.sin(p.car.yaw) - p.car.vz * Math.cos(p.car.yaw); inp = { th: 0, br: vf > 0.6 ? 0.6 : 0, steer: inp0.steer, hand: false }; }   // on freine jusqu'à l'arrêt, sans reculer
+        if (pi.p === 'results' || p.car.fin) { const vf = p.car.vx * Math.sin(p.car.yaw) - p.car.vz * Math.cos(p.car.yaw); inp = { th: 0, br: vf > 0.6 ? 0.6 : 0, steer: inp0.steer, hand: false }; }   // on freine jusqu'à l'arrêt, sans reculer
         for (let i = 0; i < SUB; i++) KS.stepCar(p.car, inp, 1 / 90, locked);
       }
+      // crash : un gros choc contre un mur envoie la voiture au dernier point de contrôle (1,2 s plus tard)
+      if (pi.p === 'race' && !p.car.fin) {
+        if (p.crashT === 0 && p.car.hit >= KS.CRASH_V) { p.crashT = now + 1200; this.send(p.ws, { t: 'ev', e: { k: 'crash' } }); }
+        if (p.crashT && now >= p.crashT) { KS.placeAtCheckpoint(p.car); p.queue = []; p.rc++; p.crashT = 0; }
+      }
+      p.car.hit = 0;
     });
     this.bots.forEach((b) => {
       const c = b.car; let inp = locked ? { th: 0, br: 0, steer: 0, hand: false } : KS.botInput(c, b.b, STEP_MS / 1000);
-      if (pi.p === 'results') inp = { th: 0, br: 0.7, steer: 0, hand: false };
+      if (pi.p === 'results' || c.fin) inp = { th: 0, br: 0.7, steer: 0, hand: false };
       if (pi.p !== 'race') b.b.stuck = 0;
       if (b.b.stuck > 1.5) { KS.placeAtCheckpoint(c); b.b.stuck = 0; }
       c.ev.length = 0;
       for (let i = 0; i < SUB; i++) KS.stepCar(c, inp, 1 / 90, locked);
+      c.hit = 0;
     });
-    if (!locked) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) KS.pairCollide(list[i].car, list[j].car);
+    if (!locked) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) if (!list[i].car.fin && !list[j].car.fin) KS.pairCollide(list[i].car, list[j].car);       // les voitures arrivées ne gênent plus personne
     list.forEach((p) => {
       KS.trackProgress(p.car, pi, now).forEach((e) => {
         if (e.k === 'finish') this.broadcast({ t: 'fin', k: p.k, time: e.time });
@@ -152,7 +165,12 @@ export class KartRoom {
       });
     });
     // tous les pilotes humains sont arrivés : on passe aux résultats 5 secondes plus tard
-    if (pi.p === 'race' && !this.early && humans.length && humans.every((p) => p.car.fin)) { this.early = true; this.cut = Math.min(now - this.cs + 5000, KS.GRID_MS + KS.COUNT_MS + KS.RACE_MS); }
+    // tous les pilotes humains sont arrivés : résultats 5 s plus tard ; les 3 premiers sont arrivés : les autres n'ont plus que 15 s
+    if (pi.p === 'race') {
+      const lim = (ms) => { const c = Math.min(now - this.cs + ms, KS.GRID_MS + KS.COUNT_MS + KS.RACE_MS); if (!this.cut || c < this.cut) this.cut = c; };
+      if (!this.early && humans.length && humans.every((p) => p.car.fin)) { this.early = true; lim(5000); }
+      if (!this.top3 && list.filter((p) => p.car.fin).length >= 3) { this.top3 = true; lim(15000); }
+    }
     this.n++;
     if (this.n % SNAP_EVERY === 0 && humans.length) this.broadcast({ t: 's', n: now, cs: this.cs, cut: this.cut, cyc: this.cyc, cars: this.snapCars() });
   }

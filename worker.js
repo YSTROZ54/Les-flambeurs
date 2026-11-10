@@ -236,7 +236,7 @@ export default {
         if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(prRoom)) return new Response('Salon invalide', { status: 404 });
         return env.PROP.get(env.PROP.idFromName(prRoom)).fetch(request);          // une salle (Durable Object) par carte publique et par salon privé
       }
-      if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); return env.KART.get(env.KART.idFromName('main')).fetch(request); }
+      if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); const kTrack = String(url.searchParams.get('track') || 'nuit'); if (!/^(nuit|desert|prairie)$/.test(kTrack)) return new Response('Circuit inconnu', { status: 404 }); return env.KART.get(env.KART.idFromName(kTrack === 'nuit' ? 'main' : 'kart-' + kTrack)).fetch(request); }       // une salle de course (Durable Object) par circuit
       const gRoom = String(url.searchParams.get('room') || '');
       if (!env.GOLF || !/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(gRoom)) return new Response('Salle inconnue', { status: 404 });
       return env.GOLF.get(env.GOLF.idFromName(gRoom)).fetch(request);           // une salle (Durable Object) par carte publique et par partie privée
