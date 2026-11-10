@@ -127,7 +127,6 @@
     }
     room.onEnter = function (w) {
       activeHub = true; F.propJoin = null;
-      if (F.isStaff && !F.isStaff()) { w.flash('🔍 Prop Hunt en test', 'Réservé au Patron, au Co Fondateur et au Staff'); setTimeout(function () { world.goRoom('minijeux', 'prophunt'); }, 300); return; }
       poll(); timer = setInterval(poll, 5000);
     };
     room.onLeave = function () { activeHub = false; if (timer) { clearInterval(timer); timer = null; } closeModal(); };

@@ -568,7 +568,6 @@
     room.spawn = function () { var H = HOLES[0]; return { x: H.tee[0], z: H.tee[1] + 3, yaw: H.teeYaw }; };
     room.onEnter = function (w) {
       active = true; ui = buildUi(); bind(true);
-      if (F.isStaff && !F.isStaff()) { w.flash('⛳ Golf en test', 'Réservé au Patron, au Co Fondateur et au Staff'); setTimeout(function () { world.goRoom('golf', 'golf_' + mapId); }, 300); return; }
       var pend = F.golf.pending; net.roomName = pend && pend.map === mapId ? pend.room : 'pub-' + mapId; F.golf.pending = null;
       net.myKey = F.me ? F.me() : ''; net.err = ''; net.offInit = false; st.phase = 'lobby'; st.game = null; st.rank = null; curHi = -1; cam.free = false; cam.lobbyA = 0;
       if (SC) { applyRender(true); ui.load.style.display = 'none'; } else { applyRender(true); ensureScene(); }

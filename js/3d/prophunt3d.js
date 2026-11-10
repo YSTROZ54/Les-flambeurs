@@ -527,7 +527,6 @@
       ui = buildUi();
       window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKey, true);
       world.dom.addEventListener('mousedown', onMouseDown, true); window.addEventListener('mouseup', onMouseUp, true); document.addEventListener('mousemove', onMouseMove); world.dom.addEventListener('wheel', onWheel, { passive: false }); document.addEventListener('pointerlockchange', onLockChange);
-      if (F.isStaff && !F.isStaff()) { w.flash('🔍 Prop Hunt en test', 'Réservé au Patron, au Co Fondateur et au Staff'); setTimeout(function () { world.goRoom('minijeux', 'prophunt'); }, 300); return; }
       if (!F.propJoin || !F.propJoin.room) { setTimeout(function () { world.goRoom('prophunt', 'prophuntgame'); }, 200); return; }
       myKey = F.me(); everOpen = false; failCount = 0; connect();
       w.sitDown(room);
