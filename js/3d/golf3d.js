@@ -719,6 +719,7 @@
     doorThemes();
     // les portes : derrière les battants, un aperçu peint du parcours (ciel, collines, piste qui file vers le drapeau, nuage qui passe)
     // et le nombre de joueurs en ligne ; trois filets de couleur crème en guise d'encadrement (rien de lumineux)
+    var ui = null, info = { rooms: {}, top: [] }, infoT = 0, active = false;
     var PREV = {
       prairie: ['#5db6ee', '#bfe6fb', '#5fbf4a', '#3f9a3a', '#7ad05a'], automne: ['#e9a860', '#f7d9a4', '#9a7a2e', '#6f8a37', '#c9a24a'],
       canyon: ['#f1b36d', '#fbe2b0', '#c0661f', '#c98f57', '#8fbf5a'], neige: ['#8fc4ff', '#e6f2ff', '#dfe9f5', '#f4f8ff', '#8fd08f'], ile: ['#ff9f5a', '#ffd9a0', '#e6cb93', '#2a9bb0', '#7ad05a']
@@ -756,7 +757,7 @@
     room.hint = function (w) { return w.touch ? 'Avance vers la porte du parcours que tu veux · porte 🔒 à droite : partie privée' : 'ZQSD : marcher · avance vers la porte du parcours que tu veux · porte 🔒 à droite : partie privée'; };
 
     // petit panneau (bouton en haut à droite) : partie privée par code et classement
-    var ui = null, info = { rooms: {}, top: [] }, infoT = 0, active = false;
+
     function build() {
       injectCss();
       var el = document.createElement('div'); el.className = 'gf-ui';
