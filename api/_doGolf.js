@@ -1,168 +1,329 @@
-// MINI GOLF côté serveur : un « Durable Object » par parcours (golfjardin, golfneon), relié aux joueurs par WebSocket.
-//  - le serveur simule CHAQUE coup (même physique que le navigateur : api/_golfSim.js) et renvoie la trajectoire : impossible de tricher sur un coup ;
-//  - c'est lui qui compte les coups, décide quand un trou est fini, passe au trou suivant (quand tout le monde a fini, ou 60 s après le premier arrivé)
-//    et établit le classement ;
-//  - les obstacles qui bougent (moulin, blocs) suivent l'heure du serveur ; chaque joueur la reçoit à la connexion.
-// Messages du navigateur : { t:'shot', yaw, power } · { t:'reset' }.
-// Messages du serveur : welcome · players · hole · shot · over.
+// MINI GOLF côté serveur : un « Durable Object » par salle (pub-<carte> pour les 5 salles publiques, priv-<CODE> pour les parties privées),
+// plus un objet « hub » qui garde le classement (parties gagnées).
+//  - le serveur fait rouler TOUTES les balles en même temps, 30 fois par seconde (physique : api/_golfSim.js) : les balles se percutent
+//    (plus on arrive vite, plus l'autre part loin), tombent à l'eau, prennent les dés, collent dans les flaques… personne ne peut tricher ;
+//  - il envoie la position des balles 15 fois par seconde ; le navigateur ne fait que dessiner ;
+//  - salle d'attente : l'hôte (premier arrivé) choisit les mods (dés bonus, pouvoirs, chocs, gel offert, 10 ou 20 trous) et lance la partie ;
+//    dans une salle publique, la partie démarre aussi toute seule 60 s après l'arrivée d'un 2e joueur ;
+//  - tombé à l'eau ou dans le vide : la balle revient là où on a tiré la dernière fois (pas de coup en plus).
+// Messages du navigateur : shot {yaw, power} · use {p} · glue {x, z} · reset · opts {o} · start · emote? (non)
+// Messages du serveur : welcome · lobby · hole · s (positions) · ev (évènements) · done · over · glue · top
 import { readToken } from './_auth.js';
 import GS from './_golfSim.js';
 import { isStaffActor } from './_roles.js';
 
-const TICK_MS = 500, DONE_DELAY_MS = 2600, OVER_MS = 14000, MAX_SIM_S = 30, TRAJ_DT = 1 / 30;
-const COLORS = 8;
-const COURSE_IDS = ['golfjardin', 'golfneon'];
+const TICK_MS = 1000 / 30, DONE_DELAY_MS = 2600, OVER_MS = 16000, HOLE_MAX_MS = 5 * 60000, AUTO_START_MS = 60000, GONE_KEEP_MS = 3 * 60000;
+const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.42, DICE_RESPAWN_MS = 14000, MAX_POWERS = 2;
+const ROOM_RE = /^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/;
+const LOCAL_HUB = globalThis.__golfHub || (globalThis.__golfHub = { stats: {} });   // sans Cloudflare (serveur local) : classement en mémoire
 
 export class GolfRoom {
   constructor(state, env) {
-    this.state = state; this.env = env;
-    for (const k of Object.keys(env || {})) if (typeof env[k] === 'string') process.env[k] = env[k];   // la clé de vérification des jetons vient des variables d'environnement
-    this.course = ''; this.holes = null; this.players = new Map();
-    this.game = { gid: 0, hole: 0, phase: 'play', holeStart: 0, firstDone: 0, overAt: 0, lastDone: 0 };
-    this.timer = null;
+    this.state = state; this.env = env || {};
+    for (const k of Object.keys(env || {})) if (typeof env[k] === 'string') process.env[k] = env[k];
+    this.room = ''; this.map = ''; this.players = new Map(); this.gone = new Map();
+    this.phase = 'lobby'; this.host = ''; this.opts = { ...GS.DEFAULT_OPTS }; this.lobbyT = 0;
+    this.game = null; this.glue = []; this.dice = []; this.timer = null; this.tickN = 0; this.dirty = true; this.nextId = 1; this.mapSwitchT = 0;
   }
 
-  // vérifie la demande de connexion ; renvoie { error, status } ou { key, name }
+  /* ------------------------------ le classement (objet « hub ») ------------------------------ */
+  async hubLoad() {
+    if (this.state && this.state.storage) { this.stats = this.stats || (await this.state.storage.get('stats')) || {}; return this.stats; }
+    return LOCAL_HUB.stats;
+  }
+  async hubSave() { if (this.state && this.state.storage) await this.state.storage.put('stats', this.stats); }
+  static topOf(stats) { return Object.entries(stats).map(([k, v]) => ({ k, n: v.n, w: v.w | 0, g: v.g | 0 })).filter((r) => r.w > 0).sort((a, b) => b.w - a.w || a.g - b.g).slice(0, 10); }
+  async top() {
+    if (this.env.GOLF) { try { const r = await this.env.GOLF.get(this.env.GOLF.idFromName('hub')).fetch('https://golf/hub/top'); return await r.json(); } catch (e) { return []; } }
+    return GolfRoom.topOf(LOCAL_HUB.stats);
+  }
+  async record(players, winners) {
+    const body = JSON.stringify({ players, winners });
+    if (this.env.GOLF) { try { await this.env.GOLF.get(this.env.GOLF.idFromName('hub')).fetch('https://golf/hub/win', { method: 'POST', body }); } catch (e) { /* tant pis */ } return; }
+    GolfRoom.applyWin(LOCAL_HUB.stats, players, winners);
+  }
+  static applyWin(stats, players, winners) {
+    (players || []).forEach((p) => { const s = stats[p.k] || (stats[p.k] = { n: p.n, w: 0, g: 0 }); s.n = String(p.n).slice(0, 20); s.g++; });
+    (winners || []).forEach((k) => { if (stats[k]) stats[k].w++; });
+  }
+
+  /* ------------------------------ connexion ------------------------------ */
   async admit(url) {
-    const course = url.searchParams.get('course');
-    if (!COURSE_IDS.includes(course)) return { error: 'Parcours inconnu', status: 404 };
+    const room = String(url.searchParams.get('room') || '');
+    if (!ROOM_RE.test(room)) return { error: 'Salle inconnue', status: 404 };
     const tok = readToken(String(url.searchParams.get('token') || ''));
     if (!tok) return { error: 'Connexion requise', status: 401 };
     if (!(await isStaffActor(String(tok.u).toLowerCase()))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // le golf est encore en test
-    if (!this.course) { this.course = course; this.holes = GS.COURSES[course].holes.map((h) => GS.buildHoleData(h)); }
+    if (!this.room) {
+      this.room = room;
+      const m = room.startsWith('pub-') ? room.slice(4) : String(url.searchParams.get('map') || 'prairie');
+      this.setMap(GS.MAP_IDS.includes(m) ? m : 'prairie');
+    }
     return { key: String(tok.u).toLowerCase(), name: String(url.searchParams.get('name') || tok.u).slice(0, 20) };
   }
+  setMap(m) { this.map = m; this.opts.map = m; this.course = GS.buildCourse(m); }
+  switching() { return this.phase === 'lobby' && Date.now() - this.mapSwitchT < 12000; }
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === '/hub/top') { const st = await this.hubLoad(); return Response.json(GolfRoom.topOf(st)); }
+    if (url.pathname === '/hub/win' && request.method === 'POST') { const st = await this.hubLoad(); let b = {}; try { b = await request.json(); } catch (e) { /* vide */ } GolfRoom.applyWin(st, b.players, b.winners); await this.hubSave(); return new Response('ok'); }
+    if (url.searchParams.get('info')) return Response.json(this.info());
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
     const a = await this.admit(url);
     if (a.error) return new Response(a.error, { status: a.status });
     const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
     server.accept();
-    this.join(server, a.key, a.name);
+    await this.join(server, a.key, a.name);
     return new Response(null, { status: 101, webSocket: client });
   }
+  info() { return { n: this.players.size, ph: this.phase, map: this.map || '', hole: this.game ? this.game.hi + 1 : 0, of: this.game ? this.game.list.length : 0 }; }
 
   /* ------------------------------ joueurs ------------------------------ */
-  join(ws, key, name) {
+  async join(ws, key, name) {
     const old = this.players.get(key);
     if (old) { try { old.ws.close(1000, 'autre connexion'); } catch (e) { /* ok */ } this.players.delete(key); }
+    const back = this.gone.get(key); this.gone.delete(key);
     const used = new Set([...this.players.values()].map((p) => p.c));
-    let c = 0; while (used.has(c) && c < COLORS - 1) c++;
-    const p = { k: key, n: name, c, ws, card: [], strokes: 0, done: false, sunk: false, ball: null, safe: null, busyUntil: 0, seen: Date.now() };
+    let c = back && !used.has(back.c) ? back.c : 0; if (!back || used.has(c)) { c = 0; while (used.has(c) && c < COLORS - 1) c++; }
+    const p = back && this.game && back.gid === this.game.gid ? Object.assign(back, { ws, n: name, c }) : { k: key, n: name, c, id: this.nextId++, ws, card: [], strokes: 0, done: false, sunk: false, ball: null, safe: null, moving: false, powers: [], magnet: false, magOn: false, lastWall: 0 };
+    p.ws = ws; p.seen = Date.now();
     this.players.set(key, p);
-    if (!this.game.gid) this.newGame(true); else this.placeOnHole(p);
+    if (!this.host || (!this.players.has(this.host) && !this.switching())) this.host = key;              // en changeant de carte, l'hôte garde sa place
+    if (this.phase === 'play' && (!p.ball || p.gid !== this.game.gid)) { p.gid = this.game.gid; p.card = []; this.placeOnHole(p, true); }
     ws.addEventListener('message', (ev) => this.onMessage(p, ev));
     const bye = () => this.leave(p);
     ws.addEventListener('close', bye); ws.addEventListener('error', bye);
-    this.send(ws, { t: 'welcome', now: Date.now(), course: this.course, you: key, game: this.pubGame(), players: this.pubPlayers(), c });
-    this.broadcast({ t: 'players', game: this.pubGame(), players: this.pubPlayers() });
+    if (this.phase === 'lobby' && this.players.size >= 2 && !this.lobbyT && this.room.startsWith('pub-')) this.lobbyT = Date.now() + AUTO_START_MS;
+    this.send(ws, { t: 'welcome', now: Date.now(), room: this.room, map: this.map, you: key, id: p.id, ...this.pubState(), top: await this.top() });
+    this.broadcast({ t: 'players', ...this.pubState() });
     if (!this.timer) this.timer = setInterval(() => this.tick(), TICK_MS);
   }
   leave(p) {
     if (this.players.get(p.k) !== p) return;
     this.players.delete(p.k);
-    this.broadcast({ t: 'players', game: this.pubGame(), players: this.pubPlayers() });
-    if (!this.players.size && this.timer) { clearInterval(this.timer); this.timer = null; this.game.gid = 0; }
+    if (this.phase !== 'lobby') { p.ws = null; p.left = Date.now(); this.gone.set(p.k, p); }
+    if (this.host === p.k && !this.switching()) this.host = this.players.size ? this.players.keys().next().value : '';
+    if (this.players.size < 2) this.lobbyT = 0;
+    this.broadcast({ t: 'players', ...this.pubState() });
+    if (!this.players.size && !this.switching()) { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.phase = 'lobby'; this.game = null; this.glue = []; this.gone.clear(); }
   }
-  placeOnHole(p) {
-    const H = this.holes[Math.min(this.game.hole, this.holes.length - 1)];
-    p.strokes = 0; p.done = false; p.sunk = false; p.busyUntil = 0;
-    p.ball = { x: H.tee[0], z: H.tee[1], y: GS.floorH(H, H.tee[0], H.tee[1]), vx: 0, vy: 0, vz: 0, air: false };
-    p.safe = { x: H.tee[0], z: H.tee[1] };
+  hole() { return this.course.holes[this.game.list[this.game.hi]]; }
+  placeOnHole(p, late) {
+    const H = this.hole();
+    p.strokes = 0; p.done = false; p.sunk = false; p.moving = false; p.magOn = false;
+    p.ball = { x: H.tee[0], z: H.tee[1], y: H.teeH, vx: 0, vy: 0, vz: 0, air: false, rail: null };
+    p.safe = { x: H.tee[0], z: H.tee[1], y: H.teeH };
+    if (this.opts.freeIce && !late && p.powers.length < MAX_POWERS && !p.powers.includes('ice')) p.powers.push('ice');
   }
 
   /* ------------------------------ la partie ------------------------------ */
-  newGame(silent) {
-    this.game = { gid: Date.now(), hole: 0, phase: 'play', holeStart: Date.now(), firstDone: 0, overAt: 0, lastDone: 0 };
-    this.players.forEach((p) => { p.card = []; this.placeOnHole(p); });
-    if (!silent) this.broadcast({ t: 'hole', game: this.pubGame(), players: this.pubPlayers() });
+  startGame() {
+    const list = GS.holeList(this.opts.holes);
+    this.game = { gid: Date.now(), list, hi: 0, holeStart: Date.now(), firstDone: 0, lastDone: 0, overAt: 0 };
+    this.phase = 'play'; this.lobbyT = 0; this.gone.clear();
+    this.players.forEach((p) => { p.gid = this.game.gid; p.card = []; p.powers = []; p.magnet = false; });
+    this.startHole();
+  }
+  startHole() {
+    const g = this.game, H = this.hole();
+    g.holeStart = Date.now(); g.firstDone = 0; g.lastDone = 0; this.glue = [];
+    this.dice = this.opts.dice ? H.dice.map((d, i) => ({ i, x: d.x, z: d.z, h: d.h, until: 0 })) : [];
+    this.players.forEach((p) => this.placeOnHole(p));
+    this.broadcast({ t: 'hole', ...this.pubState() }); this.dirty = true;
   }
   nextHole() {
-    this.game.hole++;
-    if (this.game.hole >= this.holes.length) {
-      this.game.phase = 'over'; this.game.overAt = Date.now() + OVER_MS; this.game.hole = this.holes.length;
-      this.broadcast({ t: 'over', game: this.pubGame(), players: this.pubPlayers() });
-      return;
-    }
-    this.game.holeStart = Date.now(); this.game.firstDone = 0; this.game.lastDone = 0;
-    this.players.forEach((p) => this.placeOnHole(p));
-    this.broadcast({ t: 'hole', game: this.pubGame(), players: this.pubPlayers() });
+    const g = this.game; g.hi++;
+    if (g.hi >= g.list.length) { this.endGame(); return; }
+    this.startHole();
   }
-  tick() {
-    const now = Date.now(), g = this.game;
-    if (!this.players.size) return;
-    if (g.phase === 'over') { if (now >= g.overAt) this.newGame(); return; }
-    const H = this.holes[g.hole], list = [...this.players.values()];
-    if (g.firstDone && now - g.firstDone > GS.WAIT_S * 1000) {          // les retardataires finissent avec une pénalité
-      list.forEach((p) => { if (!p.done && now >= p.busyUntil) this.finish(p, Math.min(GS.MAXSHOTS + 1, Math.max(p.strokes + 2, H.par + 3)), 'time'); });
-    }
-    if (list.every((p) => p.done) && g.lastDone && now - g.lastDone > DONE_DELAY_MS) this.nextHole();
+  totals() {
+    const g = this.game, holes = g.list.map((i) => this.course.holes[i]);
+    return [...this.players.values()].map((p) => {
+      let t = 0, played = 0;
+      holes.forEach((H, k) => { const v = p.card[k]; if (v == null) t += H.par + 3; else { t += v; played++; } });
+      return { k: p.k, n: p.n, t, played };
+    }).sort((a, b) => a.t - b.t);
+  }
+  endGame() {
+    const g = this.game; g.hi = g.list.length - 1; this.phase = 'over'; g.overAt = Date.now() + OVER_MS;
+    const tot = this.totals(), real = tot.filter((r) => r.played >= Math.ceil(g.list.length / 2));
+    let winners = [];
+    if (real.length >= 2) { const best = real[0].t; winners = real.filter((r) => r.t === best).map((r) => r.k); this.record(real.map((r) => ({ k: r.k, n: r.n })), winners); }
+    this.broadcast({ t: 'over', ...this.pubState(), rank: tot, winners });
+    setTimeout(async () => { this.broadcast({ t: 'top', top: await this.top() }); }, 800);
   }
   finish(p, score, how) {
-    p.done = true; p.card[this.game.hole] = score; p.busyUntil = 0;
+    if (p.done) return;
+    p.done = true; p.moving = false; p.card[this.game.hi] = score;
     const now = Date.now(); if (!this.game.firstDone) this.game.firstDone = now; this.game.lastDone = now;
-    this.broadcast({ t: 'done', k: p.k, score, how, par: this.holes[this.game.hole].par, game: this.pubGame(), players: this.pubPlayers() });
+    this.broadcast({ t: 'done', k: p.k, score, how, par: this.hole().par, ...this.pubState() });
   }
 
-  /* ------------------------------ les coups ------------------------------ */
+  /* ------------------------------ la boucle (30 fois par seconde) ------------------------------ */
+  tick() {
+    const now = Date.now(); this.tickN++;
+    this.gone.forEach((p, k) => { if (now - p.left > GONE_KEEP_MS) this.gone.delete(k); });
+    if (!this.players.size) return;
+    if (this.phase === 'lobby') { if (this.lobbyT && now >= this.lobbyT && this.players.size >= 2) this.startGame(); return; }
+    if (this.phase === 'over') { if (now >= this.game.overAt) { this.phase = 'lobby'; this.game = null; this.lobbyT = this.players.size >= 2 && this.room.startsWith('pub-') ? now + AUTO_START_MS : 0; this.broadcast({ t: 'lobby', ...this.pubState() }); } return; }
+    const g = this.game, H = this.hole(), list = [...this.players.values()];
+    this.physics(H, now / 1000);
+    // les flaques qui sèchent, les dés qui reviennent
+    const n0 = this.glue.length; this.glue = this.glue.filter((q) => q.until > now); if (this.glue.length !== n0) this.broadcast({ t: 'glue', glue: this.pubGlue() });
+    // fin du trou : tout le monde a fini, ou 60 s après le premier (les retardataires prennent une pénalité), ou 5 min en tout
+    const late = (g.firstDone && now - g.firstDone > GS.WAIT_S * 1000) || now - g.holeStart > HOLE_MAX_MS;
+    if (late) list.forEach((p) => { if (!p.done && !p.moving) this.finish(p, Math.min(GS.MAXSHOTS + 1, Math.max(p.strokes + 2, H.par + 3)), 'time'); });
+    if (list.every((p) => p.done) && g.lastDone && now - g.lastDone > DONE_DELAY_MS) this.nextHole();
+    // positions des balles : 15 fois par seconde tant que quelque chose bouge
+    const moving = list.some((p) => p.moving);
+    if ((moving || this.dirty) && this.tickN % 2 === 0) { this.broadcast(this.snap(now)); this.dirty = moving; }
+  }
+  physics(H, t) {
+    const DT = TICK_MS / 1000, list = [...this.players.values()].filter((p) => p.moving && p.ball);
+    if (!list.length) return;
+    let n = 1;
+    list.forEach((p) => { const b = p.ball, sp = b.rail ? Math.abs(b.rail.v) : Math.hypot(b.vx, b.vz, b.vy); n = Math.max(n, Math.ceil(sp * DT / 0.02)); });
+    n = Math.min(n, 60);
+    const sub = DT / n, all = [...this.players.values()].filter((p) => p.ball && !p.sunk && !p.done && p.strokes > 0);
+    for (let s = 0; s < n; s++) {
+      for (const p of list) {
+        if (!p.moving) continue;
+        const b = p.ball;
+        const ctx = { glue: this.glue, magnet: p.magOn, ev: (type, f) => this.onEv(p, type, f) };
+        const r = GS.simStep(b, H, sub, t + s * sub, ctx);
+        if (r) { this.result(p, r, H); continue; }
+        this.pickDice(p);
+      }
+      if (this.opts.collide) this.collide(all);
+    }
+    for (const p of list) if (p.moving && GS.atRest(p.ball, H)) this.rest(p, H);
+  }
+  // choc entre deux balles (même poids) : la vitesse passe de l'une à l'autre selon l'angle, un peu amortie
+  collide(all) {
+    const R2 = GS.R * 2;
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+      const A = all[i], B = all[j], a = A.ball, b = B.ball;
+      if (!A.moving && !B.moving) continue;
+      if (a.rail || b.rail || Math.abs(a.y - b.y) > GS.R) continue;
+      const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+      if (d >= R2 || d < 1e-6) continue;
+      const nx = dx / d, nz = dz / d, ov = (R2 - d) / 2;
+      a.x -= nx * ov; a.z -= nz * ov; b.x += nx * ov; b.z += nz * ov;
+      const rv = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
+      if (rv >= 0) continue;
+      const e = 0.9, jimp = -(1 + e) * rv / 2;
+      a.vx -= jimp * nx; a.vz -= jimp * nz; b.vx += jimp * nx; b.vz += jimp * nz;
+      if (!A.moving || !B.moving) { A.moving = true; B.moving = true; this.broadcast({ t: 'players', ...this.pubState() }); }
+      this.broadcast({ t: 'ev', e: 'bb', a: A.id, b: B.id, f: +(-rv).toFixed(2), x: +((a.x + b.x) / 2).toFixed(2), z: +((a.z + b.z) / 2).toFixed(2) });
+    }
+  }
+  onEv(p, type, f) {
+    const now = Date.now();
+    if (type === 'wall') { if (now - p.lastWall < 90) return; p.lastWall = now; this.broadcast({ t: 'ev', e: 'w', id: p.id, f: +f.toFixed(2) }); }
+    else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
+  }
+  pickDice(p) {
+    if (!this.dice.length || p.powers.length >= MAX_POWERS) return;
+    const b = p.ball, now = Date.now();
+    for (const d of this.dice) {
+      if (d.until > now || Math.abs(b.y - d.h) > 0.35 || Math.hypot(b.x - d.x, b.z - d.z) > 0.26) continue;
+      const pool = GS.POWERS.filter((k) => this.opts[k]); if (!pool.length) return;
+      const pw = pool[Math.floor(Math.random() * pool.length)];
+      p.powers.push(pw); d.until = now + DICE_RESPAWN_MS;
+      this.broadcast({ t: 'ev', e: 'dice', id: p.id, i: d.i, p: pw, until: d.until });
+      this.broadcast({ t: 'players', ...this.pubState() });
+      return;
+    }
+  }
+  result(p, r, H) {
+    const b = p.ball;
+    if (r === 'cup') {
+      p.sunk = true; p.moving = false; b.x = H.cup[0]; b.z = H.cup[1]; b.y = H.cupH; b.vx = b.vz = b.vy = 0; b.rail = null;
+      this.broadcast({ t: 'ev', e: 'cup', id: p.id, s: p.strokes }); this.dirty = true;
+      const gid = this.game.gid, hi = this.game.hi;
+      setTimeout(() => { if (this.game && this.game.gid === gid && this.game.hi === hi && this.players.get(p.k) === p) this.finish(p, p.strokes, ''); }, 700);
+      return;
+    }
+    // dans l'eau ou dans le vide : retour là où on a tiré la dernière fois
+    this.broadcast({ t: 'ev', e: r, id: p.id, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) });
+    b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; b.rail = null; p.moving = false; p.magOn = false; this.dirty = true;
+    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
+  }
+  rest(p, H) {
+    const b = p.ball; b.vx = b.vz = b.vy = 0; p.moving = false; p.magOn = false; this.dirty = true;
+    if (!p.done && !p.sunk && p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
+  }
+
+  /* ------------------------------ messages des joueurs ------------------------------ */
   onMessage(p, ev) {
     let m; try { if (typeof ev.data !== 'string' || ev.data.length > 2000) return; m = JSON.parse(ev.data); } catch (e) { return; }
-    if (!m || typeof m.t !== 'string') return;
+    if (!m || typeof m.t !== 'string' || this.players.get(p.k) !== p) return;
     p.seen = Date.now();
     if (m.t === 'shot') this.shot(p, Number(m.yaw), Number(m.power));
+    else if (m.t === 'use') this.usePower(p, String(m.p || ''));
+    else if (m.t === 'glue') this.placeGlue(p, Number(m.x), Number(m.z));
     else if (m.t === 'reset') this.resetBall(p);
+    else if (m.t === 'opts') this.setOpts(p, m.o || {});
+    else if (m.t === 'start') { if (this.phase === 'lobby' && p.k === this.host) this.startGame(); }
   }
-  canAct(p) { return this.game.phase === 'play' && !p.done && !p.sunk && Date.now() >= p.busyUntil; }
+  canPlay(p) { return this.phase === 'play' && p.ball && !p.done && !p.sunk; }
   shot(p, yaw, power) {
-    if (!this.canAct(p) || !isFinite(yaw) || !isFinite(power) || power < 0.03) return;
+    if (!this.canPlay(p) || p.moving || !isFinite(yaw) || !isFinite(power) || power < 0.03) return;
     power = Math.min(1, power);
-    const g = this.game, H = this.holes[g.hole], R = GS.R, b = p.ball;
-    const sp = Math.pow(power, 1.15) * GS.VMAX;
-    b.vx = Math.sin(yaw) * sp; b.vz = -Math.cos(yaw) * sp; b.vy = 0; b.air = false;
-    p.safe = { x: b.x, z: b.z }; p.strokes++;
-    // les autres balles posées sur le trou sont des obstacles fixes (sauf celle qui est au même endroit que la nôtre : le départ)
-    const others = [];
-    this.players.forEach((q) => { if (q !== p && !q.done && !q.sunk && q.ball && Math.hypot(q.ball.x - b.x, q.ball.z - b.z) >= R * 2.2) others.push({ x: q.ball.x, z: q.ball.z, r: R, y0: q.ball.y - 0.2, y1: q.ball.y + 0.2, e: 0.85 }); });
-    const t0 = Date.now() / 1000, traj = [[+b.x.toFixed(3), +b.y.toFixed(3), +b.z.toFixed(3)]];
-    let res = '', t = t0, steps = 0, frames = 0, shotT = 0;
-    const DT = 1 / 60;
-    while (!res && shotT < MAX_SIM_S) {
-      const spd = Math.hypot(b.vx, b.vz, b.vy), n = Math.min(40, Math.max(1, Math.ceil(spd * DT / 0.02))), sub = DT / n;
-      let r2 = '';
-      for (let i = 0; i < n && !r2; i++) r2 = GS.simStep(b, H, sub, t, others, null);
-      t += DT; shotT += DT; steps++;
-      if (steps % 2 === 0) traj.push([+b.x.toFixed(3), +b.y.toFixed(3), +b.z.toFixed(3)]);
-      if (r2 === 'cup') res = 'cup'; else if (r2 === 'out') res = 'out';
-      else {
-        const fl = GS.floorAt(H, b.x, b.z, b.y + 0.12), steep = fl ? Math.hypot(fl.f.gx, fl.f.gz) : 0;
-        if (!b.air && Math.hypot(b.vx, b.vz) < 0.07 && (steep < 0.02 || shotT > 20)) { b.vx = b.vz = b.vy = 0; res = 'rest'; }
-      }
-    }
-    if (!res) { b.vx = b.vz = b.vy = 0; res = 'rest'; }
-    frames = traj.length;
-    let how = '';
-    if (res === 'cup') { p.sunk = true; b.x = H.cup[0]; b.z = H.cup[1]; }
-    else if (res === 'out') { p.strokes++; b.x = p.safe.x; b.z = p.safe.z; b.y = GS.floorH(H, b.x, b.z); b.vx = b.vz = b.vy = 0; b.air = false; how = 'out'; }
-    p.busyUntil = Date.now() + frames * TRAJ_DT * 1000 + 250;
-    this.broadcast({ t: 'shot', k: p.k, yaw, power, t0: Math.round(t0 * 1000), dt: TRAJ_DT, traj, res, how, end: [+b.x.toFixed(3), +b.y.toFixed(3), +b.z.toFixed(3)], strokes: p.strokes });
-    if (res === 'cup') setTimeout(() => { if (this.game.hole === g.hole && this.game.gid === g.gid && !p.done && this.players.get(p.k) === p) this.finish(p, p.strokes, ''); }, frames * TRAJ_DT * 1000 + 150);
-    else if (p.strokes >= GS.MAXSHOTS) setTimeout(() => { if (this.game.hole === g.hole && this.game.gid === g.gid && !p.done && this.players.get(p.k) === p) this.finish(p, GS.MAXSHOTS + 1, 'max'); }, frames * TRAJ_DT * 1000 + 150);
+    const b = p.ball, sp = Math.pow(power, 1.15) * GS.VMAX;
+    p.safe = { x: b.x, z: b.z, y: b.y };
+    b.vx = Math.sin(yaw) * sp; b.vz = -Math.cos(yaw) * sp; b.vy = 0; b.air = false; b.rail = null;
+    p.strokes++; p.moving = true; p.magOn = p.magnet; p.magnet = false; this.dirty = true;
+    this.broadcast({ t: 'ev', e: 'shot', id: p.id, pw: +power.toFixed(2), s: p.strokes });
+    this.broadcast({ t: 'players', ...this.pubState() });
+  }
+  usePower(p, k) {
+    const at = p.powers.indexOf(k); if (at < 0 || !this.canPlay(p)) return;
+    const b = p.ball;
+    if (k === 'jump') { if (!p.moving || b.rail) return; b.vy = Math.max(b.air ? b.vy : 0, 0) + 3.4; b.air = true; }
+    else if (k === 'ice') { if (!p.moving || b.rail) return; b.vx = 0; b.vz = 0; if (!b.air) { b.vy = 0; } }
+    else if (k === 'magnet') { if (p.moving || p.magnet) return; p.magnet = true; }
+    else return;
+    p.powers.splice(at, 1); this.dirty = true;
+    this.broadcast({ t: 'ev', e: 'pow', id: p.id, p: k, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) });
+    this.broadcast({ t: 'players', ...this.pubState() });
+  }
+  placeGlue(p, x, z) {
+    const at = p.powers.indexOf('glue'); if (at < 0 || this.phase !== 'play' || !isFinite(x) || !isFinite(z)) return;
+    const H = this.hole(), fl = GS.floorAt(H, x, z, 99);
+    if (!fl || Math.hypot(x - H.cup[0], z - H.cup[1]) < 0.8 || Math.hypot(x - H.tee[0], z - H.tee[1]) < 0.8) return;
+    p.powers.splice(at, 1);
+    this.glue.push({ x, z, h: fl.h, r: GLUE_R, until: Date.now() + GLUE_MS, by: p.id });
+    this.broadcast({ t: 'glue', glue: this.pubGlue(), by: p.id, x: +x.toFixed(2), z: +z.toFixed(2) });
+    this.broadcast({ t: 'players', ...this.pubState() });
   }
   resetBall(p) {
-    if (!this.canAct(p) || !p.safe) return;
-    const b = p.ball;
-    if (Math.hypot(b.x - p.safe.x, b.z - p.safe.z) < 0.05) return;
-    const H = this.holes[this.game.hole];
-    b.x = p.safe.x; b.z = p.safe.z; b.y = GS.floorH(H, b.x, b.z); b.vx = b.vz = b.vy = 0; b.air = false; p.strokes++;
-    this.broadcast({ t: 'reset', k: p.k, end: [+b.x.toFixed(3), +b.y.toFixed(3), +b.z.toFixed(3)], strokes: p.strokes });
-    if (p.strokes >= GS.MAXSHOTS && !p.done) this.finish(p, GS.MAXSHOTS + 1, 'max');
+    if (!this.canPlay(p) || p.moving || !p.safe) return;
+    const b = p.ball; if (Math.hypot(b.x - p.safe.x, b.z - p.safe.z) < 0.05) return;
+    b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; p.strokes++; this.dirty = true;
+    this.broadcast({ t: 'ev', e: 'reset', id: p.id, s: p.strokes });
+    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max');
+  }
+  setOpts(p, o) {
+    if (this.phase !== 'lobby' || p.k !== this.host) return;
+    const O = this.opts;
+    ['dice', 'jump', 'glue', 'ice', 'magnet', 'collide', 'freeIce'].forEach((k) => { if (typeof o[k] === 'boolean') O[k] = o[k]; });
+    if (o.holes === 10 || o.holes === 20) O.holes = o.holes;
+    if (this.room.startsWith('priv-') && GS.MAP_IDS.includes(o.map) && o.map !== this.map) { this.setMap(o.map); this.mapSwitchT = Date.now(); }
+    this.broadcast({ t: 'lobby', ...this.pubState() });
   }
 
   /* ------------------------------ envoi ------------------------------ */
-  pubGame() { const g = this.game; return { gid: g.gid, hole: g.hole, phase: g.phase, holeStart: g.holeStart, firstDone: g.firstDone, overAt: g.overAt, now: Date.now() }; }
+  pubGame() { const g = this.game; return g ? { gid: g.gid, list: g.list, hi: g.hi, holeStart: g.holeStart, firstDone: g.firstDone, overAt: g.overAt } : null; }
   pubPlayers() {
-    return [...this.players.values()].map((p) => ({ k: p.k, n: p.n, c: p.c, s: p.strokes, d: p.done ? 1 : 0, sk: p.sunk ? 1 : 0, card: p.card.slice(0, this.holes.length).map((v) => (v == null ? null : v)), x: +p.ball.x.toFixed(3), y: +p.ball.y.toFixed(3), z: +p.ball.z.toFixed(3) }));
+    return [...this.players.values()].map((p) => ({ k: p.k, n: p.n, c: p.c, id: p.id, s: p.strokes, d: p.done ? 1 : 0, sk: p.sunk ? 1 : 0, card: (p.card || []).map((v) => (v == null ? null : v)), pw: p.powers, mg: p.magnet ? 1 : 0, mv: p.moving ? 1 : 0, b: p.ball ? [+p.ball.x.toFixed(3), +p.ball.y.toFixed(3), +p.ball.z.toFixed(3)] : null }));
+  }
+  pubGlue() { return this.glue.map((q) => ({ x: +q.x.toFixed(2), z: +q.z.toFixed(2), h: +q.h.toFixed(2), r: q.r, until: q.until, by: q.by })); }
+  pubState() { return { now: Date.now(), phase: this.phase, map: this.map, host: this.host, opts: this.opts, lobbyT: this.lobbyT, game: this.pubGame(), players: this.pubPlayers(), glue: this.pubGlue(), dice: this.dice.map((d) => ({ i: d.i, until: d.until })) }; }
+  snap(now) {
+    const b = [];
+    this.players.forEach((p) => { if (!p.ball) return; const q = p.ball; b.push([p.id, +q.x.toFixed(3), +q.y.toFixed(3), +q.z.toFixed(3), (p.moving ? 1 : 0) | (p.sunk ? 2 : 0) | (q.rail ? 4 : 0) | (q.air ? 8 : 0)]); });
+    return { t: 's', n: now, b };
   }
   send(ws, o) { try { ws.send(JSON.stringify(o)); } catch (e) { /* connexion fermée */ } }
   broadcast(o) { const s = JSON.stringify(o); this.players.forEach((p) => { try { p.ws.send(s); } catch (e) { /* ok */ } }); }

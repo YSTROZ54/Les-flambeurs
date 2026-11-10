@@ -58,6 +58,15 @@ const server = http.createServer(async (req, res) => {
     res.end('ok'); return;
   }
 
+  if (path === '/api/golf-info') {               // mini golf : joueurs par salle publique + classement, ou carte d'une partie privée
+    const GR = (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom;
+    const code = String(url.searchParams.get('code') || '').toUpperCase();
+    res.setHeader('Content-Type', 'application/json');
+    if (code) { const r = rooms['/ws/golf:priv-' + code]; if (!r || !r.players.size) { res.statusCode = 404; res.end('{}'); return; } res.end(JSON.stringify(r.info())); return; }
+    const out = { rooms: {}, top: GR.topOf(globalThis.__golfHub ? globalThis.__golfHub.stats : {}) };
+    for (const mp of ['prairie', 'automne', 'canyon', 'neige', 'ile']) { const r = rooms['/ws/golf:pub-' + mp]; out.rooms[mp] = r ? r.info() : { n: 0, ph: 'lobby' }; }
+    res.end(JSON.stringify(out)); return;
+  }
   if (path === '/api/prophunt-info') {          // nombre de joueurs par salle publique (comme sur Cloudflare)
     const out = {}; for (const mp of ['manoir', 'casino', 'marche', 'station', 'musee', 'port']) { const r = rooms['/ws/prophunt:pub-' + mp]; out[mp] = { n: r ? r.players.size : 0, ph: r ? r.ph : 'lobby' }; }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(out)); return;
@@ -108,7 +117,7 @@ server.on('upgrade', async (req, socket, head) => {
     let room, key = url.pathname;
     if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
     else if (url.pathname === '/ws/kart') { if (!rooms[key]) { const kr = new (await import(pathToFileURL(join(ROOT, 'api', '_doKart.js')).href)).KartRoom({}, {}); kr.offset = globalThis.__kartOffset || 0; rooms[key] = kr; } room = rooms[key]; }
-    else { key += ':' + url.searchParams.get('course'); if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
+    else { key += ':' + url.searchParams.get('room'); if (!/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salle\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
     const a = await room.admit(url);
     if (a.error) { socket.write('HTTP/1.1 ' + a.status + ' ' + a.error.replace(/[^a-zA-Z ]/g, '') + '\r\n\r\n'); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => {

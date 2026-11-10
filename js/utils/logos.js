@@ -15,6 +15,9 @@
   if (window.FL_LOGOS) return;
 
   var MAP = {
+    // Mini golf
+    '⛳': ['fa-golf-ball-tee', '#4ade80'], '🌼': ['fa-seedling', '#a3e635'], '🍁': ['fa-leaf', '#f97316'], '🏜': ['fa-sun', '#f59e0b'], '🏔': ['fa-mountain', '#bfdbfe'], '🏝': ['fa-umbrella-beach', '#fb923c'],
+    '🦘': ['fa-angles-up', '#86efac'], '🍯': ['fa-droplet', '#f59e0b'], '❄': ['fa-snowflake', '#93c5fd'], '🧲': ['fa-magnet', '#f87171'], '🦅': ['fa-feather', '#facc15'], '🐦': ['fa-dove', '#86efac'], '💦': ['fa-water', '#38bdf8'], '😵': ['fa-face-dizzy', '#fbbf24'], '↺': ['fa-rotate-left', '#cbd5e1'],
     // Prop Hunt
     '🔫': ['fa-crosshairs', '#f87171'], '🎭': ['fa-masks-theater', '#c084fc'], '❤': ['fa-heart', '#ef4444'], '🏠': ['fa-house', '#d6a066'], '🌙': ['fa-moon', '#c4b5fd'], '⚓': ['fa-anchor', '#7dd3fc'],
     '🔍': ['fa-magnifying-glass', '#fbbf24'], '🗺': ['fa-map', '#34d399'], '🕵': ['fa-user-secret', '#cbd5e1'], '🏮': ['fa-lightbulb', '#f97316'], '🛰': ['fa-satellite', '#38bdf8'], '🏚': ['fa-house-chimney-crack', '#a8a29e'],

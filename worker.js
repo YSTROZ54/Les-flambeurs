@@ -209,7 +209,25 @@ export default {
       return new Response(JSON.stringify(globalThis.__prInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
 
-    // WebSocket des jeux temps réel : /ws/kart (la course) et /ws/golf?course=golfjardin|golfneon
+    // Mini golf : joueurs dans chaque salle publique + classement (accueil du golf), ou carte d'une partie privée (?code=XXXXX), mis en cache 4 s
+    if (pathname === '/api/golf-info') {
+      if (!env.GOLF) return new Response('{}', { status: 503 });
+      const code = String(url.searchParams.get('code') || '').toUpperCase();
+      if (code) {
+        if (!/^[A-Z0-9]{5}$/.test(code)) return new Response('{}', { status: 404 });
+        const r = await env.GOLF.get(env.GOLF.idFromName('priv-' + code)).fetch('https://golf/?info=1'); const j = await r.json();
+        return new Response(JSON.stringify(j), { status: j.n ? 200 : 404, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+      }
+      if (!globalThis.__gfInfo || Date.now() - globalThis.__gfInfo.t > 4000) {
+        const rooms = {};
+        await Promise.all(['prairie', 'automne', 'canyon', 'neige', 'ile'].map(async (m) => { try { const r = await env.GOLF.get(env.GOLF.idFromName('pub-' + m)).fetch('https://golf/?info=1'); rooms[m] = await r.json(); } catch (e) { rooms[m] = { n: 0, ph: 'lobby' }; } }));
+        let top = []; try { top = await (await env.GOLF.get(env.GOLF.idFromName('hub')).fetch('https://golf/hub/top')).json(); } catch (e) { /* vide */ }
+        globalThis.__gfInfo = { t: Date.now(), d: { rooms, top } };
+      }
+      return new Response(JSON.stringify(globalThis.__gfInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+
+    // WebSocket des jeux temps réel : /ws/kart (la course) et /ws/golf?room=pub-<carte>|priv-<CODE>
     if (pathname === '/ws/kart' || pathname === '/ws/golf' || pathname === '/ws/prophunt') {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
       if (pathname === '/ws/prophunt') {
@@ -219,9 +237,9 @@ export default {
         return env.PROP.get(env.PROP.idFromName(prRoom)).fetch(request);          // une salle (Durable Object) par carte publique et par salon privé
       }
       if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); return env.KART.get(env.KART.idFromName('main')).fetch(request); }
-      const course = url.searchParams.get('course');
-      if (!env.GOLF || (course !== 'golfjardin' && course !== 'golfneon')) return new Response('Parcours inconnu', { status: 404 });
-      return env.GOLF.get(env.GOLF.idFromName(course)).fetch(request);
+      const gRoom = String(url.searchParams.get('room') || '');
+      if (!env.GOLF || !/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(gRoom)) return new Response('Salle inconnue', { status: 404 });
+      return env.GOLF.get(env.GOLF.idFromName(gRoom)).fetch(request);           // une salle (Durable Object) par carte publique et par partie privée
     }
 
     // Gestion des routes /api/*

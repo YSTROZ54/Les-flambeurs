@@ -2,77 +2,147 @@
 const SIM = (function () {
   'use strict';
   var TAU = Math.PI * 2;
-  function yawFor(dx, dz) { return Math.atan2(dx, -dz); }
-  var R = 0.075, CUP = 0.13, VMAX = 9.5, GRAV = 9.8, MAXSHOTS = 10, WAIT_S = 60, WALL_H = 0.16;
-  /* ------------------------------------------------------------------
-     LES PARCOURS. Un trou = un couloir (pts : [x, z, hauteur]) de largeur w ; gaps = numéros des tronçons sans sol (le vide ou l'eau) ;
-     obs = obstacles : post (poteau), bump (bumper qui renvoie fort), mill (tourniquet), slide (bloc qui va et vient), block (bloc fixe).
-     ox, oz : où le trou est posé dans la salle. Le départ est au début du couloir, le trou à la fin.
-     ------------------------------------------------------------------ */
-  var COURSES = {
-    golfjardin: {
-      title: '🌳 LE JARDIN', name: 'Le Jardin', style: 'jardin', sub: 'PARCOURS EN PLEIN AIR',
-      holes: [
-        { name: 'Premier pas', par: 2, ox: -10, oz: 6, pts: [[0, 0, 0], [0, -2.5, 0], [0, -4, 0.25], [0, -7.5, 0.25]] },
-        { name: 'Le virage', par: 3, ox: 0, oz: 6, pts: [[0, 0, 0], [0, -6, 0], [4.5, -6, 0]], obs: [{ t: 'bump', x: -0.38, z: -6.38, r: 0.22 }, { t: 'post', x: 2.2, z: -6.25, r: 0.12 }] },
-        { name: 'Le plateau', par: 3, ox: 10, oz: 6, pts: [[0, 0, 0], [0, -3, 0], [0, -5.5, 0.6], [0, -9, 0.6]], obs: [{ t: 'post', x: -0.35, z: -7.2, r: 0.12 }, { t: 'post', x: 0.35, z: -7.2, r: 0.12 }] },
-        { name: 'Le moulin', par: 3, ox: -10, oz: -10, w: 1.6, pts: [[0, 0, 0], [0, -10, 0]], obs: [{ t: 'mill', x: 0, z: -5, len: 0.74, speed: 1.3, n: 4, house: true }] },
-        { name: 'Le saut de l\'étang', par: 3, ox: 0, oz: -10, pts: [[0, 0, 0], [0, -3, 0], [0, -4.6, 0.45], [0, -6.1, 0], [0, -10, 0]], gaps: [2], water: true },
-        { name: 'Le zigzag', par: 4, ox: 9, oz: -10, pts: [[0, 0, 0], [0, -4, 0], [3, -4, 0], [3, -8, 0], [0, -8, 0], [0, -11, 0]], obs: [{ t: 'slide', x: 3, z: -6, w: 0.5, d: 0.3, ax: 'x', amp: 0.5, speed: 1.4 }, { t: 'post', x: 0.4, z: -9.6, r: 0.12 }] }
-      ]
-    },
-    golfneon: {
-      title: '🌌 NÉON', name: 'Néon', style: 'neon', sub: 'PARCOURS EN LUMIÈRE NOIRE',
-      holes: [
-        { name: 'Lueur', par: 2, ox: -10, oz: 6, pts: [[0, 0, 0], [0, -8, 0]], w: 1.7, obs: [{ t: 'bump', x: 0, z: -4.2, r: 0.2 }, { t: 'bump', x: -0.45, z: -5.2, r: 0.18 }, { t: 'bump', x: 0.45, z: -5.2, r: 0.18 }] },
-        { name: 'Le S', par: 3, ox: 0, oz: 6, pts: [[0, 0, 0], [0, -3, 0], [2.5, -5, 0], [2.5, -8, 0], [0, -10, 0], [0, -12, 0]] },
-        { name: 'Le flipper', par: 3, ox: 10, oz: 6, w: 3.2, pts: [[0, 0, 0], [0, -9, 0]], obs: [{ t: 'bump', x: -0.8, z: -3, r: 0.22 }, { t: 'bump', x: 0.8, z: -3, r: 0.22 }, { t: 'bump', x: 0, z: -4.6, r: 0.26 }, { t: 'bump', x: -1.0, z: -6.2, r: 0.2 }, { t: 'bump', x: 1.0, z: -6.2, r: 0.2 }, { t: 'block', x: 0, z: -7.4, w: 1.4, d: 0.12 }] },
-        { name: 'Tourniquets', par: 3, ox: -10, oz: -10, w: 1.6, pts: [[0, 0, 0], [0, -11, 0]], obs: [{ t: 'mill', x: 0, z: -3.6, len: 0.74, speed: 1.6, n: 3 }, { t: 'mill', x: 0, z: -7.6, len: 0.74, speed: -2.0, n: 4 }] },
-        { name: 'La rampe cosmique', par: 3, ox: 0, oz: -10, pts: [[0, 0, 0], [0, -2, 0], [0, -4.5, 0.7], [0, -6.5, 0.7], [3, -6.5, 0.7], [3, -9, 0], [3, -11, 0]] },
-        { name: 'Le grand final', par: 4, ox: 10, oz: -10, pts: [[0, 0, 0], [0, -3, 0], [0, -4.5, 0.4], [0, -6, 0], [0, -9, 0], [-3, -9, 0], [-3, -12, 0]], gaps: [2], obs: [{ t: 'slide', x: -1.5, z: -9, w: 0.3, d: 0.5, ax: 'z', amp: 0.5, speed: 1.8 }, { t: 'bump', x: -3.4, z: -10.6, r: 0.18 }] }
-      ]
-    }
-  };
+  var R = 0.075, CUP = 0.14, VMAX = 10, GRAV = 9.8, MAXSHOTS = 12, WAIT_S = 60, WALL_H = 0.17, GROUND = -0.16, WATER_Y = -0.34;
+  var LOOP_R = 0.6, LOOP_SHIFT = 0.5, LOOP_W = 0.56;
 
-  /* ------------------------------------------------------------------ géométrie d'un trou (sol, bordures, obstacles) ------------------------------------------------------------------ */
-  function buildHoleData(spec) {
-    var ox = spec.ox, oz = spec.oz, w = spec.w || 1.5, hw = w / 2, gaps = spec.gaps || [];
-    var P = spec.pts.map(function (p) { return [p[0] + ox, p[1] + oz, p[2] || 0]; }), n = P.length, D = [], i;
-    for (i = 0; i < n - 1; i++) { var dx = P[i + 1][0] - P[i][0], dz = P[i + 1][1] - P[i][1], l = Math.hypot(dx, dz); D.push({ x: dx / l, z: dz / l, len: l }); }
-    function nrm(d) { return { x: -d.z, z: d.x }; }
+  /* ------------------------------------------------------------------ les cartes (titre, style) ------------------------------------------------------------------ */
+  var MAPS = {
+    prairie: { name: 'La Prairie', emoji: '🌼', sub: 'Collines fleuries, moulins et étangs', water: true, col: '#5fbf4a' },
+    automne: { name: 'La Forêt d\'automne', emoji: '🍁', sub: 'Sous-bois dorés, troncs et champignons', water: true, col: '#e0782f' },
+    canyon: { name: 'Le Canyon', emoji: '🏜️', sub: 'Ponts suspendus au-dessus du vide', water: false, col: '#d99a4e' },
+    neige: { name: 'Les Cimes enneigées', emoji: '🏔️', sub: 'Glace, sapins et descentes en spirale', water: false, col: '#8fc4ff' },
+    ile: { name: 'L\'Île au soleil couchant', emoji: '🏝️', sub: 'Sable, pontons et sauts au-dessus de la mer', water: true, col: '#ff9f5a' }
+  };
+  var MAP_IDS = ['prairie', 'automne', 'canyon', 'neige', 'ile'];
+  var POWERS = ['jump', 'glue', 'ice', 'magnet'];
+  var DEFAULT_OPTS = { dice: true, jump: true, glue: true, ice: true, magnet: true, collide: true, freeIce: false, holes: 20 };
+
+  /* ------------------------------------------------------------------ le tracé d'un trou ------------------------------------------------------------------
+     Pièces : ['s', longueur, dénivelé] · ['l'|'r', degrés, rayon, dénivelé] · ['w', largeur] · ['gap', longueur, 'water'|'void', dénivelé]
+              ['loop'] · ['o', type, {fw, lat, ...}] · ['z', 'sand'|'ice', longueur] · ['nw', longueur] (sans bordure) · ['tun', longueur] (tunnel) */
+  function walk(spec) {
+    var x = 0, z = 0, a = 0, h = 0, w = spec.w || 1.4, s = 0, wFrom = w, wTo = w, wLeft = 0, WT = 1.4;
+    var S = [], obs = [], loops = [], zoneKind = null, zoneEnd = -1, nwEnd = -1, nwKind = 'void', tunEnd = -1;
+    function push(joint, seg) { S.push({ x: x, z: z, h: h, w: w, s: s, a: a, joint: !!joint, seg: seg || {} }); }
+    function segProps(extra) {
+      var o = { zone: s <= zoneEnd ? zoneKind : null, nw: s <= nwEnd ? nwKind : null, tun: s <= tunEnd };
+      for (var k in extra) o[k] = extra[k];
+      return o;
+    }
+    function stepW(dl) { if (wLeft > 0) { var k = Math.min(1, dl / wLeft); w = w + (wTo - w) * k; wLeft -= dl; if (wLeft <= 0) w = wTo; } }
+    push(true);
+    (spec.pcs || []).forEach(function (p) {
+      var t = p[0], i, n;
+      if (t === 's' || t === 'gap') {
+        var len = p[1], dh = (t === 's' ? p[2] : p[3]) || 0; n = Math.max(1, Math.ceil(len / 0.5));
+        for (i = 0; i < n; i++) {
+          x += Math.sin(a) * len / n; z -= Math.cos(a) * len / n; h += dh / n; s += len / n; stepW(len / n);
+          push(i === n - 1, segProps(t === 'gap' ? { gap: p[2] || 'void' } : {}));
+        }
+      } else if (t === 'l' || t === 'r') {
+        var ang = p[1] * Math.PI / 180, rad = p[2], dh2 = p[3] || 0, arc = ang * rad; n = Math.max(2, Math.ceil(arc / 0.3));
+        var da = (t === 'r' ? 1 : -1) * ang / n, ch = 2 * rad * Math.sin(ang / n / 2);
+        for (i = 0; i < n; i++) { var am = a + da / 2; x += Math.sin(am) * ch; z -= Math.cos(am) * ch; a += da; h += dh2 / n; s += arc / n; stepW(arc / n); push(i === n - 1, segProps({})); }
+      } else if (t === 'w') { wFrom = w; wTo = p[1]; wLeft = p[2] || WT; }
+      else if (t === 'z') { zoneKind = p[1]; zoneEnd = s + p[2]; }
+      else if (t === 'nw') { nwEnd = s + p[1]; nwKind = p[2] || 'void'; }
+      else if (t === 'tun') { tunEnd = s + p[1]; }
+      else if (t === 'loop') {
+        var ex = x, ez = z, sx = Math.cos(a), sz = Math.sin(a), side = p[1] === 'l' ? -1 : 1;
+        loops.push({ x: ex, z: ez, h: h, dx: Math.sin(a), dz: -Math.cos(a), sx: sx * side, sz: sz * side, r: LOOP_R, shift: LOOP_SHIFT, w: w, s: s, a: a });
+        x += sx * side * LOOP_SHIFT + Math.sin(a) * 0.14; z += sz * side * LOOP_SHIFT - Math.cos(a) * 0.14; s += 0.14 + Math.PI * 2 * LOOP_R;
+        push(true, { skip: true, cap: true });
+      } else if (t === 'o') {
+        var o = {}, q = p[2] || {}; for (var k in q) o[k] = q[k]; o.t = p[1];
+        var fw = o.fw || 0, lat = o.lat || 0;
+        o.x = x + Math.sin(a) * fw + Math.cos(a) * lat; o.z = z - Math.cos(a) * fw + Math.sin(a) * lat; o.a = a; o.s = s + fw; o.w0 = w;
+        obs.push(o);
+      }
+    });
+    return { S: S, obs: obs, loops: loops };
+  }
+
+  /* ------------------------------------------------------------------ données physiques d'un trou ------------------------------------------------------------------ */
+  function buildHole(spec, ox, oz) {
+    var Wk = walk(spec), S = Wk.S, n = S.length, i;
+    S.forEach(function (p) { p.x += ox; p.z += oz; });
+    Wk.obs.forEach(function (o) { o.x += ox; o.z += oz; });
+    Wk.loops.forEach(function (l) { l.x += ox; l.z += oz; });
+    // bords gauche / droite de chaque point (le côté droit d'une direction a est (cos a, sin a))
     var L = [], Rr = [];
     for (i = 0; i < n; i++) {
-      var mx, mz;
-      if (i === 0) { var a0 = nrm(D[0]); mx = a0.x * hw; mz = a0.z * hw; }
-      else if (i === n - 1) { var a1 = nrm(D[n - 2]); mx = a1.x * hw; mz = a1.z * hw; }
-      else { var n0 = nrm(D[i - 1]), n1 = nrm(D[i]), sx = n0.x + n1.x, sz = n0.z + n1.z, sl = Math.hypot(sx, sz); sx /= sl; sz /= sl; var k = hw / (sx * n1.x + sz * n1.z); mx = sx * k; mz = sz * k; }
-      L.push([P[i][0] + mx, P[i][1] + mz, P[i][2]]); Rr.push([P[i][0] - mx, P[i][1] - mz, P[i][2]]);
+      var p = S[i], prevOk = i > 0 && !S[i].seg.skip, nextOk = i < n - 1 && !S[i + 1].seg.skip, rx = 0, rz = 0, c = 0;
+      if (prevOk) { var d0 = norm(p.x - S[i - 1].x, p.z - S[i - 1].z); rx += -d0.z; rz += d0.x; c++; }
+      if (nextOk) { var d1 = norm(S[i + 1].x - p.x, S[i + 1].z - p.z); rx += -d1.z; rz += d1.x; c++; }
+      if (!c) { rx = Math.cos(p.a); rz = Math.sin(p.a); }
+      var rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;
+      var k = 1; if (prevOk && nextOk) { var dA = norm(p.x - S[i - 1].x, p.z - S[i - 1].z), dB = norm(S[i + 1].x - p.x, S[i + 1].z - p.z), cs = -dA.z * rx + dA.x * rz; k = 1 / Math.max(0.6, cs); }
+      // attention : (-dz, dx) est le côté GAUCHE quand on regarde vers d=(dx,dz) avec z vers le bas de l'écran… on garde la convention : L = point + n * w/2
+      L.push([p.x + rx * p.w / 2 * k, p.z + rz * p.w / 2 * k, p.h]); Rr.push([p.x - rx * p.w / 2 * k, p.z - rz * p.w / 2 * k, p.h]);
     }
-    var floors = [], walls = [], minH = 1e9, maxH = -1e9;
-    for (i = 0; i < n - 1; i++) {
-      minH = Math.min(minH, P[i][2], P[i + 1][2]); maxH = Math.max(maxH, P[i][2], P[i + 1][2]);
-      if (gaps.indexOf(i) >= 0) continue;
-      var d = D[i], h0 = P[i][2], h1 = P[i + 1][2];
-      floors.push({ poly: [L[i], L[i + 1], Rr[i + 1], Rr[i]], ax: P[i][0], az: P[i][1], dx: d.x, dz: d.z, len: d.len, h0: h0, h1: h1, gx: (h1 - h0) / d.len * d.x, gz: (h1 - h0) / d.len * d.z, seg: i });
-      walls.push(seg3(L[i], L[i + 1]), seg3(Rr[i], Rr[i + 1]));
+    var floors = [], walls = [], gaps = [], minH = 0, maxH = 0;
+    for (i = 1; i < n; i++) {
+      var A = S[i - 1], B = S[i], sg = B.seg;
+      minH = Math.min(minH, A.h, B.h); maxH = Math.max(maxH, A.h, B.h);
+      if (sg.skip) continue;
+      var dd = norm(B.x - A.x, B.z - A.z), ln = Math.hypot(B.x - A.x, B.z - A.z) || 1e-6;
+      var poly = [L[i - 1], L[i], Rr[i], Rr[i - 1]];
+      if (sg.gap) { gaps.push({ poly: poly, kind: sg.gap, i: i }); continue; }
+      floors.push({ poly: poly, ax: A.x, az: A.z, dx: dd.x, dz: dd.z, len: ln, h0: A.h, h1: B.h, gx: (B.h - A.h) / ln * dd.x, gz: (B.h - A.h) / ln * dd.z, zone: sg.zone || null, i: i, s0: A.s, s1: B.s, w0: A.w, w1: B.w });
+      if (!sg.nw) walls.push(seg3(L[i - 1], L[i]), seg3(Rr[i - 1], Rr[i]));
+      else { var ox1 = (L[i - 1][0] - Rr[i - 1][0]) * 1.6, oz1 = (L[i - 1][1] - Rr[i - 1][1]) * 1.6, ox2 = (L[i][0] - Rr[i][0]) * 1.6, oz2 = (L[i][1] - Rr[i][1]) * 1.6; gaps.push({ poly: [[L[i - 1][0] + ox1, L[i - 1][1] + oz1], [L[i][0] + ox2, L[i][1] + oz2], [Rr[i][0] - ox2, Rr[i][1] - oz2], [Rr[i - 1][0] - ox1, Rr[i - 1][1] - oz1]], kind: sg.nw, i: i, side: true }); }
     }
-    if (gaps.indexOf(0) < 0) walls.push(seg3(Rr[0], L[0]));
-    if (gaps.indexOf(n - 2) < 0) walls.push(seg3(L[n - 1], Rr[n - 1]));
-    var dl = D[n - 2], d0 = D[0];
-    var tee = [P[0][0] + d0.x * 0.6, P[0][1] + d0.z * 0.6], cup = [P[n - 1][0] - dl.x * 0.75, P[n - 1][1] - dl.z * 0.75];
+    walls.push(seg3(Rr[0], L[0]));                                    // fond du départ
+    walls.push(seg3(L[n - 1], Rr[n - 1]));                            // fond du trou
+    for (i = 1; i < n; i++) if (S[i].seg.cap) walls.push(seg3(Rr[i], L[i]));   // juste après une boucle (on ne repart pas en arrière)
+    var dEnd = norm(S[n - 1].x - S[n - 2].x, S[n - 1].z - S[n - 2].z), dSt = norm(S[1].x - S[0].x, S[1].z - S[0].z);
+    var tee = [S[0].x + dSt.x * 0.7, S[0].z + dSt.z * 0.7], cup = [S[n - 1].x - dEnd.x * 0.85, S[n - 1].z - dEnd.z * 0.85];
     var bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9;
     L.concat(Rr).forEach(function (q) { bx0 = Math.min(bx0, q[0]); bx1 = Math.max(bx1, q[0]); bz0 = Math.min(bz0, q[1]); bz1 = Math.max(bz1, q[1]); });
-    var H = { spec: spec, P: P, D: D, L: L, Rr: Rr, w: w, floors: floors, walls: walls, circles: [], dyn: [], tee: tee, cup: cup, minH: minH, maxH: maxH, box: [bx0, bz0, bx1, bz1], par: spec.par, name: spec.name };
-    H.teeYaw = yawFor(d0.x, d0.z);
-    (spec.obs || []).forEach(function (o) {
-      var x = o.x + ox, z = o.z + oz, fh = floorH(H, x, z);
-      if (o.t === 'post' || o.t === 'bump') H.circles.push({ x: x, z: z, r: o.r, y0: fh - 0.3, y1: fh + 0.3, e: o.t === 'bump' ? 1.25 : 0.7, bump: o.t === 'bump', o: o, h: fh, flash: 0 });
-      else if (o.t === 'block') { var hw2 = o.w / 2, hd = o.d / 2; [[[-hw2, -hd], [hw2, -hd]], [[hw2, -hd], [hw2, hd]], [[hw2, hd], [-hw2, hd]], [[-hw2, hd], [-hw2, -hd]]].forEach(function (e) { H.walls.push({ ax: x + e[0][0], az: z + e[0][1], bx: x + e[1][0], bz: z + e[1][1], y0: fh - 0.3, y1: fh + WALL_H, e: 0.7 }); }); o.h = fh; o.wx = x; o.wz = z; }
-      else if (o.t === 'mill' || o.t === 'slide') H.dyn.push({ o: o, x: x, z: z, h: fh });
+    var H = { spec: spec, name: spec.n, par: spec.p, S: S, L: L, Rr: Rr, floors: floors, walls: walls, gaps: gaps, circles: [], dyn: [], loops: Wk.loops, obs: Wk.obs, tee: tee, cup: cup, minH: minH, maxH: maxH, box: [bx0, bz0, bx1, bz1], len: S[n - 1].s, dice: [] };
+    H.teeYaw = Math.atan2(dSt.x, -dSt.z);
+    H.cupH = S[n - 1].h; H.teeH = S[0].h;
+    buildGrid(H);
+    Wk.obs.forEach(function (o) {
+      var fh = floorH(H, o.x, o.z); o.h = fh;
+      if (o.t === 'post' || o.t === 'bump' || o.t === 'rock') H.circles.push({ x: o.x, z: o.z, r: o.r || 0.14, y0: fh - 0.4, y1: fh + (o.t === 'rock' ? 0.8 : 0.35), e: o.t === 'bump' ? 1.2 : 0.6, bump: o.t === 'bump', o: o, h: fh, flash: 0 });
+      else if (o.t === 'block') { boxWalls(o, o.x, o.z, o.a, o.bw || 0.6, o.bd || 0.25, fh, H.walls); }
+      else H.dyn.push({ o: o, x: o.x, z: o.z, h: fh });
+    });
+    buildGrid(H);
+    // les dés : à 30 %, 55 % et 80 % du trou, au milieu de la piste (jamais sur un saut, une boucle, du sable ou de la glace)
+    [0.3, 0.55, 0.8].forEach(function (f) {
+      var target = H.len * f, best = null;
+      floors.forEach(function (fl) { if (fl.zone || best) return; if (fl.s0 <= target && fl.s1 >= target) best = fl; });
+      if (!best) return;
+      var k = (target - best.s0) / Math.max(1e-6, best.s1 - best.s0), dx = best.ax + best.dx * best.len * k, dz = best.az + best.dz * best.len * k;
+      var near = H.dyn.concat(H.circles).some(function (q) { return Math.hypot(q.x - dx, q.z - dz) < 1.0; }) || Math.hypot(dx - H.cup[0], dz - H.cup[1]) < 1.5;
+      if (!near) H.dice.push({ x: dx, z: dz, h: fH(best, dx, dz) });
     });
     return H;
-    function seg3(a, b) { return { ax: a[0], az: a[1], bx: b[0], bz: b[1], y0: Math.min(a[2], b[2]) - 0.35, y1: Math.max(a[2], b[2]) + WALL_H, e: 0.7, ha: a[2], hb: b[2] }; }
+    function seg3(a, b) { return { ax: a[0], az: a[1], bx: b[0], bz: b[1], y0: Math.min(a[2], b[2]) - 0.4, y1: Math.max(a[2], b[2]) + WALL_H, e: 0.62, ha: a[2], hb: b[2], rail: true }; }
   }
+  function boxWalls(o, x, z, a, bw, bd, fh, out) {
+    var c = Math.cos(a), s = Math.sin(a), hw = bw / 2, hd = bd / 2;
+    // bw : en travers de la piste (côté droit = (cos a, sin a)), bd : dans le sens de la piste (d = (sin a, -cos a))
+    var P = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(function (q) { return [x + c * q[0] + s * q[1], z + s * q[0] - c * q[1]]; });
+    for (var k = 0; k < 4; k++) { var A = P[k], B = P[(k + 1) % 4]; out.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0: fh - 0.4, y1: fh + (o.bh || 0.24), e: 0.6 }); }
+    o.corners = P;
+  }
+  function norm(x, z) { var l = Math.hypot(x, z) || 1; return { x: x / l, z: z / l }; }
+  // grille : pour chaque case de 1 m, les sols et les bordures qui la touchent (bien plus rapide que de tout tester)
+  var CELL = 1;
+  function buildGrid(H) {
+    var G = {};
+    function add(key, kind, it) { var c = G[key] || (G[key] = { f: [], w: [] }); if (c[kind].indexOf(it) < 0) c[kind].push(it); }
+    function cover(x0, z0, x1, z1, kind, it) { for (var ix = Math.floor(x0 / CELL); ix <= Math.floor(x1 / CELL); ix++) for (var iz = Math.floor(z0 / CELL); iz <= Math.floor(z1 / CELL); iz++) add(ix + ',' + iz, kind, it); }
+    H.floors.forEach(function (f) { var xs = f.poly.map(function (q) { return q[0]; }), zs = f.poly.map(function (q) { return q[1]; }); cover(Math.min.apply(0, xs), Math.min.apply(0, zs), Math.max.apply(0, xs), Math.max.apply(0, zs), 'f', f); });
+    var m = R + 0.05;
+    H.walls.forEach(function (w) { cover(Math.min(w.ax, w.bx) - m, Math.min(w.az, w.bz) - m, Math.max(w.ax, w.bx) + m, Math.max(w.az, w.bz) + m, 'w', w); });
+    H.grid = G;
+  }
+  var EMPTY = { f: [], w: [] };
+  function cellAt(H, x, z) { return H.grid[Math.floor(x / CELL) + ',' + Math.floor(z / CELL)] || EMPTY; }
   function inPoly(poly, x, z) {
     var pos = false, neg = false;
     for (var i = 0; i < poly.length; i++) {
@@ -84,31 +154,40 @@ const SIM = (function () {
   }
   function fH(f, x, z) { var t = ((x - f.ax) * f.dx + (z - f.az) * f.dz) / f.len; t = t < 0 ? 0 : t > 1 ? 1 : t; return f.h0 + (f.h1 - f.h0) * t; }
   function floorAt(H, x, z, yMax) {
-    var best = null, bh = -1e9;
-    for (var i = 0; i < H.floors.length; i++) { var f = H.floors[i]; if (!inPoly(f.poly, x, z)) continue; var h = fH(f, x, z); if (h <= yMax && h > bh) { bh = h; best = f; } }
+    var best = null, bh = -1e9, fl = cellAt(H, x, z).f;
+    for (var i = 0; i < fl.length; i++) { var f = fl[i]; if (!inPoly(f.poly, x, z)) continue; var h = fH(f, x, z); if (h <= yMax && h > bh) { bh = h; best = f; } }
     return best ? { f: best, h: bh } : null;
   }
   function floorH(H, x, z) { var r = floorAt(H, x, z, 99); return r ? r.h : 0; }
-  function nowS() { return Date.now() / 1000; }
-  // segments des obstacles qui bougent, à l'instant t (même heure pour tout le monde) ; vx/vz : vitesse de l'obstacle (pour le renvoi)
+  function overGap(H, x, z) { for (var i = 0; i < H.gaps.length; i++) if (inPoly(H.gaps[i].poly, x, z)) return H.gaps[i]; return null; }
+
+  /* ------------------------------------------------------------------ obstacles qui bougent (même heure pour tout le monde) ------------------------------------------------------------------ */
   function dynSegs(H, t, out) {
     out.length = 0;
-    H.dyn.forEach(function (d) {
-      var o = d.o;
-      if (o.t === 'mill') {
-        var th = o.speed * t;
-        for (var k = 0; k < o.n; k++) { var a = th + k * TAU / o.n; out.push({ ax: d.x, az: d.z, bx: d.x + Math.cos(a) * o.len, bz: d.z + Math.sin(a) * o.len, y0: d.h - 0.3, y1: d.h + 0.2, e: 0.6, spin: o.speed, cx: d.x, cz: d.z }); }
+    for (var di = 0; di < H.dyn.length; di++) {
+      var d = H.dyn[di], o = d.o, k, c = Math.cos(o.a), s = Math.sin(o.a);
+      if (o.t === 'mill' || o.t === 'spinner') {
+        var n = o.n || (o.t === 'spinner' ? 2 : 4), len = o.len || 0.7, th = (o.speed || 1.4) * t;
+        for (k = 0; k < n; k++) { var ang = th + k * TAU / n; out.push({ ax: d.x, az: d.z, bx: d.x + Math.cos(ang) * len, bz: d.z + Math.sin(ang) * len, y0: d.h - 0.3, y1: d.h + 0.22, e: 0.6, spin: o.speed || 1.4, cx: d.x, cz: d.z }); }
       } else if (o.t === 'slide') {
-        var s = Math.sin(o.speed * t) * o.amp, v = Math.cos(o.speed * t) * o.amp * o.speed, cx = d.x + (o.ax === 'x' ? s : 0), cz = d.z + (o.ax === 'z' ? s : 0), vx = o.ax === 'x' ? v : 0, vz = o.ax === 'z' ? v : 0, hw = o.w / 2, hd = o.d / 2;
-        [[[-hw, -hd], [hw, -hd]], [[hw, -hd], [hw, hd]], [[hw, hd], [-hw, hd]], [[-hw, hd], [-hw, -hd]]].forEach(function (e) { out.push({ ax: cx + e[0][0], az: cz + e[0][1], bx: cx + e[1][0], bz: cz + e[1][1], y0: d.h - 0.3, y1: d.h + 0.22, e: 0.7, vx: vx, vz: vz }); });
+        var amp = o.amp || 0.45, sp = o.speed || 1.4, sv = Math.sin(sp * t) * amp, vv = Math.cos(sp * t) * amp * sp;
+        var cx = d.x + c * sv, cz = d.z + s * sv, vx = c * vv, vz = s * vv, hw = (o.bw || 0.5) / 2, hd = (o.bd || 0.3) / 2;
+        var P = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(function (q) { return [cx + c * q[0] + s * q[1], cz + s * q[0] - c * q[1]]; });
+        for (k = 0; k < 4; k++) { var A = P[k], B = P[(k + 1) % 4]; out.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0: d.h - 0.3, y1: d.h + 0.24, e: 0.65, vx: vx, vz: vz }); }
+      } else if (o.t === 'gate') {
+        var open = gateOpen(o, t); if (open > 0.6) continue;
+        var gw = (o.w0 || 1.4) / 2 + 0.05;
+        out.push({ ax: d.x - c * gw, az: d.z - s * gw, bx: d.x + c * gw, bz: d.z + s * gw, y0: d.h - 0.3 + open * 0.5, y1: d.h + 0.4, e: 0.5 });
       }
-    });
+    }
     return out;
   }
+  // la porte qui monte et descend : 0 = fermée, 1 = grande ouverte
+  function gateOpen(o, t) { var ph = ((t * (o.speed || 0.5) + (o.ph || 0)) % 1 + 1) % 1; return ph < 0.4 ? 1 : ph < 0.5 ? 1 - (ph - 0.4) * 10 : ph < 0.85 ? 0 : (ph - 0.85) / 0.15; }
 
   /* ------------------------------------------------------------------ physique de la balle ------------------------------------------------------------------ */
   var DYN = [];
-  function hitSeg(b, s, sound) {
+  function hitSeg(b, s, ev) {
     if (b.y > s.y1 + R * 0.4 || b.y < s.y0) return false;
     var ex = s.bx - s.ax, ez = s.bz - s.az, L2 = ex * ex + ez * ez; if (L2 < 1e-9) return false;
     var t = ((b.x - s.ax) * ex + (b.z - s.az) * ez) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -118,36 +197,66 @@ const SIM = (function () {
     var svx = s.vx || 0, svz = s.vz || 0;
     if (s.spin) { svx = -s.spin * (cz - s.cz); svz = s.spin * (cx - s.cx); }
     var rvx = b.vx - svx, rvz = b.vz - svz, vn = rvx * nx + rvz * nz;
-    if (vn < 0) { var e = s.e || 0.7; rvx -= (1 + e) * vn * nx; rvz -= (1 + e) * vn * nz; rvx *= 0.97; rvz *= 0.97; if (sound) sound(-vn, 'wall'); }
+    if (vn < 0) { var e = s.e || 0.62; rvx -= (1 + e) * vn * nx; rvz -= (1 + e) * vn * nz; rvx *= 0.97; rvz *= 0.97; if (ev && -vn > 0.25) ev('wall', -vn); }
     else if (s.spin || s.vx || s.vz) { rvx += nx * 0.4; rvz += nz * 0.4; }
     b.vx = rvx + svx; b.vz = rvz + svz;
     return true;
   }
-  function hitCircle(b, c, sound) {
+  function hitCircle(b, c, ev) {
     if (b.y > c.y1 || b.y < c.y0) return false;
     var dx = b.x - c.x, dz = b.z - c.z, d = Math.hypot(dx, dz), rr = R + c.r;
     if (d >= rr || d < 1e-7) return false;
     var nx = dx / d, nz = dz / d; b.x = c.x + nx * rr; b.z = c.z + nz * rr;
     var vn = b.vx * nx + b.vz * nz;
     if (vn < 0) {
-      var e = c.e || 0.7; b.vx -= (1 + e) * vn * nx; b.vz -= (1 + e) * vn * nz;
-      if (c.bump) { var sp = Math.hypot(b.vx, b.vz); if (sp < 2.2) { b.vx += nx * 1.2; b.vz += nz * 1.2; } c.flash = 1; }
-      if (sound) sound(-vn, c.bump ? 'bump' : 'wall');
+      var e = c.e || 0.6; b.vx -= (1 + e) * vn * nx; b.vz -= (1 + e) * vn * nz;
+      if (c.bump) { var sp = Math.hypot(b.vx, b.vz); if (sp < 2.4) { b.vx += nx * 1.3; b.vz += nz * 1.3; } c.flash = 1; }
+      if (ev) ev(c.bump ? 'bump' : 'wall', -vn);
     }
     return true;
   }
-  // un petit pas de simulation ; renvoie 'cup' (dans le trou), 'out' (tombé dans l'eau ou le vide) ou ''
-  function simStep(b, H, dt, t, others, sound) {
-    var fl;
+  // la boucle : la balle suit le cercle tant qu'elle va assez vite, sinon elle retombe (puis roule en arrière)
+  function railStep(b, H, dt, ev) {
+    var rl = b.rail, Lp = rl.L, th = rl.th, v = rl.v;
+    var acc = -GRAV * Math.sin(th) * 0.71 - (v > 0 ? 1 : -1) * (0.35 + 0.03 * v * v);
+    v += acc * dt; th += v * dt / Lp.r;
+    var nrm = v * v / Lp.r + GRAV * Math.cos(th);
+    if (th > 0.6 && th < TAU - 0.6 && nrm < 0) {                // plus assez de vitesse : elle décroche et tombe
+      var ct = Math.cos(th), st = Math.sin(th), k = v;
+      b.vx = Lp.dx * ct * k; b.vz = Lp.dz * ct * k; b.vy = st * k;
+      setRailPos(b, Lp, th); b.rail = null; b.air = true; if (ev) ev('fall', 1);
+      return;
+    }
+    if (th >= TAU) { b.rail = null; b.x = Lp.x + Lp.sx * Lp.shift + Lp.dx * 0.16; b.z = Lp.z + Lp.sz * Lp.shift + Lp.dz * 0.16; b.y = Lp.h; b.vx = Lp.dx * v; b.vz = Lp.dz * v; b.vy = 0; b.air = false; if (ev) ev('loop', v); return; }
+    if (th <= 0 && v <= 0) { b.rail = null; b.x = Lp.x - Lp.dx * 0.02; b.z = Lp.z - Lp.dz * 0.02; b.y = Lp.h; b.vx = Lp.dx * v; b.vz = Lp.dz * v; b.vy = 0; b.air = false; return; }
+    rl.th = th; rl.v = v; setRailPos(b, Lp, th);
+  }
+  function setRailPos(b, Lp, th) {
+    var f = Math.max(0, Math.min(1, (th - Math.PI) / Math.PI));          // le décalage de côté ne se fait que dans la 2e moitié du tour
+    b.x = Lp.x + Lp.dx * Lp.r * Math.sin(th) + Lp.sx * Lp.shift * f; b.z = Lp.z + Lp.dz * Lp.r * Math.sin(th) + Lp.sz * Lp.shift * f; b.y = Lp.h + Lp.r * (1 - Math.cos(th));
+  }
+  /* un petit pas de simulation ; renvoie 'cup' (dans le trou), 'water' (dans l'eau), 'out' (dans le vide ou hors de la piste) ou ''
+     ctx : { glue: [{x,z,r}], magnet: bool, ev: function(type, force) } */
+  function simStep(b, H, dt, t, ctx) {
+    var ev = ctx && ctx.ev, fl;
+    if (b.rail) { railStep(b, H, dt, ev); return ''; }
+    var px = b.x, pz = b.z;
     if (!b.air) {
-      var gx = 0, gz = 0;
+      var gx = 0, gz = 0, fric = 0.9, k;
       fl = floorAt(H, b.x, b.z, b.y + 0.12);
-      if (fl) { gx = fl.f.gx; gz = fl.f.gz; }
+      if (fl) { gx = fl.f.gx; gz = fl.f.gz; if (fl.f.zone === 'sand') fric = 4.2; else if (fl.f.zone === 'ice') fric = 0.12; }
       var sp = Math.hypot(b.vx, b.vz);
-      var dec = (H.fric || 0.95) + 0.32 * sp;
+      var dec = fric + (fl && fl.f.zone === 'ice' ? 0.05 : 0.3) * sp;
+      if (ctx && ctx.glue) for (k = 0; k < ctx.glue.length; k++) { var gq = ctx.glue[k]; if (Math.hypot(b.x - gq.x, b.z - gq.z) < gq.r) { dec += 6.5 + 1.2 * sp; if (!b.inGlue && ev) ev('glue', sp); b.inGlue = true; break; } }
+      if (ctx && ctx.glue && k === ctx.glue.length) b.inGlue = false;
       if (sp > 0) { var dd = Math.min(sp, dec * dt); b.vx -= b.vx / sp * dd; b.vz -= b.vz / sp * dd; }
       b.vx += -GRAV * gx * 0.71 * dt; b.vz += -GRAV * gz * 0.71 * dt;
       b.x += b.vx * dt; b.z += b.vz * dt;
+      // entrée dans une boucle : on franchit la ligne d'entrée en avançant
+      for (k = 0; k < H.loops.length; k++) {
+        var Lp = H.loops[k], a0 = (px - Lp.x) * Lp.dx + (pz - Lp.z) * Lp.dz, a1 = (b.x - Lp.x) * Lp.dx + (b.z - Lp.z) * Lp.dz, lat = (b.x - Lp.x) * Lp.sx + (b.z - Lp.z) * Lp.sz, vd = b.vx * Lp.dx + b.vz * Lp.dz;
+        if (a0 < 0 && a1 >= 0 && Math.abs(lat) < Lp.w / 2 + 0.06 && vd > 0 && Math.abs(b.y - Lp.h) < 0.2) { b.rail = { L: Lp, th: 0, v: vd }; setRailPos(b, Lp, 0); return ''; }
+      }
       var f2 = floorAt(H, b.x, b.z, b.y + 0.12);
       var vyg = fl ? fl.f.gx * b.vx + fl.f.gz * b.vz : 0;
       if (!f2 || b.y - f2.h > 0.02 + Math.abs(vyg) * dt * 2.5) { b.air = true; b.vy = vyg; }
@@ -158,26 +267,73 @@ const SIM = (function () {
       fl = floorAt(H, b.x, b.z, b.y + 0.06 + Math.max(0, -b.vy * dt));
       if (fl && b.y <= fl.h) {
         b.y = fl.h;
-        if (b.vy < -2.2) { b.vy = -b.vy * 0.28; b.vx *= 0.92; b.vz *= 0.92; if (sound) sound(1.2, 'land'); }
-        else { b.vy = 0; b.air = false; b.vx *= 0.94; b.vz *= 0.94; }
+        if (b.vy < -2.0) { b.vy = -b.vy * 0.3; b.vx *= 0.92; b.vz *= 0.92; if (ev) ev('land', 1); }
+        else { b.vy = 0; b.air = false; b.vx *= 0.95; b.vz *= 0.95; }
       }
     }
-    var i;
-    for (i = 0; i < H.walls.length; i++) hitSeg(b, H.walls[i], sound);
-    dynSegs(H, t, DYN); for (i = 0; i < DYN.length; i++) hitSeg(b, DYN[i], sound);
-    for (i = 0; i < H.circles.length; i++) hitCircle(b, H.circles[i], sound);
-    if (others) for (i = 0; i < others.length; i++) hitCircle(b, others[i], sound);
-    if (b.y < H.minH - 0.28) return 'out';
-    // le trou : la balle lente tombe dedans ; à peine plus rapide, le bord l'attire un peu
+    var i, cell = cellAt(H, b.x, b.z);
+    for (i = 0; i < cell.w.length; i++) hitSeg(b, cell.w[i], ev);
+    dynSegs(H, t, DYN); for (i = 0; i < DYN.length; i++) hitSeg(b, DYN[i], ev);
+    for (i = 0; i < H.circles.length; i++) hitCircle(b, H.circles[i], ev);
+    // tombé : dans l'eau, dans le vide, ou sur l'herbe à côté de la piste
+    if (b.air) {
+      var gp = overGap(H, b.x, b.z);
+      if (!gp && b.y < GROUND + 0.01 && !floorAt(H, b.x, b.z, b.y + 0.3)) return 'out';            // sur l'herbe, à côté de la piste
+      if (gp && b.y < (gp.kind === 'water' ? WATER_Y : -1.4)) return gp.kind === 'water' ? 'water' : 'out';
+      if (b.y < -3) return 'out';
+    }
+    // le trou : la balle lente tombe dedans ; à peine plus rapide, le bord l'attire un peu (beaucoup avec l'aimant)
     if (!b.air) {
       var cdx = H.cup[0] - b.x, cdz = H.cup[1] - b.z, cd = Math.hypot(cdx, cdz), spd = Math.hypot(b.vx, b.vz);
-      if (cd < CUP - R * 0.25 && spd < 3.4) return 'cup';
-      if (cd < CUP + R && spd < 1.6 && cd > 1e-4) { b.vx += cdx / cd * 2.4 * dt; b.vz += cdz / cd * 2.4 * dt; }
+      if (cd < CUP - R * 0.25 && spd < 3.4 && Math.abs(b.y - H.cupH) < 0.1) return 'cup';
+      if (ctx && ctx.magnet && cd < 1.1 && cd > 1e-4) { b.vx += cdx / cd * 4.5 * dt; b.vz += cdz / cd * 4.5 * dt; }
+      else if (cd < CUP + R && spd < 1.6 && cd > 1e-4) { b.vx += cdx / cd * 2.4 * dt; b.vz += cdz / cd * 2.4 * dt; }
     }
     return '';
   }
+  // fait avancer une balle de dt (en petits pas pour ne jamais traverser une bordure)
+  function advance(b, H, dt, t, ctx) {
+    var spd = b.rail ? Math.abs(b.rail.v) : Math.hypot(b.vx, b.vz, b.vy || 0), n = Math.min(60, Math.max(1, Math.ceil(spd * dt / 0.02))), sub = dt / n, r = '';
+    for (var i = 0; i < n && !r; i++) r = simStep(b, H, sub, t + i * sub, ctx);
+    return r;
+  }
+  function atRest(b, H) {
+    if (b.rail || b.air) return false;
+    var fl = floorAt(H, b.x, b.z, b.y + 0.12), steep = fl ? Math.hypot(fl.f.gx, fl.f.gz) : 0, ice = fl && fl.f.zone === 'ice';
+    return Math.hypot(b.vx, b.vz) < (ice ? 0.03 : 0.07) && steep < 0.02;
+  }
 
-  var API = { R: R, CUP: CUP, VMAX: VMAX, GRAV: GRAV, MAXSHOTS: MAXSHOTS, WAIT_S: WAIT_S, WALL_H: WALL_H, COURSES: COURSES, buildHoleData: buildHoleData, inPoly: inPoly, floorAt: floorAt, floorH: floorH, dynSegs: dynSegs, simStep: simStep, nowS: nowS };
+  /* ------------------------------------------------------------------ un parcours complet : les 20 trous posés côte à côte ------------------------------------------------------------------ */
+  var CACHE = {};
+  function buildCourse(mapId) {
+    if (CACHE[mapId]) return CACHE[mapId];
+    var specs = (COURSE_DATA[mapId] || []), holes = [];
+    // on range les trous en serpentin : 5 par rangée, chacun dans sa case (taille de la plus grande boîte + marge)
+    var boxes = specs.map(function (sp) { var H0 = buildHole(sp, 0, 0); return H0.box; });
+    var GAP = 6, perRow = 5, cw = 0, chs = [];
+    boxes.forEach(function (bx) { cw = Math.max(cw, bx[2] - bx[0]); });
+    for (var r = 0; r * perRow < boxes.length; r++) { var mh = 0; for (var c = 0; c < perRow && r * perRow + c < boxes.length; c++) { var bb = boxes[r * perRow + c]; mh = Math.max(mh, bb[3] - bb[1]); } chs.push(mh); }
+    var zc = 0;
+    for (r = 0; r < chs.length; r++) {
+      for (c = 0; c < perRow && r * perRow + c < boxes.length; c++) {
+        var idx = r * perRow + c, col = r % 2 ? perRow - 1 - c : c, b2 = boxes[idx];
+        var ox = col * (cw + GAP) - b2[0] + (cw - (b2[2] - b2[0])) / 2, oz = zc - b2[1] + (chs[r] - (b2[3] - b2[1])) / 2;
+        var H = buildHole(specs[idx], ox, oz); H.index = idx; H.water = !!MAPS[mapId].water; holes.push(H);
+      }
+      zc += chs[r] + GAP;
+    }
+    var box = [1e9, 1e9, -1e9, -1e9]; holes.forEach(function (H) { box[0] = Math.min(box[0], H.box[0]); box[1] = Math.min(box[1], H.box[1]); box[2] = Math.max(box[2], H.box[2]); box[3] = Math.max(box[3], H.box[3]); });
+    return (CACHE[mapId] = { id: mapId, holes: holes, box: box });
+  }
+  // les trous joués selon l'option « 10 ou 20 trous » (10 : un sur deux, du plus court au plus long)
+  function holeList(n) { var out = []; for (var i = 0; i < 20; i++) if (n >= 20 || i % 2 === 1) out.push(i); return out; }
+  function nowS() { return Date.now() / 1000; }
+
+  /* ------------------------------------------------------------------ LES PARCOURS (générés par scripts/golf-gen.mjs) ------------------------------------------------------------------ */
+  var COURSE_DATA = /*GOLF-DATA*/{"prairie":[{"n":"Premier pas","p":2,"w":1.42,"pcs":[["s",2.54],["w",1.8199999999999998,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.42,1],["s",3.27]]},{"n":"Le pré","p":2,"w":1.47,"pcs":[["s",2.33],["l",85,2.99],["s",1.2],["o","bump",{"fw":0.4,"lat":-0.22,"r":0.17}],["s",2.1],["s",3.17]]},{"n":"Les coquelicots","p":3,"w":1.38,"pcs":[["s",2.53],["s",1.86],["r",70,2.8],["l",70,2.8],["s",3.59]]},{"n":"Le petit pont","p":3,"w":1.37,"pcs":[["s",2.28],["s",2.1],["s",1.3,0.24],["gap",1.19,"water",-0.24],["w",1.7200000000000002,0.6],["s",2.4],["w",1.37,1.2],["s",0.8],["s",2.05],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":-1.18,"n":4,"house":true}],["s",2.4],["w",1.37,1],["s",3.42]]},{"n":"Le moulin","p":3,"w":1.41,"pcs":[["s",2.97],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":1.73,"n":4,"house":true}],["s",2.4],["w",1.41,1],["r",74,2.01],["s",2.6,0.48],["s",2.77],["s",2.6,-0.48],["s",3.84]]},{"n":"Coup de vent","p":3,"w":1.42,"pcs":[["s",2.47],["w",1.8199999999999998,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.42,1],["s",2.65],["s",2.6,0.58],["s",2.8],["s",2.6,-0.53],["s",2.4,-0.05],["s",2.98]]},{"n":"La mare aux canards","p":3,"w":1.37,"pcs":[["s",2.43],["s",2.82],["s",2.6,0.75],["s",3.38],["l",75,2.44],["w",1.77,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.37,1],["s",2.4,-0.75],["s",3.18]]},{"n":"Le chemin creux","p":4,"w":1.35,"pcs":[["s",2.01],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":-1.03,"n":4,"house":true}],["s",2.4],["w",1.35,1],["r",78,2.45],["w",1.75,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.35,1],["r",79,2.69],["s",1.6],["o","gate",{"speed":0.41,"ph":0.36}],["s",2.2],["s",3.27]]},{"n":"Les tournesols","p":3,"w":1.33,"pcs":[["s",2.01],["s",1.3,0.24],["gap",1.46,"water",-0.24],["w",1.6800000000000002,0.6],["s",2.4],["w",1.33,1.2],["s",0.8],["r",67,2.35],["w",1.73,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.33,1],["r",65,2.68],["s",2.6,0.57],["s",2.58],["s",2.4,-0.57],["s",3.98]]},{"n":"La grande boucle","p":3,"w":1.33,"pcs":[["s",2.44],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.33,1.4],["s",1],["l",61,2.9],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":-1.3,"n":4,"house":true}],["s",2.4],["w",1.33,1],["r",85,2.18],["w",0.78,1],["s",3.2],["w",1.33,1],["s",1],["s",3.88]]},{"n":"Le ruisseau","p":6,"w":1.37,"pcs":[["s",2.67],["s",2.23],["s",1.3,0.24],["gap",1.65,"water",-0.24],["w",1.7200000000000002,0.6],["s",2.4],["w",1.37,1.2],["s",0.8],["s",2.61],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":1.19,"n":4,"house":true}],["s",2.4],["w",1.37,1],["r",116,2.1],["s",1.2],["o","post",{"fw":0.6,"lat":-0.34,"r":0.1}],["o","post",{"fw":1.6,"lat":0.34,"r":0.1}],["s",2.6],["r",56,2.38],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":1.63,"n":4,"house":true}],["s",2.4],["w",1.37,1],["s",3.31]]},{"n":"Saute-mouton","p":4,"w":1.35,"pcs":[["s",2.32],["s",1.62],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.35,1.4],["s",1],["r",81,3.08],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":-1.25,"n":4,"house":true}],["s",2.4],["w",1.35,1],["s",2.25],["s",2.6,0.57],["s",2.55],["s",2.6,-0.45],["s",2.4,-0.12],["s",3.37]]},{"n":"Le verger","p":4,"w":1.38,"pcs":[["s",1.89],["l",112,2.63],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.38,1.4],["s",1],["s",2.77],["w",1.7799999999999998,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.38,1],["s",3.1],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.39,"speed":1.98}],["s",2.2],["s",2.94],["s",1.2],["o","bump",{"fw":0.4,"lat":0.33,"r":0.17}],["o","bump",{"fw":1.3,"lat":0.32,"r":0.17}],["o","bump",{"fw":2.2,"lat":0.32,"r":0.17}],["s",3.9],["s",3.5]]},{"n":"Les deux moulins","p":6,"w":1.36,"pcs":[["s",2.4],["l",120,2.5],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.36,1.4],["s",1],["s",2.95],["w",1.7600000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.36,1],["s",1.61],["s",2.6,0.56],["s",2.64],["s",1.95],["s",1.2],["o","bump",{"fw":0.4,"lat":-0.35,"r":0.17}],["o","bump",{"fw":1.3,"lat":0.14,"r":0.17}],["o","bump",{"fw":2.2,"lat":0.16,"r":0.17}],["s",3.9],["s",2.4,-0.56],["s",3.62]]},{"n":"La colline","p":5,"w":1.23,"pcs":[["s",2.75],["s",1.82],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.23,1.4],["s",1],["s",1.94],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":1.16,"n":4,"house":true}],["s",2.4],["w",1.23,1],["r",91,2.69],["s",1.6],["o","gate",{"speed":0.45,"ph":0.34}],["s",2.2],["s",2.84],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.23,1.4],["s",1],["s",3.23]]},{"n":"Le lavoir","p":6,"w":1.28,"pcs":[["s",2.37],["l",80,2.54],["s",1.3,0.24],["gap",1.47,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["s",1.77],["w",1.6800000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.28,1],["r",83,2.66],["s",1.2],["o","post",{"fw":0.6,"lat":-0.32,"r":0.1}],["o","post",{"fw":1.6,"lat":0.32,"r":0.1}],["s",2.6],["l",66,2.34],["s",1.3,0.24],["gap",1.66,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["l",91,2.27],["w",1.6800000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.28,1],["s",3.34]]},{"n":"Les champignons","p":7,"w":1.29,"pcs":[["s",2.85],["s",1.3,0.24],["gap",1.6,"water",-0.24],["w",1.6400000000000001,0.6],["s",2.4],["w",1.29,1.2],["s",0.8],["s",2],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":-1.62,"n":4,"house":true}],["s",2.4],["w",1.29,1],["r",112,2.6],["w",1.69,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.29,1],["l",110,2.83],["s",1.6],["o","gate",{"speed":0.33,"ph":0.14}],["s",2.2],["r",55,2.7],["s",2.6,0.71],["s",3.28],["s",2.6,-0.45],["s",2.4,-0.26],["s",2.86]]},{"n":"La rivière","p":6,"w":1.3,"pcs":[["s",2.56],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["l",61,2.55],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["s",2.69],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.35,"speed":1.3}],["s",2.2],["s",2.6],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["l",91,2.51],["s",1.5,0.24],["s",1.5,-0.24],["s",1.83],["s",1.2],["o","post",{"fw":0.6,"lat":-0.33,"r":0.1}],["o","post",{"fw":1.6,"lat":0.33,"r":0.1}],["s",2.6],["s",3.44]]},{"n":"Le grand pré","p":6,"w":1.27,"pcs":[["s",2.95],["s",2.9],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.27,1.4],["s",1],["r",64,2.56],["w",1.67,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.27,1],["r",87,2.24],["s",1.2],["o","post",{"fw":0.6,"lat":-0.32,"r":0.1}],["o","post",{"fw":1.6,"lat":0.32,"r":0.1}],["s",2.6],["l",88,2.94],["s",1.3,0.24],["gap",1.75,"water",-0.24],["w",1.62,0.6],["s",2.4],["w",1.27,1.2],["s",0.8],["l",59,2.4],["s",2.6,0.44],["s",2.76],["s",2.6,-0.44],["s",2.87]]},{"n":"La fête au village","p":6,"w":1.3,"pcs":[["s",2.36],["s",1.92],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["l",59,2.15],["w",1.5,0.8],["s",2.2],["o","mill",{"len":0.69,"speed":1.64,"n":4,"house":true}],["s",2.4],["w",1.3,1],["l",89,3.04],["s",1.6],["o","gate",{"speed":0.47,"ph":0.63}],["s",2.2],["s",2.95],["l",83,2.19],["r",83,2.19],["r",116,3.09],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.3,1.4],["s",1],["s",3.55]]}],"automne":[{"n":"Feuilles mortes","p":2,"w":1.49,"pcs":[["s",2.68],["s",1.5,0.24],["s",1.5,-0.24],["s",3.5]]},{"n":"Le sentier","p":2,"w":1.4,"pcs":[["s",2.3],["s",1.2],["o","bump",{"fw":0.4,"lat":-0.31,"r":0.17}],["s",2.1],["s",1.67],["s",3.8]]},{"n":"La souche","p":2,"w":1.42,"pcs":[["s",2.34],["s",2.29],["w",0.78,1],["s",3.2],["w",1.42,1],["s",1],["s",3.59]]},{"n":"Le terrier","p":2,"w":1.36,"pcs":[["s",2.21],["s",1.3,0.24],["gap",1.28,"water",-0.24],["w",1.71,0.6],["s",2.4],["w",1.36,1.2],["s",0.8],["l",64,2.37],["s",1.2],["o","block",{"fw":0.8,"lat":0.34,"bw":0.68,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["s",2.84]]},{"n":"Les noisettes","p":3,"w":1.44,"pcs":[["s",2],["l",60,3.08],["s",1.2],["o","block",{"fw":0.8,"lat":0.36,"bw":0.72,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["s",1.98],["s",1.3,0.24],["gap",1.27,"water",-0.24],["w",1.79,0.6],["s",2.4],["w",1.44,1.2],["s",0.8],["s",2.87]]},{"n":"Le ruisseau doré","p":3,"w":1.47,"pcs":[["s",2.06],["l",58,2.81],["w",0.78,1],["s",3.2],["w",1.47,1],["s",1],["r",98,2.54],["s",1.3,0.24],["gap",1.02,"water",-0.24],["w",1.8199999999999998,0.6],["s",2.4],["w",1.47,1.2],["s",0.8],["s",3]]},{"n":"Les écureuils","p":4,"w":1.34,"pcs":[["s",2.16],["s",1.66],["l",85,2.63],["r",85,2.63],["l",78,2.27],["s",2.2],["o","spinner",{"len":0.59,"speed":2.3,"n":2}],["s",2.4],["s",3.24]]},{"n":"Le tronc couché","p":3,"w":1.28,"pcs":[["s",1.82],["s",1.3,0.24],["gap",1.34,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["s",2.14],["s",2.2],["o","spinner",{"len":0.56,"speed":-2.21,"n":2}],["s",2.4],["r",70,2.24],["s",1.3,0.24],["gap",1.49,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["s",3.63]]},{"n":"La clairière","p":3,"w":1.36,"pcs":[["s",2.18],["s",2.51],["w",1.7600000000000002,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.36,1],["r",86,2.55],["s",2.2],["o","spinner",{"len":0.6,"speed":-2.43,"n":2}],["s",2.4],["s",2.95],["w",0.78,1],["s",3.2],["w",1.36,1],["s",1],["s",2.99]]},{"n":"Le grand chêne","p":4,"w":1.29,"pcs":[["s",2.64],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.29,1.4],["s",1],["l",106,2.91],["s",1.2],["o","block",{"fw":0.8,"lat":0.32,"bw":0.65,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["l",77,2.5],["s",1.5,0.24],["s",1.5,-0.24],["s",3.29]]},{"n":"La cascade","p":3,"w":1.38,"pcs":[["s",2.84],["s",2.14],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.38,1.4],["s",1],["l",91,2.75],["s",1.2],["o","block",{"fw":0.8,"lat":-0.34,"bw":0.69,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["l",66,1.94],["s",1.3,0.24],["gap",1.34,"water",-0.24],["w",1.73,0.6],["s",2.4],["w",1.38,1.2],["s",0.8],["s",2.85]]},{"n":"Les cèpes","p":5,"w":1.32,"pcs":[["s",2.1],["l",72,2.07],["s",1.3,0.24],["gap",1.46,"water",-0.24],["w",1.67,0.6],["s",2.4],["w",1.32,1.2],["s",0.8],["l",104,2.71],["s",1.2],["o","block",{"fw":0.8,"lat":0.33,"bw":0.66,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["s",2.99],["s",1.2],["o","post",{"fw":0.6,"lat":-0.33,"r":0.1}],["o","post",{"fw":1.6,"lat":0.33,"r":0.1}],["s",2.6],["r",57,2.04],["s",2.2],["o","spinner",{"len":0.58,"speed":1.96,"n":2}],["s",2.4],["s",3.93]]},{"n":"Le sous-bois","p":5,"w":1.27,"pcs":[["s",2.02],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.27,1.4],["s",1],["s",3.1],["s",1.2],["o","block",{"fw":0.8,"lat":0.32,"bw":0.64,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["l",85,2.91],["l",59,2.15],["r",59,2.15],["l",109,2.29],["s",1.3,0.24],["gap",1.57,"water",-0.24],["w",1.62,0.6],["s",2.4],["w",1.27,1.2],["s",0.8],["s",2.8]]},{"n":"La boucle des cerfs","p":5,"w":1.3,"pcs":[["s",2.1],["l",77,2.34],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.3,1.4],["s",1],["r",90,2.57],["s",2.2],["o","spinner",{"len":0.57,"speed":-1.73,"n":2}],["s",2.4],["r",69,3],["s",1.2],["o","post",{"fw":0.6,"lat":-0.33,"r":0.1}],["o","post",{"fw":1.6,"lat":0.33,"r":0.1}],["s",2.6],["r",95,2.76],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["s",3.88]]},{"n":"Le vieux pont","p":5,"w":1.3,"pcs":[["s",1.87],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.3,1.4],["s",1],["l",91,2.23],["s",2.2],["o","spinner",{"len":0.57,"speed":1.61,"n":2}],["s",2.4],["s",2.66],["s",1.3,0.24],["gap",1.36,"water",-0.24],["w",1.65,0.6],["s",2.4],["w",1.3,1.2],["s",0.8],["r",76,2.69],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["s",2.94]]},{"n":"La brume","p":6,"w":1.38,"pcs":[["s",1.84],["s",1.3,0.24],["gap",1.47,"water",-0.24],["w",1.73,0.6],["s",2.4],["w",1.38,1.2],["s",0.8],["l",85,2.22],["s",2.2],["o","spinner",{"len":0.61,"speed":-1.45,"n":2}],["s",2.4],["r",119,3.14],["s",1.2],["o","post",{"fw":0.6,"lat":-0.34,"r":0.1}],["o","post",{"fw":1.6,"lat":0.34,"r":0.1}],["s",2.6],["l",86,2.14],["w",1.7799999999999998,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.38,1],["r",91,1.93],["s",1.3,0.24],["gap",1.45,"water",-0.24],["w",1.73,0.6],["s",2.4],["w",1.38,1.2],["s",0.8],["s",3.15]]},{"n":"Les ronces","p":5,"w":1.3,"pcs":[["s",2.02],["s",2.85],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["s",2.84],["s",2.2],["o","spinner",{"len":0.57,"speed":-2.22,"n":2}],["s",2.4],["l",104,2.95],["w",0.78,1],["s",3.2],["w",1.3,1],["s",1],["s",2.02],["s",1.2],["o","post",{"fw":0.6,"lat":-0.33,"r":0.1}],["o","post",{"fw":1.6,"lat":0.33,"r":0.1}],["s",2.6],["r",120,2.45],["w",1.7000000000000002,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.3,1],["s",2.92]]},{"n":"La forêt profonde","p":6,"w":1.28,"pcs":[["s",2.78],["r",101,2.77],["s",1.3,0.24],["gap",1.71,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["l",63,2.06],["s",1.2],["o","block",{"fw":0.8,"lat":0.32,"bw":0.64,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["r",101,2.7],["w",0.78,1],["s",3.2],["w",1.28,1],["s",1],["l",82,1.95],["s",1.5,0.24],["s",1.5,-0.24],["r",118,2.65],["s",1.3,0.24],["gap",1.68,"water",-0.24],["w",1.63,0.6],["s",2.4],["w",1.28,1.2],["s",0.8],["s",3.35]]},{"n":"Le grand saut","p":6,"w":1.24,"pcs":[["s",2.55],["l",73,2.39],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.24,1.4],["s",1],["s",2.47],["s",1.2],["o","block",{"fw":0.8,"lat":0.31,"bw":0.62,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["s",2.28],["w",0.78,1],["s",3.2],["w",1.24,1],["s",1],["l",110,2.81],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.24,1.4],["s",1],["l",104,1.93],["w",1.6400000000000001,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.24,1],["s",2.95]]},{"n":"La forêt enchantée","p":7,"w":1.24,"pcs":[["s",2.64],["s",2.9],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.24,1.4],["s",1],["s",3.04],["s",2.2],["o","spinner",{"len":0.54,"speed":-2,"n":2}],["s",2.4],["l",104,2.49],["w",1.6400000000000001,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.24,1],["l",97,2.48],["w",1.6400000000000001,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.24,1],["r",89,2.72],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.24,1.4],["s",1],["l",84,2.82],["s",1.2],["o","block",{"fw":0.8,"lat":-0.31,"bw":0.62,"bd":0.22,"bh":0.22,"log":true}],["s",2.4],["s",3.68]]}],"canyon":[{"n":"Poussière","p":2,"w":1.42,"pcs":[["s",2.5],["s",1.5,0.24],["s",1.5,-0.24],["s",2.98]]},{"n":"Le sentier rouge","p":2,"w":1.42,"pcs":[["s",2.38],["w",0.78,1],["s",3.2],["w",1.42,1],["s",1],["s",3.51]]},{"n":"Les cactus","p":2,"w":1.41,"pcs":[["s",2.62],["l",60,2.9],["w",1.81,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.41,1],["s",3.81]]},{"n":"La crevasse","p":3,"w":1.4,"pcs":[["s",2.65],["w",0.78,1],["s",3.2],["w",1.4,1],["s",1],["r",90,2.76],["s",1.2],["o","rock",{"fw":0.9,"lat":0.11,"r":0.24}],["s",2.6],["s",3.04]]},{"n":"Le pont de corde","p":3,"w":1.37,"pcs":[["s",1.9],["l",105,2.26],["s",1.2],["o","rock",{"fw":0.9,"lat":0.22,"r":0.24}],["s",2.6],["l",76,2.45],["w",0.78,1],["s",3.2],["w",1.37,1],["s",1],["s",3.53]]},{"n":"Les rochers","p":3,"w":1.38,"pcs":[["s",2.51],["s",1.3,0.24],["gap",1.24,"void",-0.24],["w",1.73,0.6],["s",2.4],["w",1.38,1.2],["s",0.8],["r",84,2.48],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.38,0.6],["s",1.2],["s",2.4,-0.5],["s",3.44]]},{"n":"La mine","p":3,"w":1.37,"pcs":[["s",1.94],["r",59,2.13],["w",0.78,1],["s",3.2],["w",1.37,1],["s",1],["s",1.84],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.02,"r":0.24}],["s",2.6],["l",91,2.83],["l",56,2.06],["r",56,2.06],["s",3.97]]},{"n":"Le ravin","p":3,"w":1.3,"pcs":[["s",2.6],["s",1.3,0.24],["gap",1.32,"void",-0.24],["w",1.65,0.6],["s",2.4],["w",1.3,1.2],["s",0.8],["r",70,2.79],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.22,"r":0.24}],["s",2.6],["r",119,2.91],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["s",3.44]]},{"n":"Le défilé","p":3,"w":1.32,"pcs":[["s",2.33],["r",88,3],["l",88,3],["r",118,2.33],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.32,0.6],["s",1.2],["s",2.4,-0.5],["s",3.33]]},{"n":"La grande boucle","p":4,"w":1.39,"pcs":[["s",1.97],["l",117,2.04],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.39,1.4],["s",1],["s",1.72],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.39,0.6],["s",1.2],["s",2.4,-0.5],["s",2.72],["s",1.3,0.24],["gap",1.36,"void",-0.24],["w",1.7399999999999998,0.6],["s",2.4],["w",1.39,1.2],["s",0.8],["s",3.28]]},{"n":"Les arches","p":4,"w":1.3,"pcs":[["s",2.74],["r",116,2.42],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["l",77,2.86],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.3,0.6],["s",1.2],["s",2.4,-0.5],["s",1.67],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["s",3.02]]},{"n":"Le précipice","p":5,"w":1.29,"pcs":[["s",2.37],["r",98,2.63],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.29,1.4],["s",1],["s",2.56],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.16,"r":0.24}],["s",2.6],["l",85,3.16],["w",1.69,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.29,1],["s",2.09],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.35,"speed":1.1}],["s",2.2],["s",3.34]]},{"n":"La tempête de sable","p":5,"w":1.24,"pcs":[["s",1.9],["r",91,1.91],["s",1.3,0.24],["gap",1.44,"void",-0.24],["w",1.5899999999999999,0.6],["s",2.4],["w",1.24,1.2],["s",0.8],["r",58,2.2],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.24,0.6],["s",1.2],["s",2.4,-0.5],["s",2.73],["w",1.6400000000000001,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.24,1],["l",82,2.56],["s",2.2],["o","spinner",{"len":0.54,"speed":-1.96,"n":2}],["s",2.4],["s",3.2]]},{"n":"Le pont suspendu","p":5,"w":1.29,"pcs":[["s",2.85],["s",1.3,0.24],["gap",1.59,"void",-0.24],["w",1.6400000000000001,0.6],["s",2.4],["w",1.29,1.2],["s",0.8],["l",59,2.74],["s",1.2],["o","rock",{"fw":0.9,"lat":0.24,"r":0.24}],["s",2.6],["s",2.83],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.35,"speed":1.68}],["s",2.2],["l",110,2.14],["s",1.6],["o","gate",{"speed":0.45,"ph":0.53}],["s",2.2],["s",2.64],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.29,0.6],["s",1.2],["s",2.4,-0.5],["s",3.77]]},{"n":"Le mirage","p":5,"w":1.34,"pcs":[["s",2.65],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.34,1.4],["s",1],["l",94,2.75],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.24,"r":0.24}],["s",2.6],["s",2.85],["r",85,2.78],["l",85,2.78],["r",103,2.92],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.34,1.4],["s",1],["s",3.04]]},{"n":"La falaise","p":6,"w":1.28,"pcs":[["s",2.69],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.28,1.4],["s",1],["r",113,2.2],["s",1.2],["o","rock",{"fw":0.9,"lat":0.02,"r":0.24}],["s",2.6],["r",109,2.67],["s",1.6],["o","gate",{"speed":0.42,"ph":0.53}],["s",2.2],["l",112,2.98],["l",73,2.59],["r",73,2.59],["s",2.9],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.11,"r":0.24}],["s",2.6],["s",2.87]]},{"n":"Le vertige","p":6,"w":1.35,"pcs":[["s",2.66],["s",3.03],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.35,1.4],["s",1],["l",110,2.53],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.35,0.6],["s",1.2],["s",2.4,-0.5],["r",74,2.5],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.35,1.4],["s",1],["r",56,2.68],["s",2.2],["o","spinner",{"len":0.6,"speed":1.94,"n":2}],["s",2.4],["s",3.55]]},{"n":"Le canyon interdit","p":6,"w":1.19,"pcs":[["s",2.31],["s",2.84],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.19,1.4],["s",1],["l",104,1.91],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.19,0.6],["s",1.2],["s",2.4,-0.5],["s",2.66],["r",67,2.41],["l",67,2.41],["r",79,2.07],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.19,1.4],["s",1],["s",2.14],["s",1.5,0.24],["s",1.5,-0.24],["s",3.5]]},{"n":"Le grand vide","p":6,"w":1.19,"pcs":[["s",2.06],["s",1.3,0.24],["gap",1.65,"void",-0.24],["w",1.54,0.6],["s",2.4],["w",1.19,1.2],["s",0.8],["r",103,2.15],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"void"],["s",3.6],["w",1.19,0.6],["s",1.2],["s",2.4,-0.5],["l",75,2.87],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.05,"r":0.24}],["s",2.6],["s",2.26],["s",2.6,0.61],["s",2.2],["l",112,2.76],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.19,1.4],["s",1],["s",2.4,-0.61],["s",3.15]]},{"n":"Le Grand Canyon","p":7,"w":1.3,"pcs":[["s",2.38],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.3,1.4],["s",1],["l",69,2.21],["s",1.2],["o","rock",{"fw":0.9,"lat":0.13,"r":0.24}],["s",2.6],["s",1.62],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["l",106,2.65],["s",1.3,0.24],["gap",1.77,"void",-0.24],["w",1.65,0.6],["s",2.4],["w",1.3,1.2],["s",0.8],["r",92,2.38],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.3,1.4],["s",1],["l",75,2.96],["s",2.6,0.53],["s",3.46],["s",2.4,-0.53],["s",3.98]]}],"neige":[{"n":"Premiers flocons","p":2,"w":1.43,"pcs":[["s",1.91],["s",1.5,0.24],["s",1.5,-0.24],["s",3.2]]},{"n":"La piste bleue","p":2,"w":1.46,"pcs":[["s",3],["s",1.5,0.24],["s",1.5,-0.24],["s",3.3]]},{"n":"Le chalet","p":2,"w":1.43,"pcs":[["s",2.26],["r",100,3.11],["s",1.2],["o","bump",{"fw":0.4,"lat":-0.08,"r":0.17}],["o","bump",{"fw":1.3,"lat":0.3,"r":0.17}],["o","bump",{"fw":2.2,"lat":-0.05,"r":0.17}],["s",3.9],["s",2.93]]},{"n":"La patinoire","p":2,"w":1.42,"pcs":[["s",1.88],["s",1.3,0.24],["gap",1.11,"void",-0.24],["w",1.77,0.6],["s",2.4],["w",1.42,1.2],["s",0.8],["s",2.54],["s",1.5,0.24],["s",1.5,-0.24],["s",3.15]]},{"n":"Le sapin","p":2,"w":1.45,"pcs":[["s",2.01],["s",1.92],["s",1.3,0.24],["gap",1.32,"void",-0.24],["w",1.7999999999999998,0.6],["s",2.4],["w",1.45,1.2],["s",0.8],["s",1.85],["z","ice",4.5],["s",4.5],["s",3.48]]},{"n":"La luge","p":3,"w":1.39,"pcs":[["s",1.99],["s",1.5,0.24],["s",1.5,-0.24],["s",2.87],["s",3,1],["l",200,3,-1],["s",2.84]]},{"n":"Le glacier","p":3,"w":1.37,"pcs":[["s",2.13],["z","ice",4.5],["s",4.5],["l",80,2.07],["s",3,1],["r",200,3,-1],["s",3.65]]},{"n":"La spirale","p":4,"w":1.31,"pcs":[["s",2.59],["s",1.3,0.24],["gap",1.32,"void",-0.24],["w",1.6600000000000001,0.6],["s",2.4],["w",1.31,1.2],["s",0.8],["s",1.77],["s",3,1],["l",200,3,-1],["s",2.25],["s",2.2],["o","spinner",{"len":0.58,"speed":-1.66,"n":2}],["s",2.4],["s",3.53]]},{"n":"Les stalactites","p":3,"w":1.37,"pcs":[["s",2.89],["r",112,2.83],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.37,1.4],["s",1],["s",1.83],["z","ice",4.5],["s",4.5],["s",3.02],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.39,"speed":1.17}],["s",2.2],["s",3.46]]},{"n":"Le lac gelé","p":4,"w":1.43,"pcs":[["s",2.7],["s",3,1],["r",200,3,-1],["s",2.39],["s",1.3,0.24],["gap",1.18,"void",-0.24],["w",1.7799999999999998,0.6],["s",2.4],["w",1.43,1.2],["s",0.8],["l",64,2.78],["s",2.2],["o","spinner",{"len":0.64,"speed":1.36,"n":2}],["s",2.4],["s",3]]},{"n":"La crevasse","p":4,"w":1.32,"pcs":[["s",2.98],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.32,1.4],["s",1],["s",2.06],["z","ice",4.5],["s",4.5],["l",94,2.53],["s",1.5,0.24],["s",1.5,-0.24],["s",2.83],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.36,"speed":1.83}],["s",2.2],["s",3.96]]},{"n":"Le télésiège","p":4,"w":1.37,"pcs":[["s",2.81],["r",89,2.14],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.37,1.4],["s",1],["r",84,2.93],["z","ice",4.5],["s",4.5],["r",78,1.92],["s",2.6,0.62],["s",2.91],["s",2.4,-0.62],["s",3.73]]},{"n":"La poudreuse","p":5,"w":1.36,"pcs":[["s",2.87],["s",1.3,0.24],["gap",1.57,"void",-0.24],["w",1.71,0.6],["s",2.4],["w",1.36,1.2],["s",0.8],["r",117,2.87],["z","ice",4.5],["s",4.5],["l",88,1.96],["s",1.5,0.24],["s",1.5,-0.24],["r",76,2.03],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.36,1.4],["s",1],["s",3.81]]},{"n":"La piste rouge","p":6,"w":1.35,"pcs":[["s",2.42],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.35,1.4],["s",1],["r",109,1.98],["s",3,1],["l",200,3,-1],["s",2.78],["s",2.2],["o","spinner",{"len":0.6,"speed":-1.7,"n":2}],["s",2.4],["s",2.79],["s",2.6,0.52],["s",3.15],["s",2.6,-0.52],["s",2.82]]},{"n":"Le blizzard","p":5,"w":1.31,"pcs":[["s",2.07],["r",120,3.08],["s",1.3,0.24],["gap",1.64,"void",-0.24],["w",1.6600000000000001,0.6],["s",2.4],["w",1.31,1.2],["s",0.8],["l",94,1.98],["z","ice",4.5],["s",4.5],["l",106,3.19],["s",1.5,0.24],["s",1.5,-0.24],["s",3.07],["s",1.3,0.24],["gap",1.72,"void",-0.24],["w",1.6600000000000001,0.6],["s",2.4],["w",1.31,1.2],["s",0.8],["s",2.55],["z","ice",4.5],["s",4.5],["s",3.45]]},{"n":"La grande descente","p":4,"w":1.29,"pcs":[["s",1.91],["w",0.54,1.8],["s",2.6],["loop","l"],["s",1.6],["w",1.29,1.4],["s",1],["s",2.83],["s",3,1],["l",200,3,-1],["r",113,2.5],["z","ice",4.5],["s",4.5],["s",3.04],["s",2.6,0.72],["s",3.03],["s",2.4,-0.72],["s",3.91]]},{"n":"La piste noire","p":5,"w":1.29,"pcs":[["s",2.1],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.29,1.4],["s",1],["l",108,2.21],["z","ice",4.5],["s",4.5],["s",2.19],["s",1.3,0.24],["gap",1.61,"void",-0.24],["w",1.6400000000000001,0.6],["s",2.4],["w",1.29,1.2],["s",0.8],["l",87,2.1],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.29,1.4],["s",1],["s",2.5],["s",2.6,0.44],["s",2.77],["s",2.4,-0.44],["s",3.51]]},{"n":"L'avalanche","p":6,"w":1.38,"pcs":[["s",1.99],["r",77,2.65],["s",1.3,0.24],["gap",1.43,"void",-0.24],["w",1.73,0.6],["s",2.4],["w",1.38,1.2],["s",0.8],["r",89,3.17],["s",3,1],["l",200,3,-1],["s",1.68],["s",2.2],["o","spinner",{"len":0.61,"speed":-1.98,"n":2}],["s",2.4],["l",60,3.13],["s",2.6,0.42],["s",2.67],["s",2.6,-0.42],["s",2.07],["s",1.5,0.24],["s",1.5,-0.24],["s",3.83]]},{"n":"Le sommet","p":6,"w":1.26,"pcs":[["s",2.04],["s",1.89],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.26,1.4],["s",1],["l",60,2.91],["s",3,1],["l",200,3,-1],["r",113,3.04],["s",2.2],["o","spinner",{"len":0.55,"speed":1.57,"n":2}],["s",2.4],["s",2.51],["s",1.3,0.24],["gap",1.64,"void",-0.24],["w",1.6099999999999999,0.6],["s",2.4],["w",1.26,1.2],["s",0.8],["s",2.45],["s",2.6,0.5],["s",2.46],["s",2.6,-0.5],["s",3.23]]},{"n":"Les neiges éternelles","p":7,"w":1.3,"pcs":[["s",2.17],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["l",81,2.8],["s",3,1],["r",200,3,-1],["s",2.81],["s",2.6,0.64],["s",2.56],["s",2.6,-0.62],["r",83,3.12],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.35,"speed":1.97}],["s",2.2],["l",113,2.85],["s",1.2],["o","bump",{"fw":0.4,"lat":0.11,"r":0.17}],["o","bump",{"fw":1.3,"lat":0.19,"r":0.17}],["o","bump",{"fw":2.2,"lat":0.12,"r":0.17}],["s",3.9],["l",78,2.09],["s",1.3,0.24],["gap",1.65,"void",-0.24],["w",1.65,0.6],["s",2.4],["w",1.3,1.2],["s",0.8],["s",3.27]]}],"ile":[{"n":"Les pieds dans le sable","p":2,"w":1.38,"pcs":[["s",2.35],["w",1.7799999999999998,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.38,1],["s",3.44]]},{"n":"Le ponton","p":2,"w":1.37,"pcs":[["s",2.64],["l",58,2.98],["r",58,2.98],["s",3.66]]},{"n":"Les coquillages","p":3,"w":1.44,"pcs":[["s",2.23],["l",85,3],["r",85,3],["s",3.81]]},{"n":"La lagune","p":3,"w":1.39,"pcs":[["s",2.44],["s",2.32],["l",63,2.06],["r",63,2.06],["l",112,3.11],["w",1.79,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.39,1],["s",3.18]]},{"n":"Le phare","p":3,"w":1.42,"pcs":[["s",2.95],["s",2.6,0.45],["s",2.71],["l",109,2.21],["s",1.3,0.24],["gap",1.03,"water",-0.44],["w",1.77,0.6],["s",2.4],["w",1.42,1.2],["s",0.8],["s",2.4,-0.25],["s",3.09]]},{"n":"La marée","p":3,"w":1.39,"pcs":[["s",2.3],["s",1.61],["s",1.3,0.24],["gap",1.31,"water",-0.24],["w",1.7399999999999998,0.6],["s",2.4],["w",1.39,1.2],["s",0.8],["l",61,2.62],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.39,0.6],["s",1.2],["s",2.4,-0.5],["s",2.95]]},{"n":"Les palmiers","p":3,"w":1.33,"pcs":[["s",2.97],["w",1.73,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.33,1],["r",103,2.11],["w",1.73,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.33,1],["r",91,2.62],["s",1.2],["o","rock",{"fw":0.9,"lat":0.13,"r":0.24}],["s",2.6],["s",2.9]]},{"n":"Le récif","p":3,"w":1.31,"pcs":[["s",1.81],["r",82,2.66],["s",1.3,0.24],["gap",1.23,"water",-0.24],["w",1.6600000000000001,0.6],["s",2.4],["w",1.31,1.2],["s",0.8],["l",80,2.18],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.31,0.6],["s",1.2],["s",2.4,-0.5],["s",2.99]]},{"n":"La crique","p":3,"w":1.4,"pcs":[["s",2.6],["s",1.93],["s",1.3,0.24],["gap",1.5,"water",-0.24],["w",1.75,0.6],["s",2.4],["w",1.4,1.2],["s",0.8],["r",82,2.41],["w",1.7999999999999998,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.4,1],["r",59,3],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.4,"speed":1.19}],["s",2.2],["s",3.21]]},{"n":"Le grand plongeon","p":3,"w":1.36,"pcs":[["s",2.08],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.36,1.4],["s",1],["s",2.47],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.36,0.6],["s",1.2],["s",2.4,-0.5],["r",66,2.22],["s",1.6],["o","gate",{"speed":0.47,"ph":0.44}],["s",2.2],["s",2.87]]},{"n":"Les mouettes","p":4,"w":1.36,"pcs":[["s",2.05],["s",2.25],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.36,1.4],["s",1],["r",64,2.03],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.36,0.6],["s",1.2],["s",2.4,-0.5],["r",83,2.92],["s",1.6],["o","gate",{"speed":0.33,"ph":0.63}],["s",2.2],["s",3.65]]},{"n":"L'épave","p":5,"w":1.25,"pcs":[["s",2.76],["s",2.86],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.25,1.4],["s",1],["l",92,2.06],["w",1.65,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.25,1],["r",80,2.14],["s",1.6],["o","gate",{"speed":0.44,"ph":0.07}],["s",2.2],["l",72,2.38],["s",1.2],["o","rock",{"fw":0.9,"lat":0.16,"r":0.24}],["s",2.6],["s",3.92]]},{"n":"La baie","p":5,"w":1.28,"pcs":[["s",2.28],["l",88,2.99],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.28,1.4],["s",1],["s",2.52],["w",1.6800000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.28,1],["l",100,1.91],["s",1.5,0.24],["s",1.5,-0.24],["r",101,2.31],["r",69,2.38],["l",69,2.38],["s",3.07]]},{"n":"Le saut du dauphin","p":5,"w":1.26,"pcs":[["s",1.82],["s",1.3,0.24],["gap",1.5,"water",-0.24],["w",1.6099999999999999,0.6],["s",2.4],["w",1.26,1.2],["s",0.8],["l",95,2.44],["w",1.6600000000000001,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.26,1],["l",75,3.06],["s",2.6,0.63],["s",2.68],["s",2.6,-0.58],["l",84,2],["s",1.3,0.24],["gap",1.64,"water",-0.24],["w",1.6099999999999999,0.6],["s",2.4],["w",1.26,1.2],["s",0.8],["s",2.65],["s",1.6],["o","gate",{"speed":0.44,"ph":0.77}],["s",2.2],["s",3.02]]},{"n":"Le coucher de soleil","p":6,"w":1.34,"pcs":[["s",1.91],["l",110,2.44],["s",1.3,0.24],["gap",1.5,"water",-0.24],["w",1.69,0.6],["s",2.4],["w",1.34,1.2],["s",0.8],["l",92,2.31],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.34,0.6],["s",1.2],["s",2.4,-0.5],["s",1.9],["s",1.6],["o","gate",{"speed":0.44,"ph":0.56}],["s",2.2],["l",65,2.02],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.34,0.6],["s",1.2],["s",2.4,-0.5],["s",3.51]]},{"n":"Le banc de sable","p":6,"w":1.33,"pcs":[["s",2.57],["l",99,1.94],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.33,1.4],["s",1],["s",2.17],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.33,0.6],["s",1.2],["s",2.4,-0.5],["s",2.44],["s",1.6],["o","gate",{"speed":0.37,"ph":0.53}],["s",2.2],["r",74,2.74],["s",2.6,0.57],["s",2.66],["s",2.4,-0.57],["s",3.33]]},{"n":"La passe","p":6,"w":1.26,"pcs":[["s",2.22],["s",1.61],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.26,1.4],["s",1],["l",116,2.13],["w",1.6600000000000001,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.26,1],["r",58,2.34],["w",1.6600000000000001,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.26,1],["l",61,2.79],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.26,0.6],["s",1.2],["s",2.4,-0.5],["l",86,2.57],["s",1.3,0.24],["gap",1.58,"water",-0.24],["w",1.6099999999999999,0.6],["s",2.4],["w",1.26,1.2],["s",0.8],["s",3.17]]},{"n":"Les vagues","p":6,"w":1.29,"pcs":[["s",2.07],["r",78,2.46],["s",1.3,0.24],["gap",1.73,"water",-0.24],["w",1.6400000000000001,0.6],["s",2.4],["w",1.29,1.2],["s",0.8],["l",94,2.51],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.29,0.6],["s",1.2],["s",2.4,-0.5],["r",94,1.98],["w",1.69,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.29,1],["r",108,1.97],["s",1.6],["o","gate",{"speed":0.35,"ph":0.1}],["s",2.2],["l",67,1.93],["l",76,2.93],["r",76,2.93],["s",3.37]]},{"n":"L'archipel","p":7,"w":1.3,"pcs":[["s",2.62],["r",107,1.9],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.3,1.4],["s",1],["r",77,3.17],["w",1.7000000000000002,0.8],["s",0.8],["z","sand",2.2],["s",2.2],["s",0.8],["w",1.3,1],["r",112,2.08],["s",2.6,0.67],["s",2.57],["s",2.6,-0.45],["s",2.41],["s",1.6],["o","gate",{"speed":0.4,"ph":0.27}],["s",2.2],["s",2.34],["s",1.6],["o","slide",{"bw":0.42,"bd":0.32,"amp":0.35,"speed":1.97}],["s",2.2],["r",77,2.2],["s",1.2],["o","rock",{"fw":0.9,"lat":-0.07,"r":0.24}],["s",2.6],["s",2.4,-0.22],["s",3.42]]},{"n":"L'horizon","p":7,"w":1.24,"pcs":[["s",2.74],["l",111,2.38],["w",0.54,1.8],["s",2.6],["loop","r"],["s",1.6],["w",1.24,1.4],["s",1],["r",107,2.78],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.24,0.6],["s",1.2],["s",2.4,-0.5],["s",2.27],["w",1.6400000000000001,0.8],["s",1.2],["o","block",{"fw":1,"lat":0,"bw":0.14,"bd":2,"bh":0.2}],["s",3],["w",1.24,1],["l",85,3.08],["s",2.4,0.5],["w",0.95,0.6],["nw",3.6,"water"],["s",3.6],["w",1.24,0.6],["s",1.2],["s",2.4,-0.5],["l",81,2.64],["s",1.3,0.24],["gap",1.57,"water",-0.24],["w",1.5899999999999999,0.6],["s",2.4],["w",1.24,1.2],["s",0.8],["s",3.59]]}]}/*FIN-GOLF-DATA*/;
+
+  var API = { R: R, CUP: CUP, VMAX: VMAX, GRAV: GRAV, MAXSHOTS: MAXSHOTS, WAIT_S: WAIT_S, WALL_H: WALL_H, GROUND: GROUND, WATER_Y: WATER_Y, LOOP_W: LOOP_W, MAPS: MAPS, MAP_IDS: MAP_IDS, POWERS: POWERS, DEFAULT_OPTS: DEFAULT_OPTS,
+    walk: walk, buildHole: buildHole, buildCourse: buildCourse, holeList: holeList, inPoly: inPoly, floorAt: floorAt, floorH: floorH, fH: fH, dynSegs: dynSegs, gateOpen: gateOpen, simStep: simStep, advance: advance, atRest: atRest, setRailPos: setRailPos, nowS: nowS, COURSE_DATA: COURSE_DATA };
   return API;
 })();
 export default SIM;
