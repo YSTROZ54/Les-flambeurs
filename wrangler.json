@@ -13,14 +13,14 @@
   },
   "durable_objects": {
     "bindings": [
-      { "name": "KART", "class_name": "KartRoom" },
       { "name": "GOLF", "class_name": "GolfRoom" },
       { "name": "PROP", "class_name": "PropRoom" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["KartRoom", "GolfRoom"] },
-    { "tag": "v2", "new_sqlite_classes": ["PropRoom"] }
+    { "tag": "v2", "new_sqlite_classes": ["PropRoom"] },
+    { "tag": "v3", "deleted_classes": ["KartRoom"] }
   ],
   "keep_vars": true
 }

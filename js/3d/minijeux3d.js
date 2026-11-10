@@ -28,7 +28,6 @@
     // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
     { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🔍 PROP HUNT', sub: 'EN TEST · STAFF', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt', staff: true, pcOnly: true },
     { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'EN TEST · STAFF', color: 0x4ad0ff, target: 'dessin', theme: 'dessin', staff: true },
-    { id: 'kart', x: -9, z: HZ, nx: 0, nz: -1, label: '🏎️ COURSE', sub: 'EN TEST · STAFF', color: 0xff4d4d, target: 'kart', pcOnly: true, staff: true },
     { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'EN TEST · STAFF', color: 0x5dff8a, target: 'golf', theme: 'golf', staff: true }
   ];
 

@@ -1105,7 +1105,7 @@
       try {
         st.classList.remove('hidden');
         main = new World(st, {
-          rooms: phone ? ['hall', 'slots', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique', 'golf', 'golf_prairie', 'golf_automne', 'golf_canyon', 'golf_neige', 'golf_ile'] : ['hall', 'slots', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'crash', 'blindtest', 'ludo', 'musique', 'prophunt', 'prophuntgame', 'dessin', 'golf', 'golf_prairie', 'golf_automne', 'golf_canyon', 'golf_neige', 'golf_ile', 'kart', 'kart_nuit', 'kart_desert', 'kart_prairie'], start: place || 'hall', hall: true, menu: true,
+          rooms: phone ? ['hall', 'slots', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'crash', 'blindtest', 'blackjack', 'minijeux', 'uno', 'puissance4', 'vault', 'pokerroom', 'loupgarou', 'ludo', 'musique', 'golf', 'golf_prairie', 'golf_automne', 'golf_canyon', 'golf_neige', 'golf_ile'] : ['hall', 'slots', 'pokerroom', 'shop3d', 'pmu', 'cinema', 'cinemapremium', 'loupgarou', 'minijeux', 'uno', 'puissance4', 'vault', 'blackjack', 'crash', 'blindtest', 'ludo', 'musique', 'prophunt', 'prophuntgame', 'dessin', 'golf', 'golf_prairie', 'golf_automne', 'golf_canyon', 'golf_neige', 'golf_ile'], start: place || 'hall', hall: true, menu: true,
           onMenu: function () { if (typeof switchRoom === 'function') switchRoom('hall'); },
           onExitGame: function (key) { if (typeof switchRoom === 'function') switchRoom(key === 'pokerroom' ? 'poker' : key); }
         });

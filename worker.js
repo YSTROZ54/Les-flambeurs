@@ -19,11 +19,10 @@ import pokerHandler from './api/poker.js';
 import posterHandler from './api/poster.js';
 import slotsHandler from './api/slots.js';
 import { GolfRoom } from './api/_doGolf.js';
-import { KartRoom } from './api/_doKart.js';
 
 // Les salles temps réel (golf, course) sont des Durable Objects : un petit programme toujours allumé par salle, relié aux joueurs par WebSocket.
 import { PropRoom } from './api/_doProp.js';
-export { GolfRoom, KartRoom, PropRoom };
+export { GolfRoom, PropRoom };
 
 const ROUTE_HANDLERS = {
   accounts: accountsHandler,
@@ -227,8 +226,8 @@ export default {
       return new Response(JSON.stringify(globalThis.__gfInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
 
-    // WebSocket des jeux temps réel : /ws/kart (la course) et /ws/golf?room=pub-<carte>|priv-<CODE>
-    if (pathname === '/ws/kart' || pathname === '/ws/golf' || pathname === '/ws/prophunt') {
+    // WebSocket des jeux temps réel : /ws/golf?room=pub-<carte>|priv-<CODE>
+    if (pathname === '/ws/golf' || pathname === '/ws/prophunt') {
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
       if (pathname === '/ws/prophunt') {
         if (!env.PROP) return new Response('Prop Hunt indisponible', { status: 503 });
@@ -236,7 +235,6 @@ export default {
         if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(prRoom)) return new Response('Salon invalide', { status: 404 });
         return env.PROP.get(env.PROP.idFromName(prRoom)).fetch(request);          // une salle (Durable Object) par carte publique et par salon privé
       }
-      if (pathname === '/ws/kart') { if (!env.KART) return new Response('Course indisponible', { status: 503 }); const kTrack = String(url.searchParams.get('track') || 'nuit'); if (!/^(nuit|desert|prairie)$/.test(kTrack)) return new Response('Circuit inconnu', { status: 404 }); return env.KART.get(env.KART.idFromName(kTrack === 'nuit' ? 'main' : 'kart-' + kTrack)).fetch(request); }       // une salle de course (Durable Object) par circuit
       const gRoom = String(url.searchParams.get('room') || '');
       if (!env.GOLF || !/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(gRoom)) return new Response('Salle inconnue', { status: 404 });
       return env.GOLF.get(env.GOLF.idFromName(gRoom)).fetch(request);           // une salle (Durable Object) par carte publique et par partie privée

@@ -52,11 +52,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // outil de test (E2E_TEST_HOOKS=1) : décale l'horloge de la course pour tomber sur la phase voulue (grille, course, résultats)
-  if (process.env.E2E_TEST_HOOKS === '1' && path === '/__test/kartclock') {
-    const off = Number(url.searchParams.get('offset')) || 0; globalThis.__kartOffset = off; Object.keys(rooms).forEach((k) => { if (k.startsWith('/ws/kart')) rooms[k].offset = off; });
-    res.end('ok'); return;
-  }
 
   if (path === '/api/golf-info') {               // mini golf : joueurs par salle publique + classement, ou carte d'une partie privée
     const GR = (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom;
@@ -113,16 +108,15 @@ var rooms = {};
 server.on('upgrade', async (req, socket, head) => {
   try {
     const url = new URL(req.url, 'http://' + req.headers.host);
-    if (url.pathname !== '/ws/kart' && url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt') { socket.destroy(); return; }
+    if (url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt') { socket.destroy(); return; }
     let room, key = url.pathname;
     if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
-    else if (url.pathname === '/ws/kart') { key += ':' + (url.searchParams.get('track') || 'nuit'); if (!rooms[key]) { const kr = new (await import(pathToFileURL(join(ROOT, 'api', '_doKart.js')).href)).KartRoom({}, {}); kr.offset = globalThis.__kartOffset || 0; rooms[key] = kr; } room = rooms[key]; }
     else { key += ':' + url.searchParams.get('room'); if (!/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salle\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
     const a = await room.admit(url);
     if (a.error) { socket.write('HTTP/1.1 ' + a.status + ' ' + a.error.replace(/[^a-zA-Z ]/g, '') + '\r\n\r\n'); socket.destroy(); return; }
     wss.handleUpgrade(req, socket, head, (ws) => {
       const adapter = { send: (m) => { if (ws.readyState === 1) ws.send(m); }, close: () => { try { ws.close(); } catch (e) { /* ok */ } }, addEventListener: (ev, fn) => { if (ev === 'message') ws.on('message', (d) => fn({ data: d.toString() })); else ws.on(ev, fn); } };
-      if (url.pathname === '/ws/kart') room.join(adapter, a.key, a.name, a.car); else room.join(adapter, a.key, a.name);
+      room.join(adapter, a.key, a.name);
     });
   } catch (e) { console.error(e); try { socket.destroy(); } catch (e2) { /* ok */ } }
 });
