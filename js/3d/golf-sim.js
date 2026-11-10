@@ -22,8 +22,8 @@
     ile: { name: 'L\'Île au soleil couchant', emoji: '🏝️', sub: 'Sable, pontons et sauts au-dessus de la mer', water: true, col: '#ff9f5a' }
   };
   var MAP_IDS = ['prairie', 'automne', 'canyon', 'neige', 'ile'];
-  var POWERS = ['jump', 'glue', 'ice', 'magnet'];
-  var DEFAULT_OPTS = { dice: true, jump: true, glue: true, ice: true, magnet: true, collide: true, freeIce: false, holes: 20 };
+  var POWERS = ['jump', 'glue', 'ice'];
+  var DEFAULT_OPTS = { dice: true, jump: true, glue: true, ice: true, collide: true, holes: 20 };
 
   /* ------------------------------------------------------------------ le tracé d'un trou ------------------------------------------------------------------
      Pièces : ['s', longueur, dénivelé] · ['l'|'r', degrés, rayon, dénivelé] · ['w', largeur] · ['gap', longueur, 'water'|'void', dénivelé]

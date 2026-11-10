@@ -6,14 +6,14 @@
 //  - salle d'attente : l'hôte (premier arrivé) choisit les mods (dés bonus, pouvoirs, chocs, gel offert, 10 ou 20 trous) et lance la partie ;
 //    dans une salle publique, la partie démarre aussi toute seule 60 s après l'arrivée d'un 2e joueur ;
 //  - tombé à l'eau ou dans le vide : la balle revient là où on a tiré la dernière fois (pas de coup en plus).
-// Messages du navigateur : shot {yaw, power} · use {p} · glue {x, z} · reset · opts {o} · start · emote? (non)
+// Messages du navigateur : shot {yaw, power} · use {p, yaw} (un seul bonus à la fois : saut, miel, gel) · reset · opts {o} · start
 // Messages du serveur : welcome · lobby · hole · s (positions) · ev (évènements) · done · over · glue · top
 import { readToken } from './_auth.js';
 import GS from './_golfSim.js';
 import { isStaffActor } from './_roles.js';
 
 const TICK_MS = 1000 / 30, DONE_DELAY_MS = 2600, OVER_MS = 16000, HOLE_MAX_MS = 5 * 60000, AUTO_START_MS = 60000, GONE_KEEP_MS = 3 * 60000;
-const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.42, DICE_RESPAWN_MS = 14000, MAX_POWERS = 2;
+const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.42, DICE_EVERY_MS = 10000, DICE_MAX = 6, MAX_POWERS = 1;
 const ROOM_RE = /^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/;
 const LOCAL_HUB = globalThis.__golfHub || (globalThis.__golfHub = { stats: {} });   // sans Cloudflare (serveur local) : classement en mémoire
 
@@ -23,7 +23,7 @@ export class GolfRoom {
     for (const k of Object.keys(env || {})) if (typeof env[k] === 'string') process.env[k] = env[k];
     this.room = ''; this.map = ''; this.players = new Map(); this.gone = new Map();
     this.phase = 'lobby'; this.host = ''; this.opts = { ...GS.DEFAULT_OPTS }; this.lobbyT = 0;
-    this.game = null; this.glue = []; this.dice = []; this.timer = null; this.tickN = 0; this.dirty = true; this.nextId = 1; this.mapSwitchT = 0;
+    this.game = null; this.glue = []; this.dice = []; this.timer = null; this.tickN = 0; this.dirty = true; this.nextId = 1; this.mapSwitchT = 0; this.nextDice = 1; this.diceT = 0;
   }
 
   /* ------------------------------ le classement (objet « hub ») ------------------------------ */
@@ -85,7 +85,7 @@ export class GolfRoom {
     const back = this.gone.get(key); this.gone.delete(key);
     const used = new Set([...this.players.values()].map((p) => p.c));
     let c = back && !used.has(back.c) ? back.c : 0; if (!back || used.has(c)) { c = 0; while (used.has(c) && c < COLORS - 1) c++; }
-    const p = back && this.game && back.gid === this.game.gid ? Object.assign(back, { ws, n: name, c }) : { k: key, n: name, c, id: this.nextId++, ws, card: [], strokes: 0, done: false, sunk: false, ball: null, safe: null, moving: false, powers: [], magnet: false, magOn: false, lastWall: 0 };
+    const p = back && this.game && back.gid === this.game.gid ? Object.assign(back, { ws, n: name, c }) : { k: key, n: name, c, id: this.nextId++, ws, card: [], strokes: 0, done: false, sunk: false, ball: null, safe: null, moving: false, powers: [], lastWall: 0 };
     p.ws = ws; p.seen = Date.now();
     this.players.set(key, p);
     if (!this.host || (!this.players.has(this.host) && !this.switching())) this.host = key;              // en changeant de carte, l'hôte garde sa place
@@ -110,10 +110,9 @@ export class GolfRoom {
   hole() { return this.course.holes[this.game.list[this.game.hi]]; }
   placeOnHole(p, late) {
     const H = this.hole();
-    p.strokes = 0; p.done = false; p.sunk = false; p.moving = false; p.magOn = false;
+    p.strokes = 0; p.done = false; p.sunk = false; p.moving = false;
     p.ball = { x: H.tee[0], z: H.tee[1], y: H.teeH, vx: 0, vy: 0, vz: 0, air: false, rail: null };
     p.safe = { x: H.tee[0], z: H.tee[1], y: H.teeH };
-    if (this.opts.freeIce && !late && p.powers.length < MAX_POWERS && !p.powers.includes('ice')) p.powers.push('ice');
   }
 
   /* ------------------------------ la partie ------------------------------ */
@@ -121,13 +120,14 @@ export class GolfRoom {
     const list = GS.holeList(this.opts.holes);
     this.game = { gid: Date.now(), list, hi: 0, holeStart: Date.now(), firstDone: 0, lastDone: 0, overAt: 0 };
     this.phase = 'play'; this.lobbyT = 0; this.gone.clear();
-    this.players.forEach((p) => { p.gid = this.game.gid; p.card = []; p.powers = []; p.magnet = false; });
+    this.players.forEach((p) => { p.gid = this.game.gid; p.card = []; p.powers = []; });
     this.startHole();
   }
   startHole() {
     const g = this.game, H = this.hole();
     g.holeStart = Date.now(); g.firstDone = 0; g.lastDone = 0; this.glue = [];
-    this.dice = this.opts.dice ? H.dice.map((d, i) => ({ i, x: d.x, z: d.z, h: d.h, until: 0 })) : [];
+    this.dice = []; this.diceT = Date.now() + DICE_EVERY_MS;
+    if (this.opts.dice) H.dice.forEach((d) => this.dice.push({ i: this.nextDice++, x: d.x, z: d.z, h: d.h }));
     this.players.forEach((p) => this.placeOnHole(p));
     this.broadcast({ t: 'hole', ...this.pubState() }); this.dirty = true;
   }
@@ -168,13 +168,14 @@ export class GolfRoom {
     if (this.phase === 'over') { if (now >= this.game.overAt) { this.phase = 'lobby'; this.game = null; this.lobbyT = this.players.size >= 2 && this.room.startsWith('pub-') ? now + AUTO_START_MS : 0; this.broadcast({ t: 'lobby', ...this.pubState() }); } return; }
     const g = this.game, H = this.hole(), list = [...this.players.values()];
     this.physics(H, now / 1000);
-    // les flaques qui sèchent, les dés qui reviennent
+    // un nouveau bonus apparaît sur la piste toutes les 10 s ; les flaques sèchent
     const n0 = this.glue.length; this.glue = this.glue.filter((q) => q.until > now); if (this.glue.length !== n0) this.broadcast({ t: 'glue', glue: this.pubGlue() });
     // fin du trou : tout le monde a fini, ou 60 s après le premier (les retardataires prennent une pénalité), ou 5 min en tout
     const late = (g.firstDone && now - g.firstDone > GS.WAIT_S * 1000) || now - g.holeStart > HOLE_MAX_MS;
     if (late) list.forEach((p) => { if (!p.done && !p.moving) this.finish(p, Math.min(GS.MAXSHOTS + 1, Math.max(p.strokes + 2, H.par + 3)), 'time'); });
     if (list.every((p) => p.done) && g.lastDone && now - g.lastDone > DONE_DELAY_MS) this.nextHole();
     // positions des balles : 15 fois par seconde tant que quelque chose bouge
+    if (this.opts.dice && now >= this.diceT) { this.diceT = now + DICE_EVERY_MS; this.spawnDice(H); }
     const moving = list.some((p) => p.moving);
     if ((moving || this.dirty) && this.tickN % 2 === 0) { this.broadcast(this.snap(now)); this.dirty = moving; }
   }
@@ -189,7 +190,7 @@ export class GolfRoom {
       for (const p of list) {
         if (!p.moving) continue;
         const b = p.ball;
-        const ctx = { glue: this.glue, magnet: p.magOn, ev: (type, f) => this.onEv(p, type, f) };
+        const ctx = { glue: this.glue, ev: (type, f) => this.onEv(p, type, f) };
         const r = GS.simStep(b, H, sub, t + s * sub, ctx);
         if (r) { this.result(p, r, H); continue; }
         this.pickDice(p);
@@ -197,6 +198,19 @@ export class GolfRoom {
       if (this.opts.collide) this.collide(all);
     }
     for (const p of list) if (p.moving && GS.atRest(p.ball, H)) this.rest(p, H);
+  }
+  // un bonus de plus quelque part sur la piste (jamais sur du sable ou de la glace, ni près du départ, du trou ou d'un autre bonus)
+  spawnDice(H) {
+    if (this.dice.length >= DICE_MAX) return;
+    const fl = H.floors.filter((f) => !f.zone && f.len > 0.4);
+    for (let k = 0; k < 30 && fl.length; k++) {
+      const f = fl[Math.floor(Math.random() * fl.length)], t = Math.random(), lat = (Math.random() - 0.5) * Math.max(0.1, f.w0 - 0.5);
+      const x = f.ax + f.dx * f.len * t - f.dz * lat, z = f.az + f.dz * f.len * t + f.dx * lat;
+      if (!GS.inPoly(f.poly, x, z) || Math.hypot(x - H.cup[0], z - H.cup[1]) < 2 || Math.hypot(x - H.tee[0], z - H.tee[1]) < 1.6) continue;
+      if (this.dice.some((d) => Math.hypot(d.x - x, d.z - z) < 1.3) || H.dyn.some((d) => Math.hypot(d.x - x, d.z - z) < 1.0) || H.circles.some((c) => Math.hypot(c.x - x, c.z - z) < 0.8)) continue;
+      this.dice.push({ i: this.nextDice++, x, z, h: GS.fH(f, x, z) });
+      this.broadcast({ t: 'players', ...this.pubState() }); return;
+    }
   }
   // choc entre deux balles (même poids) : la vitesse passe de l'une à l'autre selon l'angle, un peu amortie
   collide(all) {
@@ -223,14 +237,14 @@ export class GolfRoom {
     else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
   }
   pickDice(p) {
-    if (!this.dice.length || p.powers.length >= MAX_POWERS) return;
-    const b = p.ball, now = Date.now();
+    if (!this.dice.length || p.powers.length >= MAX_POWERS) return;           // un seul bonus à la fois : il faut d'abord utiliser le sien
+    const b = p.ball;
     for (const d of this.dice) {
-      if (d.until > now || Math.abs(b.y - d.h) > 0.35 || Math.hypot(b.x - d.x, b.z - d.z) > 0.26) continue;
+      if (Math.abs(b.y - d.h) > 0.35 || Math.hypot(b.x - d.x, b.z - d.z) > 0.26) continue;
       const pool = GS.POWERS.filter((k) => this.opts[k]); if (!pool.length) return;
       const pw = pool[Math.floor(Math.random() * pool.length)];
-      p.powers.push(pw); d.until = now + DICE_RESPAWN_MS;
-      this.broadcast({ t: 'ev', e: 'dice', id: p.id, i: d.i, p: pw, until: d.until });
+      p.powers.push(pw); this.dice.splice(this.dice.indexOf(d), 1);
+      this.broadcast({ t: 'ev', e: 'dice', id: p.id, i: d.i, p: pw });
       this.broadcast({ t: 'players', ...this.pubState() });
       return;
     }
@@ -246,11 +260,11 @@ export class GolfRoom {
     }
     // dans l'eau ou dans le vide : retour là où on a tiré la dernière fois
     this.broadcast({ t: 'ev', e: r, id: p.id, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) });
-    b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; b.rail = null; p.moving = false; p.magOn = false; this.dirty = true;
+    b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; b.rail = null; p.moving = false; this.dirty = true;
     if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
   }
   rest(p, H) {
-    const b = p.ball; b.vx = b.vz = b.vy = 0; p.moving = false; p.magOn = false; this.dirty = true;
+    const b = p.ball; b.vx = b.vz = b.vy = 0; p.moving = false; this.dirty = true;
     if (!p.done && !p.sunk && p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
   }
 
@@ -260,8 +274,7 @@ export class GolfRoom {
     if (!m || typeof m.t !== 'string' || this.players.get(p.k) !== p) return;
     p.seen = Date.now();
     if (m.t === 'shot') this.shot(p, Number(m.yaw), Number(m.power));
-    else if (m.t === 'use') this.usePower(p, String(m.p || ''));
-    else if (m.t === 'glue') this.placeGlue(p, Number(m.x), Number(m.z));
+    else if (m.t === 'use') this.usePower(p, String(m.p || ''), Number(m.yaw));
     else if (m.t === 'reset') this.resetBall(p);
     else if (m.t === 'opts') this.setOpts(p, m.o || {});
     else if (m.t === 'start') { if (this.phase === 'lobby' && p.k === this.host) this.startGame(); }
@@ -273,29 +286,34 @@ export class GolfRoom {
     const b = p.ball, sp = Math.pow(power, 1.15) * GS.VMAX;
     p.safe = { x: b.x, z: b.z, y: b.y };
     b.vx = Math.sin(yaw) * sp; b.vz = -Math.cos(yaw) * sp; b.vy = 0; b.air = false; b.rail = null;
-    p.strokes++; p.moving = true; p.magOn = p.magnet; p.magnet = false; this.dirty = true;
+    p.strokes++; p.moving = true; this.dirty = true;
     this.broadcast({ t: 'ev', e: 'shot', id: p.id, pw: +power.toFixed(2), s: p.strokes });
     this.broadcast({ t: 'players', ...this.pubState() });
   }
-  usePower(p, k) {
+  usePower(p, k, yaw) {
     const at = p.powers.indexOf(k); if (at < 0 || !this.canPlay(p)) return;
     const b = p.ball;
     if (k === 'jump') { if (!p.moving || b.rail) return; b.vy = Math.max(b.air ? b.vy : 0, 0) + 3.4; b.air = true; }
     else if (k === 'ice') { if (!p.moving || b.rail) return; b.vx = 0; b.vz = 0; if (!b.air) { b.vy = 0; } }
-    else if (k === 'magnet') { if (p.moving || p.magnet) return; p.magnet = true; }
+    else if (k === 'glue') { if (!this.dropGlue(p, yaw)) return; }
     else return;
     p.powers.splice(at, 1); this.dirty = true;
     this.broadcast({ t: 'ev', e: 'pow', id: p.id, p: k, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) });
     this.broadcast({ t: 'players', ...this.pubState() });
   }
-  placeGlue(p, x, z) {
-    const at = p.powers.indexOf('glue'); if (at < 0 || this.phase !== 'play' || !isFinite(x) || !isFinite(z)) return;
-    const H = this.hole(), fl = GS.floorAt(H, x, z, 99);
-    if (!fl || Math.hypot(x - H.cup[0], z - H.cup[1]) < 0.8 || Math.hypot(x - H.tee[0], z - H.tee[1]) < 0.8) return;
-    p.powers.splice(at, 1);
-    this.glue.push({ x, z, h: fl.h, r: GLUE_R, until: Date.now() + GLUE_MS, by: p.id });
-    this.broadcast({ t: 'glue', glue: this.pubGlue(), by: p.id, x: +x.toFixed(2), z: +z.toFixed(2) });
-    this.broadcast({ t: 'players', ...this.pubState() });
+  // le miel se pose derrière la balle (à l'opposé de sa course, ou de la visée si elle est à l'arrêt) : on ne choisit pas où
+  dropGlue(p, yaw) {
+    const H = this.hole(), b = p.ball, sp = Math.hypot(b.vx, b.vz);
+    let bx, bz;
+    if (sp > 0.4) { bx = -b.vx / sp; bz = -b.vz / sp; } else { const y = isFinite(yaw) ? yaw : H.teeYaw; bx = -Math.sin(y); bz = Math.cos(y); }
+    for (const dist of [0.5, 0.35, 0.2, 0]) {
+      const x = b.x + bx * dist, z = b.z + bz * dist, fl = GS.floorAt(H, x, z, b.y + 0.4);
+      if (!fl || Math.hypot(x - H.cup[0], z - H.cup[1]) < 0.5) continue;
+      this.glue.push({ x, z, h: fl.h, r: GLUE_R, until: Date.now() + GLUE_MS, by: p.id });
+      this.broadcast({ t: 'glue', glue: this.pubGlue(), by: p.id, x: +x.toFixed(2), z: +z.toFixed(2) });
+      return true;
+    }
+    return false;
   }
   resetBall(p) {
     if (!this.canPlay(p) || p.moving || !p.safe) return;
@@ -307,7 +325,7 @@ export class GolfRoom {
   setOpts(p, o) {
     if (this.phase !== 'lobby' || p.k !== this.host) return;
     const O = this.opts;
-    ['dice', 'jump', 'glue', 'ice', 'magnet', 'collide', 'freeIce'].forEach((k) => { if (typeof o[k] === 'boolean') O[k] = o[k]; });
+    ['dice', 'jump', 'glue', 'ice', 'collide'].forEach((k) => { if (typeof o[k] === 'boolean') O[k] = o[k]; });
     if (o.holes === 10 || o.holes === 20) O.holes = o.holes;
     if (this.room.startsWith('priv-') && GS.MAP_IDS.includes(o.map) && o.map !== this.map) { this.setMap(o.map); this.mapSwitchT = Date.now(); }
     this.broadcast({ t: 'lobby', ...this.pubState() });
@@ -316,10 +334,10 @@ export class GolfRoom {
   /* ------------------------------ envoi ------------------------------ */
   pubGame() { const g = this.game; return g ? { gid: g.gid, list: g.list, hi: g.hi, holeStart: g.holeStart, firstDone: g.firstDone, overAt: g.overAt } : null; }
   pubPlayers() {
-    return [...this.players.values()].map((p) => ({ k: p.k, n: p.n, c: p.c, id: p.id, s: p.strokes, d: p.done ? 1 : 0, sk: p.sunk ? 1 : 0, card: (p.card || []).map((v) => (v == null ? null : v)), pw: p.powers, mg: p.magnet ? 1 : 0, mv: p.moving ? 1 : 0, b: p.ball ? [+p.ball.x.toFixed(3), +p.ball.y.toFixed(3), +p.ball.z.toFixed(3)] : null }));
+    return [...this.players.values()].map((p) => ({ k: p.k, n: p.n, c: p.c, id: p.id, s: p.strokes, d: p.done ? 1 : 0, sk: p.sunk ? 1 : 0, card: (p.card || []).map((v) => (v == null ? null : v)), pw: p.powers, mv: p.moving ? 1 : 0, b: p.ball ? [+p.ball.x.toFixed(3), +p.ball.y.toFixed(3), +p.ball.z.toFixed(3)] : null }));
   }
   pubGlue() { return this.glue.map((q) => ({ x: +q.x.toFixed(2), z: +q.z.toFixed(2), h: +q.h.toFixed(2), r: q.r, until: q.until, by: q.by })); }
-  pubState() { return { now: Date.now(), phase: this.phase, map: this.map, host: this.host, opts: this.opts, lobbyT: this.lobbyT, game: this.pubGame(), players: this.pubPlayers(), glue: this.pubGlue(), dice: this.dice.map((d) => ({ i: d.i, until: d.until })) }; }
+  pubState() { return { now: Date.now(), phase: this.phase, map: this.map, host: this.host, opts: this.opts, lobbyT: this.lobbyT, game: this.pubGame(), players: this.pubPlayers(), glue: this.pubGlue(), dice: this.dice.map((d) => ({ i: d.i, x: +d.x.toFixed(2), z: +d.z.toFixed(2), h: +d.h.toFixed(3) })) }; }
   snap(now) {
     const b = [];
     this.players.forEach((p) => { if (!p.ball) return; const q = p.ball; b.push([p.id, +q.x.toFixed(3), +q.y.toFixed(3), +q.z.toFixed(3), (p.moving ? 1 : 0) | (p.sunk ? 2 : 0) | (q.rail ? 4 : 0) | (q.air ? 8 : 0)]); });
