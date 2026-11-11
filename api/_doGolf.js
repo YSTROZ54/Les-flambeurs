@@ -115,7 +115,7 @@ export class GolfRoom {
 
   /* ------------------------------ la partie ------------------------------ */
   startGame() {
-    const list = GS.holeList(this.opts.holes);
+    const list = GS.holeList(this.opts.holes, this.map);
     this.game = { gid: Date.now(), list, hi: 0, holeStart: Date.now(), firstDone: 0, lastDone: 0, overAt: 0 };
     this.phase = 'play'; this.lobbyT = 0; this.gone.clear();
     this.players.forEach((p) => { p.gid = this.game.gid; p.card = []; p.powers = []; });
@@ -166,6 +166,8 @@ export class GolfRoom {
     if (this.phase === 'lobby') { if (this.lobbyT && now >= this.lobbyT && this.players.size >= 2) this.startGame(); return; }
     if (this.phase === 'over') { if (now >= this.game.overAt) { this.phase = 'lobby'; this.game = null; this.lobbyT = this.players.size >= 2 && this.room.startsWith('pub-') ? now + AUTO_START_MS : 0; this.broadcast({ t: 'lobby', ...this.pubState() }); } return; }
     const g = this.game, H = this.hole(), list = [...this.players.values()];
+    // un tonneau, un bras ou un moulin qui arrive sur une balle à l'arrêt la pousse
+    if (H.dyn.length) { let woke = false; list.forEach((p) => { if (!p.moving && p.ball && !p.done && !p.sunk && GS.dynTouch(H, p.ball, now / 1000)) { p.moving = true; woke = true; } }); if (woke) { this.dirty = true; this.broadcast({ t: 'players', ...this.pubState() }); } }
     this.physics(H, now / 1000);
     // un nouveau bonus apparaît sur la piste toutes les 10 s ; les flaques sèchent
     const n0 = this.glue.length; this.glue = this.glue.filter((q) => q.until > now); if (this.glue.length !== n0) this.broadcast({ t: 'glue', glue: this.pubGlue() });
@@ -233,7 +235,7 @@ export class GolfRoom {
   onEv(p, type, f) {
     const now = Date.now();
     if (type === 'wall') { if (now - p.lastWall < 90) return; p.lastWall = now; this.broadcast({ t: 'ev', e: 'w', id: p.id, f: +f.toFixed(2) }); }
-    else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land' || type === 'bounce' || type === 'boost') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
+    else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land' || type === 'bounce' || type === 'boost' || type === 'lip' || type === 'cannon' || type === 'portal') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
   }
   pickDice(p) {
     if (!this.dice.length || p.powers.length >= MAX_POWERS) return;           // un seul bonus à la fois : il faut d'abord utiliser le sien

@@ -77,6 +77,7 @@
     wall: function (f) { var v = Math.min(0.05, 0.01 + f * 0.012); tone(430 + Math.random() * 60, 300, 0.05, 'triangle', v); noise(0.03, v * 0.7, 900, 'bandpass', 0, 2); },
     clack: function (f) { var v = Math.min(0.08, 0.02 + f * 0.014); tone(2650, 2450, 0.035, 'sine', v); tone(3800, 3600, 0.022, 'sine', v * 0.5); },
     bump: function () { tone(520, 980, 0.1, 'triangle', 0.045); },
+    boom: function () { noise(0.35, 0.09, 220, 'lowpass'); tone(110, 45, 0.3, 'sine', 0.07); },
     cup: function () { [0, 0.06, 0.12].forEach(function (d) { tone(1900, 1700, 0.016, 'sine', 0.03, d); }); tone(300, 120, 0.16, 'sine', 0.06, 0.14); tone(880, 880, 0.18, 'sine', 0.03, 0.3); tone(1320, 1320, 0.22, 'sine', 0.025, 0.38); },
     ace: function () { [523, 659, 784, 1046].forEach(function (f, i) { tone(f, f, 0.22, 'triangle', 0.05, i * 0.12); }); },
     splash: function () { noise(0.5, 0.07, 1400, 'lowpass'); [0.08, 0.17, 0.24].forEach(function (d) { tone(500 + Math.random() * 300, 900, 0.06, 'sine', 0.015, d); }); },
@@ -132,7 +133,7 @@
      ================================================================== */
   function createCourse(world, mapId) {
     var MP = MAPS[mapId], low = world.low;
-    var room = { title: MP.emoji + ' ' + MP.name.toUpperCase(), subtitle: 'MINI GOLF · 20 TROUS', topic: 'flambeurs-golf-' + mapId, group: new THREE.Group(), doors: [], interactables: [], colliders: [], hideSelf: true, noHand: true };
+    var room = { title: MP.emoji + ' ' + MP.name.toUpperCase(), subtitle: 'MINI GOLF · ' + GS.buildCourse(mapId).holes.length + ' TROUS', topic: 'flambeurs-golf-' + mapId, group: new THREE.Group(), doors: [], interactables: [], colliders: [], hideSelf: true, noHand: true };
     var g = room.group, course = GS.buildCourse(mapId), HOLES = course.holes;
     var CX = (course.box[0] + course.box[2]) / 2, CZ = (course.box[1] + course.box[3]) / 2, SPAN = Math.max(course.box[2] - course.box[0], course.box[3] - course.box[1]);
     room.bounds = { xMin: course.box[0] - 6, xMax: course.box[2] + 6, zMin: course.box[1] - 6, zMax: course.box[3] + 6 };
@@ -232,6 +233,8 @@
       else if (m.e === 'glue') { if (mine) { SND.stick(); toast('🍯 Ça colle !', '', '#ffb347', 1.2); } }
       else if (m.e === 'loop') { if (mine || (b && near(b.x, b.z))) SND.loop(); }
       else if (m.e === 'land') { if (b && near(b.x, b.z)) SND.land(); }
+      else if (m.e === 'lip') { if (b && (mine || near(b.x, b.z))) SND.bump(); if (mine) toast('Trop vite !', 'La balle ressort du trou', '#ffb347', 1.4); }
+      else if (m.e === 'cannon' || m.e === 'portal') { if (b && (mine || near(b.x, b.z))) { if (m.e === 'cannon') SND.boom(); else SND.dice(); } if (b) puff(b.x, b.y + 0.2, b.z, m.e === 'cannon' ? 0xdddddd : 0xb48cff, 0.7); }
       else if (m.e === 'bounce' || m.e === 'boost') { if (b && (mine || near(b.x, b.z))) SND.bump(); if (b) ring(b.x, b.y + 0.01, b.z, m.e === 'boost' ? 0xffc23d : 0x9fd0ff, 0.4); }
       else if (m.e === 'water' || m.e === 'out') {
         if (b) { b.buf.length = 0; b.cut = true; }
@@ -415,12 +418,12 @@
         st.rank.forEach(function (r, i) { var p = st.byKey[r.k]; h += '<div class="pl"><b style="width:28px">' + (['🥇', '🥈', '🥉'][i] || (i + 1) + '.') + '</b><i style="background:' + (p ? BALL_COLORS[(p.c | 0) % 8] : '#888') + '"></i>' + esc(r.n) + (st.winners.indexOf(r.k) >= 0 ? ' 👑' : '') + '<span style="margin-left:auto;color:#ffd23f">' + r.t + ' coups</span></div>'; });
         h += '</div>' + topHtml() + '</div>';
       } else {
-        h += '<h2>' + MP.emoji + ' ' + esc(MP.name) + '</h2><div class="sub">' + esc(MP.sub) + ' · ' + (O.holes || 20) + ' trous du plus court au plus long' + (priv ? '' : ' · salle publique') + '</div>';
+        h += '<h2>' + MP.emoji + ' ' + esc(MP.name) + '</h2><div class="sub">' + esc(MP.sub) + ' · ' + (HOLES.length) + ' trous, une aventure de pirates' + (priv ? '' : ' · salle publique') + '</div>';
         if (priv) h += '<div class="gf-code" data-a="copy" title="Copier le code">CODE : ' + esc(net.roomName.slice(5)) + '</div> <small style="opacity:.75;font-weight:700">Donne ce code à tes amis</small>';
         h += '<div class="cols"><div class="col"><h4>Joueurs (' + st.players.length + ')</h4>' + st.players.map(function (p) { return '<div class="pl"><i style="background:' + BALL_COLORS[(p.c | 0) % 8] + '"></i>' + esc(p.n) + (p.k === st.host ? ' 👑' : '') + (p.k === net.myKey ? ' <small style="opacity:.6">(toi)</small>' : '') + '</div>'; }).join('') + '</div>';
         h += '<div class="col"><h4>Mods de la partie' + (host ? '' : ' (choisis par l\'hôte 👑)') + '</h4>';
         if (priv && host) h += '<div class="gf-maps">' + MAP_IDS.map(function (m) { return '<button data-map="' + m + '" class="' + (m === mapId ? 'on' : '') + '">' + MAPS[m].emoji + ' ' + esc(MAPS[m].name) + '</button>'; }).join('') + '</div>';
-        h += '<div class="gf-seg">' + [10, 20].map(function (n) { return '<button data-holes="' + n + '" class="' + ((O.holes || 20) === n ? 'on' : '') + '"' + (host ? '' : ' disabled') + '>' + n + ' trous</button>'; }).join('') + '</div>';
+        h += '<div class="gf-seg">' + (HOLES.length > 10 ? [10, 20] : []).map(function (n) { return '<button data-holes="' + n + '" class="' + ((O.holes || 20) === n ? 'on' : '') + '"' + (host ? '' : ' disabled') + '>' + n + ' trous</button>'; }).join('') + '</div>';
         h += mod('dice', '❓ Bonus sur la piste', 'Des carrés « ? » (un de plus toutes les 10 s) : un seul bonus à la fois, Espace pour l\'utiliser');
         if (O.dice) ['jump', 'glue', 'ice'].forEach(function (k) { h += mod(k, POW[k].e + ' ' + POW[k].n, POW[k].d, true); });
         h += mod('collide', '💥 Chocs entre balles', 'Fonce dans les autres : plus tu vas vite, plus elles partent loin');
@@ -748,7 +751,7 @@
       };
     }
     var CREAM = 0xe8dcc0;
-    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - MAP_IDS.length / 2) * 3.5; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '20 TROUS', color: CREAM, target: 'golf_' + m, theme: 'golf_' + m, portalDraw: preview(m) }); });
+    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - MAP_IDS.length / 2) * 3.5; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '10 TROUS', color: CREAM, target: 'golf_' + m, theme: 'golf_' + m, portalDraw: preview(m) }); });
     // 6e porte : la partie privée (elle ouvre le panneau pour créer une partie avec un code ou en rejoindre une)
     var privT = 0;
     world.addDoor(room, {

@@ -4,9 +4,10 @@
 //   node scripts/sync-sims.mjs && node scripts/golf-gen.mjs && node scripts/sync-sims.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { KRAKEN } from './golf-kraken-holes.mjs';
-const AUTHORED = { kraken: KRAKEN };          // cartes dessinées à la main : le générateur vérifie et calcule le par, il n'invente rien
-let FAILS = 0;
+import { KRAKEN } from './golf-holes.mjs';
+const AUTHORED = { kraken: KRAKEN };
+const VER = new Set();                          // cartes générées qu'on revérifie (VERIFY=1) : un trou devenu injouable est regénéré          // cartes dessinées à la main : le générateur vérifie et calcule le par, il n'invente rien
+let FAILS = 0, WIDE = false;
 const GS = (await import('../api/_golfSim.js?' + Date.now())).default;
 const ONLY = (process.argv[2] || '').split(',').filter(Boolean);     // ex. : node scripts/golf-gen.mjs kraken,volcan (les autres cartes ne sont pas touchées)
 
@@ -138,7 +139,7 @@ function simShot(H, b0, yaw, power, t0) {
 }
 function botPlay(H, maxShots) {
   let ball = { x: H.tee[0], z: H.tee[1], y: H.teeH }, t = 3.7, shots = 0;
-  const POW = [0.16, 0.24, 0.32, 0.42, 0.52, 0.63, 0.75, 0.88, 1.0], DIST = [0.8, 1.6, 2.6, 3.8, 5.2, 7, 9.5, 13];
+  const POW = [0.1, 0.16, 0.24, 0.32, 0.42, 0.52, 0.63, 0.75, 0.88, 1.0], DIST = [0.8, 1.6, 2.6, 3.8, 5.2, 7, 9.5, 13];
   while (shots < maxShots) {
     shots++;
     const p0 = progressOf(H, ball);
@@ -149,7 +150,7 @@ function botPlay(H, maxShots) {
       if (lp) tgt = { x: lp.x + lp.dx * 0.6, z: lp.z + lp.dz * 0.6 };
       if (p0 + dist >= H.len - 1) tgt = { x: H.cup[0], z: H.cup[1] };
       const yaw = Math.atan2(tgt.x - ball.x, -(tgt.z - ball.z));
-      for (const yo of [0, -0.06, 0.06]) for (const pw of POW) {
+      for (const yo of (WIDE ? [0, -0.06, 0.06, -0.16, 0.16, -0.32, 0.32] : [0, -0.06, 0.06])) for (const pw of POW) {
         const r = simShot(H, ball, yaw + yo, pw, t);
         let score = r.res === 'cup' ? 1e6 : (r.res === 'water' || r.res === 'out') ? -1e3 : progressOf(H, r.b) - Math.abs(r.b.y - (pointAt(H, progressOf(H, r.b)).h)) * 5;
         if (r.res === 'rest' && Math.hypot(r.b.x - H.cup[0], r.b.z - H.cup[1]) < 0.6) score += 50 - Math.hypot(r.b.x - H.cup[0], r.b.z - H.cup[1]) * 30;
@@ -157,6 +158,9 @@ function botPlay(H, maxShots) {
       }
       if (best && best.score >= 1e6) break;
     }
+    // coincé (tous les tirs finissent à l'eau) : le robot essaie toutes les directions
+    if (best.score <= -1e3) for (let q = 0; q < 16; q++) for (const pw of POW) { const r = simShot(H, ball, q * Math.PI / 8, pw, t); const score = r.res === 'cup' ? 1e6 : (r.res === 'water' || r.res === 'out') ? -1e3 : progressOf(H, r.b) - 0.5; if (score > best.score) best = { score, r }; }
+    if (process.env.DBG) console.log('  coup', shots, best.r.res, best.score.toFixed(1), 'balle', best.r.b.x.toFixed(2), best.r.b.z.toFixed(2), best.r.b.y.toFixed(2), 'trou', H.cup[0].toFixed(2), H.cup[1].toFixed(2), H.cupH.toFixed(2));
     t = best.r.t + 1;
     if (best.r.res === 'cup') return shots;
     if (best.r.res === 'rest') ball = { x: best.r.b.x, y: best.r.b.y, z: best.r.b.z };
@@ -165,30 +169,34 @@ function botPlay(H, maxShots) {
 }
 
 const DATA = {};
-const NEW = ['kraken', 'volcan'];
+const NEW = ['kraken'];
 const P = fileURLToPath(new URL('../js/3d/golf-sim.js', import.meta.url));
 const src0 = readFileSync(P, 'utf8');
 const old = JSON.parse(src0.slice(src0.indexOf('/*GOLF-DATA*/') + 13, src0.indexOf('/*FIN-GOLF-DATA*/')));
 function flush() {
   for (const map of Object.keys(DATA)) { if (AUTHORED[map]) continue; DATA[map].sort((a, b) => GS.buildHole(a, 0, 0).len - GS.buildHole(b, 0, 0).len); DATA[map].forEach((h, k) => { h.n = NAMES[map][k]; }); }
-  const json = JSON.stringify(DATA).replace(/\],\[/g, '],[');
+  const json = JSON.stringify({ ...DATA }).replace(/\],\[/g, '],[');
   const src = src0.slice(0, src0.indexOf('/*GOLF-DATA*/') + 13) + json + src0.slice(src0.indexOf('/*FIN-GOLF-DATA*/'));
   writeFileSync(P, src);
   
 }
+// VERIFY=1 : on rejoue les trous existants des cartes demandées avec la physique actuelle (par recalculé, rien n'est réinventé)
+if (process.env.VERIFY) for (const m of ONLY) if (!AUTHORED[m]) { AUTHORED[m] = old[m]; VER.add(m); }
 for (const map of GS.MAP_IDS) {
   if (ONLY.length && !ONLY.includes(map)) { DATA[map] = old[map] || []; continue; }
   DATA[map] = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < (AUTHORED[map] ? AUTHORED[map].length : 20); i++) {
+    if (process.env.ONLYH && !process.env.ONLYH.split(',').includes(String(i + 1))) { FAILS++; continue; }
     let ok = null, tries = 0, nOver = 0, nBot = 0;
-    for (let attempt = 0; attempt < (AUTHORED[map] ? 1 : 400) && !ok; attempt++) {
-      const spec = AUTHORED[map] ? JSON.parse(JSON.stringify(AUTHORED[map][i])) : genHole(map, i, attempt);
+    for (let attempt = 0; attempt < (AUTHORED[map] && !VER.has(map) ? 1 : 400) && !ok; attempt++) {
+      const spec = AUTHORED[map] && (attempt === 0 || !VER.has(map)) ? JSON.parse(JSON.stringify(AUTHORED[map][i])) : genHole(map, i, attempt);
+      WIDE = !!AUTHORED[map] && !VER.has(map);
       if (!overlapOk(spec)) { nOver++; continue; }
       tries++;
       const H = GS.buildHole(spec, 0, 0);
       const shots = botPlay(H, AUTHORED[map] ? 14 : NEW.includes(map) ? 10 : 8);
       if (shots < 0) { nBot++; continue; }
-      spec.p = Math.max(2, Math.min(7, shots + 1 + (i >= 12 ? 1 : 0)));
+      spec.p = Math.max(2, Math.min(7, shots + 1 + (i >= 7 ? 1 : 0)));
       ok = spec; ok._bot = shots; ok._len = H.len.toFixed(1); ok._tries = tries;
     }
     if (!ok && AUTHORED[map]) { FAILS++; console.log('ÉCHEC', map, i + 1, AUTHORED[map][i].n, nOver ? '(les morceaux se chevauchent)' : '(le robot n\'arrive pas à finir)'); continue; }
@@ -197,7 +205,7 @@ for (const map of GS.MAP_IDS) {
     delete ok._bot; delete ok._len; delete ok._tries;
     DATA[map].push(ok);
   }
-  if (DATA[map].length === 20 && !FAILS) flush();                  // une carte terminée est sauvegardée tout de suite
+  if (!FAILS) flush();                  // une carte terminée est sauvegardée tout de suite
 }
 if (FAILS) { console.log(FAILS + ' trou(s) à corriger : rien n\'a été écrit'); process.exit(1); }
 flush();
