@@ -81,12 +81,13 @@
     try { p.pc.close(); } catch (e) { /* ok */ }
     try { if (p.source) p.source.disconnect(); } catch (e) { /* ok */ }
     try { if (p.gain) p.gain.disconnect(); } catch (e) { /* ok */ }
+    try { if (p.el) p.el.srcObject = null; } catch (e) { /* ok */ }
   }
   function closeAllPeers() { Object.keys(peers).forEach(closePeer); }
 
   function makePeer(k) {
     var pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    var p = peers[k] = { pc: pc, gain: null, source: null, hasTrack: false, pendingIce: [], gainVal: 0 };
+    var p = peers[k] = { pc: pc, gain: null, source: null, hasTrack: false, pendingIce: [], gainVal: 0, t0: performance.now(), el: null };
     if (localStream) addLocalTrack(p); else { try { pc.addTransceiver('audio', { direction: 'recvonly' }); } catch (e) { /* navigateur ancien : tant pis, sans micro */ } }
     pc.onicecandidate = function (e) {
       if (e.candidate && rt) rt.send('v-ice', { to: k, from: F.me(), candidate: { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex } });
@@ -94,7 +95,10 @@
     pc.ontrack = function (e) {
       var c = ctx(), mg = ensureMasterGain(); if (!c || !mg) return;
       try { if (p.source) p.source.disconnect(); } catch (er) { /* ok */ }
-      p.source = c.createMediaStreamSource(e.streams[0]);
+      var stream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+      // Chrome/Edge : un flux WebRTC distant reste muet dans Web Audio tant qu'il n'est pas aussi branché sur un élément audio (muet : le son sort par Web Audio)
+      try { if (!p.el) p.el = new Audio(); p.el.srcObject = stream; p.el.muted = true; var pl = p.el.play(); if (pl && pl.catch) pl.catch(function () { /* ok */ }); } catch (er2) { /* ok */ }
+      p.source = c.createMediaStreamSource(stream);
       p.gain = c.createGain(); p.gain.gain.value = 0;
       p.source.connect(p.gain); p.gain.connect(mg);
     };
@@ -115,7 +119,8 @@
     if (!m || m.to !== me || !m.from || m.from === me) return;
     var k = m.from;
     if (ev === 'v-offer') {
-      var p = peers[k] || makePeer(k);
+      if (peers[k]) closePeer(k);                              // nouvelle offre = l'autre repart de zéro : on aussi
+      var p = makePeer(k);
       p.pc.setRemoteDescription({ type: 'offer', sdp: m.sdp }).then(function () {
         flushIce(p);
         return p.pc.createAnswer();
@@ -178,7 +183,11 @@
     var k, remote = w.remote, me = myPos(w);
     for (k in remote) if (!peers[k]) connectTo(k);             // nouveau voisin : on se connecte (un seul des deux lance l'offre)
     for (k in peers) if (!remote[k]) closePeer(k);             // il est parti (même règle que son avatar : world.remote l'a déjà retiré)
-    var c = ctx();
+    var c = ctx(), now = performance.now();
+    for (k in peers) {                                         // liaison qui n'aboutit pas (offre perdue, l'autre pas encore sur le canal, réseau) : on la refait à zéro
+      var ist = peers[k].pc.iceConnectionState;
+      if (ist !== 'connected' && ist !== 'completed' && now - peers[k].t0 > 9000) closePeer(k);
+    }
     for (k in peers) {
       var p = peers[k]; if (!p.gain) continue;
       var r = remote[k], pos = r.person && r.person.group ? r.person.group.position : { x: r.tx, z: r.tz };
