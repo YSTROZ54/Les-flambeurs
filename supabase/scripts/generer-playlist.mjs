@@ -9,7 +9,7 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets
 // dossier -> salle du casino 3D (cinema est joué par cinema3d.js, qui le coupe pendant le film)
 const SALLES = {
   'hall': 'hall', 'machines-a-sous': 'slots', 'poker': 'pokerroom', 'tropi-shop': 'shop3d', 'pmu': 'pmu',
-  'blackjack': 'blackjack', 'blind-test': 'blindtest', 'crash': 'crash', 'mini-jeux': 'uno', 'loup-garou': 'loupgarou',
+  'blackjack': 'blackjack', 'blind-test': 'blindtest', 'crash': 'crash', 'mini-jeux': 'minijeux', 'loup-garou': 'loupgarou',
   'cinema': 'cinema', 'cinema-premium': 'cinemapremium', 'salle-musique': 'musique'
 };
 const EXT = /\.(mp3|ogg|m4a|wav)$/i;

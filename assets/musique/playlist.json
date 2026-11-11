@@ -1,17 +1,46 @@
 {
   "hall": [
-    "hall/filter-nic-hanson.mp3",
     "hall/ghost-in-the-attic.mp3",
-    "hall/im-golden-gamma-skies.mp3",
-    "hall/in-pieces-madison-york.mp3",
-    "hall/pressure-nyck-caution.mp3",
-    "hall/sports-rocker-taelimb.mp3"
+    "hall/pressure-nyck-caution.mp3"
   ],
   "pokerroom": [
     "poker/easy-breezy.mp3"
   ],
   "blackjack": [
     "blackjack/easy-breezy.mp3"
+  ],
+  "minijeux": [
+    "mini-jeux/addicted-to-your-love-house-of-say.mp3",
+    "mini-jeux/cold-love-clean-version-marc-torch.mp3",
+    "mini-jeux/face-sped-up-version-alex-kehm.mp3",
+    "mini-jeux/filter-nic-hanson.mp3",
+    "mini-jeux/fracture-sightless-in-shadow.mp3",
+    "mini-jeux/he-said-it-all-ote.mp3",
+    "mini-jeux/home-duckmaw.mp3",
+    "mini-jeux/i-m-bulletproof-mindme.mp3",
+    "mini-jeux/i-m-golden-gamma-skies.mp3",
+    "mini-jeux/in-pieces-madison-york.mp3",
+    "mini-jeux/it-s-christmas-nic-hanson.mp3",
+    "mini-jeux/it-s-you-again-windshield.mp3",
+    "mini-jeux/koi-na-parda-instrumental-version-nimbu.mp3",
+    "mini-jeux/koi-na-parda-nimbu.mp3",
+    "mini-jeux/laptop-clean-version-varpu.mp3",
+    "mini-jeux/mojo-nic-hanson.mp3",
+    "mini-jeux/movie-nic-hanson.mp3",
+    "mini-jeux/outside-tusabe.mp3",
+    "mini-jeux/paint-it-red-torii-wolf.mp3",
+    "mini-jeux/potion-aanysa.mp3",
+    "mini-jeux/see-me-now-mindme.mp3",
+    "mini-jeux/some-kinda-stranger-stella-explorer-rework-dylan-sitts.mp3",
+    "mini-jeux/sports-rocker-taelimb.mp3",
+    "mini-jeux/the-list-sully-bright.mp3",
+    "mini-jeux/tides-harrison-first-rework-torii-wolf.mp3",
+    "mini-jeux/to-that-beat-aeilo.mp3",
+    "mini-jeux/transits-sped-up-version-tyra-chantey.mp3",
+    "mini-jeux/watch-me-take-that-crown-lukas-got-lucky.mp3",
+    "mini-jeux/winds-of-change-cezar.mp3",
+    "mini-jeux/yemaya-el-equipo-del-norte.mp3",
+    "mini-jeux/yonomori-rymdklang-soundtracks.mp3"
   ],
   "loupgarou": [
     "loup-garou/loup-garou-jeu.mp3"
@@ -44,12 +73,8 @@
   ],
   "_sync": {
     "hall": [
-      186.792,
       128.088,
-      153.432,
-      166.584,
-      144.048,
-      151.44
+      144.048
     ]
   }
 }

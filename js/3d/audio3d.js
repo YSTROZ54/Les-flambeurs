@@ -239,7 +239,7 @@
     if (list.length > 1) { do { pick = list[(Math.random() * list.length) | 0]; } while (pick === M.last[id]); }
     M.last[id] = pick; return pick;
   }
-  var ROOM_GAIN = { blackjack: 0.3, pokerroom: 0.3, hall: 0.3 };                // salles où la musique de fond doit rester à peine audible (multiplie FILE_GAIN)
+  var ROOM_GAIN = { blackjack: 0.3, pokerroom: 0.3, hall: 0.3, minijeux: 0.3 };                // salles où la musique de fond doit rester à peine audible (multiplie FILE_GAIN)
   var FILE_GAIN = 0.4;                                             // les vrais morceaux sont mixés bien plus fort que la musique synthétisée : on les baisse (le curseur du téléphone règle le reste)
   /* musique synchronisée (hall) : playlist.json donne la durée de chaque titre (_sync) ; tous les joueurs enchaînent les titres dans le même ordre, en boucle,
      et le titre / l'endroit du titre se déduisent de l'horloge (Date.now). Deux joueurs dans le hall entendent donc la même chose au même moment. */

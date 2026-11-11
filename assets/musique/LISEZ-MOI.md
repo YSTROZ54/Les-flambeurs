@@ -13,7 +13,7 @@ Un dossier par salle. Dépose-y **plusieurs** fichiers (.mp3, .ogg, .m4a ou .wav
 | `blackjack/` | Blackjack | jazz chic, swing, piano |
 | `blind-test/` | Blind test | jeu-concours entraînant, percussions légères |
 | `crash/` | Crash (fusée) | électro tendue, synthwave |
-| `mini-jeux/` | Mini jeux (UNO, Puissance 4) | pop légère, chiptune |
+| `mini-jeux/` | Salon des mini jeux (pas dans les jeux eux-mêmes) | pop légère, chiptune |
 | `loup-garou/` | Loup-garou | ambiance sombre, cordes, mystère |
 | `salle-musique/` | Salle de musique (le sol de verre et les lumières suivent le son) | électro, house, pop rythmée |
 | `cinema/` | Cinéma | bande-annonce, orchestral (se tait pendant le film) |
