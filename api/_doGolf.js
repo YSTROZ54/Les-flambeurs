@@ -12,8 +12,8 @@ import { readToken } from './_auth.js';
 import GS from './_golfSim.js';
 
 const TICK_MS = 1000 / 30, DONE_DELAY_MS = 2600, OVER_MS = 16000, HOLE_MAX_MS = 5 * 60000, AUTO_START_MS = 60000, GONE_KEEP_MS = 3 * 60000;
-const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.42, DICE_EVERY_MS = 10000, DICE_MAX = 6, MAX_POWERS = 1;
-const ROOM_RE = /^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/;
+const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.7, DICE_EVERY_MS = 10000, DICE_MAX = 6, MAX_POWERS = 1;
+const ROOM_RE = /^(pub-(prairie|automne|canyon|neige|ile|kraken|volcan)|priv-[A-Z0-9]{5})$/;
 const LOCAL_HUB = globalThis.__golfHub || (globalThis.__golfHub = { stats: {} });   // sans Cloudflare (serveur local) : classement en mémoire
 
 export class GolfRoom {
@@ -125,6 +125,7 @@ export class GolfRoom {
     const g = this.game, H = this.hole();
     g.holeStart = Date.now(); g.firstDone = 0; g.lastDone = 0; this.glue = [];
     this.dice = []; this.diceT = Date.now() + DICE_EVERY_MS;
+    this.players.forEach((p) => { p.powers = []; });                        // le bonus non utilisé disparaît quand on change de piste
     if (this.opts.dice) H.dice.forEach((d) => this.dice.push({ i: this.nextDice++, x: d.x, z: d.z, h: d.h }));
     this.players.forEach((p) => this.placeOnHole(p));
     this.broadcast({ t: 'hole', ...this.pubState() }); this.dirty = true;
@@ -170,7 +171,7 @@ export class GolfRoom {
     const n0 = this.glue.length; this.glue = this.glue.filter((q) => q.until > now); if (this.glue.length !== n0) this.broadcast({ t: 'glue', glue: this.pubGlue() });
     // fin du trou : tout le monde a fini, ou 60 s après le premier (les retardataires prennent une pénalité), ou 5 min en tout
     const late = (g.firstDone && now - g.firstDone > GS.WAIT_S * 1000) || now - g.holeStart > HOLE_MAX_MS;
-    if (late) list.forEach((p) => { if (!p.done && !p.moving) this.finish(p, Math.min(GS.MAXSHOTS + 1, Math.max(p.strokes + 2, H.par + 3)), 'time'); });
+    if (late) list.forEach((p) => { if (!p.done && !p.moving) this.finish(p, Math.min(GS.MAXSHOTS, Math.max(p.strokes + 2, H.par + 3)), 'time'); });
     if (list.every((p) => p.done) && g.lastDone && now - g.lastDone > DONE_DELAY_MS) this.nextHole();
     // positions des balles : 15 fois par seconde tant que quelque chose bouge
     if (this.opts.dice && now >= this.diceT) { this.diceT = now + DICE_EVERY_MS; this.spawnDice(H); }
@@ -205,7 +206,7 @@ export class GolfRoom {
       const f = fl[Math.floor(Math.random() * fl.length)], t = Math.random(), lat = (Math.random() - 0.5) * Math.max(0.1, f.w0 - 0.5);
       const x = f.ax + f.dx * f.len * t - f.dz * lat, z = f.az + f.dz * f.len * t + f.dx * lat;
       if (!GS.inPoly(f.poly, x, z) || Math.hypot(x - H.cup[0], z - H.cup[1]) < 2 || Math.hypot(x - H.tee[0], z - H.tee[1]) < 1.6) continue;
-      if (this.dice.some((d) => Math.hypot(d.x - x, d.z - z) < 1.3) || H.dyn.some((d) => Math.hypot(d.x - x, d.z - z) < 1.0) || H.circles.some((c) => Math.hypot(c.x - x, c.z - z) < 0.8)) continue;
+      if (!GS.spotFree(H, x, z) || this.dice.some((d) => Math.hypot(d.x - x, d.z - z) < 1.3) || [...this.players.values()].some((q) => q.ball && Math.hypot(q.ball.x - x, q.ball.z - z) < 0.6)) continue;
       this.dice.push({ i: this.nextDice++, x, z, h: GS.fH(f, x, z) });
       this.broadcast({ t: 'players', ...this.pubState() }); return;
     }
@@ -259,11 +260,11 @@ export class GolfRoom {
     // dans l'eau ou dans le vide : retour là où on a tiré la dernière fois
     this.broadcast({ t: 'ev', e: r, id: p.id, x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) });
     b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; b.rail = null; p.moving = false; this.dirty = true;
-    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
+    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
   }
   rest(p, H) {
     const b = p.ball; b.vx = b.vz = b.vy = 0; p.moving = false; this.dirty = true;
-    if (!p.done && !p.sunk && p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
+    if (!p.done && !p.sunk && p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS, 'max'); else this.broadcast({ t: 'players', ...this.pubState() });
   }
 
   /* ------------------------------ messages des joueurs ------------------------------ */
@@ -318,7 +319,7 @@ export class GolfRoom {
     const b = p.ball; if (Math.hypot(b.x - p.safe.x, b.z - p.safe.z) < 0.05) return;
     b.x = p.safe.x; b.z = p.safe.z; b.y = p.safe.y; b.vx = b.vz = b.vy = 0; b.air = false; p.strokes++; this.dirty = true;
     this.broadcast({ t: 'ev', e: 'reset', id: p.id, s: p.strokes });
-    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS + 1, 'max');
+    if (p.strokes >= GS.MAXSHOTS) this.finish(p, GS.MAXSHOTS, 'max');
   }
   setOpts(p, o) {
     if (this.phase !== 'lobby' || p.k !== this.host) return;

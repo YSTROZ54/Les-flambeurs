@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const GS = (await import('../api/_golfSim.js?' + Date.now())).default;
-const ONLY = process.argv[2] || '';
+const ONLY = (process.argv[2] || '').split(',').filter(Boolean);     // ex. : node scripts/golf-gen.mjs kraken,volcan (les autres cartes ne sont pas touchées)
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function hash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -15,6 +15,8 @@ const NAMES = {
   automne: ['Feuilles mortes', 'Le sentier', 'La souche', 'Le terrier', 'Les noisettes', 'Le ruisseau doré', 'Les écureuils', 'Le tronc couché', 'La clairière', 'Le grand chêne', 'La cascade', 'Les cèpes', 'Le sous-bois', 'La boucle des cerfs', 'Le vieux pont', 'La brume', 'Les ronces', 'La forêt profonde', 'Le grand saut', 'La forêt enchantée'],
   canyon: ['Poussière', 'Le sentier rouge', 'Les cactus', 'La crevasse', 'Le pont de corde', 'Les rochers', 'La mine', 'Le ravin', 'Le défilé', 'La grande boucle', 'Les arches', 'Le précipice', 'La tempête de sable', 'Le pont suspendu', 'Le mirage', 'La falaise', 'Le vertige', 'Le canyon interdit', 'Le grand vide', 'Le Grand Canyon'],
   neige: ['Premiers flocons', 'La piste bleue', 'Le chalet', 'La patinoire', 'Le sapin', 'La luge', 'Le glacier', 'La spirale', 'Les stalactites', 'Le lac gelé', 'La crevasse', 'Le télésiège', 'La poudreuse', 'La piste rouge', 'Le blizzard', 'La grande descente', 'La piste noire', 'L\'avalanche', 'Le sommet', 'Les neiges éternelles'],
+  kraken: ['Le ponton', 'Sous les voiles', 'Les tonneaux', 'La planche', 'Le butin', 'Le perroquet', 'La cale', 'Le grand mât', 'La tentacule', 'Les canons', "L'ancre", 'Le pont aux rats', 'La tempête', 'Les récifs', 'La montée du kraken', 'La rampe aux tonneaux', 'Le trésor englouti', "L'œil du kraken", 'La gueule du monstre', 'Le Repaire du Kraken'],
+  volcan: ['Cendres tièdes', 'Le sentier noir', 'Les braises', 'Le pont de basalte', 'La coulée', 'Les roches fumantes', 'La cheminée', 'Le geyser', 'La grotte rouge', 'La grande boucle', "L'escalier de lave", 'Les rochers qui tombent', 'Le cratère', 'La faille', 'Le dragon endormi', 'La montée infernale', "L'éboulis", 'Le lac de feu', 'La bouche du volcan', 'Le Cœur du Volcan'],
   ile: ['Les pieds dans le sable', 'Le ponton', 'Les coquillages', 'La lagune', 'Le phare', 'La marée', 'Les palmiers', 'Le récif', 'La crique', 'Le grand plongeon', 'Les mouettes', 'L\'épave', 'La baie', 'Le saut du dauphin', 'Le coucher de soleil', 'Le banc de sable', 'La passe', 'Les vagues', 'L\'archipel', 'L\'horizon']
 };
 // ce que chaque carte propose (plus on avance dans le parcours, plus il y a d'éléments et plus ils sont durs)
@@ -23,9 +25,11 @@ const THEME = {
   automne: { gap: 'water', feats: ['hill', 'climb', 'jump', 'loop', 'spinner', 'bumpers', 'logs', 'posts', 'sand', 'narrow', 'divider', 'S'] },
   canyon: { gap: 'void', feats: ['hill', 'climb', 'jump', 'loop', 'rocks', 'bridge', 'slide', 'gate', 'sand', 'narrow', 'spinner', 'S'] },
   neige: { gap: 'void', feats: ['hill', 'climb', 'jump', 'loop', 'ice', 'spiral', 'posts', 'slide', 'spinner', 'narrow', 'bumpers', 'S'] },
-  ile: { gap: 'water', feats: ['hill', 'climb', 'jump', 'loop', 'bridge', 'sand', 'bumpers', 'slide', 'gate', 'rocks', 'divider', 'S'] }
+  ile: { gap: 'water', feats: ['hill', 'climb', 'jump', 'loop', 'bridge', 'sand', 'bumpers', 'slide', 'gate', 'rocks', 'divider', 'S'] },
+  kraken: { gap: 'water', feats: ['hill', 'climb', 'jump', 'loop', 'bridge', 'ramp', 'bumpers', 'posts', 'slide', 'narrow', 'gate', 'chute'] },
+  volcan: { gap: 'water', feats: ['hill', 'climb', 'jump', 'loop', 'ramp', 'chute', 'rocks', 'slide', 'spinner', 'narrow', 'gate', 'spiral'] }
 };
-const HARD = { jump: 1, loop: 2, bridge: 1, spiral: 1, gate: 1, slide: 1, mill: 1, spinner: 1, ice: 1, divider: 1 };
+const HARD = { ramp: 1, chute: 1, jump: 1, loop: 2, bridge: 1, spiral: 1, gate: 1, slide: 1, mill: 1, spinner: 1, ice: 1, divider: 1 };
 
 function genHole(map, i, attempt) {
   const r = rng(hash(map + ':' + i + ':' + attempt));
@@ -38,18 +42,18 @@ function genHole(map, i, attempt) {
   const ang = () => Math.round(55 + r() * 65), rad = () => +(1.9 + r() * 1.3).toFixed(2);
   const turn = () => { const a = ang(), rr = rad(); pcs.push([r() < 0.5 ? 'l' : 'r', a, rr]); len += a / 180 * Math.PI * rr; };
   const st = (l, dh) => { pcs.push(dh ? ['s', +l.toFixed(2), +dh.toFixed(2)] : ['s', +l.toFixed(2)]); len += l; h += dh || 0; };
-  const nFeat = [1, 2, 3, 4, 5][tier] + (i % 4 === 3 ? 1 : 0);
+  const nFeat = Math.min(map === 'kraken' || map === 'volcan' ? 4 : 9, [1, 2, 3, 4, 5][tier] + (i % 4 === 3 ? 1 : 0));
   let pool = T.feats.filter((f) => tier >= (HARD[f] || 0) || (f === 'jump' && i >= 3));
   const used = {};
   for (let k = 0; k < nFeat; k++) {
     // entre deux éléments : un virage ou une ligne droite
     if (k > 0 || r() < 0.5) { if (r() < 0.65) turn(); else st(1.6 + r() * 1.5); }
     let f = pick(pool); let guard = 0;
-    const SIG = { prairie: ['mill', 'sand'], automne: ['logs', 'spinner'], canyon: ['bridge', 'rocks'], neige: ['ice', 'spiral'], ile: ['bridge', 'sand'] }[map];
+    const SIG = { prairie: ['mill', 'sand'], automne: ['logs', 'spinner'], canyon: ['bridge', 'rocks'], neige: ['ice', 'spiral'], ile: ['bridge', 'sand'], kraken: ['ramp', 'chute'], volcan: ['ramp', 'chute'] }[map];
     if (k === 1 && tier >= 1) f = SIG[i % 2];
     else if (k === 0 && tier >= 2 && i % 3 !== 0) f = 'loop';
     else if (k === 0 && tier >= 1 && i % 3 === 0) f = 'jump';
-    while ((f === last || (used[f] || 0) >= 2) && guard++ < 10) f = pick(pool);
+    while ((f === last || (used[f] || 0) >= 2 || ((f === 'ramp' || f === 'chute') && (used.ramp || 0) + (used.chute || 0) >= 1)) && guard++ < 10) f = pick(pool);
     used[f] = (used[f] || 0) + 1; last = f;
     switch (f) {
       case 'S': { const a = 50 + Math.round(r() * 40), rr = rad(), d = r() < 0.5; pcs.push([d ? 'l' : 'r', a, rr], [d ? 'r' : 'l', a, rr]); len += 2 * a / 180 * Math.PI * rr; break; }
@@ -70,13 +74,31 @@ function genHole(map, i, attempt) {
       case 'ice': pcs.push(['z', 'ice', 4.5]); st(4.5); break;
       case 'narrow': pcs.push(['w', 0.78, 1]); st(3.2); pcs.push(['w', W, 1]); st(1); break;
       case 'bridge': { const dh = 0.5; st(2.4, dh); pcs.push(['w', 0.95, 0.6]); pcs.push(['nw', 3.6, T.gap]); st(3.6); pcs.push(['w', W, 0.6]); st(1.2); st(2.4, -dh); break; }
+      // montée à paliers : la balle redescend si elle manque de force, et des tonneaux / rochers dévalent la pente (il faut choisir son moment)
+      case 'ramp': {
+        const steps = tier >= 2 ? 3 : 2, ww = Math.max(W, 1.5), v0 = +(0.9 + r() * 0.5).toFixed(2);
+        pcs.push(['w', ww, 0.6]); st(1.2);
+        for (let q = 0; q < steps; q++) {
+          const rise = +(0.3 + r() * 0.07 + q * 0.02).toFixed(2), sl = 3.0;
+          pcs.push(['o', 'logs', { fw: 0.15, len: sl - 0.3, dir: -1, n: 2, v: v0, bw: +(ww * 0.55).toFixed(2), bd: 0.3, bh: 0.3, ph: +r().toFixed(2) }]);
+          st(sl, rise); st(1.3);
+        }
+        st(1.0); st(Math.max(2.8, h * 4.2), -h); pcs.push(['w', W, 0.8]); st(1); break;
+      }
+      // la chute : on monte tranquillement, puis des rochers dévalent la descente en même temps que la balle
+      case 'chute': {
+        const ww = Math.max(W, 1.5), rise = +(0.5 + r() * 0.2).toFixed(2);
+        pcs.push(['w', ww, 0.6]); st(1.4); st(3.2, rise); st(1.6);
+        pcs.push(['o', 'logs', { fw: 0.1, len: 3.5, dir: 1, n: 2, v: +(1.0 + r() * 0.5).toFixed(2), bw: +(ww * 0.55).toFixed(2), bd: 0.3, bh: 0.3, ph: +r().toFixed(2) }]);
+        st(3.8, -rise); st(1.2); pcs.push(['w', W, 0.8]); st(1); break;
+      }
       case 'spiral': { st(3, 1.0); const d = r() < 0.5 ? 'l' : 'r'; pcs.push([d, 200, 3.0, -1.0]); len += 200 / 180 * Math.PI * 3.0; h -= 1.0; break; }
     }
   }
   // on rallonge jusqu'à la longueur voulue, puis la ligne d'arrivée
   let guard = 0;
   while (len < target - 3 && guard++ < 8) { if (r() < 0.6) turn(); else st(1.5 + r() * 2.5); }
-  if (h > 0.05) st(2.4, -h);
+  if (h > 0.05) st(map === 'kraken' || map === 'volcan' ? Math.max(2.4, h * 4) : 2.4, -h);
   st(2.8 + r() * 1.2);
   return { n: NAMES[map][i], p: 0, w: W, pcs };
 }
@@ -140,32 +162,38 @@ function botPlay(H, maxShots) {
 }
 
 const DATA = {};
+const NEW = ['kraken', 'volcan'];
 const P = fileURLToPath(new URL('../js/3d/golf-sim.js', import.meta.url));
 const src0 = readFileSync(P, 'utf8');
 const old = JSON.parse(src0.slice(src0.indexOf('/*GOLF-DATA*/') + 13, src0.indexOf('/*FIN-GOLF-DATA*/')));
+function flush() {
+  for (const map of Object.keys(DATA)) { DATA[map].sort((a, b) => GS.buildHole(a, 0, 0).len - GS.buildHole(b, 0, 0).len); DATA[map].forEach((h, k) => { h.n = NAMES[map][k]; }); }
+  const json = JSON.stringify(DATA).replace(/\],\[/g, '],[');
+  const src = src0.slice(0, src0.indexOf('/*GOLF-DATA*/') + 13) + json + src0.slice(src0.indexOf('/*FIN-GOLF-DATA*/'));
+  writeFileSync(P, src);
+  
+}
 for (const map of GS.MAP_IDS) {
-  if (ONLY && map !== ONLY) { DATA[map] = old[map]; continue; }
+  if (ONLY.length && !ONLY.includes(map)) { DATA[map] = old[map] || []; continue; }
   DATA[map] = [];
   for (let i = 0; i < 20; i++) {
-    let ok = null, tries = 0;
+    let ok = null, tries = 0, nOver = 0, nBot = 0;
     for (let attempt = 0; attempt < 400 && !ok; attempt++) {
       const spec = genHole(map, i, attempt);
-      if (!overlapOk(spec)) { if (process.env.DBG) console.log('chevauche', attempt); continue; }
+      if (!overlapOk(spec)) { nOver++; continue; }
       tries++;
       const H = GS.buildHole(spec, 0, 0);
-      const shots = botPlay(H, 8);
-      if (shots < 0) { if (process.env.DBG) console.log('robot échoue', attempt, H.len.toFixed(1), spec.pcs.map(q=>q[0]).join('')); continue; }
+      const shots = botPlay(H, NEW.includes(map) ? 10 : 8);
+      if (shots < 0) { nBot++; continue; }
       spec.p = Math.max(2, Math.min(7, shots + 1 + (i >= 12 ? 1 : 0)));
       ok = spec; ok._bot = shots; ok._len = H.len.toFixed(1); ok._tries = tries;
     }
-    if (!ok) throw new Error('trou impossible : ' + map + ' ' + i);
-    console.log(map, String(i + 1).padStart(2), ok.n.padEnd(26), 'longueur', ok._len.padStart(5), 'm · robot', ok._bot, '· par', ok.p, '·', ok.pcs.filter((q) => q[0] === 'o' || q[0] === 'loop' || q[0] === 'gap' || q[0] === 'nw' || q[0] === 'z').map((q) => q[0] === 'o' ? q[1] : q[0]).join(' '), '(essais ' + ok._tries + ')');
+    if (!ok) throw new Error('trou impossible : ' + map + ' ' + i + ' (chevauchements ' + nOver + ', robot ' + nBot + ')');
+    console.log(map, String(i + 1).padStart(2), ok.n.padEnd(26), 'longueur', ok._len.padStart(5), 'm · robot', ok._bot, '· par', ok.p, '·', ok.pcs.filter((q) => q[0] === 'o' || q[0] === 'loop' || q[0] === 'gap' || q[0] === 'nw' || q[0] === 'z').map((q) => q[0] === 'o' ? q[1] : q[0]).join(' '), '(essais ' + ok._tries + ', chevauchent ' + nOver + ', robot ' + nBot + ')');
     delete ok._bot; delete ok._len; delete ok._tries;
     DATA[map].push(ok);
   }
+  if (DATA[map].length === 20) flush();                  // une carte terminée est sauvegardée tout de suite
 }
-for (const map of Object.keys(DATA)) { DATA[map].sort((a, b) => GS.buildHole(a, 0, 0).len - GS.buildHole(b, 0, 0).len); DATA[map].forEach((h, k) => { h.n = NAMES[map][k]; }); }
-const json = JSON.stringify(DATA).replace(/\],\[/g, '],[');
-const src = src0.slice(0, src0.indexOf('/*GOLF-DATA*/') + 13) + json + src0.slice(src0.indexOf('/*FIN-GOLF-DATA*/'));
-writeFileSync(P, src);
-console.log('écrit dans js/3d/golf-sim.js (' + json.length + ' octets)');
+flush();
+console.log('écrit dans js/3d/golf-sim.js');

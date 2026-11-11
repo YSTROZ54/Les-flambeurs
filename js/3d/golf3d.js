@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    • « golf » : l'accueil (porte « MINI GOLF » du salon des mini jeux) : les 5 parcours avec les joueurs en direct, les parties privées
      (créer / rejoindre par code) et le classement des 10 joueurs qui ont gagné le plus de parties.
-   • « golf_<carte> » : un parcours (prairie, automne, canyon, neige, ile), 20 trous du plus court au plus long (décor : golf-scene.js).
+   • « golf_<carte> » : un parcours (prairie, automne, canyon, neige, ile, kraken, volcan), 20 trous du plus court au plus long (décor : golf-scene.js).
      Salle d'attente : l'hôte choisit les mods (bonus « ? », chocs entre balles, 10 ou 20 trous) et lance.
    • Tout le monde joue EN MÊME TEMPS : les balles se percutent (plus on arrive vite, plus l'autre part loin). Tombé à l'eau ou dans le vide :
      retour à l'endroit du dernier tir. Le moins de coups gagne. Gratuit, pour le fun.
@@ -238,7 +238,7 @@
         if (mine) toast(m.e === 'water' ? '💦 Plouf !' : '😵 Hors piste !', 'Retour au dernier tir', '#7fc8ff', 1.8);
       }
       else if (m.e === 'cup') { if (b) b.sinkT = 0.001; if (mine || (b && near(b.x, b.z))) SND.cup(); }
-      else if (m.e === 'dice') { var dm = diceMeshes.filter(function (q) { return q.userData.i === m.i; })[0]; if (dm) puff(dm.position.x, dm.position.y, dm.position.z, 0xffe9a8, 0.5); if (mine) { SND.dice(); toast(POW[m.p].e + ' ' + POW[m.p].n + ' !', POW[m.p].d + ' · Espace', '#ffd36b', 2.2); } }
+      else if (m.e === 'dice') { var dm = diceMeshes.filter(function (q) { return q.userData.i === m.i; })[0]; if (dm) puff(dm.position.x, dm.position.y, dm.position.z, 0xffe9a8, 0.5); st.dice = st.dice.filter(function (q) { return q.i !== m.i; }); syncDice(); if (mine) { SND.dice(); toast(POW[m.p].e + ' ' + POW[m.p].n + ' !', POW[m.p].d + ' · Espace', '#ffd36b', 2.2); } }
       else if (m.e === 'pow') {
         if (m.p === 'jump') { SND.jump(); ring(m.x, m.y + 0.01, m.z, 0xffffff, 0.5); }
         else if (m.p === 'ice') { SND.ice(); iceCube(m.x, m.y, m.z); }
@@ -356,26 +356,29 @@
       return { t: t, rel: t - par };
     }
     function refreshAll() { refreshHud(); refreshWait(); if (ui && ui.card.classList.contains('on')) showCard(true); }
+    function setDisp(el, v) { if (el.style.display !== v) el.style.display = v; }
+    function setTxt(el, t) { t = t == null ? '' : String(t); if (el._t !== t) { el._t = t; el.textContent = t; } }
+    function setHtml(el, h) { if (el._h !== h) { el._h = h; el.innerHTML = h; } }
     function refreshHud() {
       if (!ui) return;
       var H = curHole(), q = ui.info, P = me(), play = st.phase === 'play' && st.game;
-      ui.info.style.display = play ? '' : 'none'; ui.pl.style.display = play ? '' : 'none'; ui.btns.style.display = SC ? '' : 'none';
-      ui.btns.querySelector('[data-a=reset]').style.display = play ? '' : 'none'; ui.btns.querySelector('[data-a=card]').style.display = st.game ? '' : 'none';
-      ui.freeBtn.classList.toggle('on', cam.free);
+      setDisp(ui.info, play ? '' : 'none'); setDisp(ui.pl, play ? '' : 'none'); setDisp(ui.btns, SC ? '' : 'none');
+      setDisp(ui.btns.querySelector('[data-a=reset]'), play ? '' : 'none'); setDisp(ui.btns.querySelector('[data-a=card]'), st.game ? '' : 'none');
+      if (ui.freeBtn.classList.contains('on') !== !!cam.free) ui.freeBtn.classList.toggle('on', cam.free);
       if (play) {
-        q.querySelector('.c').textContent = MP.emoji + ' ' + MP.name;
-        q.querySelector('.h').innerHTML = 'Trou ' + (st.game.hi + 1) + '/' + st.game.list.length + '<small>Par ' + H.par + '</small>';
-        q.querySelector('.s').textContent = !P ? '' : P.d ? '✅ Fini · ' + (P.card[st.game.hi]) + ' coup' + (P.card[st.game.hi] > 1 ? 's' : '') : 'Coups : ' + P.s + ' / ' + MAXSHOTS ;
+        setTxt(q.querySelector('.c'), MP.emoji + ' ' + MP.name);
+        setHtml(q.querySelector('.h'), 'Trou ' + (st.game.hi + 1) + '/' + st.game.list.length + '<small>Par ' + H.par + '</small>');
+        setTxt(q.querySelector('.s'), !P ? '' : P.d ? '✅ Fini · ' + (P.card[st.game.hi]) + ' coup' + (P.card[st.game.hi] > 1 ? 's' : '') : 'Coups : ' + P.s + ' / ' + MAXSHOTS);
         var snow = nowMs(), wt = st.game.firstDone && P && !P.d ? Math.max(0, WAIT_S - (snow - st.game.firstDone) / 1000) : -1;
-        q.querySelector('.t').textContent = P && P.d ? '⏳ On attend les autres…' : wt >= 0 ? '⏱ ' + Math.ceil(wt) + ' s pour finir' : net.err;
+        setTxt(q.querySelector('.t'), P && P.d ? '⏳ On attend les autres…' : wt >= 0 ? '⏱ ' + Math.ceil(wt) + ' s pour finir' : net.err);
         var rows = st.players.slice().sort(function (a, b) { return scoreOf(a).t - scoreOf(b).t; });
-        ui.pl.innerHTML = rows.map(function (p) { var sc = scoreOf(p), col = BALL_COLORS[(p.c | 0) % BALL_COLORS.length]; return '<div><i style="background:' + col + '"></i>' + esc(p.n) + (p.k === net.myKey ? ' (toi)' : '') + '<b>' + (p.d ? '⛳ ' : p.s + ' · ') + relTxt(sc.rel) + '</b></div>'; }).join('');
+        setHtml(ui.pl, rows.map(function (p) { var sc = scoreOf(p), col = BALL_COLORS[(p.c | 0) % BALL_COLORS.length]; return '<div><i style="background:' + col + '"></i>' + esc(p.n) + (p.k === net.myKey ? ' (toi)' : '') + '<b>' + (p.d ? '⛳ ' : p.s + ' · ') + relTxt(sc.rel) + '</b></div>'; }).join(''));
       }
       // pouvoirs
       var pw = P && play ? P.pw || [] : [], html = '';
       pw.forEach(function (k, i) { var P2 = POW[k]; html += '<button data-p="' + k + '"' + (canUse(k) ? '' : ' disabled') + '><span class="e">' + P2.e + '</span><span>' + P2.n + '<small>' + P2.d + '</small></span><kbd>' + (world.touch ? '' : 'Espace') + '</kbd></button>'; });
-      if (ui.pw.innerHTML !== html) ui.pw.innerHTML = html;
-      ui.help.textContent = !play ? '' : cam.free ? (world.touch ? 'Un doigt : tourner · deux doigts : déplacer et zoomer' : 'Clic gauche : tourner · clic droit : déplacer · molette : zoom · ZQSD : avancer · V : revenir à la balle') : (world.touch ? 'Pose le doigt sur l\'anneau, tire et lâche · glisse ailleurs pour tourner' : 'Clic gauche maintenu, tire la souris et relâche · clic droit / ← → : tourner · molette : zoom · Espace : bonus');
+      setHtml(ui.pw, html);
+      setTxt(ui.help, !play ? '' : cam.free ? (world.touch ? 'Un doigt : tourner · deux doigts : déplacer et zoomer' : 'Clic gauche : tourner · clic droit : déplacer · molette : zoom · ZQSD : avancer · V : revenir à la balle') : (world.touch ? 'Pose le doigt sur l\'anneau, tire et lâche · glisse ailleurs pour tourner' : 'Clic gauche maintenu, tire la souris et relâche · clic droit / ← → : tourner · molette : zoom · Espace : bonus'));
     }
     function canUse(k) {
       var P = me(); if (!P || st.phase !== 'play' || P.d || P.sk) return false;
@@ -472,7 +475,9 @@
     }
     function onDown(e) {
       if (!active || world.mode !== 'seat') return;
+      if (e.pointerType === 'mouse' && (aim.drag || aim.camDrag)) return;                 // un 2e bouton pendant un geste : on l'ignore
       aim.touches[e.pointerId] = { x: e.clientX, y: e.clientY };
+      try { world.dom.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
       var nT = Object.keys(aim.touches).length;
       if (e.pointerType === 'touch' && nT === 2) {                      // deux doigts : zoom (+ déplacement en vue libre)
         aim.drag = null; aim.camDrag = null; var ps = Object.keys(aim.touches).map(function (k) { return aim.touches[k]; });
@@ -485,6 +490,7 @@
       else aim.camDrag = { x: e.clientX, y: e.clientY, yaw: cam.yaw, pitch: cam.pitch };
     }
     function onMove(e) {
+      if (e.pointerType === 'mouse' && e.buttons === 0 && (aim.drag || aim.camDrag)) { aim.drag = aim.camDrag = null; aim.power = 0; return; }   // bouton relâché hors de la fenêtre : on annule
       if (aim.touches[e.pointerId]) aim.touches[e.pointerId] = { x: e.clientX, y: e.clientY };
       if (aim.pinch) {
         var ps = Object.keys(aim.touches).map(function (k) { return aim.touches[k]; }); if (ps.length < 2) return;
@@ -512,6 +518,7 @@
       aim.camDrag = null;
     }
     function onWheel(e) { if (!active) return; var k = e.deltaY > 0 ? 1.12 : 0.89; if (cam.free) cam.f.dist = Math.max(2, Math.min(160, cam.f.dist * k)); else cam.dist = Math.max(1.4, Math.min(12, cam.dist * k)); e.preventDefault(); }
+    function releaseAll() { aim.drag = aim.camDrag = aim.pinch = null; aim.power = 0; aim.touches = {}; keys = {}; }
     function onCtx(e) { if (active) e.preventDefault(); }
     var GAME_KEYS = { ArrowLeft: 1, ArrowRight: 1, ArrowUp: 1, ArrowDown: 1, KeyA: 1, KeyD: 1, KeyW: 1, KeyS: 1, KeyQ: 1, KeyE: 1, KeyZ: 1, Space: 1, KeyR: 1, KeyV: 1, Tab: 1, Escape: 1 };
     function typing() { var a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable); }
@@ -530,7 +537,7 @@
       var f = on ? 'addEventListener' : 'removeEventListener', d = world.dom;
       d[f]('pointerdown', onDown); window[f]('pointermove', onMove); window[f]('pointerup', onUp); window[f]('pointercancel', onUp);
       d[f]('wheel', onWheel, { passive: false }); d[f]('contextmenu', onCtx);
-      window[f]('keydown', onKey, true); window[f]('keyup', onKey, true);
+      window[f]('blur', releaseAll); window[f]('keydown', onKey, true); window[f]('keyup', onKey, true);
     }
 
     // la ligne de visée : une flèche au sol qui s'allonge et rougit avec la puissance
@@ -657,6 +664,7 @@
       });
       // dés et flaques
       var now = nowMs();
+      if (diceMeshes.length && st.phase === 'play' && diceMeshes.some(function (m) { return !st.dice.some(function (d) { return d.i === m.userData.i; }); })) syncDice();
       diceMeshes.forEach(function (m) { m.rotation.y = tS * 1.4 + m.userData.i; m.rotation.x = Math.sin(tS * 0.9 + m.userData.i) * 0.4; m.position.y = m.userData.h + 0.24 + Math.sin(tS * 2.2 + m.userData.i) * 0.04; });
       glueMeshes.forEach(function (m) { var q = m.userData, left = (q.until - now) / 1000, s = q.r * (left < 1.5 ? Math.max(0.05, left / 1.5) : 1) * (1 + Math.sin(tS * 3 + q.x) * 0.02); m.scale.set(s, 1, s); m.material.opacity = 0.88 * Math.min(1, left / 1.2 + 0.2); });
       stepEffects(dt);
@@ -688,7 +696,7 @@
      L'ACCUEIL DU GOLF : les 5 parcours, les parties privées, le classement
      ================================================================== */
   function createLobby(world) {
-    var HX = 11, HZ = 6.5, H = 4.6, low = world.low;
+    var HX = 14, HZ = 6.5, H = 4.6, low = world.low;
     var room = { title: '⛳ MINI GOLF', subtitle: 'CHOISIS TON PARCOURS', topic: 'flambeurs-golf-room', group: new THREE.Group(), doors: [], interactables: [], colliders: [] };
     var g = room.group, i;
     room.bounds = { xMin: -HX + 0.7, xMax: HX - 0.7, zMin: -HZ + 0.7, zMax: HZ - 0.7 };
@@ -721,6 +729,7 @@
     var ui = null, info = { rooms: {}, top: [] }, infoT = 0, active = false;
     var PREV = {
       prairie: ['#5db6ee', '#bfe6fb', '#5fbf4a', '#3f9a3a', '#7ad05a'], automne: ['#e9a860', '#f7d9a4', '#9a7a2e', '#6f8a37', '#c9a24a'],
+      kraken: ['#5b5a9c', '#e0a898', '#215a68', '#1f4a56', '#2f8f84'], volcan: ['#4a3a5a', '#f28a4a', '#3a2a26', '#2a1f1c', '#d9480f'],
       canyon: ['#f1b36d', '#fbe2b0', '#c0661f', '#c98f57', '#8fbf5a'], neige: ['#8fc4ff', '#e6f2ff', '#dfe9f5', '#f4f8ff', '#8fd08f'], ile: ['#ff9f5a', '#ffd9a0', '#e6cb93', '#2a9bb0', '#7ad05a']
     };
     function preview(m) {
@@ -738,11 +747,11 @@
       };
     }
     var CREAM = 0xe8dcc0;
-    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - 2.5) * 3.6; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '20 TROUS', color: CREAM, target: 'golf_' + m, theme: 'golf_' + m, portalDraw: preview(m) }); });
+    var DX = {}; MAP_IDS.forEach(function (m, k) { DX[m] = (k - MAP_IDS.length / 2) * 3.5; world.addDoor(room, { x: DX[m], z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: MAPS[m].emoji + ' ' + MAPS[m].name.toUpperCase(), sub: '20 TROUS', color: CREAM, target: 'golf_' + m, theme: 'golf_' + m, portalDraw: preview(m) }); });
     // 6e porte : la partie privée (elle ouvre le panneau pour créer une partie avec un code ou en rejoindre une)
     var privT = 0;
     world.addDoor(room, {
-      x: 2.5 * 3.6, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: '🔒 PARTIE PRIVÉE', sub: 'CRÉER · REJOINDRE', color: CREAM, theme: 'golf_prive',
+      x: (MAP_IDS.length / 2) * 3.5, z: -HZ, nx: 0, nz: 1, w: 2.2, h: 3.0, label: '🔒 PARTIE PRIVÉE', sub: 'CRÉER · REJOINDRE', color: CREAM, theme: 'golf_prive',
       portalDraw: function (c, W, Hh, t) {
         c.fillStyle = '#10241a'; c.fillRect(0, 0, W, Hh); c.fillStyle = '#1d4a31'; c.fillRect(W * 0.12, Hh * 0.2, W * 0.76, Hh * 0.6);
         c.fillStyle = '#e8c35a'; c.beginPath(); c.arc(W / 2, Hh * 0.42, 22, Math.PI, 0); c.lineWidth = 8; c.strokeStyle = '#e8c35a'; c.stroke(); c.fillRect(W / 2 - 30, Hh * 0.42, 60, 46);
@@ -787,6 +796,8 @@
       var base = { rgb: '93, 255, 138', logo: 'golf', square: true };
       function mk(frameCol, leafCol, rgb, paint) { return { frame: frameCol, leaf: leafCol, rgb: rgb, logo: 'golf', square: true, paint: paint }; }
       T.golf_prive = { frame: 0x3a2f22, leaf: 0x2c4a36, rgb: '232, 220, 192', logo: 'golf', square: true, paint: function (c, W, H) { c.fillStyle = '#2c4a36'; c.fillRect(0, 0, W, H); c.strokeStyle = '#e8c35a'; c.lineWidth = 7; c.strokeRect(10, 10, W - 20, H - 20); c.fillStyle = '#e8c35a'; c.beginPath(); c.arc(W / 2, H * 0.42, W * 0.12, Math.PI, 0); c.lineWidth = 9; c.stroke(); c.fillRect(W / 2 - W * 0.17, H * 0.42, W * 0.34, H * 0.12); } };
+      T.golf_kraken = mk(0x2c4a52, 0x2f6f78, '120, 200, 210', function (c, W, H) { sky(c, W, H, '#5b5a9c', '#e0a898', '#215a68', '#1f4a56'); c.strokeStyle = '#1f3a40'; c.lineWidth = 9; c.lineCap = 'round'; for (var q = 0; q < 3; q++) { var bx = W * (0.25 + q * 0.28); c.beginPath(); c.moveTo(bx, H * 0.84); c.bezierCurveTo(bx - 22, H * 0.62, bx + 26, H * 0.5, bx + 6, H * 0.36); c.stroke(); } c.fillStyle = '#d9a441'; c.fillRect(W * 0.62, H * 0.38, 4, H * 0.46); frame(c, W, H, '#2c4a52'); });
+      T.golf_volcan = mk(0x4a2a20, 0x9a3a22, '255, 130, 60', function (c, W, H) { sky(c, W, H, '#4a3a5a', '#f28a4a', '#3a2a26', '#2a1f1c'); c.fillStyle = '#2a1f1c'; c.beginPath(); c.moveTo(W * 0.1, H * 0.8); c.lineTo(W * 0.42, H * 0.34); c.lineTo(W * 0.5, H * 0.38); c.lineTo(W * 0.62, H * 0.34); c.lineTo(W * 0.92, H * 0.8); c.fill(); c.fillStyle = '#e5502a'; c.beginPath(); c.moveTo(W * 0.42, H * 0.34); c.lineTo(W * 0.62, H * 0.34); c.lineTo(W * 0.55, H * 0.42); c.lineTo(W * 0.48, H * 0.4); c.fill(); frame(c, W, H, '#4a2a20'); });
       T.golf_prairie = T.golfjardin || mk(0x6b8a3a, 0x6fc2f0, '93, 255, 138', function (c, W, H) { sky(c, W, H, '#5db6ee', '#bfe6fb', '#4fae52', '#5fbf4a'); flag(c, W, H); frame(c, W, H, '#6b8a3a'); });
       T.golf_automne = mk(0x9a5a2a, 0xf0b070, '255, 150, 70', function (c, W, H) { sky(c, W, H, '#e9a860', '#f7d9a4', '#6f8a37', '#8a7a2e'); c.fillStyle = '#7a4a2a'; c.fillRect(W * 0.2, H * 0.4, 12, H * 0.4); c.fillStyle = '#d9682a'; c.beginPath(); c.arc(W * 0.2 + 6, H * 0.36, 34, 0, 7); c.fill(); c.fillStyle = '#e8a33a'; c.beginPath(); c.arc(W * 0.2 + 30, H * 0.4, 24, 0, 7); c.fill(); flag(c, W, H); frame(c, W, H, '#9a5a2a'); });
       T.golf_canyon = mk(0xb8743a, 0xf3c07a, '255, 190, 110', function (c, W, H) { sky(c, W, H, '#f1b36d', '#fbe2b0', '#c98f57', '#d9803a'); c.fillStyle = '#b8601f'; c.fillRect(W * 0.08, H * 0.42, W * 0.22, H * 0.42); c.fillRect(W * 0.7, H * 0.5, W * 0.24, H * 0.34); flag(c, W, H); frame(c, W, H, '#b8743a'); });

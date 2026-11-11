@@ -108,6 +108,33 @@
       decor: [['TwistedTree_1', 30, 0.9, 1.3, 5, 34], ['TwistedTree_5', 26, 0.9, 1.3, 5, 34], ['CommonTree_1', 26, 0.9, 1.3, 5, 34], ['Plant_1_Big', 120, 0.8, 1.5, 1, 20], ['Plant_7_Big', 120, 0.8, 1.5, 1, 20], ['Fern_1', 120, 0.9, 1.5, 0.8, 16], ['Bush_Common_Flowers', 70, 0.7, 1.2, 1.5, 20], ['Grass_Wispy_Tall', 400, 0.7, 1.2, 0.5, 14], ['Grass_Common_Short', 400, 0.7, 1.2, 0.4, 12], ['Rock_Medium_2', 40, 0.6, 2.2, 2, 30], ['Rock_Medium_3', 40, 0.6, 2.2, 2, 30], ['Pebble_Round_1', 140, 0.6, 1.5, 0.5, 12], ['Flower_4_Group', 90, 0.8, 1.3, 0.8, 14]] }
   };
 
+  // Le Repaire du Kraken (île de pirates au crépuscule) et Le Volcan : décor en modèles 3D de vrais créateurs (Quaternius / Kenney, CC0) rangés dans assets/golf/deco
+  //  props : { m: modèle, n: nombre, size: [min, max] (mètres), where: 'rim' (mer autour de l'île) | 'pit' (dans l'eau / la lave près des sauts) | 'land' (sur la terre) | 'sky' (vole) | 'hover' (flotte près des pistes),
+  //            clip: expression qui choisit l'animation, ships: bascule sur les vagues }
+  THEMES.kraken = { sky: 'kraken', expo: 0.74, terrainTint: 0x9aa4ac, ground: 'wet', rock: 'roche.jpg', hills: 1.4, island: true, gapDepth: -1.2, turf: ['#2c6d68', '#27635e'], bump: 0xd9a441, post: 'bollard', particles: null, sunCol: 0xffc9a0, sunI: 1.6, tint: { Leaves: 0x7fb070, Rocks: 0xb7b2b0 },
+    liquid: { deep: 0x0b2a3a, shallow: 0x1d5f70, sky: 0x8d86b0 },
+    decor: [['Rock_Medium_1', 40, 0.8, 2.2, 2, 34], ['Rock_Medium_2', 40, 0.8, 2.2, 2, 34], ['Rock_Medium_3', 40, 0.8, 2.2, 2, 34], ['DeadTree_1', 14, 0.8, 1.2, 4, 36], ['DeadTree_3', 14, 0.8, 1.2, 4, 36], ['Plant_7_Big', 70, 0.8, 1.4, 1, 20], ['Fern_1', 80, 0.9, 1.5, 0.8, 16], ['Grass_Wispy_Short', 300, 0.7, 1.2, 0.4, 14], ['Pebble_Round_1', 160, 0.6, 1.5, 0.5, 12], ['Pebble_Round_4', 160, 0.6, 1.5, 0.5, 12]],
+    props: [
+      { m: 'tentacule', n: 18, size: [11, 17], where: 'rim', clip: 'Idle|Poke|Attack' },
+      { m: 'tentacule', n: 10, size: [3.4, 5.2], where: 'pit', clip: 'Idle|Poke|Attack' },
+      { m: 'voilier', n: 3, size: [11, 17], where: 'rim', ships: true, far: 1 },
+      { m: 'barque', n: 3, size: [6, 9], where: 'rim', ships: true },
+      { m: 'epave', n: 4, size: [4, 7], where: 'rim', ships: true },
+      { m: 'palmier', n: 34, size: [3.2, 5.2], where: 'land', dist: [2.6, 16] },
+      { m: 'canon', n: 10, size: [0.9, 1.1], where: 'land', dist: [1.6, 4] },
+      { m: 'caisse', n: 26, size: [0.5, 0.7], where: 'land', dist: [1.5, 5] }
+    ] };
+  THEMES.volcan = { sky: 'volcan', expo: 0.9, ground: 'basalt', rock: 'roche_volcan.jpg', desertRocks: true, rockColor: 0xc8b4aa, hills: 3.2, peaks: true, gapDepth: -1.2, turf: ['#5a2d24', '#52281f'], cone: true, bump: 0xe5502a, post: 'bollard', particles: 'embers', sunCol: 0xffb98a, sunI: 2.3, tint: { Rocks: 0x5e3a30, Leaves: 0x6a5a40 }, terrainTint: 0xd0c0b8,
+    liquid: { lava: true, deep: 0x5a0d02, shallow: 0xd9480f, sky: 0xffa060 },
+    decor: [['Rock_Medium_1', 70, 0.9, 3.0, 2, 40], ['Rock_Medium_2', 70, 0.9, 3.0, 2, 40], ['Rock_Medium_3', 70, 0.9, 3.0, 2, 40], ['DeadTree_1', 26, 0.8, 1.3, 4, 40], ['DeadTree_3', 26, 0.8, 1.3, 4, 40], ['DeadTree_5', 20, 0.8, 1.3, 4, 40], ['Pebble_Round_3', 200, 0.6, 1.6, 0.5, 14], ['Pebble_Square_3', 140, 0.6, 1.5, 0.5, 14], ['Grass_Wispy_Short', 120, 0.7, 1.1, 0.4, 12]],
+    props: [
+      { m: 'dragon', n: 2, size: [6, 8], where: 'sky', clip: 'Fast_Flying', radius: [26, 46] },
+      { m: 'crane', n: 8, size: [1.2, 1.8], where: 'hover', clip: 'Flying_Idle' },
+      { m: 'demon', n: 5, size: [2, 2.8], where: 'pit', clip: 'Flying_Idle', hover: [1.4, 2.6] },
+      { m: 'golem', n: 8, size: [1.8, 2.6], where: 'land', clip: 'Yes', dist: [3, 14] },
+      { m: 'dragon', n: 1, size: [5, 6], where: 'land', clip: 'Flying_Idle', dist: [14, 30] }
+    ] };
+
   /* ------------------------------------------------------------------ textures dessinées (gazon, sol, bout des poteaux…) ------------------------------------------------------------------ */
   function turfTextures(cols, seed) {
     var S = 512, c = canvas(S), x = c.getContext('2d'), r = rng(seed), hc = canvas(S), hx = hc.getContext('2d'), i;
@@ -137,6 +164,13 @@
       x.fillStyle = '#c98f57'; x.fillRect(0, 0, S, S); blot(['#b97d48', '#d9a46a', '#c28650', '#e0b07a'], 120, 14, 60, 0.4);
       x.strokeStyle = 'rgba(110,60,30,0.25)'; x.lineWidth = 1.2; for (i = 0; i < 70; i++) { var cx2 = r() * S, cy2 = r() * S; x.beginPath(); x.moveTo(cx2, cy2); for (var q = 0; q < 5; q++) { cx2 += (r() - 0.5) * 30; cy2 += (r() - 0.5) * 30; x.lineTo(cx2, cy2); } x.stroke(); }
       for (i = 0; i < 4000; i++) { x.fillStyle = r() < 0.5 ? 'rgba(90,50,25,0.25)' : 'rgba(255,230,190,0.25)'; x.fillRect(r() * S, r() * S, 1.5, 1.5); }
+    } else if (kind === 'basalt') {
+      x.fillStyle = '#3a312d'; x.fillRect(0, 0, S, S); blot(['#2f2724', '#4a3d37', '#3f3430', '#554841'], 130, 14, 60, 0.45);
+      x.strokeStyle = 'rgba(255,120,40,0.16)'; x.lineWidth = 1.4; for (i = 0; i < 46; i++) { var bx2 = r() * S, by2 = r() * S; x.beginPath(); x.moveTo(bx2, by2); for (var q2 = 0; q2 < 6; q2++) { bx2 += (r() - 0.5) * 36; by2 += (r() - 0.5) * 36; x.lineTo(bx2, by2); } x.stroke(); }
+      for (i = 0; i < 4200; i++) { x.fillStyle = r() < 0.5 ? 'rgba(15,10,8,0.35)' : 'rgba(140,110,95,0.22)'; x.fillRect(r() * S, r() * S, 1.6, 1.6); }
+    } else if (kind === 'wet') {
+      x.fillStyle = '#6b6a62'; x.fillRect(0, 0, S, S); blot(['#5d5d56', '#7a786d', '#4f5651', '#85826f'], 130, 12, 55, 0.45);
+      for (i = 0; i < 3000; i++) { x.fillStyle = r() < 0.5 ? 'rgba(30,40,40,0.3)' : 'rgba(210,205,185,0.3)'; x.beginPath(); x.ellipse(r() * S, r() * S, 1 + r() * 3, 1 + r() * 2, r() * 3, 0, TAU); x.fill(); }
     } else if (kind === 'snow') {
       x.fillStyle = '#eef3f9'; x.fillRect(0, 0, S, S); blot(['#dfe8f3', '#f8fbff', '#d5e2f0', '#e9f0f8'], 140, 18, 70, 0.5);
       for (i = 0; i < 1500; i++) { x.fillStyle = 'rgba(255,255,255,' + (0.4 + r() * 0.6) + ')'; x.fillRect(r() * S, r() * S, 1, 1); }
@@ -194,7 +228,7 @@
      ================================================================== */
   function build(world, mapId, onProgress, onReady) {
     var TH = THEMES[mapId], course = GS.buildCourse(mapId), low = !!world.low, seed = hashStr(mapId);
-    var root = new THREE.Group(), api = { group: root, course: course, holes: [], ready: false, sun: null, theme: TH, hdr: null, env: null, fogCol: new THREE.Color(0xbfd6ea), floorMeshes: [], dyn: [], flags: [], bumpers: [], mills: [], gates: [], slides: [], disposables: [] };
+    var root = new THREE.Group(), api = { group: root, course: course, holes: [], ready: false, sun: null, theme: TH, hdr: null, env: null, fogCol: new THREE.Color(0xbfd6ea), floorMeshes: [], dyn: [], flags: [], bumpers: [], mills: [], gates: [], slides: [], logs: [], props: [], disposables: [] };
     var need = 6, got = 0, A = {};
     function step(k, v) { A[k] = v; got++; if (onProgress) onProgress(got / need); if (got === need) assemble(); }
     loadNature(function (lib) { step('nat', lib); });
@@ -246,7 +280,7 @@
       M.white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.35 });
       M.metal = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.25, metalness: 0.9 });
       M.dark = new THREE.MeshBasicMaterial({ color: 0x050505 });
-      M.rock = new THREE.MeshStandardMaterial({ map: A.rock, color: A.rock ? 0xffffff : 0x8a8580, roughness: 0.95 });
+      M.rock = new THREE.MeshStandardMaterial({ map: A.rock, color: TH.rockColor || (A.rock ? 0xffffff : 0x8a8580), roughness: 0.95 });
       M.plaster = new THREE.MeshStandardMaterial({ map: plaster(), roughness: 0.95 });
       M.roof = new THREE.MeshStandardMaterial({ map: shingles(mapId === 'neige' ? '#5b6b7a' : '#a8432f'), roughness: 0.85 });
       M.cloth = new THREE.MeshStandardMaterial({ map: sailCloth(), side: THREE.DoubleSide, roughness: 0.95 });
@@ -254,6 +288,7 @@
       M.bumper = new THREE.MeshStandardMaterial({ color: TH.bump, roughness: 0.38, metalness: 0.05 });
       M.rubber = new THREE.MeshStandardMaterial({ color: 0x22201e, roughness: 0.75 });
       M.rope = new THREE.MeshStandardMaterial({ color: 0xc7a873, roughness: 0.95 });
+      M.boulder = new THREE.MeshStandardMaterial({ map: A.rock, color: 0x9a4a38, roughness: 0.95, flatShading: true });
       M.mat = new THREE.MeshStandardMaterial({ color: 0x0f2a17, roughness: 1, envMapIntensity: 0.3 });
       api.M = M;
       Object.keys(M).forEach(function (k) { api.disposables.push(M[k]); });
@@ -285,6 +320,7 @@
 
       /* ---------- particules : neige, feuilles, poussière ---------- */
       if (TH.particles) api.particles = makeParticles(TH.particles, low, root);
+      if (TH.props) { var names = {}; TH.props.forEach(function (d) { names[d.m] = 1; }); loadDecoSet(Object.keys(names), function () { try { placeProps(root, TH, terr, course, low, seed, api); } catch (e) { console.error('golf : décor 3D', e); } }); }
       root.traverse(function (o) { if (o.isMesh && o !== terr.mesh && !o.userData.noShadow) { o.castShadow = o.castShadow || (!low && !o.isInstancedMesh); o.receiveShadow = !low; } });
       terr.mesh.receiveShadow = !low; terr.mesh.castShadow = false;
     }
@@ -304,6 +340,8 @@
       api.slides.forEach(function (m) { var o = m.o, sv = Math.sin((o.speed || 1.4) * t) * (o.amp || 0.45); m.g.position.set(m.x + Math.cos(o.a) * sv, m.h, m.z + Math.sin(o.a) * sv); });
       api.gates.forEach(function (m) { var op = GS.gateOpen(m.o, t); m.door.position.y = 0.2 + op * 0.5; });
       api.bumpers.forEach(function (b) { if (b.c.flash > 0) { b.c.flash = Math.max(0, b.c.flash - dt * 3); } var s2 = 1 + (b.c.flash || 0) * 0.3; b.m.scale.set(s2, 1, s2); });
+      api.logs.forEach(function (e) { updateLogs(e, t); });
+      if (api.props.length) updateProps(api.props, dt, t, camPos || focus);
       if (api.particles) api.particles.update(dt, camPos || focus);
     };
     api.dispose = function () {
@@ -473,6 +511,20 @@
           var cb = new THREE.Mesh(new THREE.BoxGeometry(o.bw || 0.42, 0.24, o.bd || 0.32), M.fascia); cb.position.y = 0.12; crate.add(cb);
           [-1, 1].forEach(function (sd) { var fr = new THREE.Mesh(new THREE.BoxGeometry((o.bw || 0.42) + 0.02, 0.04, 0.04), M.rail); fr.position.set(0, 0.12 + sd * 0.1, ((o.bd || 0.32) / 2 + 0.005)); crate.add(fr); var fr2 = fr.clone(); fr2.position.z = -fr.position.z; crate.add(fr2); });
           api.slides.push({ o: o, g: crate, x: d.x, z: d.z, h: d.h });
+        } else if (o.t === 'logs') {
+          var meshes = [], rock = mapId === 'volcan', bwL = o.bw || 0.6, bdL = o.bd || 0.3;
+          for (k = 0; k < (o.n || 2); k++) {
+            var lg = new THREE.Group(), body;
+            if (rock) { body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), M.boulder); body.scale.set(bwL, (o.bh || 0.3) * 1.05, bdL * 1.15); body.rotation.y = k * 1.7; body.userData.spin = 1; }
+            else {
+              var rr = (o.bh || 0.3) / 2, prof = []; for (var pi = 0; pi <= 10; pi++) { var u = pi / 10 - 0.5; prof.push(new THREE.Vector2(rr * (1 - 0.14 * 4 * u * u * 1.0), u * bwL)); }
+              var bg = new THREE.LatheGeometry(prof, 20); bg.rotateZ(Math.PI / 2); body = new THREE.Mesh(bg, M.rail);
+              [-0.3, 0.3].forEach(function (bx) { var band = new THREE.Mesh(new THREE.TorusGeometry(rr * 1.0, 0.012, 6, 20), M.metal); band.rotation.y = Math.PI / 2; band.position.x = bx * bwL * 1.2; body.add(band); });
+              body.userData.spin = 1;
+            }
+            body.position.y = (o.bh || 0.3) / 2; lg.add(body); lg.rotation.y = -o.a; hg.add(lg); meshes.push({ g: lg, body: body, r: (o.bh || 0.3) / 2 });
+          }
+          api.logs.push({ H: H, d: d, o: o, meshes: meshes, tmp: [] });
         } else if (o.t === 'gate') {
           var gg = new THREE.Group(); gg.position.set(d.x, d.h, d.z); gg.rotation.y = -o.a; hg.add(gg);
           var hw = (o.w0 || 1.4) / 2 + 0.14;
@@ -519,9 +571,10 @@
         if (k < N) { var a = k * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); idx2.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
       }
       var g1 = new THREE.BufferGeometry(); g1.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g1.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g1.setIndex(idx); g1.computeVertexNormals();
-      var m1 = new THREE.Mesh(g1, M.turf); m1.material = M.turf; hg.add(m1);
+      var turf2 = M.turf.clone(); turf2.side = THREE.DoubleSide; api.disposables.push(turf2);   // pleine des deux côtés : on ne voit plus à travers la boucle
+      var m1 = new THREE.Mesh(g1, turf2); hg.add(m1);
       var g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(pos2, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g2.setIndex(idx2); g2.computeVertexNormals();
-      hg.add(new THREE.Mesh(g2, M.fascia));
+      var fas2 = M.fascia.clone(); fas2.side = THREE.DoubleSide; api.disposables.push(fas2); hg.add(new THREE.Mesh(g2, fas2));
       // les bords de la boucle (petits murs de bois de chaque côté)
       [-1, 1].forEach(function (sd) {
         var P = [];
@@ -645,6 +698,11 @@
       }
       if (TH.island) { var rd = Math.hypot(x - cxm, z - czm) - rIsl; h = Math.max(h, 0) * (1 - smooth(0, 14, rd)) - smooth(4, 26, rd) * 2.6 + smooth(-6, 6, rd) * 0; }
       h = GROUND - 0.03 + (TH.island ? h : Math.max(h, -0.05));
+      if (TH.liquid && TH.liquid.lava) {                                   // lacs de lave loin des pistes et un grand volcan au bord de la carte
+        var lk = smooth(0.6, 0.7, noise2(x * 0.03 + 11, z * 0.03 + 5, 2)) * smooth(7, 12, dT[k]); h = h + (-1.3 - h) * lk;
+        var cdx = x - (box[2] + 26), cdz = z - czm, cdd = Math.hypot(cdx, cdz);
+        if (TH.cone) { h += 46 * Math.pow(Math.max(0, 1 - cdd / 62), 1.6) * (1 - lk) * smooth(16, 36, dT[k]) - 9 * smooth(9, 0, cdd) * (cdd < 9 ? 1 : 0); }
+      }
       // pistes : sol bien plat juste dessous
       if (dT[k] < 1.2 && !TH.island) h = Math.min(h, GROUND - 0.03 + dT[k] * 0.08);
       if (TH.island && dT[k] < 1.6) h = Math.max(GROUND - 0.06, Math.min(h, GROUND - 0.03));
@@ -662,8 +720,8 @@
     var mesh = new THREE.Mesh(g, mat);
     var out = { mesh: mesh, height: function (x, z) { var ii = Math.round((x - x0) / res), jj = Math.round((z - z0) / res); if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) return -9; return hgt[jj * nx + ii]; }, dTrack: function (x, z) { var ii = Math.round((x - x0) / res), jj = Math.round((z - z0) / res); if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) return 99; return dT[jj * nx + ii]; }, dGap: function (x, z) { var ii = Math.round((x - x0) / res), jj = Math.round((z - z0) / res); if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) return 99; return dG[jj * nx + ii]; }, x0: x0, z0: z0, x1: x1, z1: z1 };
     // l'eau (cartes avec étangs et l'île) ; le lointain : un grand sol qui file jusqu'à l'horizon
-    if (GS.MAPS[mapId].water) { var W2 = waterMesh(TH, x0, z0, x1, z1, mapId === 'ile'); out.water = W2.mesh; out.waterMat = W2.mat; }
-    if (mapId !== 'ile') {
+    if (GS.MAPS[mapId].water) { var W2 = waterMesh(TH, x0, z0, x1, z1, !!TH.island); out.water = W2.mesh; out.waterMat = W2.mat; }
+    if (!TH.island) {
       var ft = groundT.clone(); ft.needsUpdate = true; ft.repeat.set(160, 160);
       var far = new THREE.Mesh(new THREE.RingGeometry(Math.max(x1 - x0, z1 - z0) * 0.55, 900, 64, 1), new THREE.MeshStandardMaterial({ map: ft, roughness: 1, color: 0xdddddd }));
       far.rotation.x = -Math.PI / 2; far.position.set(cxm, GROUND - 0.6 + (TH.mesa ? 1.5 : TH.peaks ? 2 : 0.3), czm); far.userData.noShadow = true; out.far = far;
@@ -671,7 +729,7 @@
     return out;
   }
   function terrainMaterial(groundT, rockT, sandT, TH) {
-    var mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.97, metalness: 0, vertexColors: true });
+    var mat = new THREE.MeshStandardMaterial({ color: TH.terrainTint || 0xffffff, roughness: 0.97, metalness: 0, vertexColors: true });
     mat.onBeforeCompile = function (sh) {
       sh.uniforms.tGround = { value: groundT }; sh.uniforms.tRock = { value: rockT || groundT }; sh.uniforms.tSand = { value: sandT };
       sh.vertexShader = 'varying vec3 vWPos;\nvarying vec3 vWNrm;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n  vWNrm = normalize(mat3(modelMatrix) * objectNormal);');
@@ -694,9 +752,9 @@
     var size = sea ? 1800 : Math.max(x1 - x0, z1 - z0) + 40, geo = new THREE.PlaneGeometry(size, size, 1, 1); geo.rotateX(-Math.PI / 2);
     var mat = new THREE.ShaderMaterial({
       transparent: true, fog: true, depthWrite: false,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uSun: { value: new THREE.Vector3(0.4, 0.7, 0.3) }, uDeep: { value: new THREE.Color(sea ? 0x0a3d55 : 0x123a44) }, uShallow: { value: new THREE.Color(sea ? 0x1f7f96 : 0x24606a) }, uSky: { value: new THREE.Color(0x9fc6e8) }, uSunCol: { value: new THREE.Color(TH.sunCol) } }]),
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uSun: { value: new THREE.Vector3(0.4, 0.7, 0.3) }, uDeep: { value: new THREE.Color(TH.liquid ? TH.liquid.deep : sea ? 0x0a3d55 : 0x123a44) }, uShallow: { value: new THREE.Color(TH.liquid ? TH.liquid.shallow : sea ? 0x1f7f96 : 0x24606a) }, uSky: { value: new THREE.Color(TH.liquid ? TH.liquid.sky : 0x9fc6e8) }, uSunCol: { value: new THREE.Color(TH.sunCol) }, uLava: { value: TH.liquid && TH.liquid.lava ? 1 : 0 } }]),
       vertexShader: 'varying vec3 vW;\n#include <fog_pars_vertex>\nvoid main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;\n#include <fog_vertex>\n}',
-      fragmentShader: 'uniform float uTime; uniform vec3 uSun; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uSunCol; varying vec3 vW;\n#include <common>\n#include <fog_pars_fragment>\n' +
+      fragmentShader: 'uniform float uTime; uniform vec3 uSun; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uSunCol; uniform float uLava; varying vec3 vW;\n#include <common>\n#include <fog_pars_fragment>\n' +
         'vec2 wv(vec2 p, vec2 d, float k, float w, float a){ float ph = dot(d,p)*k + uTime*w; return d * cos(ph) * k * a; }\n' +
         'void main(){ vec2 p = vW.xz; vec2 g = wv(p, vec2(0.8,0.6), 1.3, 1.1, 0.05) + wv(p, vec2(-0.5,0.86), 2.1, 1.7, 0.03) + wv(p, vec2(0.2,-0.98), 3.7, 2.3, 0.015) + wv(p, vec2(-0.92,-0.3), 6.1, 3.1, 0.008) + wv(p, vec2(0.6,-0.8), 11.0, 4.2, 0.004);\n' +
         '  vec3 N = normalize(vec3(-g.x, 1.0, -g.y)); vec3 V = normalize(cameraPosition - vW); float fr = 0.02 + 0.7 * pow(1.0 - max(dot(N, V), 0.0), 5.0);\n' +
@@ -704,6 +762,8 @@
         '  float sp = pow(max(dot(Rf, normalize(uSun)), 0.0), 260.0) * 6.0 + pow(max(dot(Rf, normalize(uSun)), 0.0), 30.0) * 0.25;\n' +
         '  vec3 body = mix(uShallow, uDeep, clamp(length(cameraPosition - vW) * 0.02, 0.0, 1.0));\n' +
         '  vec3 col = mix(body, sky, fr) + uSunCol * sp;\n' +
+        '  float lv = sin(p.x * 0.9 + uTime * 0.35) + sin(p.y * 1.1 - uTime * 0.28) + sin((p.x + p.y) * 0.55 + uTime * 0.2) + sin(length(p - vec2(7.0, 3.0)) * 1.3 - uTime * 0.4) + sin(p.x * 2.3 - p.y * 1.7 + uTime * 0.5) * 0.5;\n' +
+        '  if (uLava > 0.5) { float v = smoothstep(-1.5, 3.2, lv); col = mix(uDeep, uShallow, v * v) + vec3(0.5, 0.18, 0.02) * smoothstep(1.8, 3.4, lv); gl_FragColor = vec4(col, 1.0); } else\n' +
         '  gl_FragColor = vec4(col, mix(0.9, 0.98, fr));\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n#include <fog_fragment>\n}'
     });
     var m = new THREE.Mesh(geo, mat); m.position.set((x0 + x1) / 2, GS.WATER_Y + 0.01, (z0 + z1) / 2); m.renderOrder = 2; m.userData.noShadow = true;
@@ -770,12 +830,101 @@
     });
   }
 
+  /* ------------------------------------------------------------------ rondins, tonneaux et rochers qui dévalent ------------------------------------------------------------------ */
+  function updateLogs(e, t) {
+    var L = GS.logsAt(e.H, e.d, t, e.tmp);
+    for (var k = 0; k < e.meshes.length; k++) {
+      var m = e.meshes[k], lg = L[k]; if (!lg) continue;
+      m.g.visible = lg.sc > 0.02; m.g.position.set(lg.x, lg.h, lg.z); m.g.scale.setScalar(Math.max(0.01, lg.sc));
+      m.body.rotation.x = -lg.along / m.r;            // il roule vers l'avant de la piste (sens de la pente)
+    }
+  }
+
+  /* ------------------------------------------------------------------ décor 3D (modèles de vrais créateurs, CC0) ------------------------------------------------------------------ */
+  var DECO = {}, decoWait = {};
+  function loadDecoSet(names, cb) {
+    var left = names.length; if (!left) { cb(); return; }
+    names.forEach(function (n) {
+      loadDeco(n, function () { if (--left === 0) cb(); });
+    });
+  }
+  function loadDeco(name, cb) {
+    if (DECO[name] !== undefined) { cb(DECO[name]); return; }
+    (decoWait[name] = decoWait[name] || []).push(cb); if (decoWait[name].length > 1) return;
+    function done(v) { DECO[name] = v; var l = decoWait[name]; decoWait[name] = null; l.forEach(function (f) { f(v); }); }
+    if (!THREE.GLTFLoader) { done(null); return; }
+    new THREE.GLTFLoader().load(BASE + 'deco/' + name + '.glb?v=1', function (gl) {
+      gl.scene.updateMatrixWorld(true);
+      var bb = new THREE.Box3().setFromObject(gl.scene), sz = new THREE.Vector3(); bb.getSize(sz);
+      gl.scene.traverse(function (o) { if (o.isMesh && o.material && /Unlit/.test(o.material.name)) o.visible = false; });
+      gl.scene.traverse(function (o) { if (o.isMesh) { o.frustumCulled = !o.isSkinnedMesh; if (o.material) { o.material.side = o.material.side; if (o.material.map) o.material.map.anisotropy = 4; o.material.metalness = Math.min(o.material.metalness || 0, 0.2); } } });
+      done({ scene: gl.scene, anims: gl.animations || [], box: bb, max: Math.max(sz.x, sz.y, sz.z) || 1 });
+    }, undefined, function () { done(null); });
+  }
+  function placeProps(root, TH, terr, course, low, seed, api) {
+    var gapPts = [], trkPts = [];
+    course.holes.forEach(function (H) {
+      H.gaps.forEach(function (g) { if (g.side) return; var sx = 0, sz = 0; g.poly.forEach(function (p) { sx += p[0]; sz += p[1]; }); gapPts.push([sx / g.poly.length, sz / g.poly.length]); });
+      for (var q = 0; q < H.S.length; q += 2) trkPts.push([H.S[q].x, H.S[q].z]);
+    });
+    var r = rng(seed + 501), box = course.box, cx = (box[0] + box[2]) / 2, cz = (box[1] + box[3]) / 2, rIsl = Math.max(box[2] - box[0], box[3] - box[1]) / 2 + 10;
+    TH.props.forEach(function (d) {
+      var mdl = DECO[d.m]; if (!mdl) return;
+      var n = Math.max(1, Math.round(d.n * (low ? 0.4 : 1))), tries = 0, placed = 0, skinned = mdl.anims.length > 0;
+      while (placed < n && tries++ < n * 60) {
+        var size = d.size[0] + r() * (d.size[1] - d.size[0]), s = size / mdl.max, x, z, y, kind = d.where, ang, rad;
+        if (kind === 'rim' || kind === 'sky') {
+          ang = r() * TAU; rad = kind === 'sky' ? (d.radius ? d.radius[0] + r() * (d.radius[1] - d.radius[0]) : 30) : rIsl + 4 + r() * (d.far ? 55 : 22);
+          x = cx + Math.cos(ang) * rad; z = cz + Math.sin(ang) * rad;
+          if (kind === 'rim' && (terr.height(x, z) > GS.WATER_Y - 0.25 && !TH.island)) continue;
+          if (kind === 'rim' && terr.height(x, z) > GS.WATER_Y - 0.05) continue;
+        } else if (kind === 'pit') {
+          if (!gapPts.length) break;
+          var gp = gapPts[Math.floor(r() * gapPts.length)], pa = r() * TAU, pr = 1.7 + r() * 1.3;
+          x = gp[0] + Math.cos(pa) * pr; z = gp[1] + Math.sin(pa) * pr;
+          if (terr.dTrack(x, z) < 1.0 || terr.height(x, z) > GS.WATER_Y - 0.1) continue;
+        } else if (kind === 'hover') {
+          var tp = trkPts[Math.floor(r() * trkPts.length)], ha = r() * TAU, hr = 2 + r() * 8;
+          x = tp[0] + Math.cos(ha) * hr; z = tp[1] + Math.sin(ha) * hr;
+          var dt2 = terr.dTrack(x, z); if (dt2 < 1.6 || dt2 > 12) continue;
+        } else {
+          var lp = trkPts[Math.floor(r() * trkPts.length)], la = r() * TAU, dd = d.dist || [3, 14], lr = dd[0] + r() * (dd[1] - dd[0]);
+          x = lp[0] + Math.cos(la) * lr; z = lp[1] + Math.sin(la) * lr;
+          var dt3 = terr.dTrack(x, z), rd = size * 0.35;
+          if (dt3 < Math.max(dd[0], rd) || dt3 > dd[1] || terr.dGap(x, z) < rd + 1.2 || terr.height(x, z) < GS.GROUND - 0.1) continue;
+        }
+        var th = terr.height(x, z);
+        if (kind === 'sky') y = 6 + r() * 7; else if (kind === 'hover') y = (th > GS.GROUND - 0.2 ? GS.GROUND : GS.WATER_Y) + 1.4 + r() * 1.8; else if (kind === 'pit') y = d.hover ? GS.WATER_Y + d.hover[0] + r() * (d.hover[1] - d.hover[0]) : GS.WATER_Y - 0.15; else if (kind === 'rim') y = GS.WATER_Y - 0.12; else y = th - 0.03;
+        var inst = skinned ? THREE.SkeletonUtils.clone(mdl.scene) : mdl.scene.clone(true), g = new THREE.Group();
+        inst.scale.setScalar(s); inst.position.y = -mdl.box.min.y * s; g.add(inst);
+        g.position.set(x, y, z); g.rotation.y = r() * TAU; root.add(g);
+        var entry = { g: g, base: y, ph: r() * TAU, kind: kind, ships: !!d.ships, cx: cx, cz: cz, ang: ang, rad: rad, sp: (0.04 + r() * 0.05) * (r() < 0.5 ? 1 : -1), mixer: null, size: size };
+        if (kind === 'sky') { entry.rad = rad; entry.y0 = y; }
+        if (skinned && d.clip) {
+          var re = new RegExp(d.clip), clips = mdl.anims.filter(function (c) { return re.test(c.name); }); if (!clips.length) clips = mdl.anims.slice(0, 1);
+          var clip = clips[Math.floor(r() * clips.length)], mx = new THREE.AnimationMixer(inst), ac = mx.clipAction(clip); ac.time = r() * clip.duration; ac.timeScale = 0.8 + r() * 0.5; ac.play(); entry.mixer = mx;
+        }
+        api.props.push(entry); placed++;
+      }
+    });
+  }
+  function updateProps(list, dt, t, cam) {
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i], dx = cam ? cam.x - e.g.position.x : 0, dz = cam ? cam.z - e.g.position.z : 0, near = !cam || dx * dx + dz * dz < 3600;
+      if (e.mixer && near) e.mixer.update(dt);
+      if (e.kind === 'sky') {                                                       // les dragons tournent autour du volcan
+        e.ang += e.sp * dt * 2.2; var rr = e.rad; e.g.position.set(e.cx + Math.cos(e.ang) * rr, e.y0 + Math.sin(t * 0.7 + e.ph) * 0.8, e.cz + Math.sin(e.ang) * rr); var sg = e.sp > 0 ? 1 : -1; e.g.rotation.y = Math.atan2(-sg * Math.sin(e.ang), sg * Math.cos(e.ang));
+      } else if (e.kind === 'hover' || (e.kind === 'pit' && e.base > GS.WATER_Y + 0.5)) e.g.position.y = e.base + Math.sin(t * 1.3 + e.ph) * 0.18;
+      else if (e.ships) { e.g.position.y = e.base + Math.sin(t * 0.8 + e.ph) * 0.07; e.g.rotation.z = Math.sin(t * 0.6 + e.ph) * 0.03; e.g.rotation.x = Math.sin(t * 0.5 + e.ph * 2) * 0.02; }
+    }
+  }
+
   /* ------------------------------------------------------------------ particules (neige, feuilles, poussière) qui suivent la caméra ------------------------------------------------------------------ */
   function makeParticles(kind, low, root) {
     var n = low ? 300 : 900, B = 36, pos = new Float32Array(n * 3), vel = new Float32Array(n * 3), r = rng(31), i;
-    for (i = 0; i < n; i++) { pos[i * 3] = (r() - 0.5) * B; pos[i * 3 + 1] = r() * 16; pos[i * 3 + 2] = (r() - 0.5) * B; vel[i * 3] = (r() - 0.5) * 0.4; vel[i * 3 + 1] = kind === 'dust' ? (r() - 0.5) * 0.1 : -(0.4 + r() * (kind === 'snow' ? 0.6 : 0.9)); vel[i * 3 + 2] = (r() - 0.5) * 0.4; }
+    for (i = 0; i < n; i++) { pos[i * 3] = (r() - 0.5) * B; pos[i * 3 + 1] = r() * 16; pos[i * 3 + 2] = (r() - 0.5) * B; vel[i * 3] = (r() - 0.5) * 0.4; vel[i * 3 + 1] = kind === 'dust' ? (r() - 0.5) * 0.1 : kind === 'embers' ? 0.3 + r() * 0.8 : -(0.4 + r() * (kind === 'snow' ? 0.6 : 0.9)); vel[i * 3 + 2] = (r() - 0.5) * 0.4; }
     var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    var m = new THREE.PointsMaterial({ size: kind === 'snow' ? 0.09 : kind === 'leaves' ? 0.16 : 0.05, map: kind === 'leaves' ? leafSprite() : softDot('rgba(255,255,255,1)'), color: kind === 'leaves' ? 0xe0782f : kind === 'dust' ? 0xf0d8b0 : 0xffffff, transparent: true, opacity: kind === 'dust' ? 0.45 : 0.9, depthWrite: false, sizeAttenuation: true, alphaTest: 0.05 });
+    var m = new THREE.PointsMaterial({ size: kind === 'snow' ? 0.09 : kind === 'leaves' ? 0.16 : kind === 'embers' ? 0.07 : 0.05, map: kind === 'leaves' ? leafSprite() : softDot('rgba(255,255,255,1)'), color: kind === 'leaves' ? 0xe0782f : kind === 'dust' ? 0xf0d8b0 : kind === 'embers' ? 0xff8a3a : 0xffffff, transparent: true, opacity: kind === 'dust' ? 0.45 : 0.9, depthWrite: false, sizeAttenuation: true, alphaTest: 0.05 });
     var pts = new THREE.Points(g, m); pts.frustumCulled = false; root.add(pts);
     var t = 0, ox = 0, oz = 0;
     return {

@@ -219,7 +219,7 @@ export default {
       }
       if (!globalThis.__gfInfo || Date.now() - globalThis.__gfInfo.t > 4000) {
         const rooms = {};
-        await Promise.all(['prairie', 'automne', 'canyon', 'neige', 'ile'].map(async (m) => { try { const r = await env.GOLF.get(env.GOLF.idFromName('pub-' + m)).fetch('https://golf/?info=1'); rooms[m] = await r.json(); } catch (e) { rooms[m] = { n: 0, ph: 'lobby' }; } }));
+        await Promise.all(['prairie', 'automne', 'canyon', 'neige', 'ile', 'kraken', 'volcan'].map(async (m) => { try { const r = await env.GOLF.get(env.GOLF.idFromName('pub-' + m)).fetch('https://golf/?info=1'); rooms[m] = await r.json(); } catch (e) { rooms[m] = { n: 0, ph: 'lobby' }; } }));
         let top = []; try { top = await (await env.GOLF.get(env.GOLF.idFromName('hub')).fetch('https://golf/hub/top')).json(); } catch (e) { /* vide */ }
         globalThis.__gfInfo = { t: Date.now(), d: { rooms, top } };
       }
@@ -236,7 +236,7 @@ export default {
         return env.PROP.get(env.PROP.idFromName(prRoom)).fetch(request);          // une salle (Durable Object) par carte publique et par salon privé
       }
       const gRoom = String(url.searchParams.get('room') || '');
-      if (!env.GOLF || !/^(pub-(prairie|automne|canyon|neige|ile)|priv-[A-Z0-9]{5})$/.test(gRoom)) return new Response('Salle inconnue', { status: 404 });
+      if (!env.GOLF || !/^(pub-(prairie|automne|canyon|neige|ile|kraken|volcan)|priv-[A-Z0-9]{5})$/.test(gRoom)) return new Response('Salle inconnue', { status: 404 });
       return env.GOLF.get(env.GOLF.idFromName(gRoom)).fetch(request);           // une salle (Durable Object) par carte publique et par partie privée
     }
 
