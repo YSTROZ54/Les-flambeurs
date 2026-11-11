@@ -15,7 +15,7 @@ const SALLES = {
 const EXT = /\.(mp3|ogg|m4a|wav)$/i;
 
 // salles dont la musique est jouée EN MÊME TEMPS chez tous les joueurs (le titre en cours se déduit de l'horloge) : il faut la durée exacte de chaque titre (.mp3)
-const SYNC = ['hall'];
+const SYNC = ['hall', 'minijeux'];
 function dureeMp3(chemin) {                      // additionne la durée de chaque trame MPEG (marche aussi pour les fichiers à débit variable)
   const b = readFileSync(chemin);
   let p = 0, total = 0;

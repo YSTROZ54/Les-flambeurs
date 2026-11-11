@@ -225,7 +225,8 @@
   function fade(song, to, tc) { try { song.gain.setTargetAtTime(to, bus.c.currentTime, tc); } catch (e) { /* ok */ } }
   function dropTrack(old) {                                        // fondu de sortie puis arrêt du titre
     if (!old) return;
-    fade(old.gain, 0, 0.4); if (old.sync) { clearInterval(old.sync); old.sync = 0; }
+    fade(old.gain, 0, 0.4); if (old.sync) { clearInterval(old.sync); old.sync = 0; } if (old.wait) { clearTimeout(old.wait); old.wait = 0; }
+    if (old.node) { var nd = old.node; old.node = null; nd.onended = null; setTimeout(function () { try { nd.stop(); nd.disconnect(); old.gain.disconnect(); } catch (e) { /* ok */ } }, 2200); return; }
     setTimeout(function () { try { old.el.pause(); old.el.removeAttribute('src'); old.el.load(); old.gain.disconnect(); } catch (e) { /* ok */ } }, 2200);
   }
   function stopSong() {
@@ -252,12 +253,50 @@
     for (i = 0; i < d.length; i++) { if (t < d[i]) return { i: i, off: t, dur: d[i] }; t -= d[i]; }
     return { i: 0, off: 0, dur: d[0] };
   }
+  /* titres synchronisés (accueil, salon des mini jeux) : le fichier est chargé en entier et décodé, puis lu à l'endroit exact de l'horloge (AudioBufferSource.start(0, décalage)).
+     Plus de placement approximatif d'un lecteur <audio> qui ignore le saut et repart du début. */
+  var BUFS = {}, BUFK = [];
+  function loadBuf(file) {
+    if (BUFS[file]) return BUFS[file];
+    var p = fetch('assets/musique/' + file).then(function (r) { if (!r.ok) throw new Error('musique'); return r.arrayBuffer(); })
+      .then(function (ab) { return new Promise(function (ok, ko) { var pr = bus.c.decodeAudioData(ab, ok, ko); if (pr && pr.then) pr.then(ok, ko); }); });
+    BUFS[file] = p; BUFK.push(file);
+    p.catch(function () { delete BUFS[file]; });
+    while (BUFK.length > 3) delete BUFS[BUFK.shift()];             // on garde les 3 derniers titres décodés (la mémoire reste raisonnable)
+    return p;
+  }
+  function playSynced(id, list, slot, file) {
+    var b = bus, g;
+    try { g = b.c.createGain(); g.gain.value = 0.0001; g.connect(b.music); } catch (e) { startSynth(id); return; }
+    var track = { el: null, gain: g, node: null, sync: 0, wait: 0 }, old = M.el; M.el = track;
+    if (old) dropTrack(old);
+    var vol = FILE_GAIN * (ROOM_GAIN[id] || 1);
+    function again() { if (M.el === track && A.room === id) playFile(id, list); }
+    loadBuf(file).then(function (buf) {
+      if (M.el !== track) return;
+      var s2 = syncSlot(id, list);
+      if (!s2) { again(); return; }
+      if (s2.i !== slot.i) { loadBuf(list[s2.i]).then(function (bf2) { if (M.el === track) { M.el = null; dropTrack(track); M.last[id] = list[s2.i]; playSynced(id, list, s2, list[s2.i]); } }, function () { }); return; }
+      if (s2.off > buf.duration - 0.5) { track.wait = setTimeout(again, Math.max(300, (s2.dur - s2.off) * 1000 + 100)); return; }   // le titre est fini avant l'horloge : on attend le suivant
+      var node = b.c.createBufferSource(); node.buffer = buf; node.connect(g);
+      node.onended = function () { if (M.el === track && A.room === id) track.wait = setTimeout(again, 250); };
+      track.node = node; track.t0 = b.c.currentTime - s2.off;
+      node.start(0, s2.off);
+      fade(g, vol, 2);
+      track.sync = setInterval(function () {                       // recalage rare : seulement si l'écart devient net
+        if (M.el !== track) return;
+        var s3 = syncSlot(id, list);
+        if (s3 && s3.i === slot.i && Math.abs((b.c.currentTime - track.t0) - s3.off) > 1.5) again();
+      }, 15000);
+    }, function () { if (M.el === track) { M.el = null; dropTrack(track); startSynth(id); } });
+  }
   function playFile(id, list, force) {
     var b = bus, el = new Audio(), slot = syncSlot(id, list), file;
     if (slot) {
       if (force != null && slot.i === force.i) slot = { i: (force.i + 1) % list.length, off: 0, dur: 0 };   // le titre vient de finir : on passe toujours au suivant (jamais deux fois le même)
       file = list[slot.i]; M.last[id] = file;
     } else file = nextFile(id, list);
+    if (slot) { playSynced(id, list, slot, file); return; }
     el.preload = 'auto'; el.src = 'assets/musique/' + file;
     var src, g;
     try { src = b.c.createMediaElementSource(el); g = b.c.createGain(); g.gain.value = 0.0001; src.connect(g); g.connect(b.music); }
