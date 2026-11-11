@@ -10,7 +10,7 @@
      coupent la séance, depuis la console « RÉGIE » au fond à droite de la salle (ou en cliquant sur l'écran / touche P une
      fois assis). Tout le monde voit exactement la même chose, à la même position. Pendant la séance les lumières baissent
      et la musique se tait.
-   - La musique de fond : les morceaux de assets/musique/cinema/ (playlist.json) ; sans fichier, un petit air de jazz lent fabriqué à la volée (WebAudio).
+   - La musique de fond : les morceaux de assets/musique/cinema/ (premium : cinema-premium/) (playlist.json) ; sans fichier, un petit air de jazz lent fabriqué à la volée (WebAudio).
      Elle démarre à l'arrivée, suit le volume « Musique d'ambiance » des Réglages (plus de bouton dédié) et quitte la salle avec nous.
    Fichiers liés : f3d-core.js, world3d.js, hall3d.js (la porte), video/tropistream-presentation.mp4.
    ===================================================================== */
@@ -82,13 +82,13 @@
   var BEAT = 60 / 66, EIGHTH = BEAT / 2;
   function mtof(n) { return 440 * Math.pow(2, (n - 69) / 12); }
 
-  function createMusic() {
+  function createMusic(premium) {
     var AC = window.AudioContext || window.webkitAudioContext;
     var m = { ctx: null, master: null, dry: null, wet: null, noise: null, timer: 0, nextT: 0, step: 0, level: 1, up: false, lastTarget: -1, files: null, el: null, lastFile: '' };
 
-    // vrais morceaux : assets/musique/cinema/ (playlist.json) ; sans fichier, l'air de jazz synthétisé ci-dessous
+    // vrais morceaux : assets/musique/cinema/ (premium : cinema-premium/) (playlist.json) ; sans fichier, l'air de jazz synthétisé ci-dessous
     if (F.audio && F.audio.withPlaylist) F.audio.withPlaylist(function (pl) {
-      m.files = pl.cinema && pl.cinema.length ? pl.cinema : null;
+      var lst = premium ? pl.cinemapremium : pl.cinema; m.files = lst && lst.length ? lst : null;
       if (m.files && m.ctx && !m.el) { clearInterval(m.timer); m.timer = 0; playFile(); }
     });
     function playFile() {
@@ -1578,7 +1578,7 @@
     }
 
     /* ===================== S'ASSEOIR ===================== */
-    var music = createMusic(), cur = null, view = { yaw: 0, pitch: 0 }, standEl = null;
+    var music = createMusic(P), cur = null, view = { yaw: 0, pitch: 0 }, standEl = null;
     function taken(s) {
       var now = performance.now();
       return Object.keys(world.remote).some(function (k) { var r = world.remote[k]; return r.seat === s.n && now - (r.recv || 0) < 4000; });
