@@ -30,7 +30,7 @@
   function makeGeo(P) {
     var G0 = P ? {
       HX: 35, HZ: 20, ZF: 34, H: 43, SCR_W: 64, SCR_Y: 2.6, SCR_H: 36, ROW_H: 0.55, ROWS: [], COLS: [-11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65],
-      blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-20.2, 15.6], [20.2, 15.6]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
+      blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-(12.4 + 35) / 2, 35 - 12.4], [(12.4 + 35) / 2, 35 - 12.4]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
     } : {
       HX: 10, HZ: 13, ZF: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
       blocks: [{ x0: -5.7, x1: -1.4 }, { x0: 1.4, x1: 5.7 }], lanes: [[0, 2.8], [-7.5, 3.6], [7.5, 3.6]], aisleLights: [-6.0, -1.3, 1.3, 6.0]
@@ -261,7 +261,7 @@
     ledTex.minFilter = ledTex.magFilter = THREE.LinearFilter; ledTex.wrapS = ledTex.wrapT = THREE.ClampToEdgeWrapping; ledTex.generateMipmaps = false; ledTex.needsUpdate = true;
     for (var li = 3; li < ledData.length; li += 4) ledData[li] = 255;
     var starMats = [], starCache = {}, starTile = null;
-    var tintU = { uL: { value: new THREE.Color(0, 0, 0) }, uR: { value: new THREE.Color(0, 0, 0) }, uC: { value: new THREE.Color(0, 0, 0) }, uHX: { value: HX }, uZ0: { value: -ZF }, uZR: { value: (HZ + ZF) * 0.85 }, uLed: { value: ledTex }, uDim: { value: 1 }, uY0: { value: SCR_Y }, uY1: { value: SCR_Y + SCR_H }, uSW: { value: SCR_W }, uMus: { value: new THREE.Vector4(0, 0, 0, 0) }, uT: { value: 0 } };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
+    var tintU = { uL: { value: new THREE.Color(0, 0, 0) }, uR: { value: new THREE.Color(0, 0, 0) }, uC: { value: new THREE.Color(0, 0, 0) }, uHX: { value: HX }, uZ0: { value: -ZF }, uZR: { value: (HZ + ZF) * 0.85 }, uLed: { value: ledTex }, uDim: { value: 1 }, uY0: { value: SCR_Y }, uY1: { value: SCR_Y + SCR_H }, uSW: { value: SCR_W }, uMus: { value: new THREE.Vector4(0, 0, 0, 0) }, uBeat: { value: new THREE.Vector4(0, 0, 0, 0) }, uT: { value: 0 } };      // lumière de l'écran : une teinte ajoutée à toutes les surfaces étoilées (murs, plafond, sol, gradins), partout dans la salle
     // les petits points prennent la couleur de la LED du même côté : sol = LED du bas, plafond = LED du haut, mur de gauche = LED de gauche, mur de droite = LED de droite
     var LEDSH = [
       'float nlen = length(vWn); vec3 nW = vWn / max(nlen, 0.0001); vec3 led;',
@@ -276,8 +276,10 @@
       'float mbs = 0.5 + 0.5 * sin(vWp.z * 0.30 - uT * 3.4);',
       'float mtr = 0.5 + 0.5 * sin(vWp.x * 0.9 + vWp.y * 0.7 + uT * 6.0);',
       'float pulse = uMus.x * mbs + uMus.y * mwv + uMus.z * mtr;',
-      'vec3 mcol = mix(vec3(1.0), 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + vWp.z * 0.012 + vWp.y * 0.01 + uT * 0.03)), 0.4);',
-      'diffuseColor.rgb = mix(diffuseColor.rgb, mcol * dl * uDim * (0.45 + 0.9 * pulse), uMus.w);'
+      // couleurs franches de tout l'arc-en-ciel (rouge, orange, jaune, vert, cyan, bleu, violet, rose) qui courent dans la salle ; à chaque basse, toute la salle prend d'un coup UNE grosse couleur (uBeat.x = éclair, uBeat.y = teinte)
+      'float hb = fract(vWp.z * 0.018 + vWp.x * 0.012 + vWp.y * 0.01 + uT * 0.06);',
+      'vec3 mcol = mix(hsv2rgb(vec3(hb, 0.92, 1.0)), hsv2rgb(vec3(fract(uBeat.y + hb * 0.12), 0.95, 1.0)), clamp(uBeat.x, 0.0, 1.0));',
+      'diffuseColor.rgb = mix(diffuseColor.rgb, mcol * dl * uDim * (0.9 + 0.9 * pulse + 1.4 * uBeat.x), uMus.w);'
     ].join('\n');
     function tintize(m, extra) {                       // lumière de l'écran sur les surfaces étoilées : plus forte près de l'écran, plus douce au fond, et la couleur du côté gauche / droit de l'image de chaque côté de la salle
       // extra (rideau) : { attr, vary, decl, main, uni(sh) } = un attribut de plus, une déclaration et du code ajouté en fin de shader (le texte TROPISTREAM en points)
@@ -285,7 +287,7 @@
         Object.keys(tintU).forEach(function (k) { sh.uniforms[k] = tintU[k]; });
         if (extra && extra.uni) extra.uni(sh);
         sh.vertexShader = 'varying vec3 vWp;\nvarying vec3 vWn;\n' + (extra ? extra.vdecl : '') + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWn = mat3(modelMatrix) * normal;' + (extra ? extra.vmain : ''));
-        sh.fragmentShader = 'varying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLed; uniform float uDim; uniform float uY0; uniform float uY1; uniform float uSW;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR; uniform vec4 uMus; uniform float uT;\n' + (extra ? extra.fdecl : '') + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + LEDSH).replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n' + (extra ? extra.fmain : '') + '\n#include <dithering_fragment>');
+        sh.fragmentShader = 'varying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLed; uniform float uDim; uniform float uY0; uniform float uY1; uniform float uSW;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR; uniform vec4 uMus; uniform vec4 uBeat; uniform float uT;\nvec3 hsv2rgb(vec3 c) { vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }\n' + (extra ? extra.fdecl : '') + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + LEDSH).replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n' + (extra ? extra.fmain : 'gl_FragColor.rgb += hsv2rgb(vec3(fract(uBeat.y + hb * 0.12), 0.9, 1.0)) * clamp(uBeat.x, 0.0, 1.0) * uMus.w * 0.17;') + '\n#include <dithering_fragment>');
       };
       return m;
     }
@@ -456,7 +458,7 @@
     }
     var seat_ = { cur: null }, vipLights = [];
     if (false) ROWS.forEach(function (rz, ri) { [-3.95, 3.95, -9.6, 9.6].forEach(function (rx) { var ry = cinemaGroundY(rx, rz); box(g, 0.05, 0.05, ROW_GAP + 0.02, trimM, rx, ry + 0.95, rz); box(g, 0.04, 0.95, 0.04, trimM, rx, ry + 0.47, rz - ROW_GAP / 2); }); });      // rampes dorées le long des allées
-    ROWS.forEach(function (rz, ri) { var elev = G0.elev ? G0.elev(ri) : ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
+    ROWS.forEach(function (rz, ri) { if (P && ri === 0) return; var elev = G0.elev ? G0.elev(ri) : ri * ROW_H; COLS.forEach(function (cx2) { seat(cx2, rz, elev); }); });
 
     /* --- gradins : un bloc plein (marche nette) sous chaque bloc de fauteuils, à partir de la 2e rangée --- */
     var deckM = P ? std(0x0d0d11, 0.9, 0.05) : std(0x34101b, 0.85, 0.05);
@@ -607,7 +609,9 @@
       var z2, sd2;
       // la dalle de l'étage, avec une marche pour chaque rangée de fauteuils
       box(g, vw * 2, 0.7, vz1 - vz0, starMat(vw * 2, vz1 - vz0), 0, VY - 0.35, (vz0 + vz1) / 2);
-      // (plus aucun long liseré doré le long du bord de l'étage : on le voyait de toute la salle ; la barrière invisible empêche de tomber)
+      box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
+      // garde-corps de verre le long du bord
+      box(g, vw * 2, 0.04, 0.08, trimM, 0, VY + 0.02, vz0 + 0.06);                      // juste un liseré doré au ras du sol : rien devant l'écran (la barrière invisible empêche de tomber)
       // fauteuils de luxe : trois rangées de douze
       VROWS.forEach(function (rz, ri) { VCOLS.forEach(function (cx3) { seat(cx3, rz, VY + ri * 0.2); seats[seats.length - 1].vip = true; }); });
       if (!low) [[-9, 13.5], [9, 13.5]].forEach(function (p) { var pl = new THREE.PointLight(0xffe2b8, 0.5, 16); pl.position.set(p[0], VY + 3.5, p[1]); g.add(pl); vipLights.push(pl); });
@@ -1699,7 +1703,7 @@
     room.onPageHide = function () { video.pause(); adVideo.pause(); };
     room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
-    var clock = 0, netT = 0, beatT = 0, remotesHid = false, musV = { b: 0, m: 0, t: 0, a: 0 };
+    var clock = 0, netT = 0, beatT = 0, remotesHid = false, musV = { b: 0, m: 0, t: 0, a: 0, avg: 0, last: -9, flash: 0, hue: 0 };
     // présence : le serveur compte les spectateurs (places limitées par la direction) ; on se signale toutes les 10 s et on prévient en sortant
     function presence() {
       world.post('/api/cinema', Object.assign({ action: 'enter' }, P ? { room: 'premium' } : {})).then(function (r) {
@@ -1757,7 +1761,12 @@
         var k = Math.min(1, dt * 12), kr = Math.min(1, dt * 4);                   // montée rapide, descente douce : pas de clignotement
         musV.b += (tb - musV.b) * (tb > musV.b ? k : kr); musV.m += (tm - musV.m) * (tm > musV.m ? k : kr); musV.t += (tt - musV.t) * (tt > musV.t ? k : kr);
         musV.a += ((live ? 1 : 0) - musV.a) * Math.min(1, dt * 2);
-        tintU.uMus.value.set(musV.b, musV.m, musV.t, musV.a); tintU.uT.value = clock;
+        // basse détectée (le grave monte nettement au-dessus de sa moyenne) : toute la salle prend d'un coup une grosse couleur, d'une teinte différente à chaque fois (toutes les couleurs défilent) ; sans basse, couleurs de base
+        musV.avg += (tb - musV.avg) * Math.min(1, dt * 1.2);
+        if (live && tb > 0.2 && tb > musV.avg * 1.22 + 0.04 && clock - musV.last > 0.24) { musV.last = clock; musV.flash = 1; musV.hue = (musV.hue + 0.14 + Math.random() * 0.12) % 1; }
+        musV.flash *= Math.exp(-dt * 4.5);
+        tintU.uMus.value.set(musV.b, musV.m, musV.t, musV.a); tintU.uBeat.value.set(musV.flash, musV.hue, 0, 0); tintU.uT.value = clock;
+        if (P) { var fl = musV.flash * musV.a; amb.color.setHex(0xffe6d0); if (fl > 0.01) { amb.color.lerp(new THREE.Color().setHSL(musV.hue, 1, 0.5), Math.min(1, fl * 0.85)); amb.intensity += fl * 0.45 * dim; } }   // les fauteuils aussi prennent la couleur de la basse
         if (starLedM) starLedM.color.multiplyScalar(1 - 0.3 * musV.a + 0.7 * musV.a * musV.b);   // les petites lumières du plafond battent avec les graves
       })();
       // son du film : même volume partout, en stéréo
@@ -1772,7 +1781,7 @@
     // juste à côté. Un halo doux l'entoure, et les murs, le plafond et le sol tout près de l'écran prennent un léger reflet de ces couleurs (vite atténué : la salle reste sombre).
     (function buildAmbilight() {
       if (!P) { room.ambiUpdate = function () {}; return; }
-      var NV = 14, NH = 24, cvS = mkCanvas(64, 36), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
+      var NV = 14, NH = 24, cvS = mkCanvas(128, 72), cxS = cvS.getContext('2d', { willReadFrequently: true }), bad = false, tAcc = 0;
       function seg(n) { var a = []; for (var k = 0; k < n; k++) a.push([0, 0, 0]); return a; }
       var E = { L: { n: NV, cur: seg(NV), tgt: seg(NV) }, R: { n: NV, cur: seg(NV), tgt: seg(NV) }, T: { n: NH, cur: seg(NH), tgt: seg(NH) }, B: { n: NH, cur: seg(NH), tgt: seg(NH) } };
       var TR = 0.3, OFF = 0.2, RAD = 0.7, hx = SCR_W / 2 + OFF, y0 = SCR_Y - OFF, y1 = SCR_Y + SCR_H + OFF, tz = -ZF + 0.16;   // le néon touche l'écran : même plan (z de l'écran), bord intérieur sous le bord de l'image
@@ -1835,12 +1844,10 @@
       }
       function smooth(a, b, v) { var t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); }
       function vivid(r, gg, b) { var m = (r + gg + b) / 3, rr = Math.max(0, m + (r - m) * 1.45), g2 = Math.max(0, m + (gg - m) * 1.45), bb = Math.max(0, m + (b - m) * 1.45), mm = Math.max(rr, g2, bb) || 1; return [rr / mm, g2 / mm, bb / mm]; }
-      function setTgt(e, acc) {                         // chaque tronçon : la couleur des zones les plus lumineuses de son tiers de l'image (+ un peu de la lumière la plus forte de l'image entière)
-        var gw = GL[3] || 1, gc = [GL[0] / gw / 255, GL[1] / gw / 255, GL[2] / gw / 255], glum = GL[5] / (GL[6] || 1);
+      function setTgt(e, acc) {                         // chaque tronçon ne regarde QUE la fine bande d'image juste à côté de lui (comme un vrai ambilight) : un feu au milieu de l'image n'allume rien, un feu au bord allume le néon à sa hauteur, une image noire éteint
         for (var k = 0; k < e.n; k++) {
-          var a = acc[k], n = a[3] || 1, c = [a[0] / n / 255 * 0.7 + gc[0] * 0.3, a[1] / n / 255 * 0.7 + gc[1] * 0.3, a[2] / n / 255 * 0.7 + gc[2] * 0.3], lw = a[5] / (a[6] || 1);   // luminosité moyenne de la zone : image sombre = lumière éteinte
-          // un petit feu ou une lueur dans une image sombre doit allumer le bord : on regarde aussi la luminosité des points les plus lumineux de la zone (a[4]/a[3]), pas seulement la moyenne
-          var wl = a[4] / (a[3] || 1), v = vivid(c[0], c[1], c[2]), kk = smooth(0.04, 0.3, Math.max(lw * 0.75 + glum * 0.25, wl * 0.85));
+          var a = acc[k], n = a[3] || 1, c = [a[0] / n / 255, a[1] / n / 255, a[2] / n / 255], lw = a[5] / (a[6] || 1), wl = a[4] / n;   // luminosité moyenne de la bande, et celle de ses points les plus lumineux
+          var v = vivid(c[0], c[1], c[2]), kk = smooth(0.03, 0.3, Math.max(lw, wl * 0.55));
           e.tgt[k] = [v[0] * kk, v[1] * kk, v[2] * kk];
         }
       }
@@ -1875,19 +1882,19 @@
         if (on && !bad && tAcc > 0.05 && video.readyState >= 2 && video.videoWidth > 0) {     // 20 lectures par seconde : les couleurs suivent le film en direct
           tAcc = 0;
           try {
-            cxS.drawImage(video, 0, 0, 64, 36);
-            var d = cxS.getImageData(0, 0, 64, 36).data, x, y, p, lum, w3, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
+            cxS.drawImage(video, 0, 0, 128, 72);
+            var d = cxS.getImageData(0, 0, 128, 72).data, x, y, p, lum, w3, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
             GL = [0, 0, 0, 0, 0, 0, 0];
             var add = function (q) { q[0] += d[p] * w3; q[1] += d[p + 1] * w3; q[2] += d[p + 2] * w3; q[3] += w3; q[4] += lum * w3; q[5] += lum; q[6] += 1; };
-            for (y = 0; y < 36; y++) for (x = 0; x < 64; x++) {
-              p = (y * 64 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255;
+            for (y = 0; y < 72; y++) for (x = 0; x < 128; x++) {
+              p = (y * 128 + x) * 4; lum = (d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) / 255;
               var mxv = Math.max(d[p], d[p + 1], d[p + 2]), mnv = Math.min(d[p], d[p + 1], d[p + 2]), sat = mxv ? (mxv - mnv) / mxv : 0;
               w3 = lum * lum * lum * 0.4 + sat * sat * lum * lum * 2 + 0.0002;   // les zones lumineuses comptent plus, et les couleurs vives aussi (une petite voiture rouge dans la neige doit teinter le bord)
-              add(GL);
-              if (x < 22) add(aL[Math.min(NV - 1, Math.floor(y * NV / 36))]);
-              if (x >= 42) add(aR[Math.min(NV - 1, Math.floor(y * NV / 36))]);
-              if (y < 12) add(aT[Math.min(NH - 1, Math.floor(x * NH / 64))]);
-              if (y >= 24) add(aB[Math.min(NH - 1, Math.floor(x * NH / 64))]);
+              add(GL);   // (GL n'influence plus les couleurs : plus de lumière « sans logique »)
+              if (x < 10) add(aL[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (x >= 118) add(aR[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (y < 6) add(aT[Math.min(NH - 1, Math.floor(x * NH / 128))]);
+              if (y >= 66) add(aB[Math.min(NH - 1, Math.floor(x * NH / 128))]);
             }
             setTgt(E.L, aL); setTgt(E.R, aR); setTgt(E.T, aT); setTgt(E.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
@@ -1925,14 +1932,18 @@
     // et ne se referme que lorsque le film est terminé : la pause le laisse ouvert. L'état vient du serveur (net.status), tout le monde voit donc la même chose.
     (function buildCurtain() {
       if (!P) return;
-      var CW = HX * 2 - 0.1, CY0 = 0.34, CY1 = H - 2.5, CZ = -ZF + 0.62, OV = 0.6, NC = 240, FOLDS = 36, GATHER = 0.075, HEM = 0.75, DUR = 9;
+      var CW = HX * 2 - 0.1, CY0 = 0.34, CY1 = H - 2.5, CZ = -ZF + 0.62, OV = 2.2, NC = 240, FOLDS = 36, GATHER = 0.075, HEM = 0.75, DUR = 9;
       var Wp = CW / 2 + OV, ys = [CY0, CY0 + HEM, CY0 + HEM, CY1];
       // ----- TROPISTREAM en petits points blancs (même style que les points des murs) : « TROPI » est brodé sur le pan gauche, « STREAM » sur le pan droit,
       // chaque mot part donc avec son rideau quand le film commence. Chaque mot est une texture de points ; le shader la pose sur le tissu (coordonnée « cuv » = mètres le long du pan, mètres de hauteur).
-      var PITCH = 0.22, CELL = 8, PPM = CELL / PITCH, ROWSN = 22, TEXT_Y = (CY0 + CY1) / 2, SEAM = 0.75;
+      var PITCH = 0.2, CELL = 8, PPM = CELL / PITCH, ROWSN = 12, TEXT_Y = (CY0 + CY1) / 2, SEAM = 0.55;   // petit texte (lettres de ~2,4 m) : de simples points comme ceux des murs
+      var SCW = 6, FONTW = '800 ' + (ROWSN * SCW / 0.716) + 'px Arial, Helvetica, sans-serif', GAPW = 2.6 * SCW, mW = mkCanvas(8, 8).getContext('2d');
+      function naturalW(word) { var s = 0, k; mW.font = FONTW; for (k = 0; k < word.length; k++) s += mW.measureText(word[k]).width; return s + GAPW * (word.length - 1); }
+      // espacement naturel des lettres ; le texte entier est centré dans la salle : la couture entre TROPI et STREAM est un peu décalée (les pans se recouvrent de 2,2 m au centre)
       function dotWord(word) {                             // -> { tex, cols, texW, texH } : le mot dessiné en grille de points, centré verticalement dans une texture 2^n x 256
-        var SC = 6, fpx = ROWSN * SC / 0.716, m0 = mkCanvas(8, 8).getContext('2d'), gapPx = 2.6 * SC, font = '800 ' + fpx + 'px Arial, Helvetica, sans-serif', adv = [], tot = 0, k;
-        m0.font = font; for (k = 0; k < word.length; k++) { adv.push(m0.measureText(word[k]).width); tot += adv[k] + (k ? gapPx : 0); }
+        var SC = SCW, fpx = ROWSN * SC / 0.716, m0 = mW, font = FONTW, adv = [], sum = 0, k;
+        m0.font = font; for (k = 0; k < word.length; k++) { adv.push(m0.measureText(word[k]).width); sum += adv[k]; }
+        var gapPx = GAPW, tot = sum + GAPW * (word.length - 1);
         var mw = Math.ceil(tot / SC) * SC + SC * 2, mh = (ROWSN + 2) * SC, mc = mkCanvas(mw, mh), mx = mc.getContext('2d', { willReadFrequently: true }), px = SC;
         mx.fillStyle = '#000'; mx.fillRect(0, 0, mw, mh); mx.fillStyle = '#fff'; mx.font = font; mx.textBaseline = 'alphabetic';
         for (k = 0; k < word.length; k++) { mx.fillText(word[k], px, (ROWSN + 1) * SC); px += adv[k] + gapPx; }
@@ -1952,22 +1963,25 @@
         return { tex: tex, cols: cols, texW: tw / PPM, texH: 256 / PPM };
       }
       function curtainMat(wd, a, b) {                      // a, b : passage des mètres du tissu à la coordonnée u de la texture du mot
-        var t = starTileTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / 5, 1 / 5);
-        var m = tintize(new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }), {
+        var m = tintize(new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide }), {   // rideau TOUT noir : seuls les points du mot s'y allument
           vdecl: 'attribute vec2 cuv;\nvarying vec2 vCuv;\n', vmain: '\nvCuv = cuv;',
           fdecl: 'varying vec2 vCuv;\nuniform sampler2D uTxt; uniform vec4 uTxM;\n',
           uni: function (sh) { sh.uniforms.uTxt = { value: wd.tex }; sh.uniforms.uTxM = { value: new THREE.Vector4(a, b, TEXT_Y - wd.texH / 2, 1 / wd.texH) }; },
           // les points du mot : blancs, un peu plus vifs que les étoiles ; ils battent avec la musique comme les murs (graves = tout le mot respire, aigus = scintillement)
           fmain: 'vec2 tq = vec2(uTxM.x * vCuv.x + uTxM.y, (vCuv.y - uTxM.z) * uTxM.w);\n' +
             'float tin = step(0.0, tq.x) * step(tq.x, 1.0) * step(0.0, tq.y) * step(tq.y, 1.0);\n' +
-            'float tdot = texture2D(uTxt, clamp(tq, 0.0, 1.0)).r * tin;\n' +
+            'vec2 tqc = clamp(tq, 0.0, 1.0);\n' +
+            'float tdot = texture2D(uTxt, tqc).r * tin;\n' +
+            'float tglow = texture2D(uTxt, tqc, 3.0).r * tin;\n' +        // halo doux autour des points : le mot « fait de la lumière »
             'float tpl = 0.5 * uMus.x + 0.35 * uMus.y * (0.6 + 0.4 * sin(vWp.x * 0.5 - uT * 3.0)) + 0.3 * uMus.z * (0.5 + 0.5 * sin(vWp.x * 1.7 + uT * 7.0));\n' +
-            'gl_FragColor.rgb += mix(vec3(1.0), mcol, uMus.w * 0.35) * tdot * uDim * (0.8 + 1.0 * uMus.w * tpl);'
+            'vec3 tcol = mix(vec3(1.0), mcol, clamp(uMus.w * 0.85, 0.0, 1.0));\n' +
+            'gl_FragColor.rgb += tcol * (tdot * uDim * (0.9 + 0.9 * uMus.w * tpl + 1.2 * uBeat.x * uMus.w) + tglow * uDim * uMus.w * (0.5 + 2.2 * tpl + 2.5 * uBeat.x));'
         });
-        starMats.push(m); return m;
+        return m;
       }
       var wordL = dotWord('TROPI'), wordR = dotWord('STREAM');
-      var xL0 = -SEAM - wordL.cols * PITCH, xR0 = SEAM;     // bord gauche (en mètres dans la salle) de chaque texture : TROPI finit contre la couture du rideau, STREAM y commence
+      var wMl = wordL.cols * PITCH, wMr = wordR.cols * PITCH, xS = (wMl - wMr) / 2;   // xS : position de la couture des mots (le texte entier est centré sur x = 0)
+      var xL0 = xS - SEAM - wMl, xR0 = xS + SEAM;     // bord gauche (mètres dans la salle) de chaque texture : TROPI finit à gauche de la couture, STREAM y commence
       function panel(sd) {
         var pos = new Float32Array(4 * (NC + 1) * 3), col = new Float32Array(4 * (NC + 1) * 3), uv = new Float32Array(4 * (NC + 1) * 2), cuv = new Float32Array(4 * (NC + 1) * 2), idx = [], i, r;
         for (i = 0; i < NC; i++) for (r = 0; r < 4; r += 2) { var a = r * (NC + 1) + i, b = a + 1, c = a + (NC + 1), d = c + 1; idx.push(a, c, b, b, c, d); }
