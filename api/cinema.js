@@ -158,10 +158,10 @@ export default async function handler(req, res) {
       return res.status(200).json(Object.assign({ ok: true }, out));
     }
 
-    if (!roles.control) return fail(res, 403, 'Réservé au Patron et au Co Fondateur.');
-
     const action = body.action;
     const ROW = rowOf(String(body.room || ''));
+    // cinéma premium : le Staff peut aussi lancer, mettre en pause, choisir le film et programmer (console du téléphone) ; le cinéma classique reste au Patron et au Co Fondateur
+    if (!(roles.control || (roles.staff && ROW !== ROW0))) return fail(res, 403, ROW !== ROW0 ? 'Réservé au Staff, au Co Fondateur et au Patron.' : 'Réservé au Patron et au Co Fondateur.');
     const mutate = (fn) => mutateState(fn, ROW);
 
     // ---- NOMBRE DE PERSONNES AUTORISÉES DANS LA SALLE (0 = illimité) ----

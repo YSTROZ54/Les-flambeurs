@@ -80,6 +80,27 @@
   };
   F.resetKeys = function () { try { localStorage.removeItem('f3d_keys'); } catch (e) { /* ok */ } };
 
+  /* ---------- boutons de la manette : personnalisables (téléphone › Réglages › Souris & manette), gardés d'une visite à l'autre ----------
+     Numéros de l'API Gamepad (0 = A / ✕, 1 = B / ○, 2 = X / □, 3 = Y / △, 9 = Start…). La croix directionnelle et les sticks restent fixes. */
+  var PAD_ACTIONS = ['act', 'jump', 'back', 'phone', 'menu', 'run'];
+  var PAD_DEFAULTS = { act: 0, jump: 2, back: 1, phone: 3, menu: 9, run: 7 };
+  F.padActions = PAD_ACTIONS;
+  F.padNames = { act: 'Agir / valider', jump: 'Sauter', back: 'Se lever', phone: 'Téléphone', menu: 'Menu / pause', run: 'Courir (aussi : stick pressé, gâchette gauche)' };
+  var PAD_LABELS = ['A / ✕', 'B / ○', 'X / □', 'Y / △', 'LB / L1', 'RB / R1', 'LT / L2', 'RT / R2', 'Retour', 'Start', 'Stick gauche', 'Stick droit', 'Croix ↑', 'Croix ↓', 'Croix ←', 'Croix →', 'Accueil'];
+  F.padLabel = function (n) { return typeof n === 'number' ? (PAD_LABELS[n] || 'Bouton ' + n) : '?'; };
+  F.padMap = function () {
+    var out = {}, cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem('f3d_padmap') || '{}') || {}; } catch (e) { /* stockage bloqué */ }
+    for (var i = 0; i < PAD_ACTIONS.length; i++) { var a = PAD_ACTIONS[i]; out[a] = (typeof cfg[a] === 'number' && cfg[a] >= 0 && cfg[a] < 32 && (cfg[a] < 12 || cfg[a] > 15)) ? cfg[a] : PAD_DEFAULTS[a]; }
+    return out;
+  };
+  F.setPadButton = function (action, n) {
+    if (PAD_ACTIONS.indexOf(action) < 0 || typeof n !== 'number' || (n >= 12 && n <= 15)) return;   // la croix sert à naviguer dans les panneaux : on ne la réaffecte pas
+    var cfg = F.padMap(); cfg[action] = n;
+    try { localStorage.setItem('f3d_padmap', JSON.stringify(cfg)); } catch (e) { /* ok */ }
+  };
+  F.resetPadMap = function () { try { localStorage.removeItem('f3d_padmap'); } catch (e) { /* ok */ } };
+
   /* ===================== LE MONDE ===================== */
   function World(container, opts) {
     opts = opts || {};
@@ -647,8 +668,15 @@
     function down(n) { return !!(b[n] && b[n].pressed); }
     function hit(n) { var was = !!P.prev[n], now = down(n); P.prev[n] = now; return now && !was; }
     var lx = dz(ax[0] || 0), ly = dz(ax[1] || 0), rx = dz(ax[2] || 0), ry = dz(ax[3] || 0);
-    var A = hit(0), B = hit(1), X = hit(2), Y = hit(3), START = hit(9), UP = hit(12), DOWN = hit(13), LEFT = hit(14), RIGHT = hit(15);
-    var run = down(6) || down(7) || down(10) || (b[6] && b[6].value > 0.5) || (b[7] && b[7].value > 0.5);
+    // téléphone › Réglages › Souris & manette : on attend le prochain bouton appuyé et on le donne à la fonction demandée
+    if (this._padCapture) {
+      for (i = 0; i < b.length; i++) if (hit(i)) { var cbk = this._padCapture; this._padCapture = null; cbk(i); break; }
+      return;
+    }
+    var PM = F.padMap(), E = {};
+    function edge(n) { if (!(n in E)) E[n] = hit(n); return E[n]; }   // un même bouton peut servir à deux fonctions : on ne lit son « front » qu'une fois par image
+    var A = edge(PM.act), B = edge(PM.back), X = edge(PM.jump), Y = edge(PM.phone), START = edge(PM.menu), UP = edge(12), DOWN = edge(13), LEFT = edge(14), RIGHT = edge(15);
+    var run = down(PM.run) || (b[PM.run] && b[PM.run].value > 0.5) || (PM.run === 7 && (down(6) || down(10) || (b[6] && b[6].value > 0.5)));
     if (this.mode === 'room' && this.blend === 0 && !this.trans) {
       this.pstick.x = lx; this.pstick.y = -ly; this.padRun = !!run;
       if (!this.lookLocked) { this.player.yaw += rx * 2.6 * dt * this.sensi; this.player.pitch = Math.max(-0.6, Math.min(0.5, this.player.pitch - ry * 1.6 * dt * this.sensi)); }
@@ -702,6 +730,8 @@
     if (this.dead) return;
     this._raf = requestAnimationFrame(this._frame);
     if (!this.running || !this.container.clientWidth) { this.last = 0; return; }
+    var cap = Q.fpsCap();                                       // plafond d'images par seconde choisi dans le téléphone (0 = aucun)
+    if (cap && this.last && now - this.last < 1000 / cap - 2) return;
     var raw = this.last ? (now - this.last) / 1000 : 0.016; this.last = now;
     var dt = Math.min(raw, 0.1);
     this.step(dt);

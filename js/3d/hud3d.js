@@ -109,13 +109,14 @@
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
       { id: 'bank', img: 'assets/icones/services/tropi-bank.png', name: 'Tropi Bank', sub: 'Virements entre joueurs', ic: 'fa-building-columns', c: '16,185,129' },
       { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' },
+      { id: 'cinema', name: 'Cinéma', sub: 'Régie du cinéma premium', ic: 'fa-clapperboard', c: '239,68,68' },   // Staff, Co Fondateur et Patron uniquement (voir canSeeCinema)
       { id: 'admin', img: 'assets/icones/applis/direction.png', name: 'Direction', sub: 'Rôles, soldes et comptes', ic: 'fa-crown', c: '201,162,39' }   // Patron / Co Fondateur uniquement (voir canSeeAdmin)
     ];
     // Patron ou Co Fondateur : seuls à voir l'appli « Direction »
     function canSeeAdmin() {
       try { return (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder()); } catch (e) { return false; }
     }
-    function visibleApps() { return APPS.filter(function (a) { return a.id !== 'admin' || canSeeAdmin(); }); }
+    function visibleApps() { return APPS.filter(function (a) { return (a.id !== 'admin' || canSeeAdmin()) && (a.id !== 'cinema' || canSeeCinema()); }); }
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     // petit « tic » à chaque clic sur un bouton du téléphone (suit le volume du jeu ; muet = rien)
     function tick() {
@@ -467,11 +468,12 @@
 
     /* ---------- navigation : retour d'un cran, puis accueil, puis ferme ---------- */
     function goBack() {
-      if (keyListening) stopKeyCapture();
+      stopKeyCapture();
       if (page === 'profile' && (refuse || pfEdit)) { refuse = null; pfEdit = ''; renderPhone(); }
       else if (page === 'profile' && sub === 'avpreview') { sub = 'avatars'; renderPhone(); }
       else if ((page === 'bank' || page === 'profile' || page === 'friends') && sub !== 'home') { sub = 'home'; renderPhone(); }
-      else if (page !== 'menu') { page = 'menu'; sub = 'home'; renderPhone(); }
+      else if ((page === 'settings' || page === 'cinema') && sub !== 'home') { sub = 'home'; renderPhone(); }
+      else if (page !== 'menu') { cinStop(); page = 'menu'; sub = 'home'; renderPhone(); }
       else closePhone(true);
     }
 
@@ -510,7 +512,7 @@
       try { document.activeElement && document.activeElement.blur(); } catch (e) { /* ok */ }
       if (page === 'settings') renderPhone();
     }
-    function stopKeyCapture() { keyListening = ''; w._keyCapture = false; }
+    function stopKeyCapture() { keyListening = ''; w._keyCapture = false; stopPadCapture(); }
 
     /* ---------- appli Mon Profil : crayons d'édition, galerie d'avatars (Mes logos / À acheter dans le Tropi Shop), aperçu, refus ---------- */
     var pfEdit = '', avSel = '', refuse = null;
@@ -616,89 +618,247 @@
       if (phoneOpen && page === 'profile') renderPhone();
     }
 
+    /* ---------- Réglages : un écran de catégories (Souris & manette, Volume, Qualité) puis le détail de chacune ---------- */
+    var padListening = '', muteMem = {};
+    function rerender() { var s = elScreen.scrollTop; renderPhone(); elScreen.scrollTop = s; }   // redessine sans remonter en haut de l'écran
+    function stopPadCapture() { padListening = ''; w._padCapture = null; }
+    function catBtn(sb, ic, c, name, sub2) {
+      return '<button class="ph-cat" data-sub="' + sb + '">' + logo(fa(ic), c) + '<span><b>' + name + '</b><small>' + sub2 + '</small></span>' + fa('fa-chevron-right') + '</button>';
+    }
+    function subHead(t) { return '<div class="ph-sect">' + t + '</div>'; }
+    function sliderCard(set, ic, c, name, small, val, badge, extra) {
+      return '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa(ic), c) + '<span><b>' + name + '</b><small>' + small + '</small></span></div>' +
+        '<span class="ph-val-badge" data-ph="' + set + 'val">' + badge + '</span></div>' +
+        '<input type="range" min="0" max="100" step="1" value="' + val + '" class="ph-slider" data-set="' + set + '">' + (extra || '') + '</div>';
+    }
+    function padHtml() {
+      var map = F.padMap ? F.padMap() : {}, has = false;
+      try { var gps = navigator.getGamepads ? navigator.getGamepads() : []; for (var i = 0; i < gps.length; i++) if (gps[i] && gps[i].connected) has = true; } catch (e) { /* ok */ }
+      return (F.padActions || []).map(function (act) {
+        var on = padListening === act;
+        return '<div class="ph-key-row"><span>' + esc(F.padNames[act]) + '</span><button class="ph-key-btn' + (on ? ' listening' : '') + '" data-act="pad-bind" data-pad="' + act + '">' + (on ? 'Appuie sur un bouton…' : esc(F.padLabel(map[act]))) + '</button></div>';
+      }).join('') + (has ? '' : '<div class="ph-hint">🎮 Aucune manette détectée : branche-la (ou allume-la) puis appuie sur l\'un de ses boutons.</div>') +
+        '<div class="ph-hint">Sticks : se déplacer / regarder (la sensibilité règle aussi le stick droit). Croix : naviguer dans les panneaux de jeu.</div>';
+    }
+    function controlsHtml() {
+      var sensiVal = (w.sensi || 1.0).toFixed(1);
+      return subHead('Souris') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-computer-mouse'), '251,191,36') + '<span><b>Sensibilité</b><small>Souris et stick droit de la manette</small></span></div>' +
+        '<span class="ph-val-badge" data-ph="sensival">' + sensiVal + '</span></div>' +
+        '<input type="range" min="0.2" max="3" step="0.1" value="' + sensiVal + '" class="ph-slider" data-set="sensi"></div>' +
+        subHead('Clavier') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-keyboard'), '96,165,250') + '<span><b>Touches</b><small>Clique sur une touche, puis appuie sur la nouvelle</small></span></div></div>' + keysHtml() +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="key-reset">' + fa('fa-rotate-left') + ' Touches par défaut</button></div></div>' +
+        subHead('Manette') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-gamepad'), '52,211,153') + '<span><b>Boutons</b><small>Xbox, PlayStation… clique, puis appuie sur le bouton</small></span></div></div>' + padHtml() +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="pad-reset">' + fa('fa-rotate-left') + ' Boutons par défaut</button></div></div>';
+    }
+    function muteBtn(act, off, lab) { return '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="' + act + '">' + (off ? fa('fa-volume-high') + ' Remettre ' + lab : fa('fa-volume-xmark') + ' Couper ' + lab) + '</button></div>'; }
+    function volumeHtml() {
+      var vol = 50;
+      try {
+        if (typeof getMasterVolume === 'function') vol = Math.round(getMasterVolume() * 100);
+        else if (typeof state !== 'undefined' && typeof state.soundVolume === 'number') vol = Math.round(state.soundVolume * 100);
+      } catch (e) { /* ok */ }
+      var volIc = vol === 0 ? 'fa-volume-xmark' : (vol < 40 ? 'fa-volume-low' : 'fa-volume-high');
+      var mus = F.audio ? Math.round(F.audio.musicVol * 100) : 50, sfx = F.audio ? Math.round(F.audio.sfxVol * 100) : 70;
+      var h2 = '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title"><span data-ph="soundlogo">' + logo(fa(volIc), '56,189,248') + '</span><span><b>Volume général</b><small>Tous les sons du jeu</small></span></div>' +
+        '<span class="ph-val-badge" data-ph="soundval">' + (vol === 0 ? 'Muet' : vol + '%') + '</span></div>' +
+        '<input type="range" min="0" max="100" step="1" value="' + vol + '" class="ph-slider" data-set="sound">' +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="toggle-mute">' + (vol === 0 ? fa('fa-volume-high') + ' Activer le son' : fa('fa-volume-xmark') + ' Couper le son') + '</button></div></div>';
+      h2 += sliderCard('music', 'fa-music', '232,121,249', 'Musique d&rsquo;ambiance', 'Une musique par salle', mus, mus === 0 ? 'Coupée' : mus + '%', muteBtn('mute-music', mus === 0, 'la musique'));
+      h2 += sliderCard('sfx', 'fa-shoe-prints', '52,211,153', 'Bruitages', 'Pas, course, sauts', sfx, sfx === 0 ? 'Coupés' : sfx + '%', muteBtn('mute-sfx', sfx === 0, 'les bruitages'));
+      if (F.voice && F.voice.supported()) {
+        var vv = Math.round((F.voice.vol || 0) * 100);
+        h2 += sliderCard('voice', 'fa-tower-broadcast', '74,222,128', 'Chat vocal', 'Avec les joueurs à proximité', vv, vv === 0 ? 'Coupé' : vv + '%',
+          muteBtn('mute-voice', vv === 0, 'le chat vocal') +
+          '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="voice-mic">' + (F.voice.micMuted ? fa('fa-microphone') + ' Activer mon micro' : fa('fa-microphone-slash') + ' Couper mon micro') + '</button>' +
+          '<button class="ph-btn-action" data-act="voice-deaf">' + (F.voice.deafened ? fa('fa-headphones') + ' Réentendre les autres' : fa('fa-volume-xmark') + ' Couper le son des autres') + '</button></div>' +
+          (F.voice.micBlocked ? '<div class="ph-hint" style="color:#f29595">🎙️ Micro refusé par le navigateur : autorise-le dans les réglages du site puis recharge la page.</div>' : ''));
+      }
+      return h2;
+    }
+    function qualityHtml() {
+      var Q = F.quality || {}, modes = [['auto', 'Auto'], ['high', 'Haute'], ['medium', 'Moyenne'], ['low', 'Basse']], cap = Q.fpsCap ? Q.fpsCap() : 0;
+      return subHead('Qualité de l\'image') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-wand-magic-sparkles'), '192,132,252') + '<span><b>Qualité 3D</b><small>Netteté · en Auto elle baisse si ça rame</small></span></div></div>' +
+        '<div class="ph-choices">' + modes.map(function (m) { return '<button class="ph-choice' + (Q.mode === m[0] ? ' on' : '') + '" data-act="qual-set" data-q="' + m[0] + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+        '<div class="ph-hint">Actuel : <b data-ph="quallabel">' + esc(Q.label ? Q.label() : 'Auto') + '</b></div></div>' +
+        subHead('Images par seconde') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-gauge-high'), '250,204,21') + '<span><b>FPS maximum</b><small>Le jeu n\'ira jamais plus vite</small></span></div></div>' +
+        '<div class="ph-choices">' + (Q.FPS_CHOICES || []).map(function (f2) { return '<button class="ph-choice' + (cap === f2 ? ' on' : '') + '" data-act="fps-set" data-fps="' + f2 + '">' + f2 + ' fps</button>'; }).join('') +
+        '<button class="ph-choice' + (!cap ? ' on' : '') + '" data-act="fps-set" data-fps="0">Illimité</button></div>' +
+        '<div class="ph-hint">Un plafond bas économise la batterie et fait moins chauffer. Ton écran peut de toute façon limiter lui-même (60 Hz, 120 Hz…).</div></div>';
+    }
+    function settingsHtml() {
+      if (sub === 'controls') return controlsHtml();
+      if (sub === 'volume') return volumeHtml();
+      if (sub === 'quality') return qualityHtml();
+      var fullLab = w.full ? 'Mode fenêtré' : 'Grand écran', fullIc = w.full ? 'fa-compress' : 'fa-expand';
+      return subHead('Catégories') +
+        catBtn('controls', 'fa-gamepad', '251,191,36', 'Souris &amp; manette', 'Touches, boutons, sensibilité') +
+        catBtn('volume', 'fa-volume-high', '56,189,248', 'Volume', 'Général, musique, bruitages, chat vocal') +
+        catBtn('quality', 'fa-gauge-high', '192,132,252', 'Qualité', 'Image et plafond de FPS') +
+        subHead('Autres') +
+        '<div class="ph-card-setting"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa(fullIc), '250,204,21') + '<span><b>Affichage</b><small>Immersion totale</small></span></div></div>' +
+        '<button class="ph-row-btn" data-act="toggle-full"><span data-ph="fulllabel">' + fullLab + '</span>' + fa('fa-chevron-right') + '</button></div>' +
+        '<div class="ph-card-setting ph-card-danger"><div class="ph-row-head"><div class="ph-row-title">' + logo(fa('fa-house'), '239,68,68') + '<span><b>Accueil du Casino</b><small>Quitter le monde 3D</small></span></div></div>' +
+        '<button class="ph-row-btn ph-btn-danger" data-act="classic-menu"><span>Retour au menu 2D</span>' + fa('fa-door-open') + '</button></div>';
+    }
+
+    /* ---------- appli Cinéma (Staff, Co Fondateur, Patron) : la régie du cinéma premium, la même séance que dans la salle (api/cinema.js) ---------- */
+    var cin = { st: null, recv: 0, pl: null, plLoading: false, q: '', n: 30, pick: null, day: 0, h: 20, m: 0, busy: '', timer: 0, ticks: 0 };
+    function canSeeCinema() { try { return !!(F.isStaff && F.isStaff()); } catch (e) { return false; } }
+    function fmtHMS(s) { s = Math.max(0, Math.floor(s || 0)); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (sec < 10 ? '0' : '') + sec; }
+    function cinPos() { var st = cin.st; if (!st) return 0; var p = st.position || 0; if (st.status === 'playing') p += (performance.now() - cin.recv) / 1000; return Math.max(0, p); }
+    function cinSet(st) { if (st && typeof st === 'object') { cin.st = st; cin.recv = performance.now(); } }
+    function cinFetch() {
+      return fetch('/api/cinema?room=premium', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinSet(st); if (phoneOpen && page === 'cinema') paintCinema(); }).catch(function () { /* hors ligne */ });
+    }
+    function cinStop() { if (cin.timer) { clearInterval(cin.timer); cin.timer = 0; } }
+    function cinStart() {
+      cinStop(); cin.ticks = 0; cinFetch();
+      cin.timer = setInterval(function () {
+        if (!phoneOpen || page !== 'cinema') { cinStop(); return; }
+        if (++cin.ticks % 2 === 0) cinFetch(); else paintCinema();     // le serveur toutes les 2 s, la barre de progression chaque seconde
+      }, 1000);
+    }
+    function cinLoadPl() {
+      if (cin.pl || cin.plLoading) return;
+      cin.plLoading = true;
+      fetch('assets/cinema/playlist.json').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { cin.pl = Array.isArray(d) ? d : []; cin.plLoading = false; if (phoneOpen && page === 'cinema') { if (sub === 'films') paintCinList(); else if (sub === 'plan') paintCinPick(); } })
+        .catch(function () { cin.plLoading = false; cin.pl = []; if (phoneOpen && page === 'cinema' && sub === 'films') paintCinList(); });
+    }
+    function cinFilms() {
+      var qq = cin.q.trim().toLowerCase();
+      return (cin.pl || []).filter(function (f) { return !qq || (f.nom + ' ' + (f.annee || '') + ' ' + (f.genres || []).join(' ')).toLowerCase().indexOf(qq) !== -1; });
+    }
+    function cinFilmById(id) { return (cin.pl || []).filter(function (x) { return String(x.id) === String(id); })[0] || null; }
+    function cinAct(action, extra) {
+      return w.post('/api/cinema', Object.assign({ action: action, room: 'premium' }, extra || {})).then(function (r) {
+        if (r && r.ok && r.state) { cinSet(r.state); if (phoneOpen && page === 'cinema') paintCinema(); }
+        else w.flash('⛔ ' + ((r && r.error) || 'Impossible de joindre le serveur.'));
+        return r;
+      });
+    }
+    function cinemaHtml() {
+      var back = '';
+      if (sub === 'films') {
+        return '<div class="ph-cin-search"><i class="fa-solid fa-magnifying-glass"></i><input class="ph-in" data-ph="cinq" maxlength="100" placeholder="Titre, année, genre…" autocomplete="off" spellcheck="false" value="' + esc(cin.q) + '"></div>' +
+          '<div data-ph="cinlist" class="ph-cin-list"></div>';
+      }
+      if (sub === 'plan') {
+        var days = '', now = new Date();
+        for (var d = 0; d < 8; d++) { var dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d); days += '<option value="' + d + '"' + (cin.day === d ? ' selected' : '') + '>' + (d === 0 ? 'Aujourd\'hui' : d === 1 ? 'Demain' : dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })) + '</option>'; }
+        return subHead('1 · Le film') + '<div class="ph-card-setting" data-ph="cinpick"></div>' +
+          '<button class="ph-row-btn" data-act="cin" data-cin="choose">Choisir un film' + fa('fa-chevron-right') + '</button>' +
+          subHead('2 · Le jour et l\'heure') +
+          '<div class="ph-card-setting"><select class="ph-in ph-cin-sel" data-ph="cinday">' + days + '</select>' +
+          '<div class="ph-cin-seek" style="margin-top:8px"><input class="ph-in ph-cin-sk" type="number" min="0" max="23" data-ph="cinh" value="' + cin.h + '"><b>h</b><input class="ph-in ph-cin-sk" type="number" min="0" max="59" data-ph="cinm" value="' + cin.m + '"><b>min</b></div></div>' +
+          '<button class="ph-btn-main" data-act="cin" data-cin="sched-add">' + fa('fa-calendar-plus') + ' Programmer la séance</button>' +
+          subHead('Séances programmées') + '<div data-ph="cinsched"></div>';
+      }
+      return '<div class="ph-card-setting"><div class="ph-cin-now"><div class="ph-cin-poster"><img data-ph="cinposter" alt="" hidden><i class="fa-solid fa-film"></i></div>' +
+        '<div class="ph-cin-info"><span class="ph-cin-badge" data-ph="cinbadge">…</span><b data-ph="cintitle">Chargement…</b><small data-ph="cinmeta"></small>' +
+        '<div class="ph-cin-bar"><i data-ph="cinbar"></i></div><div class="ph-cin-time"><span data-ph="cint1">0:00</span><span data-ph="cint2"></span></div></div></div>' +
+        '<div class="ph-cin-btns"><button class="ph-cin-b play" data-act="cin" data-cin="play">' + fa('fa-play') + ' Lancer</button><button class="ph-cin-b pause" data-act="cin" data-cin="pause">' + fa('fa-pause') + ' Pause</button><button class="ph-cin-b stop" data-act="cin" data-cin="stop">' + fa('fa-stop') + ' Couper</button></div>' +
+        '<div class="ph-cin-msg" data-ph="cinmsg"></div></div>' +
+        subHead('Choisir le moment du film') +
+        '<div class="ph-card-setting"><div class="ph-cin-seek"><input class="ph-in ph-cin-sk" type="number" min="0" max="23" data-ph="cks-h" value="0"><b>h</b><input class="ph-in ph-cin-sk" type="number" min="0" max="59" data-ph="cks-m" value="0"><b>min</b><input class="ph-in ph-cin-sk" type="number" min="0" max="59" data-ph="cks-s" value="0"><b>s</b></div>' +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="cin" data-cin="seek">' + fa('fa-forward') + ' Aller à ce moment</button><button class="ph-btn-action" data-act="cin" data-cin="seek-play">' + fa('fa-play') + ' Lancer à ce moment</button></div>' +
+        '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="cin" data-cin="rel" data-d="-600">−10 min</button><button class="ph-btn-action" data-act="cin" data-cin="rel" data-d="-10">−10 s</button><button class="ph-btn-action" data-act="cin" data-cin="rel" data-d="10">+10 s</button><button class="ph-btn-action" data-act="cin" data-cin="rel" data-d="600">+10 min</button><button class="ph-btn-action" data-act="cin" data-cin="rel" data-d="1800">+30 min</button></div></div>' +
+        catBtn('films', 'fa-film', '239,68,68', 'Changer de film', 'Choisir dans la playlist') +
+        catBtn('plan', 'fa-calendar-days', '251,191,36', 'Programmer une séance', 'Affichée à l\'entrée du cinéma') + back;
+    }
+    function paintCinema() {
+      if (page !== 'cinema') return;
+      if (sub === 'plan') { paintCinPick(); paintCinSched(); return; }
+      if (sub !== 'home') return;
+      var st = cin.st, tt = q('cintitle');
+      if (!tt) return;
+      var badge = q('cinbadge'), msg = q('cinmsg');
+      if (!st) { tt.textContent = 'Chargement…'; return; }
+      var lab = st.status === 'playing' ? '▶ En lecture' : st.status === 'paused' ? '⏸ En pause' : '■ Aucune séance', pos = cinPos();
+      badge.textContent = lab; badge.className = 'ph-cin-badge ' + st.status;
+      tt.textContent = st.title || (st.url ? 'Film chargé' : 'Aucun film');
+      q('cinmeta').textContent = (st.present || 0) + (st.capacity ? ' / ' + st.capacity : '') + ' spectateur(s) dans la salle';
+      q('cint1').textContent = fmtHMS(pos);
+      var bar = q('cinbar'); if (bar) bar.style.width = (st.status === 'idle' ? 0 : Math.min(100, pos / 72 / 60 * 100)) + '%';   // repère : 2 h de film
+      q('cint2').textContent = st.updatedBy ? 'par ' + st.updatedBy : '';
+      var po = q('cinposter'), f = cin.pl && st.title ? cin.pl.filter(function (x) { return st.title.indexOf(x.nom) === 0; })[0] : null;
+      if (po) { if (f && f.poster) { if (po.getAttribute('src') !== f.poster) po.src = f.poster; po.hidden = false; } else po.hidden = true; }
+      if (msg) msg.textContent = cin.busy;
+      if (!cin.pl) cinLoadPl();
+    }
+    function paintCinList() {
+      var el = q('cinlist'); if (!el) return;
+      if (!cin.pl) { el.innerHTML = '<div class="ph-cp-empty">' + (cin.plLoading ? 'Chargement de la playlist…' : 'Playlist indisponible.') + '</div>'; return; }
+      var all = cinFilms(), shown = all.slice(0, cin.n);
+      el.innerHTML = (shown.map(function (f) {
+        return '<div class="ph-cin-film"><img src="' + esc(f.poster || '') + '" alt="" loading="lazy"><span><b>' + esc(f.titre) + '</b><small>' + esc(f.annee || '') + ' · ' + esc((f.genres || []).slice(0, 2).join(', ')) + '</small></span>' +
+          '<div class="ph-cin-fb"><button data-act="cin" data-cin="pick" data-id="' + esc(f.id) + '" data-ver="VF" title="Charger en VF">VF</button>' + (f.vo ? '<button data-act="cin" data-cin="pick" data-id="' + esc(f.id) + '" data-ver="VO" title="Charger en VO">VO</button>' : '') +
+          '<button data-act="cin" data-cin="plan" data-id="' + esc(f.id) + '" data-ver="VF" title="Programmer cette séance">' + fa('fa-calendar-plus') + '</button></div></div>';
+      }).join('') || '<div class="ph-cp-empty">Aucun film trouvé.</div>') +
+        (all.length > shown.length ? '<button class="ph-row-btn" data-act="cin" data-cin="more">Voir plus (' + (all.length - shown.length) + ')</button>' : '');
+    }
+    function paintCinPick() {
+      var el = q('cinpick'); if (!el) return;
+      var f = cin.pick ? cinFilmById(cin.pick.id) : null;
+      el.innerHTML = f ? '<div class="ph-cin-film" style="padding:0"><img src="' + esc(f.poster || '') + '" alt=""><span><b>' + esc(f.titre) + '</b><small>' + esc(cin.pick.ver) + ' · ' + esc(f.annee || '') + '</small></span></div>' : '<div class="ph-hint" style="margin:0">' + (cin.pick && !cin.pl ? 'Chargement…' : 'Aucun film choisi.') + '</div>';
+      if (!cin.pl) cinLoadPl();
+    }
+    function paintCinSched() {
+      var el = q('cinsched'); if (!el) return;
+      var list = cin.st && cin.st.schedule || [];
+      el.innerHTML = list.length ? list.map(function (it) {
+        return '<div class="ph-cin-film"><span><b>' + esc(it.title) + '</b><small>' + esc(new Date(it.at).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</small></span>' +
+          '<div class="ph-cin-fb"><button data-act="cin" data-cin="sched-rm" data-id="' + esc(it.id) + '" title="Retirer">' + fa('fa-trash') + '</button></div></div>';
+      }).join('') : '<div class="ph-hint">Aucune séance programmée.</div>';
+    }
+    function cinClick(t) {
+      var c = t.getAttribute('data-cin'), st = cin.st;
+      if (c === 'play' || c === 'pause' || c === 'stop') { cinAct(c); }
+      else if (c === 'seek' || c === 'seek-play') {
+        var gv = function (k) { var el = q('cks-' + k); return Math.max(0, parseInt(el && el.value, 10) || 0); };
+        cinAct('seek', { position: gv('h') * 3600 + gv('m') * 60 + gv('s'), play: c === 'seek-play' });
+      }
+      else if (c === 'rel') { cinAct('seek', { position: Math.max(0, Math.round(cinPos() + (parseInt(t.getAttribute('data-d'), 10) || 0))) }); }
+      else if (c === 'more') { cin.n += 30; paintCinList(); }
+      else if (c === 'choose') { sub = 'films'; renderPhone(); }
+      else if (c === 'plan') { cin.pick = { id: t.getAttribute('data-id'), ver: t.getAttribute('data-ver') || 'VF' }; sub = 'plan'; renderPhone(); }
+      else if (c === 'pick') {
+        var f = cinFilmById(t.getAttribute('data-id')), ver = t.getAttribute('data-ver') || 'VF';
+        if (!f) return;
+        var url = (ver === 'VO' && f.vo) ? f.vo : (f.vf || f.url);
+        if (!url) return;
+        cin.busy = '⏳ Extraction du flux de « ' + f.titre + ' »… ça peut prendre quelques secondes.'; sub = 'home'; renderPhone();
+        cinAct('set', { url: url, title: f.nom + ' [' + ver + ']' }).then(function (r) {
+          cin.busy = ''; paintCinema();
+          if (r && r.ok) w.flash('🎬 ' + f.titre + ' (' + ver + ') chargé', 'Appuie sur Lancer.');
+        });
+      }
+      else if (c === 'sched-add') {
+        var f2 = cin.pick ? cinFilmById(cin.pick.id) : null;
+        if (!f2) { w.flash('🗓️ Choisis un film.'); return; }
+        var dayEl = q('cinday'), hh = q('cinh'), mm = q('cinm'), d0 = new Date();
+        cin.day = parseInt(dayEl && dayEl.value, 10) || 0; cin.h = Math.max(0, Math.min(23, parseInt(hh && hh.value, 10) || 0)); cin.m = Math.max(0, Math.min(59, parseInt(mm && mm.value, 10) || 0));
+        var at = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + cin.day, cin.h, cin.m, 0).getTime(), v2 = cin.pick.ver, u2 = (v2 === 'VO' && f2.vo) ? f2.vo : (f2.vf || f2.url);
+        if (at <= Date.now()) { w.flash('🗓️ Choisis une date dans le futur.'); return; }
+        cinAct('schedule-add', { title: f2.nom + ' [' + v2 + ']', url: u2, type: /\.m3u8(\?|#|$)/i.test(u2) ? 'hls' : 'mp4', poster: f2.poster || '', at: at }).then(function (r) { if (r && r.ok) w.flash('🗓️ Séance programmée', f2.titre); });
+      }
+      else if (c === 'sched-rm') { cinAct('schedule-remove', { id: t.getAttribute('data-id') }); }
+      void st;
+    }
+
     function renderPhone() {
       var h = '';
       if (page === 'settings') {
-        var vol = 50;
-        try {
-          if (typeof getMasterVolume === 'function') vol = Math.round(getMasterVolume() * 100);
-          else if (typeof state !== 'undefined' && typeof state.soundVolume === 'number') vol = Math.round(state.soundVolume * 100);
-        } catch (e) {}
-        var volIc = vol === 0 ? 'fa-volume-xmark' : (vol < 40 ? 'fa-volume-low' : 'fa-volume-high');
-        var sensiVal = (w.sensi || 1.0).toFixed(1);
-        var mus = F.audio ? Math.round(F.audio.musicVol * 100) : 50, sfx = F.audio ? Math.round(F.audio.sfxVol * 100) : 70;
-        var qualLab = (F.quality && F.quality.label) ? F.quality.label() : 'Auto';
-        var fullLab = w.full ? 'Mode fenêtré' : 'Grand écran';
-        var fullIc = w.full ? 'fa-compress' : 'fa-expand';
-
-        h = '<div class="ph-sect">Paramètres du jeu</div>' +
-          // Sensi
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-computer-mouse'), '251,191,36') + '<span><b>Sensibilité souris</b><small>Vue en grand écran</small></span></div>' +
-              '<span class="ph-val-badge" data-ph="sensival">' + sensiVal + '</span>' +
-            '</div>' +
-            '<input type="range" min="0.2" max="3" step="0.1" value="' + sensiVal + '" class="ph-slider" data-set="sensi">' +
-          '</div>' +
-          // Son
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title"><span data-ph="soundlogo">' + logo(fa(volIc), '56,189,248') + '</span><span><b>Volume général</b><small>Tous les sons du jeu</small></span></div>' +
-              '<span class="ph-val-badge" data-ph="soundval">' + (vol === 0 ? 'Muet' : vol + '%') + '</span>' +
-            '</div>' +
-            '<input type="range" min="0" max="100" step="1" value="' + vol + '" class="ph-slider" data-set="sound">' +
-            '<div class="ph-setting-actions">' +
-              '<button class="ph-btn-action" data-act="toggle-mute">' + (vol === 0 ? fa('fa-volume-high') + ' Activer le son' : fa('fa-volume-xmark') + ' Couper le son') + '</button>' +
-            '</div>' +
-          '</div>' +
-          // Musique d'ambiance et bruitages (audio3d.js) : réglages en plus du volume général
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-music'), '232,121,249') + '<span><b>Musique d&rsquo;ambiance</b><small>Une musique par salle</small></span></div>' +
-              '<span class="ph-val-badge" data-ph="musicval">' + (mus === 0 ? 'Coupée' : mus + '%') + '</span>' +
-            '</div>' +
-            '<input type="range" min="0" max="100" step="1" value="' + mus + '" class="ph-slider" data-set="music">' +
-          '</div>' +
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-shoe-prints'), '52,211,153') + '<span><b>Bruitages</b><small>Pas, course, sauts</small></span></div>' +
-              '<span class="ph-val-badge" data-ph="sfxval">' + (sfx === 0 ? 'Coupés' : sfx + '%') + '</span>' +
-            '</div>' +
-            '<input type="range" min="0" max="100" step="1" value="' + sfx + '" class="ph-slider" data-set="sfx">' +
-          '</div>' +
-          // Chat vocal de proximité (voice3d.js) : on s'entend d'autant moins fort qu'on est loin l'un de l'autre
-          (F.voice && F.voice.supported() ? voiceHtml() : '') +
-          // Touches : flèches et ZQSD restent toujours actives en plus de la touche choisie (world3d.js)
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-keyboard'), '96,165,250') + '<span><b>Touches</b><small>Déplacements, saut, course, chat vocal</small></span></div>' +
-            '</div>' +
-            keysHtml() +
-            '<div class="ph-setting-actions"><button class="ph-btn-action" data-act="key-reset">' + fa('fa-rotate-left') + ' Touches par défaut</button></div>' +
-          '</div>' +
-          // Qualité
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-gear'), '192,132,252') + '<span><b>Qualité 3D</b><small>Résolution & fluidité</small></span></div>' +
-            '</div>' +
-            '<button class="ph-row-btn" data-act="cycle-qual"><span data-ph="quallabel">' + qualLab + '</span>' + fa('fa-arrows-rotate') + '</button>' +
-          '</div>' +
-          // Plein écran
-          '<div class="ph-card-setting">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa(fullIc), '250,204,21') + '<span><b>Affichage</b><small>Immersion totale</small></span></div>' +
-            '</div>' +
-            '<button class="ph-row-btn" data-act="toggle-full"><span data-ph="fulllabel">' + fullLab + '</span>' + fa('fa-chevron-right') + '</button>' +
-          '</div>' +
-          // Accueil Casino
-          '<div class="ph-card-setting ph-card-danger">' +
-            '<div class="ph-row-head">' +
-              '<div class="ph-row-title">' + logo(fa('fa-house'), '239,68,68') + '<span><b>Accueil du Casino</b><small>Quitter le monde 3D</small></span></div>' +
-            '</div>' +
-            '<button class="ph-row-btn ph-btn-danger" data-act="classic-menu"><span>Retour au menu 2D</span>' + fa('fa-door-open') + '</button>' +
-          '</div>';
+        h = settingsHtml();
       } else if (page === 'profile') {
         h = profileHtml();
+      } else if (page === 'cinema') {
+        h = canSeeCinema() ? cinemaHtml() : '<div class="ph-cp-empty">Accès réservé au Staff, au Co Fondateur et au Patron.</div>';
       } else if (page === 'bank') {
         h = bankHtml();
       } else if (page === 'admin') {
@@ -729,6 +889,7 @@
       elPhone.querySelector('.ph-body').classList.toggle('home', page === 'menu');          // fond d'écran seulement sur l'accueil
       if (page === 'chat') paintChatPage();
       if (page === 'friends' && sub === 'thread') paintDmThread();
+      if (page === 'cinema' && canSeeCinema()) { paintCinema(); if (sub === 'films') { paintCinList(); cinLoadPl(); } }
     }
 
     function openPhone(p) {
@@ -738,7 +899,7 @@
       w._libererSouris();
       renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; syncCursor(); placePhone(); sync();
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/telephone.mp3');
-      if (page === 'bank') bankRefresh();
+      if (page === 'bank') bankRefresh(); else if (page === 'cinema' && canSeeCinema()) cinStart();
     }
     // en grand écran, reprend la souris (le curseur disparaît, la vue la suit) ; refusé par le navigateur sans geste de l'utilisateur : un clic sur la vue la reprendra
     function relock() {
@@ -748,8 +909,8 @@
     // reprendreSouris : à la fermeture voulue par le joueur (bouton rouge, T, case, Échap), pas quand une autre fenêtre prend la place
     function closePhone(reprendreSouris) {
       var etaitOuvert = phoneOpen;
-      elPhone.hidden = true; phoneOpen = false; syncCursor(); typingNotify(false); markHotbar();
-      if (keyListening) stopKeyCapture();   // on ferme le téléphone pendant qu'on écoutait une touche : on annule proprement
+      cinStop(); elPhone.hidden = true; phoneOpen = false; syncCursor(); typingNotify(false); markHotbar();
+      stopKeyCapture();   // on ferme le téléphone pendant qu'on écoutait une touche : on annule proprement
       if (reprendreSouris && etaitOuvert) relock();
     }
     function closeAll() { closeWheel(); closePhone(); closeChat(); closePause(); closeInv(); }
@@ -1108,6 +1269,7 @@
       var t = ev.target;
       if (!t || !t.getAttribute) return;
       var s = t.getAttribute('data-set');
+      if (t.getAttribute('data-ph') === 'cinq') { cin.q = t.value; cin.n = 30; paintCinList(); return; }   // recherche d'un film (Cinéma)
       if (s === 'sensi') {
         var v = parseFloat(t.value);
         w.sensi = F.sensi(v);
@@ -1207,6 +1369,28 @@
       }
       else if (a === 'adm-pw-eye') { adminPwVisible = !adminPwVisible; renderPhone(); var pf = q('admpass'); if (pf) pf.focus(); }
       else if (a === 'key-bind') startKeyCapture(t.getAttribute('data-key'));
+      else if (a === 'pad-bind') {
+        var pact = t.getAttribute('data-pad');
+        stopKeyCapture(); padListening = pact;
+        w._padCapture = function (n) { F.setPadButton(pact, n); padListening = ''; if (phoneOpen && page === 'settings') rerender(); };
+        rerender();
+      }
+      else if (a === 'pad-reset') { if (F.resetPadMap) F.resetPadMap(); stopPadCapture(); rerender(); }
+      else if (a === 'mute-music' || a === 'mute-sfx') {
+        var isM = a === 'mute-music', cur = F.audio ? (isM ? F.audio.musicVol : F.audio.sfxVol) : 0, key = isM ? 'music' : 'sfx';
+        if (F.audio) {
+          if (cur > 0) { muteMem[key] = cur; (isM ? F.audio.setMusicVol : F.audio.setSfxVol)(0); }
+          else (isM ? F.audio.setMusicVol : F.audio.setSfxVol)(muteMem[key] || (isM ? 0.5 : 0.7));
+        }
+        rerender();
+      }
+      else if (a === 'mute-voice') {
+        if (F.voice) { var vcur = F.voice.vol || 0; if (vcur > 0) { muteMem.voice = vcur; F.voice.setVolume(0); } else F.voice.setVolume(muteMem.voice || 0.8); }
+        rerender();
+      }
+      else if (a === 'qual-set') { if (F.quality && F.quality.set) { F.quality.set(t.getAttribute('data-q')); w._applyQuality(); w.syncHud(); rerender(); } }
+      else if (a === 'fps-set') { if (F.quality && F.quality.fpsCap) { F.quality.fpsCap(parseInt(t.getAttribute('data-fps'), 10) || 0); rerender(); } }
+      else if (a === 'cin') { if (canSeeCinema()) cinClick(t); }
       else if (a === 'key-reset') {
         if (typeof F.resetKeys === 'function') F.resetKeys();
         if (w._rebuildKeyMap) w._rebuildKeyMap();
@@ -1235,12 +1419,14 @@
         if (fb) fb.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
       }
       else if (t.hasAttribute('data-tab')) setTab(t.getAttribute('data-tab'));
+      else if (t.hasAttribute('data-sub')) { stopKeyCapture(); sub = t.getAttribute('data-sub'); renderPhone(); }
       else if (t.hasAttribute('data-page')) {
-        if (keyListening) stopKeyCapture();
+        stopKeyCapture();
         page = t.getAttribute('data-page'); sub = 'home'; pfEdit = ''; refuse = null;
         if (page === 'admin' && !canSeeAdmin()) page = 'menu';   // rôle changé entre-temps, ou appli ouverte « à la main »
         renderPhone();
-        if (page === 'bank') bankRefresh(); else if (page === 'admin') adminRefresh();
+        if (page === 'cinema' && !canSeeCinema()) { page = 'menu'; renderPhone(); }
+        if (page === 'bank') bankRefresh(); else if (page === 'admin') adminRefresh(); else if (page === 'cinema') cinStart();
       }
       else if (t.hasAttribute('data-emo')) play(t.getAttribute('data-emo'));
     });

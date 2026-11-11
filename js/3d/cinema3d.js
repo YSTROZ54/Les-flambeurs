@@ -845,7 +845,7 @@
     function isCinemaCtrl() {
       var boss = false, co = false;
       try { boss = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin(); co = typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder(); } catch (e) { /* ok */ }
-      return boss || co;
+      return boss || co || (P && !!(F.isStaff && F.isStaff()));   // cinéma premium : le Staff a aussi la régie (le serveur revérifie)
     }
     var video = document.createElement('video');
     video.crossOrigin = 'anonymous'; video.preload = 'auto';   // on charge le film d'avance, même avant le lancement video.playsInline = true; video.setAttribute('playsinline', ''); video.loop = false;

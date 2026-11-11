@@ -3299,3 +3299,55 @@ body.s3d-full-on #sidebarBackdrop {
   .ph-hotbar { bottom: 8px; }
   .ph-pause-box { zoom: 0.85; }
 }
+
+/* ================= TÉLÉPHONE : catégories des réglages, choix de qualité / FPS, appli Cinéma ================= */
+.ph-cat { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin-bottom: 8px; border-radius: 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: #f3f4f6; cursor: pointer; text-align: left; transition: all 0.15s ease; }
+.ph-cat:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.18); }
+.ph-cat > span:not(.fl-logo) { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ph-cat b { font-size: 12.5px; font-weight: 800; }
+.ph-cat small { font-size: 10px; color: #94a3b8; font-weight: 600; }
+.ph-cat > i { color: #64748b; font-size: 11px; }
+.ph-hint { margin-top: 8px; font-size: 10.5px; line-height: 1.4; color: #94a3b8; font-weight: 600; }
+.ph-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.ph-choice { flex: 1 1 auto; min-width: 54px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.15s ease; }
+.ph-choice:hover { background: rgba(255, 255, 255, 0.11); }
+.ph-choice.on { background: rgba(192, 132, 252, 0.22); border-color: rgba(192, 132, 252, 0.6); color: #f5d0fe; }
+.ph-btn-main { width: 100%; margin: 8px 0; padding: 10px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.2); color: #fecaca; font-size: 12px; font-weight: 800; cursor: pointer; }
+.ph-btn-main:hover { background: rgba(239, 68, 68, 0.32); }
+.ph-in { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; color: #f3f4f6; font-size: 12px; font-weight: 700; padding: 6px 8px; }
+.ph-cin-sel { width: 100%; }
+.ph-cin-sel option { color: #111; }
+.ph-cin-now { display: flex; gap: 10px; margin-bottom: 10px; }
+.ph-cin-poster { width: 54px; height: 80px; flex: none; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 20px; }
+.ph-cin-poster img { width: 100%; height: 100%; object-fit: cover; }
+.ph-cin-poster img[hidden] { display: none; }
+.ph-cin-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ph-cin-info b { font-size: 12px; line-height: 1.25; color: #f9fafb; }
+.ph-cin-info small { font-size: 10px; color: #94a3b8; font-weight: 600; }
+.ph-cin-badge { align-self: flex-start; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+.ph-cin-badge.playing { background: rgba(16, 185, 129, 0.22); color: #6ee7b7; }
+.ph-cin-badge.paused { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+.ph-cin-bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; margin-top: 4px; }
+.ph-cin-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ef4444, #f59e0b); }
+.ph-cin-time { display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8; font-weight: 700; }
+.ph-cin-btns { display: flex; gap: 6px; }
+.ph-cin-b { flex: 1; padding: 9px 4px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.06); color: #f3f4f6; font-size: 11.5px; font-weight: 800; cursor: pointer; }
+.ph-cin-b.play { background: rgba(16, 185, 129, 0.22); border-color: rgba(16, 185, 129, 0.5); }
+.ph-cin-b.pause { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); }
+.ph-cin-b.stop { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+.ph-cin-b:hover { filter: brightness(1.25); }
+.ph-cin-msg { margin-top: 6px; font-size: 10.5px; color: #fcd34d; font-weight: 700; }
+.ph-cin-msg:empty { display: none; }
+.ph-cin-seek { display: flex; align-items: center; gap: 5px; color: #94a3b8; font-size: 11px; }
+.ph-cin-sk { width: 52px; text-align: center; }
+.ph-cin-search { position: relative; margin-bottom: 8px; }
+.ph-cin-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 11px; }
+.ph-cin-search input { width: 100%; padding-left: 28px; box-sizing: border-box; }
+.ph-cin-film { display: flex; align-items: center; gap: 8px; padding: 6px; margin-bottom: 6px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); }
+.ph-cin-film img { width: 34px; height: 50px; object-fit: cover; border-radius: 5px; background: rgba(255, 255, 255, 0.06); flex: none; }
+.ph-cin-film > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ph-cin-film b { font-size: 11.5px; line-height: 1.2; color: #f3f4f6; }
+.ph-cin-film small { font-size: 9.5px; color: #94a3b8; font-weight: 600; }
+.ph-cin-fb { display: flex; gap: 4px; flex: none; }
+.ph-cin-fb button { min-width: 28px; padding: 5px 7px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); color: #e5e7eb; font-size: 10.5px; font-weight: 800; cursor: pointer; }
+.ph-cin-fb button:hover { background: rgba(239, 68, 68, 0.3); }

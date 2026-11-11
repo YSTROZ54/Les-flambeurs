@@ -111,6 +111,22 @@
     Q.start(F.isMobile());
     return Q.mode;
   };
+  Q.set = function (mode) {
+    if (['auto', 'high', 'medium', 'low'].indexOf(mode) < 0) return Q.mode;
+    Q.mode = mode;
+    try { localStorage.setItem(QKEY, Q.mode); } catch (e) { /* ok */ }
+    Q.start(F.isMobile());
+    return Q.mode;
+  };
+  // plafond d'images par seconde (téléphone › Réglages › Qualité) : 0 = pas de limite
+  Q.FPS_CHOICES = [30, 60, 120, 180, 280];
+  Q.fpsCap = function (v) {
+    try {
+      if (v !== undefined) localStorage.setItem('f3d_fpscap', String(v));
+      var n = parseInt(localStorage.getItem('f3d_fpscap'), 10);
+      return Q.FPS_CHOICES.indexOf(n) >= 0 ? n : 0;
+    } catch (e) { return v || 0; }
+  };
   Q.label = function () { return { auto: 'Auto', high: 'Haute', medium: 'Moyenne', low: 'Basse' }[Q.mode] + (Q.fps ? ' · ' + Q.fps + ' fps' : ''); };
   // à appeler à chaque image avec le vrai temps écoulé ; renvoie true si le niveau a changé
   var qAcc = 0, qFrames = 0, qLow = 0, qGrace = 2;
