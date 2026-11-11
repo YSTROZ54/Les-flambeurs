@@ -435,12 +435,12 @@
       cush: new THREE.BoxGeometry(0.74, 0.14, 0.62), back: new THREE.BoxGeometry(0.74, 0.7, 0.14), roll: new THREE.CylinderGeometry(0.075, 0.075, 0.74, 10),
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9),
       // fauteuil club réaliste (premium) : coussins bombés aux arêtes arrondies, dossier incliné avec lombaire et têtière, accoudoirs en cuir, flancs, pied central
-      pCush: rbox(0.66, 0.2, 0.7, 0.075), pBase: new THREE.CylinderGeometry(0.1, 0.17, 0.3, 14), pBack: rbox(0.7, 1.0, 0.22, 0.1), pHead: rbox(0.5, 0.3, 0.17, 0.08), pArm: rbox(0.15, 0.17, 0.74, 0.05), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: rbox(0.5, 0.62, 0.08, 0.035), pCap: rbox(0.17, 0.03, 0.76, 0.014), pSide: rbox(0.06, 0.5, 0.68, 0.025), pCup: new THREE.CylinderGeometry(0.052, 0.045, 0.03, 14)
+      pCush: rbox(0.66, 0.2, 0.7, 0.075), pBase: new THREE.CylinderGeometry(0.1, 0.17, 0.46, 14), pBack: rbox(0.7, 1.0, 0.22, 0.1), pHead: rbox(0.5, 0.3, 0.17, 0.08), pArm: rbox(0.15, 0.17, 0.74, 0.05), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: rbox(0.5, 0.62, 0.08, 0.035), pCap: rbox(0.17, 0.03, 0.76, 0.014), pSide: rbox(0.06, 0.5, 0.68, 0.025), pCup: new THREE.CylinderGeometry(0.052, 0.045, 0.03, 14)
     };
     var velM = P ? std(0x86101f, 0.78, 0.04, 0x140305) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0x9e1628, 0.68, 0.05, 0x180406) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
-      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.5, -0.04], rx: 0.05 }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.16, 0.05] }, { geo: seatGeo.pBack, mat: velM, p: [0, 1.0, 0.34], rx: 0.2 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 0.98, 0.22], rx: 0.2 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.62, 0.47], rx: 0.2 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.46, 0.67, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.46, 0.67, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.46, 0.765, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.46, 0.765, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [-0.53, 0.4, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [0.53, 0.4, 0.0] }, { geo: seatGeo.pCup, mat: goldS, p: [0.46, 0.785, -0.2] }];
+      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.5, -0.04], rx: 0.05 }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.23, 0.05] }, { geo: seatGeo.pBack, mat: velM, p: [0, 1.0, 0.34], rx: 0.2 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 0.98, 0.22], rx: 0.2 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.62, 0.47], rx: 0.2 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.46, 0.67, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.46, 0.67, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.46, 0.765, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.46, 0.765, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [-0.53, 0.4, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [0.53, 0.4, 0.0] }, { geo: seatGeo.pCup, mat: goldS, p: [0.46, 0.785, -0.2] }];
       inst = { parts: parts, meshes: parts.map(function (pt) { var im = new THREE.InstancedMesh(pt.geo, pt.mat, ROWS.length * COLS.length + 50); im.frustumCulled = false; im.count = 0; g.add(im); return im; }), n: 0 };
     }
     function seat(x, z, elev) {
@@ -1899,10 +1899,10 @@
               var mxv = Math.max(d[p], d[p + 1], d[p + 2]), mnv = Math.min(d[p], d[p + 1], d[p + 2]), sat = mxv ? (mxv - mnv) / mxv : 0;
               w3 = lum * lum * lum * 0.4 + sat * sat * lum * lum * 2 + 0.0002;   // les zones lumineuses comptent plus, et les couleurs vives aussi (une petite voiture rouge dans la neige doit teinter le bord)
               add(GL);   // (GL n'influence plus les couleurs : plus de lumière « sans logique »)
-              if (x < 20) add(aL[Math.min(NV - 1, Math.floor(y * NV / 72))]);
-              if (x >= 108) add(aR[Math.min(NV - 1, Math.floor(y * NV / 72))]);
-              if (y < 11) add(aT[Math.min(NH - 1, Math.floor(x * NH / 128))]);
-              if (y >= 61) add(aB[Math.min(NH - 1, Math.floor(x * NH / 128))]);
+              if (x < 32) add(aL[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (x >= 96) add(aR[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (y < 18) add(aT[Math.min(NH - 1, Math.floor(x * NH / 128))]);
+              if (y >= 54) add(aB[Math.min(NH - 1, Math.floor(x * NH / 128))]);
             }
             setTgt(E.L, aL); setTgt(E.R, aR); setTgt(E.T, aT); setTgt(E.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
@@ -1963,9 +1963,11 @@
           var cov = 0, sx, sy;                              // couverture de la case : 3 x 3 échantillons
           for (sy = 0; sy < 3; sy++) for (sx = 0; sx < 3; sx++) cov += md[(((r2 * SC + SC / 3 * (sy + 0.5)) | 0) * mw + ((c2 * SC + SC / 3 * (sx + 0.5)) | 0)) * 4] > 127 ? 1 : 0;
           if (cov < 5) continue;
-          var gr2 = cx.createRadialGradient(c2 * CELL + CELL / 2, yoff + r2 * CELL + CELL / 2, 0, c2 * CELL + CELL / 2, yoff + r2 * CELL + CELL / 2, CELL * 0.42);
-          gr2.addColorStop(0, 'rgba(255,255,255,1)'); gr2.addColorStop(0.55, 'rgba(255,255,255,0.9)'); gr2.addColorStop(1, 'rgba(255,255,255,0)');
-          cx.fillStyle = gr2; cx.fillRect(c2 * CELL, yoff + r2 * CELL, CELL, CELL);
+          var cxm = c2 * CELL + CELL / 2, cym = yoff + r2 * CELL + CELL / 2;   // un vrai point rond (cœur net) + un halo doux qui déborde de la case (aucun carré visible)
+          cx.globalCompositeOperation = 'lighter';
+          var gh = cx.createRadialGradient(cxm, cym, 0, cxm, cym, CELL * 1.1); gh.addColorStop(0, 'rgba(255,255,255,0.28)'); gh.addColorStop(1, 'rgba(255,255,255,0)'); cx.fillStyle = gh; cx.fillRect(cxm - CELL * 1.1, cym - CELL * 1.1, CELL * 2.2, CELL * 2.2);
+          var gc = cx.createRadialGradient(cxm, cym, 0, cxm, cym, CELL * 0.34); gc.addColorStop(0, 'rgba(255,255,255,1)'); gc.addColorStop(0.7, 'rgba(255,255,255,0.95)'); gc.addColorStop(1, 'rgba(255,255,255,0)'); cx.fillStyle = gc; cx.fillRect(cxm - CELL * 0.4, cym - CELL * 0.4, CELL * 0.8, CELL * 0.8);
+          cx.globalCompositeOperation = 'source-over';
         }
         var tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
         return { tex: tex, cols: cols, texW: tw / PPM, texH: 256 / PPM };
@@ -1980,7 +1982,7 @@
             'float tin = step(0.0, tq.x) * step(tq.x, 1.0) * step(0.0, tq.y) * step(tq.y, 1.0);\n' +
             'vec2 tqc = clamp(tq, 0.0, 1.0);\n' +
             'float tdot = texture2D(uTxt, tqc).r * tin;\n' +
-            'float tglow = texture2D(uTxt, tqc, 3.0).r * tin;\n' +        // halo doux autour des points : le mot « fait de la lumière »
+            'float tglow = 0.0;\n' +        // halo doux autour des points : le mot « fait de la lumière »
             'float tpl = 0.5 * uMus.x + 0.35 * uMus.y * (0.6 + 0.4 * sin(vWp.x * 0.5 - uT * 3.0)) + 0.3 * uMus.z * (0.5 + 0.5 * sin(vWp.x * 1.7 + uT * 7.0));\n' +
             'vec3 tcol = mix(vec3(1.0), mcol, clamp(uMus.w * 0.85, 0.0, 1.0));\n' +
             'gl_FragColor.rgb += tcol * (tdot * uDim * (0.9 + 0.9 * uMus.w * tpl + 0.9 * uBeat.y * uMus.w) + tglow * uDim * uMus.w * (0.5 + 2.2 * tpl + 1.6 * uBeat.y));'
