@@ -269,7 +269,16 @@
     function begin() {                                             // le son n'est lancé qu'une fois le titre placé au bon endroit : plus de départ à zéro puis de saut
       if (M.el !== track || track.began) return; track.began = true;
       var pr = el.play(); if (pr && pr.catch) pr.catch(function () { M.pending = true; });
-      fade(g, vol, 0.8);
+      fade(g, vol, slot ? 2.5 : 0.8);
+      if (slot) {                                                  // le navigateur ignore parfois le placement (fichier pas assez chargé) et joue depuis le début : on revérifie vite, plusieurs fois, au lieu d'attendre 10 s
+        [350, 900, 1800, 3200, 5500, 8500].forEach(function (ms) {
+          setTimeout(function () {
+            if (M.el !== track || el.paused || el.seeking) return;
+            var s4 = syncSlot(id, list);
+            if (s4 && s4.i === slot.i && Math.abs(el.currentTime - s4.off) > 1.2) { try { el.currentTime = s4.off; } catch (e) { /* ok */ } }
+          }, ms);
+        });
+      }
       if (slot) track.sync = setInterval(function () {             // recalage rare et seulement si l'écart est net (sinon on laisse jouer sans toucher)
         if (M.el !== track || el.paused || el.seeking) return;
         var s3 = syncSlot(id, list);
