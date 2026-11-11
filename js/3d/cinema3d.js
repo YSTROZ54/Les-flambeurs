@@ -1892,40 +1892,41 @@
         dcx.drawImage(video, 0, 0, DW, DH);
         var d = dcx.getImageData(0, 0, DW, DH).data, rm = new Uint8Array(DH), cm = new Uint8Array(DW), x, y, p, m;
         for (y = 0; y < DH; y++) for (x = 0; x < DW; x++) { p = (y * DW + x) * 4; m = Math.max(d[p], d[p + 1], d[p + 2]); if (m > rm[y]) rm[y] = m; if (m > cm[x]) cm[x] = m; }
-        function run(a, n, rev) { var k = 0; while (k < n && a[rev ? n - 1 - k : k] <= 16) k++; return k; }
+        function run(a, n, rev) { var k = 0; while (k < n && a[rev ? n - 1 - k : k] <= 22) k++; return k; }
         var t = run(rm, DH, false), b = run(rm, DH, true), l = run(cm, DW, false), r = run(cm, DW, true);
         if (t >= DH * 0.9 || l >= DW * 0.9) return null;
         function fr(k, n) { return k <= 0 ? 0 : Math.min(0.42, (k + 1) / n); }   // +1 ligne : la ligne de bord, mélangée au noir, ne laisse pas de filet noir
         return [fr(l, DW), fr(t, DH), fr(r, DW), fr(b, DH)];
       }
       function applyCrop() {
-        var sx = 1 - crop[0] - crop[2], sy = 1 - crop[1] - crop[3], film = screenM.map === vtex;
-        if (film) { vtex.repeat.set(sx, sy); vtex.offset.set(crop[0], crop[3]); } else { vtex.repeat.set(1, 1); vtex.offset.set(0, 0); }
-        var kx = film ? sx : 1, ky = film ? sy : 1;
-        screen.scale.set(kx, ky, 1); neon.scale.set(kx, ky, 1); halo.scale.set(kx, ky, 1);
-        neon.position.y = halo.position.y = cy0 * (1 - ky);
-        tintU.uSW.value = SCR_W * kx; tintU.uY0.value = cy0 - SCR_H * ky / 2; tintU.uY1.value = cy0 + SCR_H * ky / 2;
+        var sx = 1 - crop[0] - crop[2], sy = 1 - crop[1] - crop[3];
+        if (screenM.map === vtex) { vtex.repeat.set(sx, sy); vtex.offset.set(crop[0], crop[3]); } else { vtex.repeat.set(1, 1); vtex.offset.set(0, 0); }
+        screen.scale.set(sx, sy, 1); neon.scale.set(sx, sy, 1); halo.scale.set(sx, sy, 1);    // la taille suit toujours le recadrage en cours (jamais de saut : elle glisse)
+        neon.position.y = halo.position.y = cy0 * (1 - sy);
+        tintU.uSW.value = SCR_W * sx; tintU.uY0.value = cy0 - SCR_H * sy / 2; tintU.uY1.value = cy0 + SCR_H * sy / 2;
       }
+      var cropCache = {}, lastMap = null;
       function updateCrop(dt, on) {
-        var film = on && screenM.map === vtex && video.readyState >= 2 && video.videoWidth > 0 && !dBad;
+        var m = screenM.map, film = on && m === vtex && video.readyState >= 2 && video.videoWidth > 0 && !dBad;
         var src = video.currentSrc || video.src || '';
-        if (src !== dSrc) { dSrc = src; dHist = []; }
-        if (!film) { cropT = [0, 0, 0, 0]; dHist = []; }
-        else {
+        if (src !== dSrc) { dSrc = src; dHist = []; if (cropCache[src]) cropT = cropCache[src].slice(); }   // film déjà vu : on reprend sa taille tout de suite
+        if (!on || m === adTex) { cropT = [0, 0, 0, 0]; dHist = []; }       // arrêt, fin ou pub : taille normale
+        // (chargement, coupure de réseau : l'écran garde sa taille, il ne repasse pas en grand pour rien)
+        else if (film) {
           dT += dt;
-          if (dT > 0.5) {                               // 2 relevés par seconde
+          if (dT > 0.25) {                              // 4 relevés par seconde
             dT = 0;
             try {
               var r0 = detectBars();
               if (r0) { dHist.push(r0); if (dHist.length > 5) dHist.shift(); }
-              if (dHist.length >= 5) for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; }   // bandes présentes sur 2,5 s d'images : une scène sombre ne compte pas
+              if (dHist.length >= 4) { for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; } if (src) cropCache[src] = cropT.slice(); }   // bandes présentes sur ~1 s d'images : une scène sombre ne compte pas
             } catch (e) { dBad = true; cropT = [0, 0, 0, 0]; }
           }
         }
         var moving = false;
-        for (var j = 0; j < 4; j++) { var df = cropT[j] - crop[j]; if (Math.abs(df) > 0.0005) { crop[j] += df * Math.min(1, dt * (df < 0 ? 4 : 1.6)); moving = true; } else if (df !== 0) { crop[j] = cropT[j]; moving = true; } }
-        if (moving || film !== (updateCrop._f === true)) applyCrop();
-        updateCrop._f = film;
+        for (var j = 0; j < 4; j++) { var df = cropT[j] - crop[j]; if (Math.abs(df) > 0.0005) { crop[j] += df * Math.min(1, dt * (df < 0 ? 5 : 3.5)); moving = true; } else if (df !== 0) { crop[j] = cropT[j]; moving = true; } }
+        if (moving || m !== lastMap) applyCrop();
+        lastMap = m;
       }
       room._crop = function () { return { crop: crop.slice(), target: cropT.slice(), hist: dHist.length }; };
       room.ambiUpdate = function (dt, on) {
