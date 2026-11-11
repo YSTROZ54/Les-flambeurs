@@ -1905,27 +1905,31 @@
         neon.position.y = halo.position.y = cy0 * (1 - sy);
         tintU.uSW.value = SCR_W * sx; tintU.uY0.value = cy0 - SCR_H * sy / 2; tintU.uY1.value = cy0 + SCR_H * sy / 2;
       }
-      var cropCache = {}, lastMap = null;
+      var cropCache = {}, lastMap = null, lastKnown = false, known = false, pendT = 0;
       function updateCrop(dt, on) {
         var m = screenM.map, film = on && m === vtex && video.readyState >= 2 && video.videoWidth > 0 && !dBad;
         var src = video.currentSrc || video.src || '';
-        if (src !== dSrc) { dSrc = src; dHist = []; if (cropCache[src]) cropT = cropCache[src].slice(); }   // film déjà vu : on reprend sa taille tout de suite
-        if (!on || m === adTex) { cropT = [0, 0, 0, 0]; dHist = []; }       // arrêt, fin ou pub : taille normale
+        if (src !== dSrc) { dSrc = src; dHist = []; pendT = 0; known = false; if (cropCache[src]) { cropT = cropCache[src].slice(); crop = cropT.slice(); known = true; } }   // film déjà vu : sa taille est reprise sur-le-champ   // film déjà vu : on reprend sa taille tout de suite
+        if (!on || m === adTex) { cropT = [0, 0, 0, 0]; dHist = []; known = false; pendT = 0; }       // arrêt, fin ou pub : taille normale
         // (chargement, coupure de réseau : l'écran garde sa taille, il ne repasse pas en grand pour rien)
         else if (film) {
-          dT += dt;
-          if (dT > 0.25) {                              // 4 relevés par seconde
+          dT += dt; if (!known) pendT += dt;
+          if (dT > (known ? 0.25 : 0.05)) {   // au tout début : relevés rapides, l'écran reste caché le temps de trouver sa taille                              // 4 relevés par seconde
             dT = 0;
             try {
               var r0 = detectBars();
               if (r0) { dHist.push(r0); if (dHist.length > 5) dHist.shift(); }
-              if (dHist.length >= 4) { for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; } if (src) cropCache[src] = cropT.slice(); }   // bandes présentes sur ~1 s d'images : une scène sombre ne compte pas
-            } catch (e) { dBad = true; cropT = [0, 0, 0, 0]; }
+              if (dHist.length >= 4) { for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; } if (src) cropCache[src] = cropT.slice(); if (!known) { known = true; crop = cropT.slice(); } }   // bandes présentes sur ~1 s d'images : une scène sombre ne compte pas
+            } catch (e) { dBad = true; cropT = [0, 0, 0, 0]; known = true; }
           }
         }
+        if (!known && pendT > 4) { known = true; crop = cropT.slice(); }     // image restée noire plus de 4 s : on montre l'écran tel quel
+        var hold = film && !known;           // taille pas encore trouvée : l'écran (et son néon) n'apparaît pas en grand pour se rétrécir ensuite
+        screen.visible = neon.visible = halo.visible = !hold;
         var moving = false;
         for (var j = 0; j < 4; j++) { var df = cropT[j] - crop[j]; if (Math.abs(df) > 0.0005) { crop[j] += df * Math.min(1, dt * (df < 0 ? 5 : 3.5)); moving = true; } else if (df !== 0) { crop[j] = cropT[j]; moving = true; } }
-        if (moving || m !== lastMap) applyCrop();
+        if (moving || m !== lastMap || known !== lastKnown) applyCrop();
+        lastKnown = known;
         lastMap = m;
       }
       room._crop = function () { return { crop: crop.slice(), target: cropT.slice(), hist: dHist.length }; };
