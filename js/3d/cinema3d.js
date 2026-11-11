@@ -1884,13 +1884,61 @@
         scx.putImageData(sImg, 0, 0); stex.needsUpdate = true;
       }
       var paintT = 0, stageT = 0;
+      /* --- l'écran s'ajuste à l'image du film : si la vidéo contient des bandes noires fixes (film en format cinéma dans un fichier 16:9, ou image 4:3), l'écran, son néon et les LED
+         se réduisent pour coller à l'image ; il retrouve sa taille normale à l'arrêt, à la fin du film ou pendant la pub. --- */
+      var cy0 = SCR_Y + SCR_H / 2, DW = 192, DH = 180, dcv = mkCanvas(DW, DH), dcx = dcv.getContext('2d', { willReadFrequently: true }), dT = 0, dHist = [], dBad = false, dSrc = '';
+      var crop = [0, 0, 0, 0], cropT = [0, 0, 0, 0];      // gauche, haut, droite, bas : part retirée (0..1)
+      function detectBars() {                           // -> [g, h, d, b] en fraction, ou null (image entièrement noire : on ne décide rien)
+        dcx.drawImage(video, 0, 0, DW, DH);
+        var d = dcx.getImageData(0, 0, DW, DH).data, rm = new Uint8Array(DH), cm = new Uint8Array(DW), x, y, p, m;
+        for (y = 0; y < DH; y++) for (x = 0; x < DW; x++) { p = (y * DW + x) * 4; m = Math.max(d[p], d[p + 1], d[p + 2]); if (m > rm[y]) rm[y] = m; if (m > cm[x]) cm[x] = m; }
+        function run(a, n, rev) { var k = 0; while (k < n && a[rev ? n - 1 - k : k] <= 16) k++; return k; }
+        var t = run(rm, DH, false), b = run(rm, DH, true), l = run(cm, DW, false), r = run(cm, DW, true);
+        if (t >= DH * 0.9 || l >= DW * 0.9) return null;
+        function fr(k, n) { return k <= 0 ? 0 : Math.min(0.42, (k + 1) / n); }   // +1 ligne : la ligne de bord, mélangée au noir, ne laisse pas de filet noir
+        return [fr(l, DW), fr(t, DH), fr(r, DW), fr(b, DH)];
+      }
+      function applyCrop() {
+        var sx = 1 - crop[0] - crop[2], sy = 1 - crop[1] - crop[3], film = screenM.map === vtex;
+        if (film) { vtex.repeat.set(sx, sy); vtex.offset.set(crop[0], crop[3]); } else { vtex.repeat.set(1, 1); vtex.offset.set(0, 0); }
+        var kx = film ? sx : 1, ky = film ? sy : 1;
+        screen.scale.set(kx, ky, 1); neon.scale.set(kx, ky, 1); halo.scale.set(kx, ky, 1);
+        neon.position.y = halo.position.y = cy0 * (1 - ky);
+        tintU.uSW.value = SCR_W * kx; tintU.uY0.value = cy0 - SCR_H * ky / 2; tintU.uY1.value = cy0 + SCR_H * ky / 2;
+      }
+      function updateCrop(dt, on) {
+        var film = on && screenM.map === vtex && video.readyState >= 2 && video.videoWidth > 0 && !dBad;
+        var src = video.currentSrc || video.src || '';
+        if (src !== dSrc) { dSrc = src; dHist = []; }
+        if (!film) { cropT = [0, 0, 0, 0]; dHist = []; }
+        else {
+          dT += dt;
+          if (dT > 0.5) {                               // 2 relevés par seconde
+            dT = 0;
+            try {
+              var r0 = detectBars();
+              if (r0) { dHist.push(r0); if (dHist.length > 5) dHist.shift(); }
+              if (dHist.length >= 5) for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; }   // bandes présentes sur 2,5 s d'images : une scène sombre ne compte pas
+            } catch (e) { dBad = true; cropT = [0, 0, 0, 0]; }
+          }
+        }
+        var moving = false;
+        for (var j = 0; j < 4; j++) { var df = cropT[j] - crop[j]; if (Math.abs(df) > 0.0005) { crop[j] += df * Math.min(1, dt * (df < 0 ? 4 : 1.6)); moving = true; } else if (df !== 0) { crop[j] = cropT[j]; moving = true; } }
+        if (moving || film !== (updateCrop._f === true)) applyCrop();
+        updateCrop._f = film;
+      }
+      room._crop = function () { return { crop: crop.slice(), target: cropT.slice(), hist: dHist.length }; };
       room.ambiUpdate = function (dt, on) {
+        updateCrop(dt, on);
         stageT += dt; if (stageT > 0.033) { paintStage(stageT, on); stageT = 0; }
         tAcc += dt; paintT += dt;
         if (on && !bad && tAcc > 0.05 && video.readyState >= 2 && video.videoWidth > 0) {     // 20 lectures par seconde : les couleurs suivent le film en direct
           tAcc = 0;
           try {
-            cxS.drawImage(video, 0, 0, 128, 72);
+            if (screenM.map === vtex && (crop[0] || crop[1] || crop[2] || crop[3])) {   // seule l'image utile (sans bandes noires) donne ses couleurs aux LED
+              var vw = video.videoWidth, vh = video.videoHeight;
+              cxS.drawImage(video, crop[0] * vw, crop[1] * vh, Math.max(2, (1 - crop[0] - crop[2]) * vw), Math.max(2, (1 - crop[1] - crop[3]) * vh), 0, 0, 128, 72);
+            } else cxS.drawImage(video, 0, 0, 128, 72);
             var d = cxS.getImageData(0, 0, 128, 72).data, x, y, p, lum, w3, aL = zeros(NV), aR = zeros(NV), aT = zeros(NH), aB = zeros(NH);
             GL = [0, 0, 0, 0, 0, 0, 0];
             var add = function (q) { q[0] += d[p] * w3; q[1] += d[p + 1] * w3; q[2] += d[p + 2] * w3; q[3] += w3; q[4] += lum * w3; q[5] += lum; q[6] += 1; };
