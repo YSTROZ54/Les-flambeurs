@@ -5,7 +5,7 @@ Un dossier par salle. Dépose-y **plusieurs** fichiers (.mp3, .ogg, .m4a ou .wav
 
 | Dossier | Salle | Style conseillé |
 |---|---|---|
-| `hall/` | Hall d'accueil | lounge, jazz doux, piano |
+| `hall/` | Hall d'accueil (vide : joue les titres de `mini-jeux/`) | lounge, jazz doux, piano |
 | `machines-a-sous/` | Machines à sous | arcade, électro joyeuse, retro |
 | `poker/` | Salle de poker | jazz enfumé, blues, piano bar |
 | `tropi-shop/` | Tropi Shop | bossa nova, acoustique, chill |

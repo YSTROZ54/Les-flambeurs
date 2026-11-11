@@ -1,10 +1,13 @@
 {
-  "hall": [
-    "hall/ghost-in-the-attic.mp3",
-    "hall/pressure-nyck-caution.mp3"
-  ],
   "pokerroom": [
     "poker/easy-breezy.mp3"
+  ],
+  "shop3d": [
+    "tropi-shop/aint-enough-west-zander.mp3",
+    "tropi-shop/all-my-girls-alice.mp3",
+    "tropi-shop/dark-ages-john-runefelt.mp3",
+    "tropi-shop/filter-nic-hanson.mp3",
+    "tropi-shop/old-navy-suit-ote.mp3"
   ],
   "blackjack": [
     "blackjack/easy-breezy.mp3"
@@ -71,17 +74,72 @@
     "cinema-premium/unconventional-wisdom-howard-harper-barnes.mp3",
     "cinema-premium/vertical-limit-hampus-naeselius.mp3"
   ],
+  "hall": [
+    "mini-jeux/addicted-to-your-love-house-of-say.mp3",
+    "mini-jeux/cold-love-clean-version-marc-torch.mp3",
+    "mini-jeux/face-sped-up-version-alex-kehm.mp3",
+    "mini-jeux/filter-nic-hanson.mp3",
+    "mini-jeux/fracture-sightless-in-shadow.mp3",
+    "mini-jeux/he-said-it-all-ote.mp3",
+    "mini-jeux/home-duckmaw.mp3",
+    "mini-jeux/i-m-bulletproof-mindme.mp3",
+    "mini-jeux/i-m-golden-gamma-skies.mp3",
+    "mini-jeux/in-pieces-madison-york.mp3",
+    "mini-jeux/it-s-christmas-nic-hanson.mp3",
+    "mini-jeux/it-s-you-again-windshield.mp3",
+    "mini-jeux/koi-na-parda-instrumental-version-nimbu.mp3",
+    "mini-jeux/koi-na-parda-nimbu.mp3",
+    "mini-jeux/laptop-clean-version-varpu.mp3",
+    "mini-jeux/mojo-nic-hanson.mp3",
+    "mini-jeux/movie-nic-hanson.mp3",
+    "mini-jeux/outside-tusabe.mp3",
+    "mini-jeux/paint-it-red-torii-wolf.mp3",
+    "mini-jeux/potion-aanysa.mp3",
+    "mini-jeux/see-me-now-mindme.mp3",
+    "mini-jeux/some-kinda-stranger-stella-explorer-rework-dylan-sitts.mp3",
+    "mini-jeux/sports-rocker-taelimb.mp3",
+    "mini-jeux/the-list-sully-bright.mp3",
+    "mini-jeux/tides-harrison-first-rework-torii-wolf.mp3",
+    "mini-jeux/to-that-beat-aeilo.mp3",
+    "mini-jeux/transits-sped-up-version-tyra-chantey.mp3",
+    "mini-jeux/watch-me-take-that-crown-lukas-got-lucky.mp3",
+    "mini-jeux/winds-of-change-cezar.mp3",
+    "mini-jeux/yemaya-el-equipo-del-norte.mp3",
+    "mini-jeux/yonomori-rymdklang-soundtracks.mp3"
+  ],
   "_sync": {
     "hall": [
-      128.088,
-      144.048
+      185.424,
+      129.648,
+      163.368,
+      186.792,
+      232.656,
+      151.656,
+      210.984,
+      156.456,
+      153.432,
+      166.584,
+      158.16,
+      213.624,
+      172.056,
+      172.056,
+      169.488,
+      200.448,
+      121.656,
+      160.8,
+      200.928,
+      160.416,
+      180.24,
+      196.272,
+      151.44,
+      132.264,
+      155.28,
+      179.064,
+      133.128,
+      161.376,
+      153.144,
+      174.504,
+      179.952
     ]
-  },
-  "shop3d": [
-    "tropi-shop/aint-enough-west-zander.mp3",
-    "tropi-shop/all-my-girls-alice.mp3",
-    "tropi-shop/dark-ages-john-runefelt.mp3",
-    "tropi-shop/filter-nic-hanson.mp3",
-    "tropi-shop/old-navy-suit-ote.mp3"
-  ]
+  }
 }

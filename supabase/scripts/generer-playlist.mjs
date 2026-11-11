@@ -40,6 +40,8 @@ for (const [dossier, salle] of Object.entries(SALLES)) {
   const fichiers = readdirSync(chemin).filter((f) => EXT.test(f)).sort();
   if (fichiers.length) liste[salle] = fichiers.map((f) => `${dossier}/${f}`);
 }
+// l'accueil joue les mêmes titres que le salon des mini jeux tant que son dossier est vide (évite de copier 150 Mo deux fois)
+if (!liste.hall && liste.minijeux) liste.hall = liste.minijeux.slice();
 const sync = {};
 for (const salle of SYNC) {
   if (!liste[salle]) continue;
