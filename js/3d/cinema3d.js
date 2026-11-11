@@ -609,7 +609,7 @@
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     /* --- étage VIP : dans chaque mur latéral, un trou donne sur un escalier tout simple (dans le mur) qui monte jusqu'à un second trou, au niveau d'un balcon de fauteuils de luxe --- */
-    var vipUp = false, VY = 10.2, vipLights = [];
+    var vipUp = false, VY = 14.0, vipLights = [];
     (function buildVip() {
       if (!P) return;
       var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.1, ZS0 = -8.4, ZT = 9.0, slope = VY / (ZT - ZS0), SW = 2.3, SZ0 = -10.6, SZ1 = 12.8, SH = VY + 3.4;
