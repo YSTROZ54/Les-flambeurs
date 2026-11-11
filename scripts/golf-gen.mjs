@@ -4,6 +4,9 @@
 //   node scripts/sync-sims.mjs && node scripts/golf-gen.mjs && node scripts/sync-sims.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { KRAKEN } from './golf-kraken-holes.mjs';
+const AUTHORED = { kraken: KRAKEN };          // cartes dessinées à la main : le générateur vérifie et calcule le par, il n'invente rien
+let FAILS = 0;
 const GS = (await import('../api/_golfSim.js?' + Date.now())).default;
 const ONLY = (process.argv[2] || '').split(',').filter(Boolean);     // ex. : node scripts/golf-gen.mjs kraken,volcan (les autres cartes ne sont pas touchées)
 
@@ -109,7 +112,7 @@ function overlapOk(spec) {
   if (S.some((p) => p.h < -0.01)) return false;
   let ps = 0; S.forEach((p, k) => { if (k) ps += p.seg.skip ? 0.5 : Math.hypot(p.x - S[k - 1].x, p.z - S[k - 1].z); p.ps = ps; });   // longueur au sol (sans le tour de boucle)
   for (let a = 0; a < S.length; a++) for (let b = a + 1; b < S.length; b++) {
-    if (S[b].ps - S[a].ps < 3.2) continue;
+    if (S[b].ps - S[a].ps < Math.max(3.2, (S[a].w + S[b].w) / 2 + 1.2)) continue;
     const d = Math.hypot(S[a].x - S[b].x, S[a].z - S[b].z);
     if (d < (S[a].w + S[b].w) / 2 + 0.9) return false;
   }
@@ -167,7 +170,7 @@ const P = fileURLToPath(new URL('../js/3d/golf-sim.js', import.meta.url));
 const src0 = readFileSync(P, 'utf8');
 const old = JSON.parse(src0.slice(src0.indexOf('/*GOLF-DATA*/') + 13, src0.indexOf('/*FIN-GOLF-DATA*/')));
 function flush() {
-  for (const map of Object.keys(DATA)) { DATA[map].sort((a, b) => GS.buildHole(a, 0, 0).len - GS.buildHole(b, 0, 0).len); DATA[map].forEach((h, k) => { h.n = NAMES[map][k]; }); }
+  for (const map of Object.keys(DATA)) { if (AUTHORED[map]) continue; DATA[map].sort((a, b) => GS.buildHole(a, 0, 0).len - GS.buildHole(b, 0, 0).len); DATA[map].forEach((h, k) => { h.n = NAMES[map][k]; }); }
   const json = JSON.stringify(DATA).replace(/\],\[/g, '],[');
   const src = src0.slice(0, src0.indexOf('/*GOLF-DATA*/') + 13) + json + src0.slice(src0.indexOf('/*FIN-GOLF-DATA*/'));
   writeFileSync(P, src);
@@ -178,22 +181,24 @@ for (const map of GS.MAP_IDS) {
   DATA[map] = [];
   for (let i = 0; i < 20; i++) {
     let ok = null, tries = 0, nOver = 0, nBot = 0;
-    for (let attempt = 0; attempt < 400 && !ok; attempt++) {
-      const spec = genHole(map, i, attempt);
+    for (let attempt = 0; attempt < (AUTHORED[map] ? 1 : 400) && !ok; attempt++) {
+      const spec = AUTHORED[map] ? JSON.parse(JSON.stringify(AUTHORED[map][i])) : genHole(map, i, attempt);
       if (!overlapOk(spec)) { nOver++; continue; }
       tries++;
       const H = GS.buildHole(spec, 0, 0);
-      const shots = botPlay(H, NEW.includes(map) ? 10 : 8);
+      const shots = botPlay(H, AUTHORED[map] ? 14 : NEW.includes(map) ? 10 : 8);
       if (shots < 0) { nBot++; continue; }
       spec.p = Math.max(2, Math.min(7, shots + 1 + (i >= 12 ? 1 : 0)));
       ok = spec; ok._bot = shots; ok._len = H.len.toFixed(1); ok._tries = tries;
     }
+    if (!ok && AUTHORED[map]) { FAILS++; console.log('ÉCHEC', map, i + 1, AUTHORED[map][i].n, nOver ? '(les morceaux se chevauchent)' : '(le robot n\'arrive pas à finir)'); continue; }
     if (!ok) throw new Error('trou impossible : ' + map + ' ' + i + ' (chevauchements ' + nOver + ', robot ' + nBot + ')');
     console.log(map, String(i + 1).padStart(2), ok.n.padEnd(26), 'longueur', ok._len.padStart(5), 'm · robot', ok._bot, '· par', ok.p, '·', ok.pcs.filter((q) => q[0] === 'o' || q[0] === 'loop' || q[0] === 'gap' || q[0] === 'nw' || q[0] === 'z').map((q) => q[0] === 'o' ? q[1] : q[0]).join(' '), '(essais ' + ok._tries + ', chevauchent ' + nOver + ', robot ' + nBot + ')');
     delete ok._bot; delete ok._len; delete ok._tries;
     DATA[map].push(ok);
   }
-  if (DATA[map].length === 20) flush();                  // une carte terminée est sauvegardée tout de suite
+  if (DATA[map].length === 20 && !FAILS) flush();                  // une carte terminée est sauvegardée tout de suite
 }
+if (FAILS) { console.log(FAILS + ' trou(s) à corriger : rien n\'a été écrit'); process.exit(1); }
 flush();
 console.log('écrit dans js/3d/golf-sim.js');

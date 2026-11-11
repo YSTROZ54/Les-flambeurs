@@ -189,6 +189,26 @@
     x.strokeStyle = 'rgba(90,50,20,0.7)'; x.lineWidth = 6; x.strokeRect(3, 3, S - 6, S - 6);
     return tex(c);
   }
+  // une tuile de 1 m (largeur de la piste × 1 m de long) : des chevrons qui indiquent le sens (tapis roulants, accélérateurs) ou des anneaux (trampoline)
+  function zoneTex(kind) {
+    var S = 128, c = canvas(S), x = c.getContext('2d'), i;
+    var cols = { belt: ['#2b2f36', '#a9b6c4'], beltb: ['#3a2a2a', '#d99a8f'], boost: ['#b8620f', '#ffe3a0'] }[kind];
+    if (kind === 'bounce') {
+      x.fillStyle = '#2b5f9a'; x.fillRect(0, 0, S, S);
+      for (i = 4; i > 0; i--) { x.strokeStyle = i % 2 ? '#bfe0ff' : '#1f4a7a'; x.lineWidth = 7; x.beginPath(); x.arc(S / 2, S / 2, i * 13, 0, TAU); x.stroke(); }
+      x.fillStyle = '#e8f3ff'; x.beginPath(); x.arc(S / 2, S / 2, 9, 0, TAU); x.fill();
+    } else {
+      x.fillStyle = cols[0]; x.fillRect(0, 0, S, S);
+      for (i = 0; i < 2; i++) {
+        var y0 = i * S / 2 + 12, up = kind !== 'beltb';
+        x.strokeStyle = cols[1]; x.lineWidth = 11; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath();
+        if (up) { x.moveTo(S * 0.16, y0 + 34); x.lineTo(S * 0.5, y0 + 4); x.lineTo(S * 0.84, y0 + 34); } else { x.moveTo(S * 0.16, y0 + 4); x.lineTo(S * 0.5, y0 + 34); x.lineTo(S * 0.84, y0 + 4); }
+        x.stroke();
+      }
+      x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(0, 0, 5, S); x.fillRect(S - 5, 0, 5, S);
+    }
+    var t = tex(c); t.wrapS = THREE.ClampToEdgeWrapping; return t;
+  }
   function stripes(c1, c2) { var c = canvas(32, 256), x = c.getContext('2d'); for (var i = 0; i < 8; i++) { x.fillStyle = i % 2 ? c1 : c2; x.fillRect(0, i * 32, 32, 32); } return tex(c); }
   function plaster() {
     var S = 256, c = canvas(S), x = c.getContext('2d'), r = rng(11), i;
@@ -228,7 +248,7 @@
      ================================================================== */
   function build(world, mapId, onProgress, onReady) {
     var TH = THEMES[mapId], course = GS.buildCourse(mapId), low = !!world.low, seed = hashStr(mapId);
-    var root = new THREE.Group(), api = { group: root, course: course, holes: [], ready: false, sun: null, theme: TH, hdr: null, env: null, fogCol: new THREE.Color(0xbfd6ea), floorMeshes: [], dyn: [], flags: [], bumpers: [], mills: [], gates: [], slides: [], logs: [], props: [], disposables: [] };
+    var root = new THREE.Group(), api = { group: root, course: course, holes: [], ready: false, sun: null, theme: TH, hdr: null, env: null, fogCol: new THREE.Color(0xbfd6ea), floorMeshes: [], dyn: [], flags: [], bumpers: [], mills: [], gates: [], slides: [], logs: [], props: [], belts: [], swings: [], disposables: [] };
     var need = 6, got = 0, A = {};
     function step(k, v) { A[k] = v; got++; if (onProgress) onProgress(got / need); if (got === need) assemble(); }
     loadNature(function (lib) { step('nat', lib); });
@@ -288,6 +308,9 @@
       M.bumper = new THREE.MeshStandardMaterial({ color: TH.bump, roughness: 0.38, metalness: 0.05 });
       M.rubber = new THREE.MeshStandardMaterial({ color: 0x22201e, roughness: 0.75 });
       M.rope = new THREE.MeshStandardMaterial({ color: 0xc7a873, roughness: 0.95 });
+      ['belt', 'beltb', 'boost', 'bounce'].forEach(function (zk) { var zt = zoneTex(zk); M[zk] = new THREE.MeshStandardMaterial({ map: zt, roughness: zk === 'bounce' ? 0.35 : 0.7, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }); if (zk === 'belt' || zk === 'beltb') api.belts.push({ t: zt, dir: zk === 'belt' ? 1 : -1 }); });
+      M.tentacle = new THREE.MeshStandardMaterial({ color: 0x8e4aa2, roughness: 0.45 });
+      M.sucker = new THREE.MeshStandardMaterial({ color: 0xf0c9d8, roughness: 0.5 });
       M.boulder = new THREE.MeshStandardMaterial({ map: A.rock, color: 0x9a4a38, roughness: 0.95, flatShading: true });
       M.mat = new THREE.MeshStandardMaterial({ color: 0x0f2a17, roughness: 1, envMapIntensity: 0.3 });
       api.M = M;
@@ -337,7 +360,9 @@
       if (api.water) api.water.uniforms.uTime.value = t;
       api.flags.forEach(function (f) { waveFlag(f, t); });
       api.mills.forEach(function (m) { m.arms.rotation.y = -(m.o.speed || 1.4) * t; if (m.sails) m.sails.rotation.z = t * 0.9 * Math.sign(m.o.speed || 1); });
-      api.slides.forEach(function (m) { var o = m.o, sv = Math.sin((o.speed || 1.4) * t) * (o.amp || 0.45); m.g.position.set(m.x + Math.cos(o.a) * sv, m.h, m.z + Math.sin(o.a) * sv); });
+      api.slides.forEach(function (m) { var o = m.o, sv = Math.sin((o.speed || 1.4) * t) * (o.amp || 0.45); m.g.position.set(m.x + Math.cos(o.a) * sv, m.h, m.z + Math.sin(o.a) * sv); if (m.barrel) m.barrel.rotation.z = -sv / m.r; });
+      api.belts.forEach(function (b) { b.t.offset.y = -b.dir * ((t * 1.8) % 1); });
+      api.swings.forEach(function (m) { var sw = GS.swingDir(m.o, t); m.arm.rotation.y = -Math.atan2(sw.dz, sw.dx); });
       api.gates.forEach(function (m) { var op = GS.gateOpen(m.o, t); m.door.position.y = 0.2 + op * 0.5; });
       api.bumpers.forEach(function (b) { if (b.c.flash > 0) { b.c.flash = Math.max(0, b.c.flash - dt * 3); } var s2 = 1 + (b.c.flash || 0) * 0.3; b.m.scale.set(s2, 1, s2); });
       api.logs.forEach(function (e) { updateLogs(e, t); });
@@ -356,17 +381,18 @@
        ================================================================== */
     function buildHole(H, hi, hg, M, TH, mapId, posts, nat) {
       var S = H.S, L = H.L, Rr = H.Rr, n = S.length, i, k;
-      var buf = { turf: [], sand: [], ice: [], deck: [], fascia: [], under: [] };
+      var buf = { turf: [], sand: [], ice: [], deck: [], belt: [], beltb: [], boost: [], bounce: [], fascia: [], under: [] };
       function quad(arr, a, b, c, d, ua, ub, uc, ud) { arr.push([a, b, c, ua, ub, uc], [a, c, d, ua, uc, ud]); }
       var hasFloor = []; for (i = 1; i < n; i++) hasFloor[i] = !S[i].seg.skip && !S[i].seg.gap;
       for (i = 1; i < n; i++) {
         if (!hasFloor[i]) continue;
         var A0 = S[i - 1], B0 = S[i], sg = B0.seg, aL = L[i - 1], bL = L[i], bR = Rr[i], aR = Rr[i - 1];
-        var kind = sg.nw ? 'deck' : sg.zone === 'sand' ? 'sand' : sg.zone === 'ice' ? 'ice' : 'turf';
+        var kind = sg.nw ? 'deck' : sg.zone === 'sand' ? 'sand' : sg.zone === 'ice' ? 'ice' : (sg.zone === 'belt' || sg.zone === 'beltb' || sg.zone === 'boost' || sg.zone === 'bounce') ? sg.zone : 'turf';
         var pA = [aL[0], A0.h, aL[1]], pB = [bL[0], B0.h, bL[1]], pC = [bR[0], B0.h, bR[1]], pD = [aR[0], A0.h, aR[1]];
         // gazon : u en travers (0 → largeur), v le long de la piste (les carreaux suivent les virages)
         var vA = A0.s, vB = B0.s;
         if (kind === 'deck') quad(buf.deck, pA, pB, pC, pD, [0, vA * 1.4], [0, vB * 1.4], [1, vB * 1.4], [1, vA * 1.4]);
+        else if (kind === 'belt' || kind === 'beltb' || kind === 'boost' || kind === 'bounce') quad(buf[kind], pA, pB, pC, pD, [0, vA], [0, vB], [1, vB], [1, vA]);
         else quad(buf[kind], pA, pB, pC, pD, [0, vA], [0, vB], [B0.w, vB], [A0.w, vA]);
         // les côtés : planches sous la bordure (posées un peu à l'extérieur), jusqu'au sol ou, en hauteur, juste une poutre
         if (!sg.nw) {
@@ -395,9 +421,9 @@
       var turfMesh = null;
       Object.keys(buf).forEach(function (kk) {
         if (!buf[kk].length) return;
-        var mat = kk === 'turf' ? M.turf : kk === 'sand' ? M.sand : kk === 'ice' ? M.ice : kk === 'deck' ? M.deck : kk === 'under' ? M.fascia : M.fascia;
+        var mat = kk === 'turf' ? M.turf : kk === 'sand' ? M.sand : kk === 'ice' ? M.ice : kk === 'deck' ? M.deck : (kk === 'belt' || kk === 'beltb' || kk === 'boost' || kk === 'bounce') ? M[kk] : M.fascia;
         var mesh = new THREE.Mesh(triGeo(buf[kk]), mat); hg.add(mesh);
-        if (kk === 'turf' || kk === 'sand' || kk === 'ice' || kk === 'deck') { mesh.userData.floor = true; if (!turfMesh) turfMesh = new THREE.Group(); turfMesh.add(mesh.clone()); }
+        if (kk === 'turf' || kk === 'sand' || kk === 'ice' || kk === 'deck' || kk === 'belt' || kk === 'beltb' || kk === 'boost' || kk === 'bounce') { mesh.userData.floor = true; if (!turfMesh) turfMesh = new THREE.Group(); turfMesh.add(mesh.clone()); }
         if (kk === 'turf') { mesh.receiveShadow = true; }
       });
       // les bordures : on suit chaque côté tant qu'il y a un mur, en un seul « boudin » de bois arrondi
@@ -507,10 +533,23 @@
           if (o.house) entry.sails = windmillHouse(d, hg, M);
           api.mills.push(entry);
         } else if (o.t === 'slide') {
-          var crate = new THREE.Group(); hg.add(crate); crate.rotation.y = -o.a;
-          var cb = new THREE.Mesh(new THREE.BoxGeometry(o.bw || 0.42, 0.24, o.bd || 0.32), M.fascia); cb.position.y = 0.12; crate.add(cb);
-          [-1, 1].forEach(function (sd) { var fr = new THREE.Mesh(new THREE.BoxGeometry((o.bw || 0.42) + 0.02, 0.04, 0.04), M.rail); fr.position.set(0, 0.12 + sd * 0.1, ((o.bd || 0.32) / 2 + 0.005)); crate.add(fr); var fr2 = fr.clone(); fr2.position.z = -fr.position.z; crate.add(fr2); });
-          api.slides.push({ o: o, g: crate, x: d.x, z: d.z, h: d.h });
+          var crate = new THREE.Group(); hg.add(crate); crate.rotation.y = -o.a; var barrelM = null, barrelR = 0;
+          if (o.barrel) {
+            barrelR = (o.bw || 0.45) / 2; var bl = o.bd || 0.5, bprof = []; for (var bi = 0; bi <= 10; bi++) { var bu = bi / 10 - 0.5; bprof.push(new THREE.Vector2(barrelR * (1 - 0.48 * bu * bu), bu * bl)); }
+            var bgeo = new THREE.LatheGeometry(bprof, 20); bgeo.rotateX(Math.PI / 2); barrelM = new THREE.Mesh(bgeo, M.rail); barrelM.position.y = barrelR; crate.add(barrelM);
+            [-0.3, 0.3].forEach(function (bz) { var band = new THREE.Mesh(new THREE.TorusGeometry(barrelR * 1.0, 0.014, 6, 20), M.metal); band.position.z = bz * bl * 1.2; barrelM.add(band); });
+          } else {
+            var cb = new THREE.Mesh(new THREE.BoxGeometry(o.bw || 0.42, 0.24, o.bd || 0.32), M.fascia); cb.position.y = 0.12; crate.add(cb);
+            [-1, 1].forEach(function (sd) { var fr = new THREE.Mesh(new THREE.BoxGeometry((o.bw || 0.42) + 0.02, 0.04, 0.04), M.rail); fr.position.set(0, 0.12 + sd * 0.1, ((o.bd || 0.32) / 2 + 0.005)); crate.add(fr); var fr2 = fr.clone(); fr2.position.z = -fr.position.z; crate.add(fr2); });
+          }
+          api.slides.push({ o: o, g: crate, x: d.x, z: d.z, h: d.h, barrel: barrelM, r: barrelR });
+        } else if (o.t === 'swing') {
+          var sg2 = new THREE.Group(); sg2.position.set(d.x, d.h, d.z); hg.add(sg2);
+          var slen = o.len || ((o.w0 || 1.4) + 0.15), base = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.42, 14), M.rock || M.rail); base.position.y = 0.21; sg2.add(base);
+          var arm2 = new THREE.Group(); arm2.position.y = 0.2; sg2.add(arm2);
+          var tg = new THREE.CylinderGeometry(0.055, 0.17, slen + 0.1, 14); tg.rotateZ(-Math.PI / 2); tg.translate((slen + 0.1) / 2 - 0.05, 0, 0); arm2.add(new THREE.Mesh(tg, M.tentacle));
+          for (k = 0; k < 9; k++) { var sx2 = 0.18 + k * (slen - 0.3) / 9, sr = 0.085 - k * 0.0062, sk = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.015, sr * 0.55), 8, 6), M.sucker); sk.position.set(sx2, -sr * 0.7, 0); arm2.add(sk); var sk2 = sk.clone(); sk2.position.set(sx2 + 0.03, -sr * 0.4, sr * 0.65); arm2.add(sk2); var sk3 = sk.clone(); sk3.position.set(sx2 + 0.03, -sr * 0.4, -sr * 0.65); arm2.add(sk3); }
+          api.swings.push({ o: o, arm: arm2 });
         } else if (o.t === 'logs') {
           var meshes = [], rock = mapId === 'volcan', bwL = o.bw || 0.6, bdL = o.bd || 0.3;
           for (k = 0; k < (o.n || 2); k++) {

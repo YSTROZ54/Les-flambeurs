@@ -233,7 +233,7 @@ export class GolfRoom {
   onEv(p, type, f) {
     const now = Date.now();
     if (type === 'wall') { if (now - p.lastWall < 90) return; p.lastWall = now; this.broadcast({ t: 'ev', e: 'w', id: p.id, f: +f.toFixed(2) }); }
-    else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
+    else if (type === 'bump' || type === 'glue' || type === 'loop' || type === 'land' || type === 'bounce' || type === 'boost') this.broadcast({ t: 'ev', e: type, id: p.id, f: +f.toFixed(2) });
   }
   pickDice(p) {
     if (!this.dice.length || p.powers.length >= MAX_POWERS) return;           // un seul bonus à la fois : il faut d'abord utiliser le sien

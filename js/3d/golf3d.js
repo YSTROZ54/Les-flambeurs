@@ -232,6 +232,7 @@
       else if (m.e === 'glue') { if (mine) { SND.stick(); toast('🍯 Ça colle !', '', '#ffb347', 1.2); } }
       else if (m.e === 'loop') { if (mine || (b && near(b.x, b.z))) SND.loop(); }
       else if (m.e === 'land') { if (b && near(b.x, b.z)) SND.land(); }
+      else if (m.e === 'bounce' || m.e === 'boost') { if (b && (mine || near(b.x, b.z))) SND.bump(); if (b) ring(b.x, b.y + 0.01, b.z, m.e === 'boost' ? 0xffc23d : 0x9fd0ff, 0.4); }
       else if (m.e === 'water' || m.e === 'out') {
         if (b) { b.buf.length = 0; b.cut = true; }
         if (m.e === 'water') { splash(m.x, GS.WATER_Y, m.z); if (mine || near(m.x, m.z)) SND.splash(); } else { puff(m.x, Math.max(m.y, GS.GROUND), m.z, 0xd8c8a8, 0.8); if (mine || near(m.x, m.z)) SND.fall(); }
