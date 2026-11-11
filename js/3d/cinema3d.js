@@ -29,7 +29,7 @@
   // la géométrie de chaque salle : le cinéma classique (petite salle rouge, écran plein mur) et le cinéma premium (grande salle, nombreuses rangées, écran centré entre deux rideaux)
   function makeGeo(P) {
     var G0 = P ? {
-      HX: 35, HZ: 20, ZF: 34, H: 43, SCR_W: 64, SCR_Y: 2.6, SCR_H: 36, ROW_H: 0.55, ROWS: [], COLS: [-11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65],
+      HX: 35, HZ: 20, ZF: 34, H: 43, SCR_W: 64, SCR_Y: 2.6, SCR_H: 36, ROW_H: 0.85, ROWS: [], COLS: [-11.65, -10.2, -8.75, -7.3, -5.85, -4.4, -1.45, 0, 1.45, 4.4, 5.85, 7.3, 8.75, 10.2, 11.65],
       blocks: [{ x0: -12.4, x1: -3.65 }, { x0: -2.2, x1: 2.2 }, { x0: 3.65, x1: 12.4 }], lanes: [[-2.925, 1.45], [2.925, 1.45], [-(12.4 + 35) / 2, 35 - 12.4], [(12.4 + 35) / 2, 35 - 12.4]], aisleLights: [-12.4, -3.65, -2.2, 2.2, 3.65, 12.4], mini: true
     } : {
       HX: 10, HZ: 13, ZF: 13, H: 11, SCR_W: 19.9, SCR_Y: 0.9, SCR_H: 11 - 0.9, ROW_H: 0.4, ROWS: [-4.6, -2.7, -0.8, 1.1, 3.0], COLS: [-5.2, -4.1, -3.0, -1.9, 1.9, 3.0, 4.1, 5.2],
@@ -276,10 +276,12 @@
       'float mbs = 0.5 + 0.5 * sin(vWp.z * 0.30 - uT * 3.4);',
       'float mtr = 0.5 + 0.5 * sin(vWp.x * 0.9 + vWp.y * 0.7 + uT * 6.0);',
       'float pulse = uMus.x * mbs + uMus.y * mwv + uMus.z * mtr;',
-      // couleurs franches de tout l'arc-en-ciel (rouge, orange, jaune, vert, cyan, bleu, violet, rose) qui courent dans la salle ; à chaque basse, toute la salle prend d'un coup UNE grosse couleur (uBeat.x = éclair, uBeat.y = teinte)
-      'float hb = fract(vWp.z * 0.018 + vWp.x * 0.012 + vWp.y * 0.01 + uT * 0.06);',
-      'vec3 mcol = mix(hsv2rgb(vec3(hb, 0.92, 1.0)), hsv2rgb(vec3(fract(uBeat.y + hb * 0.12), 0.95, 1.0)), clamp(uBeat.x, 0.0, 1.0));',
-      'diffuseColor.rgb = mix(diffuseColor.rgb, mcol * dl * uDim * (0.9 + 0.9 * pulse + 1.4 * uBeat.x), uMus.w);'
+      // couleurs franches de tout l'arc-en-ciel qui courent dans la salle : plus la musique est rapide / intense (instant épique), plus elles changent vite et pétillent (uBeat.x = phase des couleurs, uBeat.y = pétillement)
+      'float hb = fract(vWp.z * 0.018 + vWp.x * 0.012 + vWp.y * 0.01 + uBeat.x);',
+      'vec3 mcol = hsv2rgb(vec3(hb, 0.92, 1.0));',
+      'float tw = 0.5 + 0.5 * sin(uT * (5.0 + 18.0 * uBeat.y) + dot(floor(vWp * 1.5), vec3(12.9898, 78.233, 37.719)));',
+      'float spark = 1.0 + uBeat.y * (tw * 1.7 - 0.55);',
+      'diffuseColor.rgb = mix(diffuseColor.rgb, mcol * dl * uDim * (0.9 + 0.9 * pulse) * spark, uMus.w);'
     ].join('\n');
     function tintize(m, extra) {                       // lumière de l'écran sur les surfaces étoilées : plus forte près de l'écran, plus douce au fond, et la couleur du côté gauche / droit de l'image de chaque côté de la salle
       // extra (rideau) : { attr, vary, decl, main, uni(sh) } = un attribut de plus, une déclaration et du code ajouté en fin de shader (le texte TROPISTREAM en points)
@@ -287,7 +289,7 @@
         Object.keys(tintU).forEach(function (k) { sh.uniforms[k] = tintU[k]; });
         if (extra && extra.uni) extra.uni(sh);
         sh.vertexShader = 'varying vec3 vWp;\nvarying vec3 vWn;\n' + (extra ? extra.vdecl : '') + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWn = mat3(modelMatrix) * normal;' + (extra ? extra.vmain : ''));
-        sh.fragmentShader = 'varying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLed; uniform float uDim; uniform float uY0; uniform float uY1; uniform float uSW;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR; uniform vec4 uMus; uniform vec4 uBeat; uniform float uT;\nvec3 hsv2rgb(vec3 c) { vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }\n' + (extra ? extra.fdecl : '') + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + LEDSH).replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n' + (extra ? extra.fmain : 'gl_FragColor.rgb += hsv2rgb(vec3(fract(uBeat.y + hb * 0.12), 0.9, 1.0)) * clamp(uBeat.x, 0.0, 1.0) * uMus.w * 0.17;') + '\n#include <dithering_fragment>');
+        sh.fragmentShader = 'varying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLed; uniform float uDim; uniform float uY0; uniform float uY1; uniform float uSW;\nuniform vec3 uL; uniform vec3 uR; uniform vec3 uC; uniform float uHX; uniform float uZ0; uniform float uZR; uniform vec4 uMus; uniform vec4 uBeat; uniform float uT;\nvec3 hsv2rgb(vec3 c) { vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }\n' + (extra ? extra.fdecl : '') + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + LEDSH).replace('#include <dithering_fragment>', 'float tk = clamp((vWp.z - uZ0) / uZR, 0.0, 1.0); float nr = 1.0 - 0.7 * smoothstep(0.0, 1.0, tk); float sx = clamp(vWp.x / uHX * 0.5 + 0.5, 0.0, 1.0); vec3 sd = mix(uL, uR, smoothstep(0.0, 1.0, sx)); float fr = exp(-max(vWp.z - uZ0, 0.0) / 5.0); gl_FragColor.rgb += mix(sd, uC, 0.3) * fr;\n' + (extra ? extra.fmain : '') + '\n#include <dithering_fragment>');
       };
       return m;
     }
@@ -422,15 +424,23 @@
     function layoutScreen() {}
 
     /* --- fauteuils : velours rouge, accoudoirs, dossier légèrement penché --- */
+    function rbox(w, h, d, r) {                          // boîte aux arêtes arrondies (biseau), centrée sur l'origine : donne un volume doux, comme un vrai fauteuil rembourré
+      var cw = Math.max(0.002, w - 2 * r), ch = Math.max(0.002, h - 2 * r), x0 = -cw / 2, y0 = -ch / 2, cr = Math.min(cw, ch) * 0.25, sh = new THREE.Shape();
+      sh.moveTo(x0 + cr, y0); sh.lineTo(x0 + cw - cr, y0); sh.quadraticCurveTo(x0 + cw, y0, x0 + cw, y0 + cr); sh.lineTo(x0 + cw, y0 + ch - cr); sh.quadraticCurveTo(x0 + cw, y0 + ch, x0 + cw - cr, y0 + ch);
+      sh.lineTo(x0 + cr, y0 + ch); sh.quadraticCurveTo(x0, y0 + ch, x0, y0 + ch - cr); sh.lineTo(x0, y0 + cr); sh.quadraticCurveTo(x0, y0, x0 + cr, y0);
+      var dp = Math.max(0.002, d - 2 * r), geo = new THREE.ExtrudeGeometry(sh, { depth: dp, bevelEnabled: true, bevelThickness: r, bevelSize: r, bevelSegments: 4, curveSegments: 5 });
+      geo.translate(0, 0, -dp / 2); return geo;
+    }
     var seats = room.seats = [], seatGeo = {
       cush: new THREE.BoxGeometry(0.74, 0.14, 0.62), back: new THREE.BoxGeometry(0.74, 0.7, 0.14), roll: new THREE.CylinderGeometry(0.075, 0.075, 0.74, 10),
       side: new THREE.BoxGeometry(0.09, 0.5, 0.7), arm: new THREE.BoxGeometry(0.11, 0.07, 0.62), hit: new THREE.BoxGeometry(0.9, 1.3, 0.9),
-      pCush: new THREE.BoxGeometry(0.8, 0.2, 0.74), pBase: new THREE.BoxGeometry(0.6, 0.34, 0.5), pBack: new THREE.BoxGeometry(0.8, 0.98, 0.2), pHead: new THREE.BoxGeometry(0.52, 0.26, 0.15), pArm: new THREE.BoxGeometry(0.2, 0.22, 0.78), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: new THREE.BoxGeometry(0.56, 0.74, 0.05), pCap: new THREE.BoxGeometry(0.22, 0.035, 0.8)
+      // fauteuil club réaliste (premium) : coussins bombés aux arêtes arrondies, dossier incliné avec lombaire et têtière, accoudoirs en cuir, flancs, pied central
+      pCush: rbox(0.66, 0.2, 0.7, 0.075), pBase: new THREE.CylinderGeometry(0.1, 0.17, 0.3, 14), pBack: rbox(0.7, 1.0, 0.22, 0.1), pHead: rbox(0.5, 0.3, 0.17, 0.08), pArm: rbox(0.15, 0.17, 0.74, 0.05), pLed: new THREE.BoxGeometry(0.62, 0.03, 0.03), pInset: rbox(0.5, 0.62, 0.08, 0.035), pCap: rbox(0.17, 0.03, 0.76, 0.014), pSide: rbox(0.06, 0.5, 0.68, 0.025), pCup: new THREE.CylinderGeometry(0.052, 0.045, 0.03, 14)
     };
     var velM = P ? std(0x86101f, 0.78, 0.04, 0x140305) : lam(VELVET), darkM = P ? std(0x2a080f, 0.7, 0.1, 0x0a0204) : lam(0x180a0e), velHiM = P ? std(0x9e1628, 0.68, 0.05, 0x180406) : null, goldS = P ? std(0xd9b441, 0.3, 0.7, 0x2a1d00) : null, ledM = new THREE.MeshBasicMaterial({ color: 0xff8ae0 }), hitM = new THREE.MeshBasicMaterial({ visible: false });
     var inst = null, dummy = new THREE.Object3D();
     if (P) {                                                // 90 places : fauteuils club blancs, larges, bien espacés ; chaque pièce est dessinée en une seule fois pour toute la salle
-      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.48, -0.02] }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.2, 0.04] }, { geo: seatGeo.pBack, mat: velM, p: [0, 0.98, 0.34], rx: 0.16 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 1.0, 0.23], rx: 0.16 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.58, 0.45], rx: 0.16 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.5, 0.64, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.5, 0.64, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.5, 0.77, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.5, 0.77, 0.0] }];
+      var parts = [{ geo: seatGeo.pCush, mat: velM, p: [0, 0.5, -0.04], rx: 0.05 }, { geo: seatGeo.pBase, mat: darkM, p: [0, 0.16, 0.05] }, { geo: seatGeo.pBack, mat: velM, p: [0, 1.0, 0.34], rx: 0.2 }, { geo: seatGeo.pInset, mat: velHiM, p: [0, 0.98, 0.22], rx: 0.2 }, { geo: seatGeo.pHead, mat: velHiM, p: [0, 1.62, 0.47], rx: 0.2 }, { geo: seatGeo.pArm, mat: darkM, p: [-0.46, 0.67, 0.0] }, { geo: seatGeo.pArm, mat: darkM, p: [0.46, 0.67, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [-0.46, 0.765, 0.0] }, { geo: seatGeo.pCap, mat: goldS, p: [0.46, 0.765, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [-0.53, 0.4, 0.0] }, { geo: seatGeo.pSide, mat: darkM, p: [0.53, 0.4, 0.0] }, { geo: seatGeo.pCup, mat: goldS, p: [0.46, 0.785, -0.2] }];
       inst = { parts: parts, meshes: parts.map(function (pt) { var im = new THREE.InstancedMesh(pt.geo, pt.mat, ROWS.length * COLS.length + 50); im.frustumCulled = false; im.count = 0; g.add(im); return im; }), n: 0 };
     }
     function seat(x, z, elev) {
@@ -599,7 +609,7 @@
     var amb = new THREE.AmbientLight(0xffe6d0, 0.95); g.add(amb);
     var key = new THREE.DirectionalLight(0xfff0e0, 0.3); key.position.set(0, 7, 6); g.add(key);
     /* --- étage VIP : dans chaque mur latéral, un trou donne sur un escalier tout simple (dans le mur) qui monte jusqu'à un second trou, au niveau d'un balcon de fauteuils de luxe --- */
-    var vipUp = false, VY = 7.6, vipLights = [];
+    var vipUp = false, VY = 10.2, vipLights = [];
     (function buildVip() {
       if (!P) return;
       var vz0 = 9.5, vz1 = HZ - 0.15, vw = HX - 0.1, ZS0 = -8.4, ZT = 9.0, slope = VY / (ZT - ZS0), SW = 2.3, SZ0 = -10.6, SZ1 = 12.8, SH = VY + 3.4;
@@ -608,10 +618,8 @@
       var pill = std(0x1b1519, 0.4, 0.4), wallV = std(0x2a2230, 0.85, 0.1, 0x241c2e), gl2 = new THREE.MeshBasicMaterial({ color: 0xbcd0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
       var z2, sd2;
       // la dalle de l'étage, avec une marche pour chaque rangée de fauteuils
-      box(g, vw * 2, 0.7, vz1 - vz0, starMat(vw * 2, vz1 - vz0), 0, VY - 0.35, (vz0 + vz1) / 2);
-      box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03); box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.66, vz0 + 0.03);
-      // garde-corps de verre le long du bord
-      box(g, vw * 2, 0.04, 0.08, trimM, 0, VY + 0.02, vz0 + 0.06);                      // juste un liseré doré au ras du sol : rien devant l'écran (la barrière invisible empêche de tomber)
+      box(g, vw * 2, 0.7, vz1 - vz0, std(0x050507, 0.9, 0.05), 0, VY - 0.35, (vz0 + vz1) / 2);
+      box(g, vw * 2, 0.07, 0.12, trimM, 0, VY - 0.04, vz0 + 0.03);   // UNE seule barre dorée, à l'angle entre le mur de verre et le sol de l'étage (rien d'autre : la barrière invisible empêche de tomber)
       // fauteuils de luxe : trois rangées de douze
       VROWS.forEach(function (rz, ri) { VCOLS.forEach(function (cx3) { seat(cx3, rz, VY + ri * 0.2); seats[seats.length - 1].vip = true; }); });
       if (!low) [[-9, 13.5], [9, 13.5]].forEach(function (p) { var pl = new THREE.PointLight(0xffe2b8, 0.5, 16); pl.position.set(p[0], VY + 3.5, p[1]); g.add(pl); vipLights.push(pl); });
@@ -681,7 +689,7 @@
       // le salon : sol et plafond qui prennent la lumière, plafonniers
       var salonF = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x17141c, 0.9, 0.05)); salonF.rotation.x = -Math.PI / 2; salonF.position.set(0, gy0 + 0.006, (GZ + HZ) / 2); g.add(salonF);
       var salonC = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ - GZ), std(0x1e1a24, 0.9, 0.05)); salonC.rotation.x = Math.PI / 2; salonC.position.set(0, gy1 - 0.006, (GZ + HZ) / 2); g.add(salonC);
-      [-21, -14, -7, 0, 7, 14, 21].forEach(function (lx) { [12.5, 16.8].forEach(function (lz) { cyl(g, 0.28, 0.28, 0.04, bas(0xfff2d6), lx, gy1 - 0.03, lz, 18); }); });
+      // (plus de petits plafonniers ronds visibles à travers la vitre : la lumière du salon vient des lampes invisibles ci-dessous)
       if (!low) [-18, -6, 6, 18].forEach(function (lx) { var pl = new THREE.PointLight(0xffe7c4, 0.9, 11); pl.position.set(lx, gy1 - 0.5, 14.6); g.add(pl); });
       (function staffDesk() {
         var DX = -8, DZ = HZ - 1.7, deskM = std(0x2a2328, 0.5, 0.2), darkK = std(0x18181c, 0.5, 0.3);
@@ -763,15 +771,15 @@
       [1].forEach(function (sd) {                          // seulement le côté droit : les portes de gauche (étage VIP, sortie, descendre) sont retirées
         var yIn = F.yawFor(-sd, 0);
         // en bas : « Étage VIP » et « Sortie » côte à côte, juste à côté de la porte du staff, sur la vitre du fond (loin de l'écran)
-        var vx = sd * 23.0, sx2 = sd * 19.8, dz0 = GZ - 0.03;
-        var dVip = world.addDoor(room, { x: vx, z: dz0, nx: 0, nz: -1, w: 2.0, h: 2.9, label: '👑 ÉTAGE VIP', sub: 'FAUTEUILS DE LUXE', color: 0xffd86b, theme: 'cinemavip',
+        var DZV = 1.4, DZO = -2.7;   // les deux portes sont dans le mur de droite, juste avant le début des marches (hors de vue quand on est assis face à l'écran)
+        var dVip = world.addDoor(room, { x: sd * HX, z: DZV, nx: -sd, nz: 0, w: 2.0, h: 2.9, label: '👑 ÉTAGE VIP', sub: 'FAUTEUILS DE LUXE', color: 0xffd86b, theme: 'cinemavip',
           enabled: function () { return !vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.6), 11.5, yIn, function () { setVip(true); }); } });
-        var dOut = world.addDoor(room, { x: sx2, z: dz0, nx: 0, nz: -1, w: 1.9, h: 2.8, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinemaPremium',
+        var dOut = world.addDoor(room, { x: sd * HX, z: DZO, nx: -sd, nz: 0, w: 1.9, h: 2.8, label: '🚪 SORTIE', sub: 'RETOUR AU HALL', color: 0xff7a1a, target: 'hall', theme: 'exitCinemaPremium',
           enabled: function () { return !vipUp; } });
-        dVip.g.position.y = gy0; dOut.g.position.y = gy0;
+        dVip.g.position.y = 0; dOut.g.position.y = 0;
         // à l'étage : la porte pour redescendre, qui ramène devant la porte « Étage VIP » du bas
         var upD = world.addDoor(room, { x: sd * HX, z: 11.5, nx: -sd, nz: 0, w: 2.2, h: 3.0, label: '⬇ DESCENDRE', sub: 'RETOUR EN BAS', color: 0xffd86b, theme: 'cinemavip',
-          enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * 21.4, GZ - 1.2, F.yawFor(0, -1), function () { setVip(false); }); } });
+          enabled: function () { return vipUp; }, go: function (w) { w.teleport(sd * (HX - 2.4), DZV, F.yawFor(-sd, 0), function () { setVip(false); }); } });
         upD.g.position.y = VY;
         // un palier de marbre bordé de laiton devant la porte de l'étage : la porte repose dessus
         var landM = std(0x1a1520, 0.35, 0.4), lx = sd * (HX - 1.3);
@@ -1679,7 +1687,7 @@
       if (w.touch) return 'Joystick : marcher · touche un fauteuil pour s’asseoir' + (ctrl ? ' · touche la régie au fond à droite pour choisir le film' : '');
       return 'ZQSD / flèches : marcher · Maj : courir · avance vers un fauteuil et appuie sur F pour t\'asseoir' + (ctrl ? ' · F sur la régie (fond à droite) : choisir le film' : '') + (w.full ? ' · Échap : quitter' : '');
     };
-    room.spawn = function () { return P ? { x: 21.4, z: 8.2, yaw: F.yawFor(0, -1) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
+    room.spawn = function () { return P ? { x: HX - 3.2, z: -0.5, yaw: F.yawFor(-1, 0) } : { x: 0, z: HZ - 2.6, yaw: 0 }; };   // premium : on arrive en bas, entre la porte de l'étage VIP et la sortie
     function kickMusic() { if (music.up && !music.ctx) music.start(); }
     room.onEnter = function () {
       seanceAsked = false; beatT = 0; room._curtT0 = performance.now(); if (room.resetVip) room.resetVip();
@@ -1703,7 +1711,7 @@
     room.onPageHide = function () { video.pause(); adVideo.pause(); };
     room.onResume = function () { if (world.room === room) { music.start(); mountEye(); if (world.container) world.container.classList.add('cin-in-cinema'); window.addEventListener('keydown', onKeyL, true); pollCinema(); } };
 
-    var clock = 0, netT = 0, beatT = 0, remotesHid = false, musV = { b: 0, m: 0, t: 0, a: 0, avg: 0, last: -9, flash: 0, hue: 0 };
+    var clock = 0, netT = 0, beatT = 0, remotesHid = false, musV = { b: 0, m: 0, t: 0, a: 0, en: 0, fx: 0, spk: 0, phase: 0, prev: null };
     // présence : le serveur compte les spectateurs (places limitées par la direction) ; on se signale toutes les 10 s et on prévient en sortant
     function presence() {
       world.post('/api/cinema', Object.assign({ action: 'enter' }, P ? { room: 'premium' } : {})).then(function (r) {
@@ -1761,13 +1769,13 @@
         var k = Math.min(1, dt * 12), kr = Math.min(1, dt * 4);                   // montée rapide, descente douce : pas de clignotement
         musV.b += (tb - musV.b) * (tb > musV.b ? k : kr); musV.m += (tm - musV.m) * (tm > musV.m ? k : kr); musV.t += (tt - musV.t) * (tt > musV.t ? k : kr);
         musV.a += ((live ? 1 : 0) - musV.a) * Math.min(1, dt * 2);
-        // basse détectée (le grave monte nettement au-dessus de sa moyenne) : toute la salle prend d'un coup une grosse couleur, d'une teinte différente à chaque fois (toutes les couleurs défilent) ; sans basse, couleurs de base
-        musV.avg += (tb - musV.avg) * Math.min(1, dt * 1.2);
-        if (live && tb > 0.2 && tb > musV.avg * 1.22 + 0.04 && clock - musV.last > 0.24) { musV.last = clock; musV.flash = 1; musV.hue = (musV.hue + 0.14 + Math.random() * 0.12) % 1; }
-        musV.flash *= Math.exp(-dt * 4.5);
-        tintU.uMus.value.set(musV.b, musV.m, musV.t, musV.a); tintU.uBeat.value.set(musV.flash, musV.hue, 0, 0); tintU.uT.value = clock;
-        if (P) { var fl = musV.flash * musV.a; amb.color.setHex(0xffe6d0); if (fl > 0.01) { amb.color.lerp(new THREE.Color().setHSL(musV.hue, 1, 0.5), Math.min(1, fl * 0.85)); amb.intensity += fl * 0.45 * dim; } }   // les fauteuils aussi prennent la couleur de la basse
-        if (starLedM) starLedM.color.multiplyScalar(1 - 0.3 * musV.a + 0.7 * musV.a * musV.b);   // les petites lumières du plafond battent avec les graves
+        // intensité de la musique (énergie + vitesse de changement du spectre) : un passage calme garde des couleurs douces, un passage rapide / épique les fait changer vite et pétiller (plus d'effet de basse)
+        var flux = 0, i2; if (live) { if (!musV.prev) musV.prev = new Uint8Array(d.length); for (i2 = 1; i2 < 90; i2++) { var df = d[i2] - musV.prev[i2]; if (df > 0) flux += df; musV.prev[i2] = d[i2]; } flux /= 89 * 255; }
+        musV.en += ((0.6 * tm + 0.5 * tt) - musV.en) * Math.min(1, dt * 2.5); musV.fx += (Math.min(1, flux * 10) - musV.fx) * Math.min(1, dt * 3);
+        var inten = Math.min(1, musV.en * 0.9 + musV.fx * 0.8);
+        musV.spk += (Math.min(1, tt * 1.3 + musV.fx * 0.9) * inten - musV.spk) * Math.min(1, dt * 4);
+        musV.phase = (musV.phase + dt * (0.03 + 0.75 * inten * inten)) % 1;                 // vitesse de défilement des couleurs
+        tintU.uMus.value.set(0, musV.m, musV.t, musV.a); tintU.uBeat.value.set(musV.phase, musV.spk, 0, 0); tintU.uT.value = clock;
       })();
       // son du film : même volume partout, en stéréo
       if (playing || net.status === 'paused') {
@@ -1831,7 +1839,7 @@
         }
       }
       var nImg = cx.createImageData(W, 2), hImg = hcx.createImageData(W, 16), prof = [];
-      for (var jj = 0; jj < 16; jj++) { var sa = (jj + 0.5) / 16; prof.push(0.42 * sa * sa); }       // fort contre le néon, s'efface vers l'extérieur
+      for (var jj = 0; jj < 16; jj++) { var sa = (jj + 0.5) / 16; prof.push(0.62 * sa * sa); }       // fort contre le néon, s'efface vers l'extérieur
       function paint() {
         var nd = nImg.data, hd = hImg.data, i, j, o;
         for (i = 0; i < W; i++) {
@@ -1891,10 +1899,10 @@
               var mxv = Math.max(d[p], d[p + 1], d[p + 2]), mnv = Math.min(d[p], d[p + 1], d[p + 2]), sat = mxv ? (mxv - mnv) / mxv : 0;
               w3 = lum * lum * lum * 0.4 + sat * sat * lum * lum * 2 + 0.0002;   // les zones lumineuses comptent plus, et les couleurs vives aussi (une petite voiture rouge dans la neige doit teinter le bord)
               add(GL);   // (GL n'influence plus les couleurs : plus de lumière « sans logique »)
-              if (x < 10) add(aL[Math.min(NV - 1, Math.floor(y * NV / 72))]);
-              if (x >= 118) add(aR[Math.min(NV - 1, Math.floor(y * NV / 72))]);
-              if (y < 6) add(aT[Math.min(NH - 1, Math.floor(x * NH / 128))]);
-              if (y >= 66) add(aB[Math.min(NH - 1, Math.floor(x * NH / 128))]);
+              if (x < 20) add(aL[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (x >= 108) add(aR[Math.min(NV - 1, Math.floor(y * NV / 72))]);
+              if (y < 11) add(aT[Math.min(NH - 1, Math.floor(x * NH / 128))]);
+              if (y >= 61) add(aB[Math.min(NH - 1, Math.floor(x * NH / 128))]);
             }
             setTgt(E.L, aL); setTgt(E.R, aR); setTgt(E.T, aT); setTgt(E.B, aB);
           } catch (e) { bad = true; if (room._ambi) room._ambi.err = String(e); }
@@ -1918,7 +1926,7 @@
           ledTex.needsUpdate = true;
         }
         // léger reflet sur les murs, le plafond et le sol près de l'écran (s'efface en quelques mètres)
-        var aL2 = avg(E.L), aR2 = avg(E.R), aT2 = avg(E.T), aB2 = avg(E.B), K = 0.22;
+        var aL2 = avg(E.L), aR2 = avg(E.R), aT2 = avg(E.T), aB2 = avg(E.B), K = 0.34;
         tintU.uL.value.setRGB(aL2[0] * K, aL2[1] * K, aL2[2] * K);
         tintU.uR.value.setRGB(aR2[0] * K, aR2[1] * K, aR2[2] * K);
         room._ledT = aT2;
@@ -1975,7 +1983,7 @@
             'float tglow = texture2D(uTxt, tqc, 3.0).r * tin;\n' +        // halo doux autour des points : le mot « fait de la lumière »
             'float tpl = 0.5 * uMus.x + 0.35 * uMus.y * (0.6 + 0.4 * sin(vWp.x * 0.5 - uT * 3.0)) + 0.3 * uMus.z * (0.5 + 0.5 * sin(vWp.x * 1.7 + uT * 7.0));\n' +
             'vec3 tcol = mix(vec3(1.0), mcol, clamp(uMus.w * 0.85, 0.0, 1.0));\n' +
-            'gl_FragColor.rgb += tcol * (tdot * uDim * (0.9 + 0.9 * uMus.w * tpl + 1.2 * uBeat.x * uMus.w) + tglow * uDim * uMus.w * (0.5 + 2.2 * tpl + 2.5 * uBeat.x));'
+            'gl_FragColor.rgb += tcol * (tdot * uDim * (0.9 + 0.9 * uMus.w * tpl + 0.9 * uBeat.y * uMus.w) + tglow * uDim * uMus.w * (0.5 + 2.2 * tpl + 1.6 * uBeat.y));'
         });
         return m;
       }
