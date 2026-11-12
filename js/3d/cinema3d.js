@@ -1763,12 +1763,13 @@
       music.setLevel(playing ? 0 : 1);
       // les petits points (murs, plafond, sol, gradins, rideau et son « TROPISTREAM ») vibrent avec la musique d'attente : graves / médiums / aigus mesurés sur le morceau en cours
       (function () {
-        var an = music.an2, d = music.an2Buf, vol = F.audio ? F.audio.musicVol : 0.5, live = !!an && music.up && !playing && vol > 0.01 && !(music.el && music.el.paused), tb = 0, tm = 0, tt = 0;
+        var an = music.an2, d = music.an2Buf, vol = F.audio ? F.audio.musicVol : 0.5, live = !!an && music.up && !playing && !(music.el && music.el.paused), tb = 0, tm = 0, tt = 0, calm = !playing && !live;   // le volume choisi ne coupe plus les couleurs (l'analyse est faite avant le volume)
         function band(a, b) { var s = 0, i; for (i = a; i <= b; i++) s += d[i]; return Math.min(1, Math.pow(s / (b - a + 1) / 255 * 1.5, 1.4)); }
         if (live) { an.getByteFrequencyData(d); tb = band(1, 3); tm = band(4, 23); tt = band(24, 90); }
+        else if (calm) { tm = 0.32 + 0.2 * Math.sin(clock * 0.8); tt = 0.28 + 0.2 * Math.sin(clock * 1.5 + 1.3); }   // sans musique audible (son pas encore autorisé, morceau qui change) : les couleurs de la salle continuent doucement, elles ne s'éteignent pas
         var k = Math.min(1, dt * 12), kr = Math.min(1, dt * 4);                   // montée rapide, descente douce : pas de clignotement
         musV.b += (tb - musV.b) * (tb > musV.b ? k : kr); musV.m += (tm - musV.m) * (tm > musV.m ? k : kr); musV.t += (tt - musV.t) * (tt > musV.t ? k : kr);
-        musV.a += ((live ? 1 : 0) - musV.a) * Math.min(1, dt * 2);
+        musV.a += ((live ? 1 : calm ? 0.55 : 0) - musV.a) * Math.min(1, dt * 2);
         // intensité de la musique (énergie + vitesse de changement du spectre) : un passage calme garde des couleurs douces, un passage rapide / épique les fait changer vite et pétiller (plus d'effet de basse)
         var flux = 0, i2; if (live) { if (!musV.prev) musV.prev = new Uint8Array(d.length); for (i2 = 1; i2 < 90; i2++) { var df = d[i2] - musV.prev[i2]; if (df > 0) flux += df; musV.prev[i2] = d[i2]; } flux /= 89 * 255; }
         musV.en += ((0.6 * tm + 0.5 * tt) - musV.en) * Math.min(1, dt * 2.5); musV.fx += (Math.min(1, flux * 10) - musV.fx) * Math.min(1, dt * 3);
@@ -1939,6 +1940,7 @@
         lastKnown = known;
         lastMap = m;
       }
+      room._mus = function () { return { up: music.up, ctx: music.ctx && music.ctx.state, elPaused: music.el ? music.el.paused : null, elT: music.el ? music.el.currentTime : null, files: music.files ? music.files.length : 0, vol: F.audio ? F.audio.musicVol : null, a: musV.a, m: musV.m, t: musV.t, en: musV.en }; };
       room._crop = function () { return { crop: crop.slice(), target: cropT.slice(), hist: dHist.length }; };
       room.ambiUpdate = function (dt, on) {
         updateCrop(dt, on);
