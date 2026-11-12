@@ -3381,12 +3381,14 @@
     }
 
     function getMasterVolume() {
+      try { const sv = parseFloat(localStorage.getItem("flambeurs_master_vol")); if (isFinite(sv)) state.soundVolume = sv; } catch (e) { /* stockage bloqué */ }   // le volume choisi survit au rechargement et à la connexion (l'état du compte peut le remettre à 0.5)
       if (typeof state.soundVolume !== 'number') state.soundVolume = 0.5;
       return Math.max(0, Math.min(1, state.soundVolume));
     }
 
     function setMasterVolume(val) {
       state.soundVolume = Math.max(0, Math.min(1, parseFloat(val) || 0));
+      try { localStorage.setItem("flambeurs_master_vol", String(state.soundVolume)); } catch (e) { /* ok */ }
       saveState();
       updateSoundUI();
     }
