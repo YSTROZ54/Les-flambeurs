@@ -1907,7 +1907,9 @@
         tintU.uSW.value = SCR_W * sx; tintU.uY0.value = cy0 - SCR_H * sy / 2; tintU.uY1.value = cy0 + SCR_H * sy / 2;
       }
       var cropCache = {}, lastMap = null, lastKnown = false, known = false, pendT = 0, cropW = [0, 0, 0, 0], dLong = [];
+      var AUTO_FIT = false;                            // ajustement automatique de l'écran aux bandes noires : désactivé (trop de bugs), le code reste pour plus tard
       function updateCrop(dt, on) {
+        if (!AUTO_FIT) { if (crop[0] || crop[1] || crop[2] || crop[3] || !screen.visible || screen.scale.y !== 1) { crop = [0, 0, 0, 0]; cropT = [0, 0, 0, 0]; cropW = [0, 0, 0, 0]; screen.visible = neon.visible = halo.visible = true; applyCrop(); } return; }
         var m = screenM.map, vok = on && video.readyState >= 2 && video.videoWidth > 0 && !dBad, film = vok && m === vtex;
         var src = video.currentSrc || video.src || '';
         if (src !== dSrc) { dSrc = src; dHist = []; dLong = []; pendT = 0; known = false; cropW = [0, 0, 0, 0]; if (cropCache[src]) { cropW = cropCache[src].slice(); crop = cropW.slice(); known = true; } }   // film déjà vu : sa taille est reprise sur-le-champ
