@@ -1890,13 +1890,13 @@
       var crop = [0, 0, 0, 0], cropT = [0, 0, 0, 0];      // gauche, haut, droite, bas : part retirée (0..1)
       function detectBars() {                           // -> [g, h, d, b] en fraction, ou null (image entièrement noire : on ne décide rien)
         dcx.drawImage(video, 0, 0, DW, DH);
-        var d = dcx.getImageData(0, 0, DW, DH).data, rm = new Uint8Array(DH), cm = new Uint8Array(DW), x, y, p, m;
-        for (y = 0; y < DH; y++) for (x = 0; x < DW; x++) { p = (y * DW + x) * 4; m = Math.max(d[p], d[p + 1], d[p + 2]); if (m > rm[y]) rm[y] = m; if (m > cm[x]) cm[x] = m; }
-        function run(a, n, rev) { var k = 0; while (k < n && a[rev ? n - 1 - k : k] <= 22) k++; return k; }
-        var t = run(rm, DH, false), b = run(rm, DH, true), l = run(cm, DW, false), r = run(cm, DW, true);
+        var d = dcx.getImageData(0, 0, DW, DH).data, rc = new Uint16Array(DH), cc = new Uint16Array(DW), x, y, p;
+        for (y = 0; y < DH; y++) for (x = 0; x < DW; x++) { p = (y * DW + x) * 4; if (Math.max(d[p], d[p + 1], d[p + 2]) > 14) { rc[y]++; cc[x]++; } }   // pixels qui ne sont pas du vrai noir, par ligne et par colonne
+        function run(a2, n, w, rev) { var k = 0, lim = w * 0.03; while (k < n && a2[rev ? n - 1 - k : k] <= lim) k++; return k; }   // une bande = lignes de vrai noir (3 % de tolérance : logo, bruit)
+        var t = run(rc, DH, DW, false), b2 = run(rc, DH, DW, true), l = run(cc, DW, DH, false), r = run(cc, DW, DH, true);
         if (t >= DH * 0.9 || l >= DW * 0.9) return null;
         function fr(k, n) { return k <= 0 ? 0 : Math.min(0.42, (k + 1) / n); }   // +1 ligne : la ligne de bord, mélangée au noir, ne laisse pas de filet noir
-        return [fr(l, DW), fr(t, DH), fr(r, DW), fr(b, DH)];
+        return [fr(l, DW), fr(t, DH), fr(r, DW), fr(b2, DH)];
       }
       function applyCrop() {
         var sx = 1 - crop[0] - crop[2], sy = 1 - crop[1] - crop[3];
@@ -1905,25 +1905,32 @@
         neon.position.y = halo.position.y = cy0 * (1 - sy);
         tintU.uSW.value = SCR_W * sx; tintU.uY0.value = cy0 - SCR_H * sy / 2; tintU.uY1.value = cy0 + SCR_H * sy / 2;
       }
-      var cropCache = {}, lastMap = null, lastKnown = false, known = false, pendT = 0;
+      var cropCache = {}, lastMap = null, lastKnown = false, known = false, pendT = 0, cropW = [0, 0, 0, 0], dLong = [];
       function updateCrop(dt, on) {
-        var m = screenM.map, film = on && m === vtex && video.readyState >= 2 && video.videoWidth > 0 && !dBad;
+        var m = screenM.map, vok = on && video.readyState >= 2 && video.videoWidth > 0 && !dBad, film = vok && m === vtex;
         var src = video.currentSrc || video.src || '';
-        if (src !== dSrc) { dSrc = src; dHist = []; pendT = 0; known = false; if (cropCache[src]) { cropT = cropCache[src].slice(); crop = cropT.slice(); known = true; } }   // film déjà vu : sa taille est reprise sur-le-champ   // film déjà vu : on reprend sa taille tout de suite
-        if (!on || m === adTex) { cropT = [0, 0, 0, 0]; dHist = []; known = false; pendT = 0; }       // arrêt, fin ou pub : taille normale
-        // (chargement, coupure de réseau : l'écran garde sa taille, il ne repasse pas en grand pour rien)
-        else if (film) {
-          dT += dt; if (!known) pendT += dt;
-          if (dT > (known ? 0.25 : 0.05)) {   // au tout début : relevés rapides, l'écran reste caché le temps de trouver sa taille                              // 4 relevés par seconde
+        if (src !== dSrc) { dSrc = src; dHist = []; dLong = []; pendT = 0; known = false; cropW = [0, 0, 0, 0]; if (cropCache[src]) { cropW = cropCache[src].slice(); crop = cropW.slice(); known = true; } }   // film déjà vu : sa taille est reprise sur-le-champ
+        if (!on) { dHist = []; dLong = []; known = false; pendT = 0; cropW = [0, 0, 0, 0]; }                 // arrêt ou fin du film : on oublie tout, taille normale
+        else if (vok) {                                  // la mesure se fait dès que le film a une image, même pendant la pub ou le chargement
+          dT += dt; if (!known && film) pendT += dt;
+          if (dT > (known ? 0.25 : 0.05)) {
             dT = 0;
             try {
-              var r0 = detectBars();
-              if (r0) { dHist.push(r0); if (dHist.length > 5) dHist.shift(); }
-              if (dHist.length >= 4) { for (var i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropT[i] = mn < 0.03 ? 0 : mn; } if (src) cropCache[src] = cropT.slice(); if (!known) { known = true; crop = cropT.slice(); } }   // bandes présentes sur ~1 s d'images : une scène sombre ne compte pas
-            } catch (e) { dBad = true; cropT = [0, 0, 0, 0]; known = true; }
+              var r0 = detectBars(), i;
+              if (r0 && !known) {                        // départ : plusieurs relevés d'affilée, on garde les bandes présentes dans tous
+                dHist.push(r0);
+                if (dHist.length >= 4) { for (i = 0; i < 4; i++) { var mn = 1; dHist.forEach(function (h) { mn = Math.min(mn, h[i]); }); cropW[i] = mn < 0.03 ? 0 : mn; } known = true; crop = cropW.slice(); }
+              } else if (r0) {
+                for (i = 0; i < 4; i++) if (r0[i] < cropW[i]) cropW[i] = r0[i] < 0.03 ? 0 : r0[i];   // de l'image apparaît dans une bande : on la révèle tout de suite
+                dLong.push(r0); if (dLong.length > 20) dLong.shift();
+                if (dLong.length >= 20) for (i = 0; i < 4; i++) { var mn2 = 1; dLong.forEach(function (h) { mn2 = Math.min(mn2, h[i]); }); if (mn2 >= 0.03 && mn2 > cropW[i] + 0.01) cropW[i] = mn2; }   // une bande ne s'ajoute qu'après 5 s sans la moindre image dedans : une scène sombre ne ferme jamais l'écran
+              }
+              if (src && known) cropCache[src] = cropW.slice();
+            } catch (e) { dBad = true; cropW = [0, 0, 0, 0]; known = true; }
           }
         }
-        if (!known && pendT > 4) { known = true; crop = cropT.slice(); }     // image restée noire plus de 4 s : on montre l'écran tel quel
+        if (!known && pendT > 2) { known = true; crop = cropW.slice(); }     // image noire plus de 2 s : on montre l'écran tel quel
+        cropT = (on && m !== adTex) ? cropW.slice() : [0, 0, 0, 0];           // pub, arrêt : taille normale
         var hold = film && !known;           // taille pas encore trouvée : l'écran (et son néon) n'apparaît pas en grand pour se rétrécir ensuite
         screen.visible = neon.visible = halo.visible = !hold;
         var moving = false;
