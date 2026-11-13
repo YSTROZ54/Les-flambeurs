@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.12">
+  <link rel="stylesheet" href="css/style.css?v=5.13">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -436,11 +436,10 @@
           <img src="assets/identite/logo.png" alt="Les Flambeurs" class="w-10 h-10 rounded-xl">
           <div>
             <div class="flex items-center gap-1.5">
-              <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">LES
-                FLAMBEURS</span>
-              <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Accueil</span>
+              <span class="font-serif-title text-base md:text-xl tracking-wider text-amber-300 font-extrabold">TROPIFLAMBEURS</span>
+              <span id="navBreadcrumb" class="hidden sm:inline text-xs text-stone-400 font-semibold">/ Menu</span>
             </div>
-            <p class="text-[10px] uppercase tracking-widest text-stone-400">Le Casino Anonyme</p>
+            <p class="text-[10px] uppercase tracking-widest text-stone-400">Casino gratuit et mini jeu</p>
           </div>
         </div>
       </div>
@@ -495,8 +494,8 @@
     <!-- =============================================================== -->
     <!-- VUE 1 : ACCUEIL (HALL DES FLAMBEURS)                            -->
     <!-- =============================================================== -->
-    <section id="view-hall" class="space-y-8">
-      <div id="home3dBanner"
+    <section id="view-hall" class="space-y-4">
+      <div id="home3dBanner" style="display:none"
         class="hidden rounded-2xl p-4 md:p-5 border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-900/30 to-amber-500/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3">
         <div>
           <div class="font-serif-title text-lg md:text-xl font-black text-amber-200"><i class="fa-solid fa-gamepad"></i>
@@ -516,21 +515,25 @@
           <div class="lg:col-span-8 space-y-3">
             <div
               class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold">
-              <i class="fa-solid fa-masks-theater"></i> Cercle Privé entre Amis &amp; Flambeurs Anonymes
+              <i class="fa-solid fa-masks-theater"></i> Cercle privé entre amis et inconnus
             </div>
             <h1 class="font-serif-title text-3xl md:text-5xl font-black text-white tracking-wide">
-              TROPIFLAMBEURS
+              <i class="fa-solid fa-gamepad text-amber-300"></i> CASINO EN 3D
             </h1>
             <p class="text-amber-300/90 font-serif-title text-sm md:text-base tracking-widest uppercase">
               Le Casino Anonyme • Monnaie 100% Virtuelle
             </p>
-            <p class="text-stone-300 text-sm leading-relaxed max-w-xl">
+            <p style="display:none" class="text-stone-300 text-sm leading-relaxed max-w-xl">
               Chaque jeu possède son propre univers, ses règles simples (<span class="text-amber-300 font-bold"><i
                   class="fa-solid fa-circle-question"></i> Comment jouer</span>) et ses skins personnalisables par
               catégories dans le <strong>Tropi Shop</strong>. Fais un don ou gère tes transferts dans <strong>La
                 Banque</strong> !
             </p>
-            <div class="flex flex-wrap gap-2.5 pt-2" id="hallQuickBtns" style="display:none">
+            <div class="flex flex-wrap gap-2.5 pt-2" id="hallQuickBtns">
+              <button id="home3dPlayBtn" onclick="enter3dHall()"
+                class="hidden px-6 py-3 rounded-xl font-extrabold text-base bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:brightness-110 transition shadow-lg"><i class="fa-solid fa-play"></i> Jouer au jeu</button>
+            </div>
+            <div class="flex flex-wrap gap-2.5 pt-2" style="display:none">
               <button onclick="switchRoom('bank')"
                 class="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-bold transition">
                 <i class="fa-solid fa-building-columns"></i> Faire un don à un pauvre
@@ -817,13 +820,13 @@
       <!-- CLASSEMENT -->
       <div class="pt-2">
         <div
-          class="rounded-2xl p-6 bg-stone-950/90 border border-white/15 backdrop-blur-xl space-y-4 shadow-xl max-w-3xl mx-auto">
+          class="rounded-2xl p-4 bg-stone-950/90 border border-white/15 backdrop-blur-xl space-y-2 shadow-xl w-full">
           <div class="flex items-center justify-between">
             <h3 class="font-serif-title text-xl font-extrabold text-amber-200"><i class="fa-solid fa-trophy"></i>
               Classement</h3>
             <span class="text-xs text-stone-400">Argent sur le compte</span>
           </div>
-          <div id="leaderboardList" class="divide-y divide-white/10 text-sm"></div>
+          <div id="leaderboardList" class="text-sm"></div>
         </div>
       </div>
     </section>
@@ -5722,11 +5725,11 @@
         return;
       }
 
-      container.innerHTML = list.map((p, idx) => {
+      const rows = list.map((p, idx) => {
         const rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
         const [roleIcon, roleName, roleClass] = p.role || ['fa-fire', 'Flambeur', 'role-flambeur'];
         return `
-          <div class="py-2.5 px-3 flex items-center justify-between rounded-xl transition ${p.isMe ? 'bg-amber-500/15 border border-amber-400/40 shadow-sm' : 'border-b border-white/5 hover:bg-white/5'}">
+          <div class="py-1.5 px-3 flex items-center justify-between rounded-xl transition ${p.isMe ? 'bg-amber-500/15 border border-amber-400/40 shadow-sm' : 'border-b border-white/5 hover:bg-white/5'}">
             <div class="flex items-center gap-3">
               <span class="w-6 text-center font-extrabold text-sm">${rank}</span>
               <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-base">
@@ -5745,18 +5748,19 @@
             </div>
           </div>
         `;
-      }).join('');
-
+      });
+      // accueil sans défilement : les 5 premiers à droite, les 5 suivants à gauche (en dessous de 640 px : une seule colonne)
+      container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5"><div class="divide-y divide-white/10 sm:order-2">' + rows.slice(0, 5).join('') + '</div><div class="divide-y divide-white/10 sm:order-1">' + rows.slice(5).join('') + '</div></div>';
       const modalContainer = document.getElementById('leaderboardModalList');
       if (modalContainer) {
-        modalContainer.innerHTML = container.innerHTML;
+        modalContainer.innerHTML = rows.join('');
       }
     }
 
     /* ================= NAVIGATION & BOUTON RETOUR SMARTPHONE (PUSHSTATE) ================= */
     const ALL_ROOMS = ['hall', 'poker', 'crash', 'slots', 'mines', 'blackjack', 'scratch', 'blindtest', 'shop', 'bank', 'world3d'];
     const ROOM_TITLES = {
-      hall: '/ Accueil', world3d: '/ Casino 3D', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
+      hall: '/ Menu', world3d: '/ Casino 3D', poker: '/ Poker', crash: '/ Fusée Crash', slots: '/ Machine à Sous',
       mines: '/ La Chambre Forte', blackjack: '/ Blackjack',
       scratch: '/ Grattage',
       blindtest: '/ Blind Test',
@@ -5774,6 +5778,7 @@
       try {
         const can = !!(window.F3D && F3D.canWorld());
         if (b) b.classList.toggle('hidden', !can);
+        const pb = document.getElementById('home3dPlayBtn'); if (pb) pb.classList.toggle('hidden', !can);
       } catch (e) { }
     }
     window.addEventListener('load', () => setTimeout(refreshHome3dBanner, 300));
@@ -5836,7 +5841,7 @@
         }
       });
 
-      document.getElementById('navBreadcrumb').textContent = ROOM_TITLES[room] || '/ Accueil';
+      document.getElementById('navBreadcrumb').textContent = ROOM_TITLES[room] || '/ Menu';
 
       // Menu de côté : déplié à l'accueil sur PC, replié dans les jeux et sur téléphone
       if (window.innerWidth >= 768 && room === 'hall') expandSidebar();
