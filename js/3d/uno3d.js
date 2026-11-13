@@ -704,7 +704,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.1 : -0.35), ey = u ? 2.25 : tc ? 1.6 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 1.2 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.3 : -0.35), ey = u ? 2.25 : tc ? 1.5 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.3 : -0.35), ty = u ? 0.86 : tc ? 1.3 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: u ? 72 : 62 };
     };
@@ -766,7 +766,7 @@
       if (errT > 0) { errT -= dt; if (errT <= 0 && ui) refreshUi(); }
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && toastEl) toastEl.classList.remove('in'); }
       var tnow = performance.now() / 1000;
-      TIDS.forEach(function (tid2) { var tv2 = TV[tid2]; if (tv2.kind !== 'c') return; tv2.bars.forEach(function (b) { if (!b.visible) return; b.children[0].material.opacity = 0.16 + 0.12 * Math.sin(tnow * 5); b.children[1].position.y = b.children[1].userData.y0 + 0.035 * Math.sin(tnow * 6); }); });
+      TIDS.forEach(function (tid2) { var tv2 = TV[tid2]; if (tv2.kind !== 'c') return; tv2.bars.forEach(function (b) { if (!b.visible) return; var ar = b.children[0]; if (ar) ar.position.y = ar.userData.y0 + 0.035 * Math.sin(tnow * 6); }); });
       pollT += dt; if (pollT > (seat ? 0.6 : 2)) { pollT = 0; poll(); }
       for (var k = anims.length - 1; k >= 0; k--) {
         var a = anims[k]; a.t += dt / 0.42; var u = Math.min(1, a.t), y = a.y1 + (a.y0 - a.y1) * (1 - u) * (1 - u);
