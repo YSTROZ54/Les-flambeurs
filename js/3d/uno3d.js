@@ -295,7 +295,7 @@
         var bx0 = (c4 - 3) * C4_PITCH, by0 = TT + 0.1 + C4_H / 2 + 0.05;
         var hitC = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.98, C4_H + 0.3, 0.3), new THREE.MeshBasicMaterial({ visible: false })); hitC.position.set(bx0, by0, 0); hitC.userData.col = c4; t.add(hitC); tv.hits.push(hitC);
         var bg = new THREE.Group(); bg.visible = false; t.add(bg);
-        var bar = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.92, C4_H + 0.04, 0.14), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending })); bar.position.set(bx0, TT + 0.1 + C4_H / 2, 0); bg.add(bar);
+        var bar = new THREE.Mesh(new THREE.BoxGeometry(C4_PITCH * 0.92, C4_H + 0.04, 0.14), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending })); bar.position.set(bx0, TT + 0.1 + C4_H / 2, 0); 
         var arrow = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 4), new THREE.MeshBasicMaterial({ color: 0xffe35a })); arrow.rotation.x = Math.PI; arrow.position.set(bx0, TT + 0.1 + C4_H + 0.1, 0); arrow.userData.y0 = arrow.position.y; bg.add(arrow);
         tv.bars.push(bg);
       }
@@ -437,10 +437,10 @@
         '.mj-toast.turn{background:linear-gradient(90deg,#16a34a,#0f7a37);border-color:#ffe35a;box-shadow:0 0 22px rgba(255,227,90,.6);top:7%;padding:7px 20px;font-size:19px;border-width:2px;border-radius:14px}.mj-toast.hit{background:linear-gradient(90deg,#dc2626,#9b1111);border-color:#ffb3b3;box-shadow:0 0 36px rgba(255,60,60,.7);animation:mjShake .5s}.mj-toast.skip{background:linear-gradient(90deg,#f59e0b,#c2410c)}.mj-toast.win{background:linear-gradient(90deg,#f5c542,#d98a00);color:#2a1800}.mj-toast.info{background:linear-gradient(90deg,#2563eb,#1e3a8a)}@keyframes mjShake{20%{margin-left:-14px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:5px}}' +
         '.mj3d-stand{position:absolute;left:14px;bottom:70px;z-index:5;pointer-events:auto}.mj3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(201,162,39,.6);background:rgba(8,5,12,.85);color:#f4e3b0;font-weight:800;cursor:pointer}';
       s.textContent += '.mj3d.uno{background:transparent;border:0;box-shadow:none;width:min(1000px,98%);bottom:52px;animation:none}.mj3d.uno .mj-msg,.mj3d.uno .mj-pl{align-self:center;background:rgba(8,5,12,.62);border-radius:999px;padding:3px 16px;text-shadow:0 1px 3px #000}.mj3d.uno .mj-hand{padding-top:26px}.mj3d.uno .mj-hand img{width:min(86px,13vh);box-shadow:0 8px 18px rgba(0,0,0,.55)}.mj3d.uno .mj-hand button.ok{transform:translateY(-16px)}.mj3d.uno .mj-hand button:hover{transform:translateY(-24px)}';
-      s.textContent += '.mj-badge{position:absolute;left:50%;top:min(56px,7vh);transform:translateX(-50%) scale(.9);z-index:4;pointer-events:none;padding:min(6px,1.2vh) min(18px,3.6vh);border-radius:999px;background:linear-gradient(180deg,rgba(255,214,77,.96),rgba(214,150,20,.96));border:2px solid #fff3b0;color:#2a1a00;font-weight:900;font-size:min(15px,3vh);letter-spacing:.05em;text-transform:uppercase;box-shadow:0 0 0 rgba(255,214,77,0);opacity:0;transition:opacity .3s,transform .3s}.mj-badge.on{opacity:1;transform:translateX(-50%) scale(1);animation:mjTurn 1.1s ease-in-out infinite alternate}@keyframes mjTurn{from{box-shadow:0 0 12px rgba(255,214,77,.5)}to{box-shadow:0 0 40px rgba(255,214,77,1),0 0 90px rgba(255,180,40,.55)}}.mj3d .mj-msg:empty{display:none}.mj3d.uno .mj-pl{display:none!important}' +
+      s.textContent += '.mj-badge{position:absolute;left:50%;top:min(52px,6vh);transform:translateX(-50%) scale(.9);z-index:4;pointer-events:none;padding:min(4px,.9vh) min(14px,2.8vh);border-radius:999px;background:linear-gradient(180deg,rgba(255,214,77,.96),rgba(214,150,20,.96));border:2px solid #fff3b0;color:#2a1a00;font-weight:900;font-size:min(13px,2.6vh);letter-spacing:.04em;text-transform:uppercase;box-shadow:0 0 0 rgba(255,214,77,0);opacity:0;transition:opacity .3s,transform .3s}.mj-badge.on{opacity:1;transform:translateX(-50%) scale(1);animation:mjTurn 1.1s ease-in-out infinite alternate}@keyframes mjTurn{from{box-shadow:0 0 12px rgba(255,214,77,.5)}to{box-shadow:0 0 40px rgba(255,214,77,1),0 0 90px rgba(255,180,40,.55)}}.mj3d .mj-pl:empty{display:none}.mj3d .mj-hint{font-size:13px}.mj3d .mj-msg:empty{display:none}.mj3d.uno .mj-pl{display:none!important}' +
         '.mj3d .mj-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-height:58vh;overflow-y:auto;padding:12px;background:rgba(8,5,12,.93);border:1px solid rgba(201,162,39,.6);border-radius:14px}.mj3d .mj-grid button{border:2px solid transparent;border-radius:8px;padding:0;background:none;cursor:pointer;opacity:.5}.mj3d .mj-grid button.ok{opacity:1;border-color:#ffe35a}.mj3d .mj-grid img{display:block;width:78px;height:auto;border-radius:6px}@media (max-height:520px){.mj3d .mj-grid{max-height:62vh;gap:5px;padding:8px}.mj3d .mj-grid img{width:50px}}';
       s.textContent += '.mj-fxpop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:9;pointer-events:none;font-weight:900;font-size:clamp(54px,10vw,120px);color:#fff;text-shadow:0 5px 0 #000,0 0 34px currentColor;animation:mjFx 1.5s ease-out forwards}@keyframes mjFx{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-12deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}35%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.1)}}';
-      s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}' +
+      s.textContent += '@media (max-height:520px){.mj3d{bottom:62px;width:min(560px,66%);padding:5px 8px;gap:3px}.mj3d .mj-msg{font-size:12px;min-height:14px}.mj3d .mj-hint{font-size:11px}.mj3d .mj-hand img{width:36px}.mj3d .mj-b{padding:5px 10px;font-size:12px}.mj3d .mj-col{padding:5px 0}.mj3d-stand{bottom:auto;top:64px}.mj-toast{font-size:20px;padding:8px 18px}' +
         '.mj3d.uno{bottom:34px;width:min(760px,78%);gap:2px}.mj3d.uno .mj-hand{padding-top:12px}.mj3d.uno .mj-hand img{width:min(44px,13vh);box-shadow:0 4px 10px rgba(0,0,0,.55)}.mj3d.uno .mj-hand button.ok{transform:translateY(-8px)}.mj3d.uno .mj-hand button:hover{transform:translateY(-12px)}.mj3d.uno .mj-grid img{width:44px}.mj3d.uno .mj-clr{width:54px;height:34px}}';
       document.head.appendChild(s);
     }
@@ -622,13 +622,13 @@
       var msg = errT > 0 ? errMsg : ((st.ph !== 'wait' && st.msg) || (Object.keys(st.seats).length < 2 ? 'En attente d\'un autre joueur…' : 'Tout le monde est là : lance la partie !'));
       ui.el.classList.toggle('myturn', mine);
       if (badgeEl) badgeEl.classList.toggle('on', mine);
-      if (u && st.ph === 'play' && errT <= 0) msg = '';                     // pendant la partie, plus de phrase au-dessus des joueurs (le gros bandeau dit quand c'est à toi)
+      if (st.ph === 'play' && errT <= 0) msg = '';                     // pendant la partie, plus de phrase au-dessus des joueurs (le gros bandeau dit quand c'est à toi)
       var m = ui.el.querySelector('.mj-msg'); if (m.textContent !== msg) m.textContent = msg; m.style.color = errT > 0 ? '#ff8a80' : (st.ph === 'over' && st.win === seat.local ? '#7ee0a0' : '');
       var pl = Object.keys(st.seats).map(Number).sort().map(function (n) {
         var e = st.seats[n], cnt = u && st.hands[n] ? ' · ' + st.hands[n].length + ' 🂠' : '', dot = u ? '' : (n === 0 ? '🔴 ' : '🟡 ');
         return (st.ph === 'play' && st.turn === n ? '<b>▶ ' : '<span>') + dot + esc(e.name) + cnt + (st.ph === 'play' && st.turn === n ? '</b>' : '</span>');
       }).join('') + (u && st.ph === 'play' ? '<span>Couleur : <b style="color:' + COLORS[st.col] + '">' + MJ.COLOR_NAMES[st.col] + '</b></span>' : '');
-      setHtml(ui.el.querySelector('.mj-pl'), pl);
+      setHtml(ui.el.querySelector('.mj-pl'), u || st.ph !== 'play' ? pl : '');       // Puissance 4 en partie : plus de noms ni de « Au tour de… »
       var body = '', startTxt = st.ph === 'over' ? '🔁 Rejouer' : '▶ Lancer la partie', canStart = u ? Object.keys(st.seats).length >= 2 : !!(st.seats[0] && st.seats[1]);
       if (u) {
         var hand = st.hands[seat.local] || [];
@@ -649,7 +649,7 @@
         }
       } else {
         var mir = seat.local === 1, cols = [0, 1, 2, 3, 4, 5, 6].map(function (v) { return mir ? 6 - v : v; });      // le joueur du côté opposé voit la grille à l'envers
-        if (st.ph === 'play') body = '<div class="mj-row" style="font-weight:800;font-size:13px;color:' + (mine ? '#ffe35a' : '#c9b88a') + '">' + (mine ? '👆 Clique sur la colonne de la grille où tu veux poser ton jeton (ou touches 1 à 7)' : 'Ton adversaire réfléchit…') + '</div>';
+        if (st.ph === 'play') body = '<div class="mj-row mj-hint" style="font-weight:800;color:' + (mine ? '#ffe35a' : '#c9b88a') + '">' + (mine ? 'Clique sur la colonne de la grille où tu veux poser ton jeton' : 'Ton adversaire réfléchit…') + '</div>';
         else body = '<div class="mj-row"><button class="mj-b" data-a="start"' + (canStart ? '' : ' disabled') + '>' + startTxt + '</button></div>';
       }
       setHtml(ui.el.querySelector('.mj-body'), body);
@@ -699,11 +699,12 @@
       if (!seat) return;
       view.yaw = Math.max(-1.2, Math.min(1.2, drag.seat.yaw - dx * 0.006));
       if (drag.mouse) view.pitch = Math.max(-0.45, Math.min(0.35, drag.seat.pitch - dy * 0.004));
+      else view.pitch = Math.max(-0.5, Math.min(0.4, drag.seat.pitch + dy * 0.004));        // doigt : on attrape la scène, glisser vers le bas fait regarder plus haut
     };
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.1 : -0.35), ey = u ? 2.25 : tc ? 1.75 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 0.9 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.1 : -0.35), ey = u ? 2.25 : tc ? 1.6 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.1 : -0.35), ty = u ? 0.86 : tc ? 1.2 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: u ? 72 : 62 };
     };
