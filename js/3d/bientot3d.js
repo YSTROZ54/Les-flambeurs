@@ -1,5 +1,5 @@
 /* =====================================================================
-   bientot3d.js — Trois salles VIDES du salon des mini jeux : PROP HUNT, TABLEAU DESSIN et GOLF
+   bientot3d.js — Salles VIDES « bientôt » du salon des mini jeux (plus aucune pour l'instant : Prop Hunt, Golf et Tableau dessin ont leurs vrais fichiers)
    ---------------------------------------------------------------------
    Les portes existent déjà dans le salon (minijeux3d.js) mais les jeux ne sont pas encore faits : à l'intérieur, une simple pièce
    avec une enseigne « BIENTÔT » et la porte pour revenir au salon. Pour créer le vrai jeu plus tard : remplacer la fabrique de la salle
@@ -12,9 +12,7 @@
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, TAU = F.TAU;
   var HX = 8, HZ = 6, H = 4.4;
 
-  var GAMES = {
-    dessin: { title: '🎨 TABLEAU DESSIN', name: 'TABLEAU DESSIN', sub: 'DESSINE ET DEVINE', color: '#4ad0ff', wall: '#12222c' }
-  };
+  var GAMES = {};   // le Tableau dessin a maintenant sa vraie salle : tableau3d.js
 
   function createRoom(id, world) {
     var G = GAMES[id], low = world.low;
