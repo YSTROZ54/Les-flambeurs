@@ -298,7 +298,8 @@
         '.ld3d .ld-p{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:2px solid #4b3a22;background:#241608;font-weight:800;font-size:13px}.ld3d .ld-p i{width:12px;height:12px;border-radius:50%;display:inline-block}.ld3d .ld-p.turn{border-color:#ffd24a;background:#3b2c0e}.ld3d .ld-p small{opacity:.7;font-weight:600}' +
         '.ld3d .ld-n{width:46px;height:46px;border-radius:50%;border:3px solid #ffd24a;background:#2a1b0a;color:#fff;font-weight:900;font-size:19px;cursor:pointer}.ld3d .ld-log{font-size:11px;color:#c9b88a;max-height:44px;overflow:hidden}.ld3d .ld-log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ld3d .ld-note{font-size:12px;color:#d9c88f;text-align:center}.ld3d kbd{opacity:.7;font-size:11px;margin-left:4px}' +
         '.ld3d-stand{position:absolute;left:14px;bottom:84px;z-index:5;pointer-events:auto}.ld3d-stand button{padding:8px 14px;border-radius:10px;border:1px solid rgba(217,168,48,.7);background:rgba(18,10,4,.88);color:#fff1d6;font-weight:800;cursor:pointer}' +
-        '@media (max-height:520px){.ld3d{bottom:62px;width:min(600px,64%);padding:5px 8px;gap:3px;max-height:56%}.ld3d .ld-msg{font-size:12px}.ld3d .ld-b{padding:6px 14px;font-size:13px}.ld3d .ld-n{width:36px;height:36px;font-size:16px}.ld3d .ld-p{padding:3px 8px;font-size:12px}.ld3d-stand{bottom:auto;top:64px}}';
+        '.ld3d.playing{background:none;border:0;padding:0;bottom:40px;width:auto;max-width:96%;max-height:none;overflow:visible;pointer-events:none}.ld3d.playing .ld-top,.ld3d.playing .ld-bar{display:none}.ld3d.playing .ld-body{display:flex;flex-direction:column;align-items:center;gap:6px}.ld3d.playing .ld-body>*{pointer-events:auto}.ld3d.playing .ld-note{background:rgba(18,10,4,.82);border-radius:999px;padding:3px 14px;text-shadow:0 1px 3px #000}' +
+        '@media (max-height:520px){.ld3d.playing{bottom:12px;width:auto;max-height:none;padding:0}.ld3d.playing .ld-note{font-size:11px;padding:2px 10px}.ld3d{bottom:62px;width:min(600px,64%);padding:5px 8px;gap:3px;max-height:56%}.ld3d .ld-msg{font-size:12px}.ld3d .ld-b{padding:6px 14px;font-size:13px}.ld3d .ld-n{width:36px;height:36px;font-size:16px}.ld3d .ld-p{padding:3px 8px;font-size:12px}.ld3d-stand{bottom:auto;top:64px}}';
       document.head.appendChild(s);
     }
     function fmtT(ms) { var s2 = Math.max(0, Math.ceil(ms / 1000)); return s2 + ' s'; }
@@ -309,7 +310,7 @@
       if (key !== shownKey) {
         shownKey = key;
         var h = '', colsHome = function (c) { return s.pawns[c].filter(function (p) { return p === HOME; }).length; };
-        h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + ((s.done || []).indexOf(p.color) >= 0 ? ' ✅ ' + ((s.done.indexOf(p.color)) + 1) + 'e' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
+        if (s.status !== 'playing') h += '<div class="ld-row">' + s.players.map(function (p) { return '<span class="ld-p' + (s.status === 'playing' && s.turn === p.color ? ' turn' : '') + '"><i style="background:' + CCSS[p.color] + '"></i>' + esc(p.avatar) + ' ' + esc(p.name) + (p.host ? ' 👑' : '') + (p.left ? ' 🤖' : '') + ((s.done || []).indexOf(p.color) >= 0 ? ' ✅ ' + ((s.done.indexOf(p.color)) + 1) + 'e' : '') + (s.status !== 'lobby' ? '<small>' + colsHome(p.color) + '/4 🏠</small>' : '') + '</span>'; }).join('') + '</div>';
         if (s.status === 'lobby') {
           h += '<div class="ld-note">' + s.players.length + ' joueur' + (s.players.length > 1 ? 's' : '') + ' (de 2 à 4). Il faut un 6 ou un 1 pour sortir un pion. Aucun argent n’est en jeu.</div>';
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="start"' + (s.players.length >= s.min ? '' : ' disabled') + '>▶ Lancer la partie</button></div>' : '<div class="ld-note">En attente du chef (' + esc(s.hostName) + ')…</div>';
@@ -319,14 +320,14 @@
           h += host ? '<div class="ld-row"><button class="ld-b" data-a="again">🔁 Rejouer</button></div>' : '<div class="ld-note">En attente du chef…</div>';
         } else {
           var tp = s.players.filter(function (p) { return p.color === s.turn; })[0], mine = y.color === s.turn;
-          h += '<div class="ld-msg">' + (mine ? '👉 À toi de jouer !' : 'Au tour de ' + (tp ? esc(tp.name) : '…') + ' (' + COLORS[s.turn] + ')') + (s.dice ? ' — dé : <b>' + s.dice + '</b>' : '') + '</div>';
+          if (0) h += '<div class="ld-msg">' + (mine ? '👉 À toi de jouer !' : 'Au tour de ' + (tp ? esc(tp.name) : '…') + ' (' + COLORS[s.turn] + ')') + (s.dice ? ' — dé : <b>' + s.dice + '</b>' : '') + '</div>';
           if (y.canRoll) h += '<div class="ld-row"><button class="ld-b" data-a="roll"' + (rollReady() ? '' : ' disabled') + '>🎲 Lancer le dé <kbd>Espace</kbd></button></div>';
           else if (y.canMove) h += '<div class="ld-row">' + (y.legal || []).map(function (j) { return '<button class="ld-n" data-m="' + j + '" style="border-color:' + CCSS[y.color] + '">' + (j + 1) + '</button>'; }).join('') + '</div><div class="ld-note">Clique sur un pion qui brille (ou sur son numéro).</div>';
           else if (mine) h += '<div class="ld-note">Un instant…</div>';
         }
         if (flash) h += '<div class="ld-note" style="color:#ff9a8a">' + esc(flash) + '</div>';
-        h += '<div class="ld-log">' + s.log.slice(-3).map(function (l) { return '<div>• ' + esc(l.t) + '</div>'; }).join('') + '</div>';
-        body.innerHTML = h;
+        if (s.status !== 'playing') h += '<div class="ld-log">' + s.log.slice(-3).map(function (l) { return '<div>• ' + esc(l.t) + '</div>'; }).join('') + '</div>';
+        el.classList.toggle('playing', s.status === 'playing'); body.innerHTML = h;       // en partie : seulement le dé et les numéros, en bas
       }
       el.querySelector('.ld-ph').textContent = (s.name || '') + (s.status === 'playing' ? ' · en cours' : s.status === 'lobby' ? ' · en attente' : ' · terminée');
       var left = s.phaseEnd - nowS(), tot = Math.max(1, s.phaseEnd - s.phaseStart);
@@ -388,18 +389,18 @@
     room.sitSpec = { y: -0.01, z: 0.28 };      // assise des chaises à 0,49 m
     room.remotePose = function (r) { var s = seats[r.seat]; return s ? { x: s.x, z: s.z, yaw: s.yaw } : null; };
     room.seatDragStart = function () { return { yaw: view.yaw, pitch: view.pitch }; };
-    room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-1.0, Math.min(1.0, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.35, Math.min(0.3, drag.seat.pitch - dy * 0.004)); };
+    room.seatDrag = function (drag, dx, dy) { if (!seat) return; view.yaw = Math.max(-1.0, Math.min(1.0, drag.seat.yaw - dx * 0.005)); if (drag.mouse) view.pitch = Math.max(-0.35, Math.min(0.3, drag.seat.pitch - dy * 0.004)); else view.pitch = Math.max(-0.4, Math.min(0.35, drag.seat.pitch + dy * 0.004)); };
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.7; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.2; }
       var T = TABLES[s.ti], d = DIRS[s.c], touch = world.touch;
       if (topView) {                                                      // vue du dessus : tout le plateau, les cases et les pions ; le plateau est décalé vers le haut de l'écran (le panneau est en bas)
-        var tx0 = T.x + d[0] * 1.0, tz0 = T.z + d[1] * 1.0, hgt = touch ? 5.5 : 5.2;
-        return { cx: tx0 + d[0] * 0.25, cy: hgt, cz: tz0 + d[1] * 0.25, tx: tx0, ty: TOP_Y, tz: tz0, fov: touch ? 58 : 62 };
+        var tx0 = T.x + d[0] * 0.35, tz0 = T.z + d[1] * 0.35, hgt = touch ? 4.7 : 4.6;
+        return { cx: tx0 + d[0] * 0.25, cy: hgt, cz: tz0 + d[1] * 0.25, tx: tx0, ty: TOP_Y, tz: tz0, fov: touch ? 58 : 60 };
       }
       var ex = T.x + d[0] * 2.45, ez = T.z + d[1] * 2.45, ey = 1.95;
-      var a = Math.atan2(T.x - ex, -(T.z - ez)) + view.yaw, p = Math.atan2(TOP_Y - ey, 2.1) + view.pitch + (touch ? -0.2 : 0);
-      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 6, ty: ey + Math.sin(p) * 6, tz: ez - Math.cos(a) * Math.cos(p) * 6, fov: touch ? 54 : 58 };
+      var a = Math.atan2(T.x - ex, -(T.z - ez)) + view.yaw, p = Math.atan2(TOP_Y - ey, 2.1) + view.pitch + (touch ? -0.14 : 0);
+      return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 6, ty: ey + Math.sin(p) * 6, tz: ez - Math.cos(a) * Math.cos(p) * 6, fov: touch ? 46 : 50 };
     };
     // clic (ou toucher) sur un pion qui peut jouer
     room.seatClick = function (ray) {
