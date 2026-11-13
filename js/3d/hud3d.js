@@ -111,7 +111,7 @@
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
       { id: 'bank', img: 'assets/icones/services/tropi-bank.png', name: 'Tropi Bank', sub: 'Virements entre joueurs', ic: 'fa-building-columns', c: '16,185,129' },
       { id: 'settings', img: 'assets/icones/applis/reglages.png', name: 'Réglages', sub: 'Son, souris, qualité 3D', ic: 'fa-sliders', c: '148,163,184' },
-      { id: 'cinema', name: 'Cinéma', sub: 'Régie du cinéma premium', ic: 'fa-clapperboard', c: '239,68,68' },   // Staff, Co Fondateur et Patron uniquement (voir canSeeCinema)
+      { id: 'cinema', name: 'Cinéma', sub: 'Régie des cinémas', ic: 'fa-clapperboard', c: '239,68,68' },   // Staff, Co Fondateur et Patron uniquement (voir canSeeCinema)
       { id: 'admin', img: 'assets/icones/applis/direction.png', name: 'Direction', sub: 'Rôles, soldes et comptes', ic: 'fa-crown', c: '201,162,39' }   // Patron / Co Fondateur uniquement (voir canSeeAdmin)
     ];
     // Patron ou Co Fondateur : seuls à voir l'appli « Direction »
@@ -712,17 +712,18 @@
     }
 
     /* ---------- appli Cinéma (Staff, Co Fondateur, Patron) : la régie du cinéma premium, la même séance que dans la salle (api/cinema.js) ---------- */
-    var cin = { st: null, recv: 0, pl: null, plLoading: false, q: '', n: 30, pick: null, day: 0, h: 20, m: 0, busy: '', timer: 0, ticks: 0 };
+    var cin = { room: null, st: null, recv: 0, pl: null, plLoading: false, q: '', n: 30, pick: null, day: 0, h: 20, m: 0, busy: '', timer: 0, ticks: 0 };
     function canSeeCinema() { try { return !!(F.isStaff && F.isStaff()); } catch (e) { return false; } }
     function fmtHMS(s) { s = Math.max(0, Math.floor(s || 0)); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (sec < 10 ? '0' : '') + sec; }
     function cinPos() { var st = cin.st; if (!st) return 0; var p = st.position || 0; if (st.status === 'playing') p += (performance.now() - cin.recv) / 1000; return Math.max(0, p); }
     function cinSet(st) { if (st && typeof st === 'object') { cin.st = st; cin.recv = performance.now(); } }
     function cinFetch() {
-      return fetch('/api/cinema?room=premium', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinSet(st); if (phoneOpen && page === 'cinema') paintCinema(); }).catch(function () { /* hors ligne */ });
+      if (!cin.room) return Promise.resolve();
+      return fetch('/api/cinema' + (cin.room === 'premium' ? '?room=premium' : ''), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (st) { cinSet(st); if (phoneOpen && page === 'cinema') paintCinema(); }).catch(function () { /* hors ligne */ });
     }
     function cinStop() { if (cin.timer) { clearInterval(cin.timer); cin.timer = 0; } }
     function cinStart() {
-      cinStop(); cin.ticks = 0; cinFetch();
+      cinStop(); cin.ticks = 0; cin.room = null; cin.st = null;   // on choisit d'abord le cinéma
       cin.timer = setInterval(function () {
         if (!phoneOpen || page !== 'cinema') { cinStop(); return; }
         if (++cin.ticks % 2 === 0) cinFetch(); else paintCinema();     // le serveur toutes les 2 s, la barre de progression chaque seconde
@@ -741,7 +742,7 @@
     }
     function cinFilmById(id) { return (cin.pl || []).filter(function (x) { return String(x.id) === String(id); })[0] || null; }
     function cinAct(action, extra) {
-      return w.post('/api/cinema', Object.assign({ action: action, room: 'premium' }, extra || {})).then(function (r) {
+      return w.post('/api/cinema', Object.assign({ action: action, room: cin.room === 'premium' ? 'premium' : '' }, extra || {})).then(function (r) {
         if (r && r.ok && r.state) { cinSet(r.state); if (phoneOpen && page === 'cinema') paintCinema(); }
         else w.flash('⛔ ' + ((r && r.error) || 'Impossible de joindre le serveur.'));
         return r;
@@ -749,6 +750,13 @@
     }
     function cinemaHtml() {
       var back = '';
+      if (!cin.room) {                                  // d'abord : dans quel cinéma ? (une séance lancée ici ne touche jamais l'autre)
+        var boss = false; try { boss = (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) || (typeof isCurrentUserCoFounder === 'function' && isCurrentUserCoFounder()); } catch (e) { /* ok */ }
+        return subHead('Quel cinéma ?') +
+          '<button class="ph-cat" data-act="cin" data-cin="room" data-room="premium">' + logo(fa('fa-crown'), '201,162,39') + '<span><b>Cinéma premium</b><small>Grande salle, séance à part</small></span>' + fa('fa-chevron-right') + '</button>' +
+          (boss ? '<button class="ph-cat" data-act="cin" data-cin="room" data-room="classic">' + logo(fa('fa-film'), '239,68,68') + '<span><b>Cinéma basique</b><small>Petite salle rouge, séance à part</small></span>' + fa('fa-chevron-right') + '</button>' : '<div class="ph-hint">Le cinéma basique est réservé au Co Fondateur et au Patron.</div>') +
+          '<div class="ph-hint">Les deux cinémas ont chacun leur séance : ce que tu lances dans l&rsquo;un ne se lance pas dans l&rsquo;autre.</div>';
+      }
       if (sub === 'films') {
         return '<div class="ph-cin-search"><i class="fa-solid fa-magnifying-glass"></i><input class="ph-in" data-ph="cinq" maxlength="100" placeholder="Titre, année, genre…" autocomplete="off" spellcheck="false" value="' + esc(cin.q) + '"></div>' +
           '<div data-ph="cinlist" class="ph-cin-list"></div>';
@@ -764,7 +772,8 @@
           '<button class="ph-btn-main" data-act="cin" data-cin="sched-add">' + fa('fa-calendar-plus') + ' Programmer la séance</button>' +
           subHead('Séances programmées') + '<div data-ph="cinsched"></div>';
       }
-      return '<div class="ph-card-setting"><div class="ph-cin-now"><div class="ph-cin-poster"><img data-ph="cinposter" alt="" hidden><i class="fa-solid fa-film"></i></div>' +
+      return '<button class="ph-cin-room" data-act="cin" data-cin="room-change">' + fa('fa-door-open') + ' ' + (cin.room === 'premium' ? 'Cinéma premium' : 'Cinéma basique') + ' <u>changer</u></button>' +
+        '<div class="ph-card-setting"><div class="ph-cin-now"><div class="ph-cin-poster"><img data-ph="cinposter" alt="" hidden><i class="fa-solid fa-film"></i></div>' +
         '<div class="ph-cin-info"><span class="ph-cin-badge" data-ph="cinbadge">…</span><b data-ph="cintitle">Chargement…</b><small data-ph="cinmeta"></small>' +
         '<div class="ph-cin-bar"><i data-ph="cinbar"></i></div><div class="ph-cin-time"><span data-ph="cint1">0:00</span><span data-ph="cint2"></span></div></div></div>' +
         '<div class="ph-cin-btns"><button class="ph-cin-b play" data-act="cin" data-cin="play">' + fa('fa-play') + ' Lancer</button><button class="ph-cin-b pause" data-act="cin" data-cin="pause">' + fa('fa-pause') + ' Pause</button><button class="ph-cin-b stop" data-act="cin" data-cin="stop">' + fa('fa-stop') + ' Couper</button></div>' +
@@ -778,6 +787,7 @@
     }
     function paintCinema() {
       if (page !== 'cinema') return;
+      if (!cin.room) return;
       if (sub === 'plan') { paintCinPick(); paintCinSched(); return; }
       if (sub !== 'home') return;
       var st = cin.st, tt = q('cintitle');
@@ -823,7 +833,9 @@
     }
     function cinClick(t) {
       var c = t.getAttribute('data-cin'), st = cin.st;
-      if (c === 'play' || c === 'pause' || c === 'stop') { cinAct(c); }
+      if (c === 'room') { cin.room = t.getAttribute('data-room') === 'premium' ? 'premium' : 'classic'; cin.st = null; sub = 'home'; renderPhone(); cinFetch(); }
+      else if (c === 'room-change') { cin.room = null; cin.st = null; sub = 'home'; renderPhone(); }
+      else if (c === 'play' || c === 'pause' || c === 'stop') { cinAct(c); }
       else if (c === 'seek' || c === 'seek-play') {
         var gv = function (k) { var el = q('cks-' + k); return Math.max(0, parseInt(el && el.value, 10) || 0); };
         cinAct('seek', { position: gv('h') * 3600 + gv('m') * 60 + gv('s'), play: c === 'seek-play' });

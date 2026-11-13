@@ -3393,3 +3393,5 @@ body.sidebar-deplie #headerBrand { display: flex !important; }
   .hall-promo-btn:hover { filter: brightness(1.15); }
   .hall-promo-btn:active { transform: scale(.97); }
 }
+.ph-cin-room { display: flex; align-items: center; gap: 6px; width: 100%; margin-bottom: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fecaca; font-size: 11px; font-weight: 800; cursor: pointer; }
+.ph-cin-room u { margin-left: auto; color: #94a3b8; font-weight: 700; }
