@@ -137,7 +137,27 @@
 
     // mur d'entrée (derrière le joueur au départ) : au milieu la double porte du cinéma de Tropi Stream (cinema3d.js), à gauche (en regardant le mur)
     // la bannière Tropi Stream, à droite l'affiche de la séance (dessinée ici, pas d'image à charger)
-    neon(WALL.entree, -4.75, 4.2, 'assets/bannieres/tropistream-2.jpg', 4.95, 2.475, 0xff7a1a);   // nouvelle bannière (2 pour 1)
+    neon(WALL.entree, -4.75, 4.2, 'assets/promo/tropistream.webp?v=1', 4.95, 2.786, 0xff7a1a);   // bannière Tropi Stream (16/9, image complète)
+    // touche « Rejoindre le Discord » sous une bannière : une plaque cliquable (ou F à côté) qui ouvre l'invitation dans un nouvel onglet
+    function discordPlaque(mur, along, ay, nom, url, hex) {
+      var cv = mkCanvas(640, 120), cx = cv.getContext('2d'), rr = 26;
+      cx.fillStyle = '#5865f2'; cx.beginPath(); cx.moveTo(rr, 4); cx.lineTo(636 - rr, 4); cx.quadraticCurveTo(636, 4, 636, 4 + rr); cx.lineTo(636, 116 - rr); cx.quadraticCurveTo(636, 116, 636 - rr, 116); cx.lineTo(rr, 116); cx.quadraticCurveTo(4, 116, 4, 116 - rr); cx.lineTo(4, 4 + rr); cx.quadraticCurveTo(4, 4, rr, 4); cx.fill();
+      cx.lineWidth = 6; cx.strokeStyle = '#f3d98a'; cx.stroke();
+      cx.fillStyle = '#ffffff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.shadowColor = 'rgba(0,0,0,0.4)'; cx.shadowBlur = 4;
+      cx.font = '800 34px ' + MONO; cx.fillText('REJOINDRE LE DISCORD', 320, 44);
+      cx.font = '900 40px ' + SERIF; cx.fillText(nom.toUpperCase(), 320, 86);
+      var th = Math.atan2(mur.nx, mur.nz), pw2 = new THREE.Group(); pw2.position.set(mur.x, 0, mur.z); pw2.rotation.y = th; g.add(pw2);
+      var pm = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 0.506), new THREE.MeshBasicMaterial({ map: mkTex(cv) })); pm.position.set(along, ay, 0.07); pw2.add(pm);
+      room.interactables.push({
+        x: mur.x + mur.nx * 1.8 + along * Math.cos(th), z: mur.z + mur.nz * 1.8 - along * Math.sin(th), radius: 3.2, hit: pm,
+        prompt: function () { return '💬 Rejoindre le Discord ' + nom + '  [F]'; },
+        use: function (w) { if (w && (w.mode !== 'room' || w.blend > 0 || w.trans)) return; try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { /* bloqué */ } }
+      });
+    }
+    discordPlaque(WALL.entree, -4.75, 2.2, 'Tropistream', 'https://discord.gg/gAPZuCn579', 0xff7a1a);
+    // bannière Tropico, à gauche de la porte du cinéma premium (en face de l'affiche du programme)
+    neon(WALL.droite, -4.3, 3.3, 'assets/promo/tropico.webp?v=1', 4.4, 2.475, 0xff9a3c);
+    discordPlaque(WALL.droite, -4.3, 1.6, 'Tropico', 'https://discord.gg/wZYb9RBYN7', 0xff9a3c);
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
     // affiche du cinéma premium : un vrai cadre de musée (moulure dorée en relief, rosaces, couronne au sommet, halo chaud sur le mur)
     function luxFrame(mur, along, ay, bw, bh, canvas) {
@@ -373,7 +393,7 @@
         wrapLines(sn, titre, 1040, 1).forEach(function (ln) { sn.fillText(ln, tx, BY + 92); });
         sn.fillStyle = P2.c2; sn.font = '700 23px ' + MONO; sn.fillText('🕐  Depuis ' + fmtHeureBoard(startD) + (f && f.annee ? '   ·   ' + f.annee : '') + (f && f.genres && f.genres[0] ? '   ·   ' + f.genres[0] : ''), tx, BY + 136);
       } else {
-        var ban = getImg('assets/bannieres/tropistream-2.jpg'), BWI = 304;      // la nouvelle bannière (2 pour 1) à gauche
+        var ban = getImg('assets/promo/tropistream.webp?v=1'), BWI = 304;      // la nouvelle bannière (2 pour 1) à gauche
         poster(ban, BX, BY, BWI, BH, 10);
         var tx4 = BX + BWI + 28;
         sn.textAlign = 'left'; sn.textBaseline = 'alphabetic';
