@@ -129,18 +129,21 @@
   };
   Q.label = function () { return { auto: 'Auto', high: 'Haute', medium: 'Moyenne', low: 'Basse' }[Q.mode] + (Q.fps ? ' · ' + Q.fps + ' fps' : ''); };
   // à appeler à chaque image avec le vrai temps écoulé ; renvoie true si le niveau a changé
-  var qAcc = 0, qFrames = 0, qLow = 0, qGrace = 2;
+  var qAcc = 0, qFrames = 0, qLow = 0, qGrace = 2, qHigh = 0, qDrops = 0;
   Q.frame = function (realDt) {
     qAcc += realDt; qFrames++;
     if (qAcc < 1.5) return false;
     var fps = qFrames / qAcc; Q.fps = Math.round(fps); qAcc = 0; qFrames = 0;
     if (qGrace > 0) { qGrace--; return false; }
     if (Q.mode !== 'auto' || document.hidden) return false;
-    if (fps < 40 && Q.level < 3) { qLow++; if (qLow >= 2) { qLow = 0; Q.level++; return true; } }
-    else qLow = 0;
+    if (fps < 40 && Q.level < 3) { qHigh = 0; qLow++; if (qLow >= 2) { qLow = 0; qDrops++; Q.level++; return true; } return false; }
+    qLow = 0;
+    // l'Auto remonte aussi : si ça tourne bien (≥ 52 i/s) assez longtemps, on regagne un cran de netteté (de plus en plus prudemment si ça rechute)
+    if (fps >= 52 && Q.level > 0) { qHigh++; if (qHigh >= 3 + 4 * Math.min(qDrops, 4)) { qHigh = 0; Q.level--; return true; } }
+    else qHigh = 0;
     return false;
   };
-  Q.resetGrace = function () { qGrace = 2; qAcc = 0; qFrames = 0; qLow = 0; };
+  Q.resetGrace = function () { qGrace = 2; qAcc = 0; qFrames = 0; qLow = 0; qHigh = 0; };
 
   /* ---------- petits personnages (comme au poker, en plus basique) ---------- */
   var SKIN_TONES = [0xf1c9a5, 0xe0ac82, 0xc68642, 0x8d5524, 0xffdbac, 0xd9a066];
