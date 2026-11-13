@@ -3375,3 +3375,8 @@ body.s3d-full-on #sidebarBackdrop {
   [class*="-stand"] button { padding: 6px 10px; font-size: 11px; border-radius: 9px; }
   [class*="-stand"] kbd { display: none; }
 }
+
+/* ================= ACCUEIL ÉPURÉ : plus de menu de côté ni de bouton de déconnexion dans l'en-tête ================= */
+#mainSidebar, #sidebarBackdrop, #topLogoutBtn, #mobileSidebarToggleBtn { display: none !important; }
+body.sidebar-deplie { padding-left: 0 !important; }
+body.sidebar-deplie #headerBrand { display: flex !important; }

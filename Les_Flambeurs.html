@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.11">
+  <link rel="stylesheet" href="css/style.css?v=5.12">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -500,8 +500,7 @@
         class="hidden rounded-2xl p-4 md:p-5 border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-900/30 to-amber-500/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3">
         <div>
           <div class="font-serif-title text-lg md:text-xl font-black text-amber-200"><i class="fa-solid fa-gamepad"></i>
-            Casino en 3D <span
-              class="text-[10px] align-middle px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold ml-1">NOUVEAU</span>
+            Casino en 3D 
           </div>
           <p class="text-xs md:text-sm text-stone-300">Marche dans le hall, pousse les portes, retrouve les autres
             joueurs et assieds-toi aux machines à sous. Le menu classique reste disponible à tout moment.</p>
@@ -520,7 +519,7 @@
               <i class="fa-solid fa-masks-theater"></i> Cercle Privé entre Amis &amp; Flambeurs Anonymes
             </div>
             <h1 class="font-serif-title text-3xl md:text-5xl font-black text-white tracking-wide">
-              LES FLAMBEURS
+              TROPIFLAMBEURS
             </h1>
             <p class="text-amber-300/90 font-serif-title text-sm md:text-base tracking-widest uppercase">
               Le Casino Anonyme • Monnaie 100% Virtuelle
@@ -531,7 +530,7 @@
               catégories dans le <strong>Tropi Shop</strong>. Fais un don ou gère tes transferts dans <strong>La
                 Banque</strong> !
             </p>
-            <div class="flex flex-wrap gap-2.5 pt-2">
+            <div class="flex flex-wrap gap-2.5 pt-2" id="hallQuickBtns" style="display:none">
               <button onclick="switchRoom('bank')"
                 class="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-xs font-bold transition">
                 <i class="fa-solid fa-building-columns"></i> Faire un don à un pauvre
@@ -581,7 +580,7 @@
       </div>
 
       <!-- GRILLE DE TOUTES LES SALLES DE JEUX (SANS LE CINÉ-QUIZ) -->
-      <div class="space-y-4">
+      <div class="space-y-4" id="hallGamesGrid" style="display:none">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="font-serif-title text-2xl font-extrabold text-white">Les Tables &amp; Salles de Jeux</h2>
           <span class="text-xs text-stone-400">Clique sur « <i class="fa-solid fa-circle-question"></i> Comment jouer »
