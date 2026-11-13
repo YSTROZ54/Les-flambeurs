@@ -17,7 +17,7 @@ const ROW = '__tableaux__';
 const IMG_ROW = (id) => '__tabimg_' + id;
 export const PRICE = 100;                // prix d'un tableau (pièces)
 export const MAX_PER_PLAYER = 3;         // tableaux par joueur et par semaine
-export const MAX_ITEMS = 120;            // tableaux accrochés en même temps
+export const MAX_ITEMS = 20;             // tableaux accrochés en même temps (autant que de cadres sur les murs de la salle)
 export const MAX_IMG_CHARS = 160000;     // taille maximale de l'image (texte base64)
 export const SHARES = { 1: [100], 2: [60, 40], 3: [50, 30, 20] };   // partage de la cagnotte selon le nombre de gagnants
 

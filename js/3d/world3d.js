@@ -1051,7 +1051,8 @@
       var ty = Math.PI - yaw, ey = r.person.emoYaw, base = g.rotation.y - ey, dy = ((ty - base + Math.PI * 3) % TAU) - Math.PI;
       g.rotation.y = base + dy * Math.min(1, dt * 6) + ey;
 
-      if (sp > 0.12 && !r.person.seated) { r.person.clearEmote(); r.person.walk(dt, sp); }
+      if (room.remoteAnim && room.remoteAnim(r, k, dt)) { /* la salle anime elle-même ce personnage (ex. : il peint devant son chevalet) */ }
+      else if (sp > 0.12 && !r.person.seated) { r.person.clearEmote(); r.person.walk(dt, sp); }
       else if (!r.person.playEmote(dt)) r.person.stopWalk();
       r.person.applyHold(dt);
     });

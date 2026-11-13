@@ -5,8 +5,9 @@
    (un vote par semaine, pas pour soi) ; le lundi à minuit (heure de Paris) la cagnotte entière est partagée entre les auteurs des trois
    tableaux les plus votés, qui montent alors sur le podium du mur du fond.
    TOUT est décidé par le serveur (api/tableaux.js : paiement, votes, classement, partage) ; ici on ne fait que dessiner et demander.
-   Salle : mur de gauche et mur de droite = 8 cadres chacun (les mieux votés d'abord ; les autres sont dans la liste du pupitre),
-           mur du fond = podium de la semaine passée, au centre-gauche le chevalet, au centre-droit le pupitre « tous les tableaux ».
+   Salle : mur de gauche et mur de droite = 10 cadres chacun (les mieux votés d'abord), chacun avec son cœur pour voter d'un clic ;
+           mur du fond = podium de la semaine passée (contre le mur), quatre chevalets au milieu, panneau du concours près de la porte.
+   Quand quelqu'un peint, son personnage se place devant le chevalet et fait le geste de peindre chez tous les autres (message « paint »).
    Fichiers liés : api/tableaux.js, minijeux3d.js (la porte « TABLEAU DESSIN »), world3d.js.
    ===================================================================== */
 (function () {
@@ -14,10 +15,10 @@
   var F = window.F3D;
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, EMOJI = F.EMOJI_FONT, TAU = F.TAU, fmtN = F.fmtN;
-  var HX = 9, HZ = 7, H = 4.6;
+  var HX = 11, HZ = 9, H = 5.2;
   var API = '/api/tableaux';
   var CW = 480, CH = 360;                 // taille d'un tableau (pixels)
-  var COLS_Z = [-5.1, -1.7, 1.7, 5.1], ROWS_Y = [1.35, 3.35], FW = 1.75, FH = 1.3125;
+  var COLS_Z = [-6.8, -3.4, 0, 3.4, 6.8], ROWS_Y = [1.35, 3.35], FW = 1.75, FH = 1.3125;
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -100,7 +101,7 @@
     [[HX * 2, 0.15, 0.15, 0, H - 0.08, -HZ + 0.08], [HX * 2, 0.15, 0.15, 0, H - 0.08, HZ - 0.08], [0.15, 0.15, HZ * 2, -HX + 0.08, H - 0.08, 0], [0.15, 0.15, HZ * 2, HX - 0.08, H - 0.08, 0],
       [HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (b) { box(g, b[0], b[1], b[2], goldM, b[3], b[4], b[5]); });
     g.add(new THREE.AmbientLight(0xf4eaf4, 1.35));
-    if (!low) { [[-5, 3.6, 0], [5, 3.6, 0], [0, 3.6, -4.5]].forEach(function (p) { var l = new THREE.PointLight(0xffe2b0, 0.55, 11); l.position.set(p[0], p[1], p[2]); g.add(l); }); }
+    if (!low) { [[-6, 4.2, 0], [6, 4.2, 0], [0, 4.2, -6], [0, 4.2, 4]].forEach(function (p) { var l = new THREE.PointLight(0xffe2b0, 0.55, 11); l.position.set(p[0], p[1], p[2]); g.add(l); }); }
 
     /* ---------- images : chargées une fois par tableau, partagées entre cadres ---------- */
     var blankC = mkCanvas(64, 48), bx = blankC.getContext('2d'); bx.fillStyle = '#17121c'; bx.fillRect(0, 0, 64, 48); bx.strokeStyle = '#3a2f46'; bx.lineWidth = 2; bx.strokeRect(6, 6, 52, 36);
@@ -125,8 +126,11 @@
       var pc = mkCanvas(512, Math.round(512 * 0.34 / Math.max(w, 1.8))), pctx = pc.getContext('2d'), ptex = mkTex(pc);
       var pw = Math.max(w, 1.8), pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, 0.34), new THREE.MeshBasicMaterial({ map: ptex })); pl.position.set(0, -(h / 2 + 0.36), 0.05); grp.add(pl);
       var hit = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ visible: false })); hit.position.z = 0.12; grp.add(hit);
+      var hc = mkCanvas(128, 128), hctx = hc.getContext('2d'), htex = mkTex(hc);
+      var heart = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46), new THREE.MeshBasicMaterial({ map: htex, transparent: true })); heart.position.set(w / 2 - 0.02, h / 2 - 0.02, 0.16); grp.add(heart);
+      var hhit = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46), new THREE.MeshBasicMaterial({ visible: false })); hhit.position.set(w / 2 - 0.02, h / 2 - 0.02, 0.17); grp.add(hhit);
       var nx = Math.sin(ry), nz = Math.cos(ry);
-      return { grp: grp, mat: mat, plane: plane, hit: hit, pc: pc, pctx: pctx, ptex: ptex, w: pw, sx: x + nx * 2.2, sz: z + nz * 2.2, item: null, sig: '', font: plaqueFont || 34 };
+      return { hctx: hctx, htex: htex, hhit: hhit, grp: grp, mat: mat, plane: plane, hit: hit, pc: pc, pctx: pctx, ptex: ptex, w: pw, sx: x + nx * 2.2, sz: z + nz * 2.2, item: null, sig: '', font: plaqueFont || 34 };
     }
     function paintPlaque(f, l1, l2, l3) {
       var c = f.pctx, W = f.pc.width, Hh = f.pc.height;
@@ -135,6 +139,13 @@
       c.fillStyle = '#ffe9a8'; c.font = '800 ' + Math.round(Hh * 0.42) + 'px ' + SERIF; c.fillText(ellipsize(c, l1, W - 24), W / 2, Hh * 0.3);
       c.fillStyle = '#cdbf94'; c.font = '600 ' + Math.round(Hh * 0.3) + 'px ' + SERIF + ',' + EMOJI; c.fillText(ellipsize(c, l2, W - 24), W / 2, Hh * 0.72);
       f.ptex.needsUpdate = true;
+    }
+    // le cœur du cadre : rouge et plein si c'est mon vote, creux sinon ; le chiffre est le nombre de votes
+    function paintHeart(f, votes, mine, show) {
+      var c = f.hctx; c.clearRect(0, 0, 128, 128); if (!show) { f.htex.needsUpdate = true; return; }
+      c.beginPath(); c.moveTo(64, 112); c.bezierCurveTo(8, 72, 6, 22, 40, 20); c.bezierCurveTo(56, 19, 64, 32, 64, 40); c.bezierCurveTo(64, 32, 72, 19, 88, 20); c.bezierCurveTo(122, 22, 120, 72, 64, 112); c.closePath();
+      c.fillStyle = mine ? '#ff3b5c' : 'rgba(20,12,24,0.88)'; c.fill(); c.lineWidth = 6; c.strokeStyle = mine ? '#ffd0d8' : '#ffe08a'; c.stroke();
+      c.fillStyle = '#fff'; c.font = '900 ' + (votes > 99 ? 34 : 44) + 'px ' + SERIF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(votes), 64, 54); f.htex.needsUpdate = true;
     }
     function setImage(f, id) {
       if (!id) { f.mat.map = blankTex; f.mat.needsUpdate = true; return; }
@@ -161,25 +172,27 @@
       var bc = mkCanvas(256, 128), bctx = bc.getContext('2d'); bctx.fillStyle = p.col; bctx.fillRect(0, 0, 256, 128);
       bctx.fillStyle = 'rgba(0,0,0,.22)'; bctx.fillRect(0, 0, 256, 10); bctx.fillStyle = '#2a1c00'; bctx.font = '900 96px ' + SERIF; bctx.textAlign = 'center'; bctx.textBaseline = 'middle'; bctx.fillText(String(p.rank), 128, 70);
       var side = new THREE.MeshStandardMaterial({ map: mkTex(bc), roughness: 0.35, metalness: 0.55 }), topM = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.col), roughness: 0.35, metalness: 0.55 });
-      box(g, 2.3, p.bh, 1.1, [side, side, topM, topM, side, side], p.x, p.bh / 2, -HZ + 0.7);
-      room.colliders.push({ x: p.x, z: -HZ + 0.7, r: 1.0 }, { x: p.x - 0.8, z: -HZ + 0.7, r: 0.7 }, { x: p.x + 0.8, z: -HZ + 0.7, r: 0.7 });
-      paintPlaque(p.f, p.name, 'à venir…');
+      box(g, 2.3, p.bh, 0.45, [side, side, topM, topM, side, side], p.x, p.bh / 2, -HZ + 0.3);
+      room.colliders.push({ x: p.x - 0.8, z: -HZ + 0.3, r: 0.5 }, { x: p.x, z: -HZ + 0.3, r: 0.5 }, { x: p.x + 0.8, z: -HZ + 0.3, r: 0.5 });
+      paintPlaque(p.f, p.name, 'à venir…'); paintHeart(p.f, 0, false, false); p.f.hhit.visible = false;
     });
     var titleC = mkCanvas(1024, 96), titleX = titleC.getContext('2d'), titleT = mkTex(titleC);
-    var titleM = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.52), new THREE.MeshBasicMaterial({ map: titleT, transparent: true })); titleM.position.set(0, 4.3, -HZ + 0.04); g.add(titleM);
+    var titleM = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.46), new THREE.MeshBasicMaterial({ map: titleT, transparent: true })); titleM.position.set(0, 4.45, -HZ + 0.04); g.add(titleM);
     function paintTitle(txt) {
       titleX.clearRect(0, 0, 1024, 96); titleX.textAlign = 'center'; titleX.textBaseline = 'middle'; titleX.shadowColor = '#ffd24a'; titleX.shadowBlur = 16;
-      titleX.fillStyle = '#ffe08a'; titleX.font = '900 62px ' + SERIF + ',' + EMOJI; titleX.fillText(txt, 512, 50, 990); titleT.needsUpdate = true;
+      titleX.fillStyle = '#ffe08a'; titleX.font = '900 58px ' + SERIF + ',' + EMOJI; titleX.fillText(txt, 512, 50, 990); titleT.needsUpdate = true;
     }
     paintTitle('🏆 PODIUM DE LA SEMAINE PASSÉE');
 
     /* ---------- panneau d'information (mur de l'entrée, à gauche de la porte) ---------- */
-    var infoC = mkCanvas(1024, 640), infoX = infoC.getContext('2d'), infoT = mkTex(infoC);
-    var infoM = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.625), new THREE.MeshBasicMaterial({ map: infoT })); infoM.position.set(-5.2, 2.5, HZ - 0.05); infoM.rotation.y = Math.PI; g.add(infoM);
-    box(g, 4.4, 2.8, 0.06, goldM, -5.2, 2.5, HZ - 0.02);
+    var infoC = mkCanvas(2048, 1280), infoX = infoC.getContext('2d'), infoT = mkTex(infoC); infoT.anisotropy = 8;
+    var INFO_X = -6.2, INFO_W = 4.4, INFO_H = INFO_W * 0.625;
+    var infoM = new THREE.Mesh(new THREE.PlaneGeometry(INFO_W, INFO_H), new THREE.MeshBasicMaterial({ map: infoT })); infoM.position.set(INFO_X, 2.55, HZ - 0.07); infoM.rotation.y = Math.PI; g.add(infoM);   // une seule face, tournée vers la salle
+    box(g, INFO_W + 0.3, INFO_H + 0.3, 0.04, std(0x120c08, 0.8, 0.1), INFO_X, 2.55, HZ - 0.02);                      // fond derrière le panneau (jamais au même endroit : plus de moiré)
+    [[INFO_W + 0.3, 0.12, 0, INFO_H / 2 + 0.15], [INFO_W + 0.3, 0.12, 0, -INFO_H / 2 - 0.15], [0.12, INFO_H + 0.3, INFO_W / 2 + 0.15, 0], [0.12, INFO_H + 0.3, -INFO_W / 2 - 0.15, 0]].forEach(function (b) { box(g, b[0], b[1], 0.08, goldM, INFO_X + b[2], 2.55 + b[3], HZ - 0.05); });
     var data = null, skew = 0;
     function paintInfo() {
-      var c = infoX, W = 1024, Hh = 640; c.fillStyle = '#0c0a12'; c.fillRect(0, 0, W, Hh); c.strokeStyle = '#4ad0ff'; c.lineWidth = 8; c.strokeRect(14, 14, W - 28, Hh - 28);
+      var c = infoX, W = 1024, Hh = 640; c.setTransform(2, 0, 0, 2, 0, 0); c.fillStyle = '#0c0a12'; c.fillRect(0, 0, W, Hh); c.strokeStyle = '#4ad0ff'; c.lineWidth = 8; c.strokeRect(14, 14, W - 28, Hh - 28);
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillStyle = '#4ad0ff'; c.font = '900 60px ' + SERIF + ',' + EMOJI; c.fillText('🎨 CONCOURS DE LA SEMAINE', W / 2, 70, W - 60);
       c.fillStyle = '#ffe08a'; c.shadowColor = '#ffd24a'; c.shadowBlur = 24; c.font = '900 118px ' + MONO + ',' + EMOJI; c.fillText(data ? fmtN(data.pot) + ' 🪙' : '…', W / 2, 190, W - 60); c.shadowBlur = 0;
@@ -191,27 +204,24 @@
     }
     paintInfo();
 
-    /* ---------- chevalet (peindre) et pupitre (tous les tableaux) ---------- */
-    var EASEL = { x: -3.2, z: 2.6 }, KIOSK = { x: 3.2, z: 2.6 };
-    (function () {
-      var wood = std(0x8a5a30, 0.75, 0.05), e = new THREE.Group(); e.position.set(EASEL.x, 0, EASEL.z); e.rotation.y = Math.PI * 0.18; g.add(e);
-      box(e, 0.07, 2.1, 0.07, wood, -0.55, 1.05, -0.35).rotation.z = 0.05; box(e, 0.07, 2.1, 0.07, wood, 0.55, 1.05, -0.35).rotation.z = -0.05; box(e, 0.07, 2.0, 0.07, wood, 0, 1.0, -0.75).rotation.x = -0.18;
-      box(e, 1.25, 0.06, 0.1, wood, 0, 0.75, -0.3);
-      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4 })); cv.position.set(0, 1.35, -0.28); cv.rotation.x = -0.08; e.add(cv);
-      var sw = [0xff4a4a, 0x4ab0ff, 0xffd24a, 0x4aff9a, 0xc04aff, 0xff8a2a];
-      sw.forEach(function (col, i) { var dot = new THREE.Mesh(new THREE.CircleGeometry(0.07 + (i % 3) * 0.02, 12), new THREE.MeshBasicMaterial({ color: col })); dot.position.set(-0.4 + (i % 3) * 0.4, 1.12 + Math.floor(i / 3) * 0.5, -0.27); dot.rotation.x = -0.08; e.add(dot); });
-      var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(EASEL.x, 1.1, EASEL.z); g.add(hit);
-      room.colliders.push({ x: EASEL.x, z: EASEL.z, r: 0.7 });
-      room.interactables.push({ hit: hit, x: EASEL.x, z: EASEL.z, radius: 2.4, prompt: function () { return '🎨 Peindre un tableau — ' + (data ? data.price : 100) + ' 🪙'; }, use: function () { openEditor(); } });
-      var k = new THREE.Group(); k.position.set(KIOSK.x, 0, KIOSK.z); g.add(k);
-      box(k, 0.9, 1.0, 0.6, std(0x1a1424, 0.4, 0.5), 0, 0.5, 0); box(k, 1.0, 0.06, 0.7, goldM, 0, 1.03, 0);
-      var scr = mkCanvas(256, 160), sx = scr.getContext('2d'); sx.fillStyle = '#0a1c24'; sx.fillRect(0, 0, 256, 160); sx.fillStyle = '#4ad0ff'; sx.font = '900 40px ' + SERIF + ',' + EMOJI; sx.textAlign = 'center'; sx.fillText('🖼️ TOUS LES', 128, 70); sx.fillText('TABLEAUX', 128, 118);
-      var sm = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshBasicMaterial({ map: mkTex(scr) })); sm.position.set(0, 1.4, 0.05); sm.rotation.x = -0.35; k.add(sm);
-      box(k, 0.06, 0.4, 0.06, goldM, 0, 1.22, -0.05);
-      var hit2 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.5, 0.8), new THREE.MeshBasicMaterial({ visible: false })); hit2.position.set(KIOSK.x, 0.8, KIOSK.z); g.add(hit2);
-      room.colliders.push({ x: KIOSK.x, z: KIOSK.z, r: 0.6 });
-      room.interactables.push({ hit: hit2, x: KIOSK.x, z: KIOSK.z, radius: 2.2, prompt: function () { return '📋 Voir tous les tableaux et voter'; }, use: function () { openGallery(); } });
-    })();
+    /* ---------- quatre chevalets : on se place devant, face à la toile, pour peindre ---------- */
+    var EASELS = [{ x: -6, z: 1.5 }, { x: -2, z: 1.5 }, { x: 2, z: 1.5 }, { x: 6, z: 1.5 }];
+    var painters = {};                       // pseudo -> { n: numéro du chevalet, t: dernier signe de vie } (les autres joueurs en train de peindre)
+    function easelBusy(n) { var now = performance.now(), me = F.me(); return Object.keys(painters).some(function (k) { return k !== me && painters[k].n === n && now - painters[k].t < 8000; }); }
+    EASELS.forEach(function (E, n) {
+      var wood = std(0x8a5a30, 0.75, 0.05), e = new THREE.Group(); e.position.set(E.x, 0, E.z); g.add(e);   // la toile regarde vers +z, le peintre est devant
+      box(e, 0.07, 2.1, 0.07, wood, -0.55, 1.05, -0.2).rotation.z = 0.05; box(e, 0.07, 2.1, 0.07, wood, 0.55, 1.05, -0.2).rotation.z = -0.05; box(e, 0.07, 2.0, 0.07, wood, 0, 1.0, -0.6).rotation.x = -0.18;
+      box(e, 1.25, 0.06, 0.1, wood, 0, 0.75, -0.15);
+      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4 })); cv.position.set(0, 1.4, -0.13); cv.rotation.x = -0.08; e.add(cv);
+      [0xff4a4a, 0x4ab0ff, 0xffd24a, 0x4aff9a, 0xc04aff, 0xff8a2a].forEach(function (col, i) { var dot = new THREE.Mesh(new THREE.CircleGeometry(0.06 + (i % 3) * 0.015, 12), new THREE.MeshBasicMaterial({ color: col })); dot.position.set(-0.4 + (i % 3) * 0.4, 1.2 + Math.floor(i / 3) * 0.45, -0.12); dot.rotation.x = -0.08; e.add(dot); });
+      var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(E.x, 1.1, E.z); g.add(hit);
+      room.colliders.push({ x: E.x, z: E.z - 0.1, r: 0.7 });
+      E.sx = E.x; E.sz = E.z + 1.5;          // où se tient le peintre
+      room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.2,
+        enabled: function () { return !easelBusy(n); },
+        prompt: function () { return '🎨 Peindre un tableau — ' + (data ? data.price : 100) + ' 🪙'; },
+        use: function () { if (!easelBusy(n)) openEditor(n); } });
+    });
 
     /* ---------- les cadres sont cliquables ---------- */
     slots.forEach(function (f, i) {
@@ -220,6 +230,9 @@
         prompt: function () { return '🖼️ « ' + f.item.title + ' » — voir et voter'; },
         use: function () { openViewer(f.item); } });
       void i;
+    });
+    slots.forEach(function (f) {
+      room.interactables.push({ hit: f.hhit, use: function () { quickVote(f.item); } });   // clic sur le cœur (pas de touche F : c'est le cadre qui répond à F)
     });
     PODS.forEach(function (p) {
       room.interactables.push({ hit: p.f.hit, x: p.f.sx, z: p.f.sz, radius: 2.4,
@@ -238,8 +251,8 @@
         var changed = !f.item || !it || f.item.id !== it.id;
         f.sig = sig; f.item = it;
         if (changed) setImage(f, it && it.id);
-        if (it) paintPlaque(f, it.title, (d.myVote === it.id ? '❤️ ' : '♥ ') + it.votes + ' · ' + it.author);
-        else paintPlaque(f, 'Emplacement libre', '🖼️ peins le prochain tableau !');
+        if (it) { paintPlaque(f, it.title, 'par ' + it.author + (it.mine ? ' (toi)' : '')); paintHeart(f, it.votes, d.myVote === it.id, true); }
+        else { paintPlaque(f, 'Emplacement libre', '🖼️ peins le prochain tableau !'); paintHeart(f, 0, false, false); }
       });
       var pod = d.podium;
       PODS.forEach(function (p, i) {
@@ -248,8 +261,8 @@
         var changed = !p.f.item || !e || p.f.item.id !== e.id;
         p.f.sig = sig; p.f.item = e;
         if (changed) setImage(p.f, e && e.id);
-        if (e) paintPlaque(p.f, e.title, e.author + ' · ' + e.votes + ' vote' + (e.votes > 1 ? 's' : '') + ' · +' + fmtN(e.prize) + ' 🪙');
-        else paintPlaque(p.f, p.name, pod && pod.refunded ? 'aucun vote : remboursés' : 'à venir…');
+        if (e) { paintPlaque(p.f, e.title, e.author + ' · +' + fmtN(e.prize) + ' 🪙'); paintHeart(p.f, e.votes, false, true); }
+        else { paintPlaque(p.f, p.name, pod && pod.refunded ? 'aucun vote : remboursés' : 'à venir…'); paintHeart(p.f, 0, false, false); }
       });
       paintTitle(pod ? '🏆 PODIUM — SEMAINE DU ' + pod.week.slice(8) + '/' + pod.week.slice(5, 7) : '🏆 PODIUM DE LA SEMAINE PASSÉE');
       paintInfo();
@@ -258,20 +271,38 @@
     var pollT = null;
     function poll() { fetchState().then(function (d) { if (d && d.ok) applyState(d); }); }
     room.onEnter = function () { poll(); if (!pollT) pollT = setInterval(function () { if (!document.hidden) poll(); }, 7000); };
-    room.onLeave = function () { closeAll(true); if (pollT) { clearInterval(pollT); pollT = null; } };
+    room.onLeave = function () { closeAll(true); painters = {}; if (pollT) { clearInterval(pollT); pollT = null; } };
+    // les autres peintres : on reçoit « paint » (début, rappel, fin) et on anime leur personnage (world3d.js appelle remoteAnim)
+    room.onRtMsg = function (ev, m) {
+      if (ev !== 'paint' || !m || typeof m.k !== 'string') return;
+      if (m.on) painters[m.k] = { n: Math.floor(Number(m.n)) || 0, t: performance.now() }; else delete painters[m.k];
+    };
+    room.remoteAnim = function (r, k) {
+      var P = painters[k]; if (!P || performance.now() - P.t > 8000) return false;
+      var pe = r.person, t = performance.now() / 1000;
+      pe.hips[0].rotation.x = 0; pe.hips[1].rotation.x = 0;                       // debout, pas de pas de course
+      pe.arms[0].rotation.x = -1.45 + Math.sin(t * 5.2) * 0.16; pe.arms[0].rotation.y = Math.sin(t * 2.4) * 0.32;   // la main qui peint : va-et-vient devant la toile
+      pe.arms[1].rotation.x = -0.75; pe.arms[1].rotation.y = 0;                    // l'autre main tient la palette
+      return true;
+    };
+    var paintT = 0;
+    function sendPaint(on, n) { try { if (world.rt && world.rt.ready) world.rt.send('paint', { k: F.me(), on: on ? 1 : 0, n: n || 0 }); } catch (e) { /* ok */ } }
     room.onPause = function () { closeAll(true); };
     var infoTick = 0;
-    room.update = function (dt) { infoTick += dt; if (infoTick > 20) { infoTick = 0; paintInfo(); } };
+    room.update = function (dt) {
+      infoTick += dt; if (infoTick > 20) { infoTick = 0; paintInfo(); }
+      if (editor) { paintT -= dt; if (paintT <= 0) { paintT = 2.5; sendPaint(true, editor.n); } }
+    };
 
     /* ======================= fenêtres : visionneuse, liste, chevalet ======================= */
-    var overlay = null, view = null, editor = null, gallery = false, busy = false;
+    var overlay = null, view = null, editor = null, busy = false;
     function lockWorld() { if (!overlay) world.sitDown(room); }
     function unlockWorld(instant) { world.mode = 'room'; if (instant) { world.blend = 0; world.seatRoom = null; } }
     function onEsc(e) { if (e.code === 'Escape' && overlay) { e.stopImmediatePropagation(); closeAll(); } }
     function closeAll(instant) {
       window.removeEventListener('keydown', onEsc, true);
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      var was = !!overlay; overlay = null; view = null; editor = null; gallery = false; busy = false;
+      var was = !!overlay; if (editor) sendPaint(false, editor.n); overlay = null; view = null; editor = null; busy = false;
       if (was) unlockWorld(instant);
     }
     function open(html, wide) {
@@ -301,7 +332,7 @@
       p.addEventListener('click', function (e) {
         var b = e.target.closest ? e.target.closest('[data-a]') : null; if (!b || b.disabled) return;
         var a = b.getAttribute('data-a');
-        if (a === 'close') closeAll(); else if (a === 'back') openGallery(); else if (a === 'vote') doVote(view.id); else if (a === 'unvote') doVote(''); else if (a === 'remove') doRemove(view.id);
+        if (a === 'close') closeAll(); else if (a === 'vote') doVote(view.id); else if (a === 'unvote') doVote(''); else if (a === 'remove') doRemove(view.id);
       });
       p.querySelector('.tbl-big').src = imgUrl(item.id);
       refreshView();
@@ -323,7 +354,6 @@
         else if (d.myVote === it.id) h += '<button class="on" data-a="unvote"' + (busy ? ' disabled' : '') + '>❤️ Ton vote — retirer</button>';
         else h += '<button class="go" data-a="vote"' + (busy ? ' disabled' : '') + '>❤️ Voter pour ce tableau' + (d.myVote ? ' (change ton vote)' : '') + '</button>';
         if (staff) h += '<button data-a="remove"' + (busy ? ' disabled' : '') + '>🗑️ Retirer (staff)</button>';
-        h += '<button data-a="back">📋 Tous les tableaux</button>';
       }
       t.innerHTML = h;
     }
@@ -340,37 +370,32 @@
       busy = true; refreshView();
       call({ action: 'remove', id: id }).then(function (r) {
         busy = false;
-        if (r && r.ok) { applyState(r); openGallery(); } else { msg('❌ ' + ((r && r.error) || 'Impossible.')); refreshView(); }
+        if (r && r.ok) { applyState(r); closeAll(); } else { msg('❌ ' + ((r && r.error) || 'Impossible.')); refreshView(); }
       });
-    }
-
-    /* ----- liste de tous les tableaux de la semaine ----- */
-    function openGallery() {
-      gallery = true; view = null; editor = null;
-      var p = open('<div class="tbl-head"><h3>📋 Tous les tableaux de la semaine</h3><button data-a="close">✕ Fermer</button></div><div class="tbl-info"></div><div class="tbl-msg"></div><div class="tbl-grid"></div>', true);
-      p.addEventListener('click', function (e) {
-        var b = e.target.closest ? e.target.closest('[data-a]') : null;
-        if (b && b.getAttribute('data-a') === 'close') return closeAll();
-        var c = e.target.closest ? e.target.closest('[data-id]') : null; if (c) openViewer(itemById(c.getAttribute('data-id')));
-      });
-      renderGallery();
-    }
-    function renderGallery() {
-      if (!overlay || !gallery) return;
-      var p = overlay.firstChild, d = data;
-      if (!d) { p.querySelector('.tbl-grid').innerHTML = '<div>Chargement…</div>'; return; }
-      p.querySelector('.tbl-info').innerHTML = '<span>Cagnotte : <b>' + fmtN(d.pot) + ' 🪙</b></span><span>Fin dans <b>' + timeLeft(d.endsAt - (Date.now() + skew)) + '</b></span><span>' + d.items.length + ' tableau' + (d.items.length > 1 ? 'x' : '') + '</span>' + (d.myVote ? '<span>❤️ Tu as déjà voté</span>' : '<span>Tu n\'as pas encore voté</span>');
-      p.querySelector('.tbl-grid').innerHTML = d.items.map(function (it) {
-        return '<div class="tbl-card' + (it.mine ? ' mine' : '') + (d.myVote === it.id ? ' vote' : '') + '" data-id="' + esc(it.id) + '"><img loading="lazy" src="' + imgUrl(it.id) + '" alt="">' +
-          '<b>' + esc(it.title) + '</b><span>' + esc(it.author) + ' · ' + (d.myVote === it.id ? '❤️' : '♥') + ' ' + it.votes + '</span></div>';
-      }).join('') || '<div>Aucun tableau pour l\'instant : sois le premier à peindre !</div>';
     }
 
     /* ----- chevalet : l'éditeur de dessin ----- */
     var COLORS = ['#000000', '#5a5a5a', '#ffffff', '#8a5a30', '#ff3b3b', '#ff8a2a', '#ffd24a', '#7ed957', '#1f9d55', '#35d4ff', '#2a6bff', '#7a3cff', '#ff4fa3', '#ffb3c7', '#b7e4ff', '#f4d9a8'];
-    function openEditor() {
+    // vote direct sur le cœur d'un cadre : un clic = je vote pour ce tableau, un clic sur mon tableau déjà voté = je retire mon vote
+    function quickVote(item) {
+      if (!item || busy || overlay || needLogin()) return;
+      if (item.mine) { try { world.flash('🚫 Pas de vote pour ton propre tableau'); } catch (e) { /* ok */ } return; }
+      var id = data && data.myVote === item.id ? '' : item.id;
+      busy = true;
+      call({ action: 'vote', id: id }).then(function (r) {
+        busy = false;
+        if (r && r.ok) { applyState(r); try { world.flash(id ? '❤️ Vote pour « ' + item.title + ' »' : 'Vote retiré'); } catch (e) { /* ok */ } }
+        else { try { world.flash('❌ ' + ((r && r.error) || 'Vote impossible')); } catch (e) { /* ok */ } }
+      });
+    }
+
+    function openEditor(n) {
       if (needLogin()) return;
-      gallery = false; view = null;
+      // on se place devant le chevalet, face à la toile, immobile : les autres joueurs nous voient peindre (et non courir sur place)
+      var Ez = EASELS[n] || EASELS[0];
+      world.player.x = Ez.sx; world.player.z = Ez.sz; world.player.yaw = 0; world.player.pitch = -0.1; world.pv.x = 0; world.pv.z = 0;
+      sendPaint(true, n); paintT = 2.5;
+      view = null;
       var d = data, price = d ? d.price : 100;
       var mineCount = d ? d.items.filter(function (x) { return x.mine; }).length : 0, left = d ? d.maxPerPlayer - mineCount : 3;
       var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau — ' + price + ' 🪙</h3><button data-a="close">✕ Fermer</button></div>' +
@@ -383,7 +408,7 @@
         '<div class="tbl-info"><span>Ton solde : <b data-r="bal">' + fmtN(balance()) + ' 🪙</b></span><span>Il te reste <b>' + Math.max(0, left) + '</b> tableau' + (left > 1 ? 'x' : '') + ' cette semaine</span></div>');
       var cv = p.querySelector('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
       cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, CW, CH); cx.lineCap = 'round'; cx.lineJoin = 'round';
-      var E = editor = { color: '#000000', size: 8, tool: 'brush', undo: [], drawing: false, lx: 0, ly: 0 };
+      var E = editor = { n: n, color: '#000000', size: 8, tool: 'brush', undo: [], drawing: false, lx: 0, ly: 0 };
       function snap() { try { E.undo.push(cx.getImageData(0, 0, CW, CH)); if (E.undo.length > 25) E.undo.shift(); } catch (e) { /* ok */ } }
       function pos(ev) { var r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * CW / r.width, (ev.clientY - r.top) * CH / r.height]; }
       function hex2rgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
@@ -455,7 +480,7 @@
     /* ---------- porte de sortie, apparition, aide ---------- */
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🎮 MINI JEUX', sub: 'RETOUR AU SALON', color: 0xffd24a, target: 'minijeux', theme: 'exitUno' });
     room.spawn = function () { return { x: 0, z: HZ - 3, yaw: 0 }; };
-    room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche un cadre pour voter · chevalet : peindre' : 'ZQSD / flèches : marcher · F ou clic : voter / peindre · chevalet à gauche, liste des tableaux à droite' + (w.full ? ' · Échap : quitter' : ''); };
+    room.hint = function (w) { return w.touch ? 'Joystick : marcher · touche le cœur du tableau pour voter · chevalets au milieu : peindre' : 'ZQSD / flèches : marcher · clic sur le cœur du tableau : voter · F ou clic sur un chevalet : peindre' + (w.full ? ' · Échap : quitter' : ''); };
     room.dispose = function () { closeAll(true); if (pollT) clearInterval(pollT); };
     return room;
   }
