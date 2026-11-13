@@ -3380,3 +3380,16 @@ body.s3d-full-on #sidebarBackdrop {
 #mainSidebar, #sidebarBackdrop, #topLogoutBtn, #mobileSidebarToggleBtn { display: none !important; }
 body.sidebar-deplie { padding-left: 0 !important; }
 body.sidebar-deplie #headerBrand { display: flex !important; }
+
+/* ================= ACCUEIL : promos Discord dans le vide à gauche et à droite (grands écrans) ================= */
+.hall-promo { display: none; }
+@media (min-width: 1700px) {
+  .hall-promo { display: flex; flex-direction: column; gap: 10px; position: fixed; top: 96px; z-index: 5; width: min(320px, calc((100vw - 1280px) / 2 - 40px)); }
+  .hall-promo-left { left: 20px; }
+  .hall-promo-right { right: 20px; }
+  .hall-promo img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid rgba(251, 191, 36, 0.35); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); }
+  .hall-promo video { display: block; width: 100%; max-height: calc(100vh - 380px); border-radius: 14px; border: 1px solid rgba(251, 191, 36, 0.35); background: #000; object-fit: contain; }
+  .hall-promo-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #5865f2; color: #fff; font-weight: 800; font-size: 13px; text-align: center; transition: filter .15s, transform .1s; }
+  .hall-promo-btn:hover { filter: brightness(1.15); }
+  .hall-promo-btn:active { transform: scale(.97); }
+}

@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Orbitron:wght@600;800;900&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=5.13">
+  <link rel="stylesheet" href="css/style.css?v=5.14">
   <!-- CDN Three.js r128 & Module Poker 3D VIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -502,6 +502,16 @@
     <!-- VUE 1 : ACCUEIL (HALL DES FLAMBEURS)                            -->
     <!-- =============================================================== -->
     <section id="view-hall" class="space-y-4">
+      <!-- Promos Discord : dans le vide à gauche et à droite du contenu (grands écrans seulement) -->
+      <aside id="promoLeft" class="hall-promo hall-promo-left">
+        <a href="https://discord.gg/gAPZuCn579" target="_blank" rel="noopener noreferrer" title="Rejoindre le Discord Tropistream"><img src="assets/promo/tropistream.webp" alt="Tropi Stream : streaming gratuit, soirée cinéma" loading="lazy"></a>
+        <a href="https://discord.gg/gAPZuCn579" target="_blank" rel="noopener noreferrer" class="hall-promo-btn"><i class="fa-brands fa-discord"></i> Rejoindre le Discord Tropistream</a>
+      </aside>
+      <aside id="promoRight" class="hall-promo hall-promo-right">
+        <a href="https://discord.gg/wZYb9RBYN7" target="_blank" rel="noopener noreferrer" title="Rejoindre le Discord Tropico"><img src="assets/promo/tropico.webp" alt="Tropico : la communauté sous le soleil" loading="lazy"></a>
+        <video src="assets/promo/tropico-pub.mp4" controls playsinline preload="metadata"></video>
+        <a href="https://discord.gg/wZYb9RBYN7" target="_blank" rel="noopener noreferrer" class="hall-promo-btn"><i class="fa-brands fa-discord"></i> Rejoindre le Discord Tropico</a>
+      </aside>
       <div id="home3dBanner" style="display:none"
         class="hidden rounded-2xl p-4 md:p-5 border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-red-900/30 to-amber-500/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-3">
         <div>
