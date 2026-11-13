@@ -140,24 +140,35 @@
     neon(WALL.entree, -4.75, 4.2, 'assets/promo/tropistream.webp?v=1', 4.95, 2.786, 0xff7a1a);   // bannière Tropi Stream (16/9, image complète)
     // touche « Rejoindre le Discord » sous une bannière : une plaque cliquable (ou F à côté) qui ouvre l'invitation dans un nouvel onglet
     function discordPlaque(mur, along, ay, nom, url, hex) {
-      var cv = mkCanvas(640, 120), cx = cv.getContext('2d'), rr = 26;
-      cx.fillStyle = '#5865f2'; cx.beginPath(); cx.moveTo(rr, 4); cx.lineTo(636 - rr, 4); cx.quadraticCurveTo(636, 4, 636, 4 + rr); cx.lineTo(636, 116 - rr); cx.quadraticCurveTo(636, 116, 636 - rr, 116); cx.lineTo(rr, 116); cx.quadraticCurveTo(4, 116, 4, 116 - rr); cx.lineTo(4, 4 + rr); cx.quadraticCurveTo(4, 4, rr, 4); cx.fill();
-      cx.lineWidth = 6; cx.strokeStyle = '#f3d98a'; cx.stroke();
-      cx.fillStyle = '#ffffff'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.shadowColor = 'rgba(0,0,0,0.4)'; cx.shadowBlur = 4;
-      cx.font = '800 34px ' + MONO; cx.fillText('REJOINDRE LE DISCORD', 320, 44);
-      cx.font = '900 40px ' + SERIF; cx.fillText(nom.toUpperCase(), 320, 86);
+      var cv = mkCanvas(760, 170), cx = cv.getContext('2d');
+      function rrect(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.lineTo(x + w - r, y); cx.quadraticCurveTo(x + w, y, x + w, y + r); cx.lineTo(x + w, y + h - r); cx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); cx.lineTo(x + r, y + h); cx.quadraticCurveTo(x, y + h, x, y + h - r); cx.lineTo(x, y + r); cx.quadraticCurveTo(x, y, x + r, y); cx.closePath(); }
+      function paint() {
+        cx.clearRect(0, 0, 760, 170);
+        var gr = cx.createLinearGradient(0, 8, 0, 162); gr.addColorStop(0, '#6f7bff'); gr.addColorStop(0.55, '#5865f2'); gr.addColorStop(1, '#3a45c2');
+        cx.save(); cx.shadowColor = 'rgba(88,101,242,0.9)'; cx.shadowBlur = 22; cx.fillStyle = gr; rrect(14, 14, 732, 142, 71); cx.fill(); cx.restore();
+        cx.fillStyle = 'rgba(255,255,255,0.16)'; rrect(26, 20, 708, 56, 28); cx.fill();                               // reflet
+        cx.lineWidth = 5; cx.strokeStyle = '#f3d98a'; rrect(14, 14, 732, 142, 71); cx.stroke();
+        cx.fillStyle = '#ffffff'; cx.beginPath(); cx.arc(100, 85, 48, 0, TAU); cx.fill();                                // pastille blanche du logo
+        cx.fillStyle = '#5865f2'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = '900 56px "Font Awesome 6 Brands"'; cx.fillText('', 100, 88);
+        cx.shadowColor = 'rgba(0,0,0,0.45)'; cx.shadowBlur = 6; cx.fillStyle = '#ffffff';
+        cx.textAlign = 'left'; cx.font = '700 26px ' + MONO; cx.fillText('REJOINDRE LE DISCORD', 176, 56, 520);
+        cx.font = '900 56px ' + SERIF; cx.fillText(nom.toUpperCase(), 176, 112, 520);
+      }
+      paint();
+      var ptex = mkTex(cv);
+      try { if (document.fonts && document.fonts.load) document.fonts.load('900 56px "Font Awesome 6 Brands"', '').then(function () { paint(); ptex.needsUpdate = true; }); } catch (e) { /* police non chargée : la pastille reste sans logo */ }
       var th = Math.atan2(mur.nx, mur.nz), pw2 = new THREE.Group(); pw2.position.set(mur.x, 0, mur.z); pw2.rotation.y = th; g.add(pw2);
-      var pm = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 0.506), new THREE.MeshBasicMaterial({ map: mkTex(cv) })); pm.position.set(along, ay, 0.07); pw2.add(pm);
+      var pm = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 0.65), new THREE.MeshBasicMaterial({ map: ptex, transparent: true })); pm.position.set(along, ay, 0.07); pw2.add(pm);
       room.interactables.push({
         x: mur.x + mur.nx * 1.8 + along * Math.cos(th), z: mur.z + mur.nz * 1.8 - along * Math.sin(th), radius: 3.2, hit: pm,
         prompt: function () { return '💬 Rejoindre le Discord ' + nom + '  [F]'; },
         use: function (w) { if (w && (w.mode !== 'room' || w.blend > 0 || w.trans)) return; try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { /* bloqué */ } }
       });
     }
-    discordPlaque(WALL.entree, -4.75, 2.2, 'Tropistream', 'https://discord.gg/gAPZuCn579', 0xff7a1a);
+    discordPlaque(WALL.entree, -4.75, 1.95, 'Tropistream', 'https://discord.gg/gAPZuCn579', 0xff7a1a);
     // bannière Tropico, à gauche de la porte du cinéma premium (en face de l'affiche du programme)
-    neon(WALL.droite, -4.3, 3.3, 'assets/promo/tropico.webp?v=1', 4.4, 2.475, 0xff9a3c);
-    discordPlaque(WALL.droite, -4.3, 1.6, 'Tropico', 'https://discord.gg/wZYb9RBYN7', 0xff9a3c);
+    neon(WALL.droite, -4.3, 3.95, 'assets/promo/tropico.webp?v=1', 4.4, 2.475, 0xff9a3c);
+    discordPlaque(WALL.droite, -4.3, 1.75, 'Tropico', 'https://discord.gg/wZYb9RBYN7', 0xff9a3c);
     world.addDoor(room, { x: 0, z: HZ, nx: 0, nz: -1, w: 2.8, h: 3.2, label: '🎬 CINÉMA', sub: 'TROPI STREAM · OUVERT', color: 0xff7a1a, target: 'cinema', theme: 'cinema' });
     // affiche du cinéma premium : un vrai cadre de musée (moulure dorée en relief, rosaces, couronne au sommet, halo chaud sur le mur)
     function luxFrame(mur, along, ay, bw, bh, canvas) {
