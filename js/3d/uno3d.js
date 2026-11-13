@@ -415,7 +415,7 @@
       }
       Object.keys(tv.discs).forEach(function (k) { if (!want[k]) { tv.group.remove(tv.discs[k].m); delete tv.discs[k]; } });
       var myTurn = !!seat && seat.tid === tid && st.ph === 'play' && st.turn === seat.local;
-      tv.bars.forEach(function (b, c3) { b.visible = myTurn && st.g[c3].length < 6; });
+      tv.bars.forEach(function (b, c3) { b.visible = myTurn && st.g[c3].length < 6 && !world.touch; });       // téléphone : plus de flèches
       for (var s = 0; s < 2; s++) {
         var e = st.seats[s], lb = tv.labels[s]; lb.visible = !!e && !(seat && seat.tid === tid && seat.local === s);
         if (e) { var act = st.ph === 'play' && st.turn === s, k2 = e.name + '|' + act + '|' + (st.win === s); if (lb.userData.key !== k2) { lb.userData.key = k2; setLabel(lb, (st.win === s ? '🏆 ' : act ? '▶ ' : '') + e.name, s === 0 ? 'jetons rouges' : 'jetons jaunes', act || st.win === s, s === 0 ? '#ff6a6a' : '#ffe35a'); } }
@@ -704,7 +704,7 @@
     room.seatPose = function (dt, ctx) {
       var s = seat; if (!s) return { cx: 0, cy: 1.6, cz: 0, tx: 0, ty: 1, tz: -3, fov: 62 };
       if (ctx.mouseLook) { view.yaw = ctx.dz(ctx.ms.nx, 0.15) * 0.8; view.pitch = ctx.dz(ctx.ms.ny, 0.15) * -0.25; }
-      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? 0.3 : -0.35), ey = u ? 2.25 : tc ? 1.5 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? 0.3 : -0.35), ty = u ? 0.86 : tc ? 1.3 : 1.3;
+      var u = kindOf(s.tid) === 'u', tc = world.touch && !u, ex = s.x + (s.tx - s.x) * (u ? -0.08 : tc ? -0.2 : -0.35), ey = u ? 2.25 : tc ? 1.55 : 1.85, ez = s.z + (s.tz - s.z) * (u ? -0.08 : tc ? -0.2 : -0.35), ty = u ? 0.86 : tc ? 1.15 : 1.3;
       var a = Math.atan2(s.tx - ex, -(s.tz - ez)) + view.yaw, p = Math.atan2(ty - ey, Math.hypot(s.tx - ex, s.tz - ez)) + view.pitch;
       return { cx: ex, cy: ey, cz: ez, tx: ex + Math.sin(a) * Math.cos(p) * 5, ty: ey + Math.sin(p) * 5, tz: ez - Math.cos(a) * Math.cos(p) * 5, fov: u ? 72 : 62 };
     };
