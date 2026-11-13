@@ -75,15 +75,13 @@
           '<div class="ph-status"><b data-ph="clock">12:00</b><span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-battery-full"></i></span></div>' +
           '<div class="ph-screen" data-ph="screen"></div>' +
           '<div class="ph-homebar">' +
-            '<button class="ph-back" data-act="phone-back" title="Retour"><i class="fa-solid fa-chevron-left"></i></button>' +
+            '<div class="ph-nav-left"><button class="ph-back" data-act="phone-back" title="Retour"><i class="fa-solid fa-chevron-left"></i></button><div class="ph-voice-slot" data-ph="voiceslot"></div></div>' +
             '<button class="ph-home" data-act="phone-home" title="Fermer le téléphone"></button>' +
             '<span class="ph-nav-gap"></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
       '<div class="ph-top-right">' +
-        '<div class="ph-stat-pill ph-online" title="Joueurs en ligne (toutes les salles)"><i class="fa-solid fa-users"></i> <b data-ph="onlineval">1</b> <span class="ph-stat-label">en ligne</span></div>' +
-        '<div class="ph-stat-pill ph-fps" title="Images par seconde (FPS)"><span class="ph-fps-dot" data-ph="fpsdot"></span><b data-ph="fpsval">--</b> <span class="ph-stat-label">FPS</span></div>' +
         '<button class="ph-stat-pill ph-fsbtn" data-act="fullscreen" data-ph="fsbtn" title="Plein écran"><i class="fa-solid fa-expand"></i><span class="ph-stat-label">Plein écran</span></button>' +
       '</div>';
     w.hud.insertBefore(root, w.elFade);
@@ -98,12 +96,16 @@
     var elPause = q('pause'), elPauseFull = q('pausefull');
     var elChat = q('chat'), elChatForm = q('chatform'), elChatIn = q('chatin'), elHotbar = q('hotbar');
     var elInv = q('inv'), elInvSlots = q('invslots');
-    var elFpsVal = q('fpsval'), elFpsDot = q('fpsdot'), elOnlineVal = q('onlineval');
+    var voiceHome = null;                                          // téléphone tactile : le chat vocal de proximité vit à côté du bouton rouge tant que le téléphone est ouvert
+    function voiceEl() { return w.hud && w.hud.querySelector ? w.hud.querySelector('[data-s3d="voice"]') : null; }
+    function voiceToPhone() {
+      if (!w.touch) return; var v = voiceEl(), slot = q('voiceslot'); if (!v || !slot) return;
+      if (v.parentNode !== slot) { voiceHome = v.parentNode; slot.appendChild(v); }
+    }
+    function voiceBack() { var slot = q('voiceslot'), v = slot && slot.firstChild; if (v && voiceHome) { voiceHome.appendChild(v); } voiceHome = null; }
     var tab = 'dance', page = 'menu', sub = 'home', last = {};
     // les applis du téléphone : nom, sous-titre, icône, couleur
     var APPS = [
-      { id: 'dance', img: 'assets/icones/applis/dancefloor.png', name: 'DanceFloor', sub: 'Danses en boucle · marche pour arrêter', ic: 'fa-music', c: '232,121,249' },
-      { id: 'emote', img: 'assets/icones/applis/reactions.png', name: 'Réactions', sub: 'Emotes instantanées', ic: 'fa-face-smile', c: '251,191,36' },
       { id: 'chat', img: 'assets/icones/applis/chat.png', name: 'Chat', sub: 'Discute avec la salle', ic: 'fa-comments', c: '52,211,153' },
       { id: 'friends', img: 'assets/icones/applis/amis.png', name: 'Amis', sub: 'Chat en DM avec tes amis', ic: 'fa-user-group', c: '244,114,182' },
       { id: 'profile', img: 'assets/icones/applis/mon-profil.png', name: 'Mon Profil', sub: 'Ton profil de Flambeur', ic: 'fa-user-pen', c: '56,189,248' },
@@ -164,17 +166,20 @@
         });
       }
       put(q('fsbtn'), 'fs', '<i class="fa-solid ' + (w.full ? 'fa-compress' : 'fa-expand') + '"></i><span class="ph-stat-label">' + (w.full ? 'Quitter' : 'Plein écran') + '</span>', true);
-      put(elOnlineVal, 'online', String(Math.max(onlineCount, F.presence ? F.presence.count() : 0)));   // le plus grand des deux : salle ou casino entier
-      // FPS en direct dans l'encadré en haut à droite
+      // « en ligne » et FPS : dans l'accueil du téléphone (plus d'encadré sur l'écran de jeu)
       var fpsVal = (F.quality && F.quality.fps) ? F.quality.fps : (w.lastFps || 0);
-      if (fpsVal > 0) {
-        put(elFpsVal, 'fps', String(fpsVal));
-        var col = fpsVal >= 50 ? '#10b981' : (fpsVal >= 30 ? '#f59e0b' : '#ef4444');
-        if (last.fpscol !== col) {
-          last.fpscol = col;
-          elFpsDot.style.background = col;
-          elFpsDot.style.boxShadow = '0 0 8px ' + col;
+      if (phoneOpen) {
+        var hOn = q('honline'), hFp = q('hfps'), hDot = q('hfpsdot'), onStr = String(Math.max(onlineCount, F.presence ? F.presence.count() : 0));   // le plus grand des deux : salle ou casino entier
+        if (hOn && hOn.textContent !== onStr) hOn.textContent = onStr;
+        if (hFp && fpsVal > 0) {
+          if (hFp.textContent !== String(fpsVal)) hFp.textContent = String(fpsVal);
+          var col = fpsVal >= 50 ? '#10b981' : (fpsVal >= 30 ? '#f59e0b' : '#ef4444');
+          if (hDot) { hDot.style.background = col; hDot.style.boxShadow = '0 0 8px ' + col; }
         }
+        var hN = q('hname'), hR = q('hrank'), hB = q('hbal');
+        if (hN) { if (hN.textContent !== name) hN.textContent = name; }
+        if (hB) { var bs = s && typeof s.balance === 'number' ? F.fmtN(s.balance) : '0'; if (hB.textContent !== bs) hB.textContent = bs; }
+        if (hR) { var rh = '<i class="fa-solid ' + rIcon + ' role-crown"></i> <span class="role-label">' + rName + '</span>'; if (hR.getAttribute('data-k') !== rName) { hR.setAttribute('data-k', rName); hR.innerHTML = rh; hR.className = 'ph-rank role-tag ' + rClass; } }
       }
       if (invOpen) paintInv();
       if (phoneOpen) {
@@ -874,8 +879,9 @@
       } else {
         // écran d'accueil : grosse horloge puis les applis sur le fond d'écran
         var dn = new Date();
-        h = '<div class="ph-hclock"><b data-ph="hclock">' + ('0' + dn.getHours()).slice(-2) + ':' + ('0' + dn.getMinutes()).slice(-2) + '</b><span>' + dateFr() + '</span></div>' +
-          '<div class="ph-icons">' + visibleApps().map(function (a) {
+        h = (w.touch ? '<div class="ph-hid"><span class="ph-hbal" title="Ton solde"><i class="fl-coin"></i><b data-ph="hbal">0</b></span><span class="ph-hwho"><b class="ph-hname" data-ph="hname"></b><span class="ph-rank role-tag" data-ph="hrank"></span></span></div>' : '') +
+          '<div class="ph-hclock"><b data-ph="hclock">' + ('0' + dn.getHours()).slice(-2) + ':' + ('0' + dn.getMinutes()).slice(-2) + '</b><span>' + dateFr() + '</span></div>' +
+          '<div class="ph-icons"><div class="ph-hstats"><div class="ph-stat-pill ph-online" title="Joueurs en ligne (toutes les salles)"><i class="fa-solid fa-users"></i> <b data-ph="honline">1</b> <span class="ph-stat-label">en ligne</span></div><div class="ph-stat-pill ph-fps" title="Images par seconde (FPS)"><span class="ph-fps-dot" data-ph="hfpsdot"></span><b data-ph="hfps">--</b> <span class="ph-stat-label">FPS</span></div></div>' + visibleApps().map(function (a) {
             var badge = a.id === 'friends' && hasUnreadDm() ? '<i class="ph-ico-badge"></i>' : '';
             return '<button class="ph-ico" data-page="' + a.id + '">' + (a.img ? '<span class="ph-ico-sq ph-ico-img"><img src="' + a.img + '" alt="">' + badge + '</span>' : '<span class="ph-ico-sq" style="--c:' + a.c + '"><i class="fa-solid ' + a.ic + '"></i>' + badge + '</span>') + '<span class="ph-ico-nm">' + a.name + '</span></button>';
           }).join('') + '</div>';
@@ -897,7 +903,7 @@
       closeWheel(); closeInv();
       page = p || 'menu'; sub = 'home'; pfEdit = ''; refuse = null;                                 // on arrive toujours sur l'écran d'accueil, sauf si on demande une appli
       w._libererSouris();
-      renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; syncCursor(); placePhone(); sync();
+      renderPhone(); last.clock = null; elPhone.hidden = false; phoneOpen = true; voiceToPhone(); syncCursor(); placePhone(); sync();
       if (F.audio && F.audio.playFile) F.audio.playFile('assets/sons/telephone.mp3');
       if (page === 'bank') bankRefresh(); else if (page === 'cinema' && canSeeCinema()) cinStart();
     }
@@ -909,7 +915,7 @@
     // reprendreSouris : à la fermeture voulue par le joueur (bouton rouge, T, case, Échap), pas quand une autre fenêtre prend la place
     function closePhone(reprendreSouris) {
       var etaitOuvert = phoneOpen;
-      cinStop(); elPhone.hidden = true; phoneOpen = false; syncCursor(); typingNotify(false); markHotbar();
+      cinStop(); elPhone.hidden = true; phoneOpen = false; voiceBack(); syncCursor(); typingNotify(false); markHotbar();
       stopKeyCapture();   // on ferme le téléphone pendant qu'on écoutait une touche : on annule proprement
       if (reprendreSouris && etaitOuvert) relock();
     }

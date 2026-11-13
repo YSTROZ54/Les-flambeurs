@@ -963,7 +963,7 @@
     };
 
     /* ---------- interface propre aux machines ---------- */
-    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever [F]</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button>';
+    room.hudTop = '<button class="s3d-cam s3d-seat-only" data-s3d="stand">🚶 Se lever' + (F.isTouch && F.isTouch() ? '' : ' [F]') + '</button><button class="s3d-cam s3d-seat-only" data-s3d="cam">🔭 Reculer</button>';
     room.hudBottom =
       '<div class="s3d-bottom s3d-seat-only"><div class="s3d-chips">' +
       '<button data-bet="50">50</button><button data-bet="500">500</button><button data-bet="5000">5k</button><button data-bet="25000">25k</button><button data-bet="100000">MAX</button></div>' +

@@ -3351,3 +3351,27 @@ body.s3d-full-on #sidebarBackdrop {
 .ph-cin-fb { display: flex; gap: 4px; flex: none; }
 .ph-cin-fb button { min-width: 28px; padding: 5px 7px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); color: #e5e7eb; font-size: 10.5px; font-weight: 800; cursor: pointer; }
 .ph-cin-fb button:hover { background: rgba(239, 68, 68, 0.3); }
+
+/* ================= TÉLÉPHONE : accueil (en ligne + FPS, solde + nom), chat vocal près du bouton rouge, « Se lever » compact ================= */
+.ph-homebar { display: grid; grid-template-columns: 1fr auto 1fr; padding: 0 16px; }
+.ph-homebar .ph-nav-left { display: flex; align-items: center; gap: 6px; justify-self: start; }
+.ph-homebar .ph-nav-gap { justify-self: end; }
+.ph-voice-slot { display: flex; align-items: center; }
+.s3d-hud .ph-voice-slot .s3d-voice { position: static; display: flex; flex-direction: row; align-items: center; }
+.ph-voice-slot .s3d-voice-row { gap: 4px; }
+.ph-voice-slot .s3d-voice-btn { width: 32px; height: 32px; border-radius: 50%; font-size: 14px; }
+.ph-voice-slot .s3d-voice-btn kbd, .ph-voice-slot .s3d-voice-status { display: none; }
+.s3d-hud.s3d-touch .s3d-voice { display: none; }                           /* sur téléphone, le chat vocal n'est plus sur l'écran de jeu */
+.ph-hstats { grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; margin: 0 0 4px; }
+.ph-hstats .ph-stat-pill { animation: none; }
+.ph-hid { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 4px 6px; min-width: 0; }
+.ph-hbal { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 3px 9px; border-radius: 999px; background: rgba(8, 5, 14, 0.6); border: 1px solid rgba(201, 162, 39, 0.5); color: #fde68a; font-size: 12px; font-weight: 800; }
+.ph-hwho { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ph-hname { color: #fff; font-size: 12px; font-weight: 800; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-hwho .ph-rank { font-size: 10px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+.ph.ph-touch .ph-profile { display: none; }                                /* téléphone : prénom et argent sont dans le téléphone */
+@media (pointer: coarse) {
+  [class*="-stand"] { left: 8px !important; top: 58px !important; bottom: auto !important; right: auto !important; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  [class*="-stand"] button { padding: 6px 10px; font-size: 11px; border-radius: 9px; }
+  [class*="-stand"] kbd { display: none; }
+}
