@@ -523,11 +523,9 @@
             <p class="text-amber-300/90 font-serif-title text-sm md:text-base tracking-widest uppercase">
               Le Casino Anonyme • Monnaie 100% Virtuelle
             </p>
-            <p style="display:none" class="text-stone-300 text-sm leading-relaxed max-w-xl">
-              Chaque jeu possède son propre univers, ses règles simples (<span class="text-amber-300 font-bold"><i
-                  class="fa-solid fa-circle-question"></i> Comment jouer</span>) et ses skins personnalisables par
-              catégories dans le <strong>Tropi Shop</strong>. Fais un don ou gère tes transferts dans <strong>La
-                Banque</strong> !
+            <p class="text-stone-300 text-sm leading-relaxed max-w-xl">
+              Chaque jeu possède son propre univers, ses règles simples et ses skins personnalisables par
+              catégories dans le <strong>Tropi Shop</strong>.
             </p>
             <div class="flex flex-wrap gap-2.5 pt-2" id="hallQuickBtns">
               <button id="home3dPlayBtn" onclick="enter3dHall()"
@@ -5749,8 +5747,8 @@
           </div>
         `;
       });
-      // accueil sans défilement : les 5 premiers à droite, les 5 suivants à gauche (en dessous de 640 px : une seule colonne)
-      container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5"><div class="divide-y divide-white/10 sm:order-2">' + rows.slice(0, 5).join('') + '</div><div class="divide-y divide-white/10 sm:order-1">' + rows.slice(5).join('') + '</div></div>';
+      // accueil sans défilement : les 5 premiers à gauche, les 5 suivants à droite (en dessous de 640 px : une seule colonne)
+      container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5"><div class="divide-y divide-white/10">' + rows.slice(0, 5).join('') + '</div><div class="divide-y divide-white/10">' + rows.slice(5).join('') + '</div></div>';
       const modalContainer = document.getElementById('leaderboardModalList');
       if (modalContainer) {
         modalContainer.innerHTML = rows.join('');
