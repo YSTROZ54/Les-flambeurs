@@ -29,7 +29,7 @@ export class PropRoom {
     if (!tok) return { error: 'Connexion requise', status: 401 };
     const key = String(tok.u).toLowerCase();
     const room = String(url.searchParams.get('room') || '');
-    if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(room)) return { error: 'Salon invalide', status: 404 };
+    if (!/^(pub-manoir|priv-[A-Z0-9]{4,6})$/.test(room)) return { error: 'Salon invalide', status: 404 };
     if (!this.cfg) {
       if (room.startsWith('pub-')) this.cfg = { map: room.slice(4), priv: false, code: '' };
       else {

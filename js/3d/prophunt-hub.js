@@ -1,7 +1,7 @@
 /* =====================================================================
    prophunt-hub.js — PROP HUNT : la salle d'accueil (on y arrive par la porte « PROP HUNT » du salon des mini jeux)
    ---------------------------------------------------------------------
-   • Sur le mur du fond : une affiche par carte (Manoir, Casino, Marché de nuit, Station Orion, Musée, Port) avec le nombre de joueurs en direct.
+   • Sur le mur du fond : l'affiche de la carte (pour l'instant le seul Manoir, reconstruit pièce par pièce) avec le nombre de joueurs en direct.
      On s'approche d'une affiche et on appuie sur F (ou on clique dessus) : on rejoint la salle publique de cette carte, ouverte à tous.
    • Le bureau « SALON PRIVÉ » (mur de droite) : créer un salon avec un code (on choisit la carte) ou rejoindre le salon d'un ami avec son code.
    • Le jeu lui-même est dans prophunt3d.js (salle « prophuntgame ») ; ici on se contente de noter où aller dans F3D.propJoin.
@@ -53,29 +53,42 @@
       ['armor', 13.8, -6.6, -1.57], ['globe', 13.4, 6.6, 0], ['trunk', 13.2, 7.8, -1.57], ['floorlamp', 13.8, -3.6, 0], ['slot', 12.6, 7.9, -0.4], ['cryopod', -9.5, 7.6, 0.3], ['sofa', 5.5, 7.6, Math.PI], ['table_round', 8.8, 5.2, 0], ['armchair', 11.2, 4.4, -2.2], ['chair', 7.4, 4.3, 2.4], ['stanchion', -3.2, 5.0, 0], ['stanchion', 3.2, 5.0, 0], ['museumbench', -7.5, 6.4, Math.PI]];
     decor.forEach(function (d) { var m = PM.build(d[0]), b = PS.PROPS[d[0]] || [0.4, 0.5, 0.4]; m.position.set(d[1], 0, d[2]); m.rotation.y = d[3]; g.add(m); room.colliders.push({ x: d[1], z: d[2], r: Math.max(b[0], b[2]) * 0.9 }); });
 
-    /* les affiches des cartes */
+    /* l'affiche de la carte : une grande carte « screenshot » comme les cartes Prop Hunt classiques (titre en haut, PROP HUNT map en bas) avec le nombre de joueurs en direct */
     var info = {}, posters = [];
     function drawPoster(p) {
-      var id = p.id, M = PS.MAPS[id], c = p.c, x = c.getContext('2d'), W = c.width, Hh = c.height, cc = COL[id] || ['#222', '#fff'], gr = x.createLinearGradient(0, 0, W, Hh);
-      gr.addColorStop(0, cc[0]); gr.addColorStop(1, '#0a0610'); x.fillStyle = gr; x.fillRect(0, 0, W, Hh);
-      x.fillStyle = cc[1]; x.globalAlpha = 0.16; x.beginPath(); x.arc(W * 0.78, Hh * 0.32, 120, 0, TAU); x.fill(); x.globalAlpha = 1;
-      x.strokeStyle = cc[1]; x.lineWidth = 6; x.strokeRect(10, 10, W - 20, Hh - 20);
-      x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '120px serif'; x.fillText(M.icon, W / 2, 112);
-      x.fillStyle = '#fff'; x.font = '900 40px ' + SERIF; x.fillText(M.name, W / 2, 200, W - 40);
-      x.fillStyle = 'rgba(255,255,255,0.78)'; x.font = '700 21px sans-serif';
-      var words = M.desc.split(' '), line = '', y = 236; words.forEach(function (w) { var t = line ? line + ' ' + w : w; if (x.measureText(t).width > W - 70 && line) { x.fillText(line, W / 2, y); line = w; y += 25; } else line = t; }); x.fillText(line, W / 2, y);
+      var id = p.id, M = PS.MAPS[id], c = p.c, x = c.getContext('2d'), W = c.width, Hh = c.height, i;
+      // la pièce : mur beige, plafond en bois, parquet, lustre, canapés, plantes, mezzanine au fond
+      var wg = x.createLinearGradient(0, 0, 0, Hh); wg.addColorStop(0, '#2a1a0e'); wg.addColorStop(0.2, '#7a5a34'); wg.addColorStop(0.24, '#d6bd8e'); wg.addColorStop(0.66, '#c2a572'); wg.addColorStop(0.67, '#cfc4a8'); wg.addColorStop(1, '#8a7a5c'); x.fillStyle = wg; x.fillRect(0, 0, W, Hh);
+      for (i = 0; i < 9; i++) { x.fillStyle = 'rgba(30,16,6,0.35)'; x.fillRect(0, 18 + i * 22, W, 2); }                                   // lattes du plafond
+      x.fillStyle = '#6a7a62'; x.fillRect(0, Hh * 0.22, W, 6); x.fillStyle = '#4a3220'; x.fillRect(0, Hh * 0.56, W, 7);                    // corniche + lambris
+      x.fillStyle = '#b8a47a'; x.fillRect(W * 0.38, Hh * 0.3, W * 0.62, Hh * 0.2);                                                       // mezzanine
+      x.strokeStyle = '#1c1812'; x.lineWidth = 3; x.beginPath(); x.moveTo(W * 0.38, Hh * 0.43); x.lineTo(W, Hh * 0.39); x.stroke(); for (i = 0; i < 26; i++) { var rx2 = W * 0.38 + i * W * 0.0245; x.beginPath(); x.moveTo(rx2, Hh * 0.43 - i * 0.15); x.lineTo(rx2, Hh * 0.5 - i * 0.15); x.stroke(); }
+      x.fillStyle = '#7a5a3a'; x.fillRect(W * 0.38, Hh * 0.5, W * 0.62, 12);
+      [['#d8a85a', 0.55], ['#d8a85a', 0.72], ['#d8a85a', 0.88]].forEach(function (t2) { x.fillStyle = 'rgba(120,70,30,0.8)'; x.fillRect(W * t2[1], Hh * 0.33, 34, 26); x.fillStyle = '#e9d6a6'; x.fillRect(W * t2[1] + 3, Hh * 0.33 + 3, 28, 20); });
+      x.strokeStyle = '#17120e'; x.lineWidth = 3; x.beginPath(); x.moveTo(W * 0.28, 0); x.lineTo(W * 0.28, Hh * 0.13); x.stroke(); x.beginPath(); x.moveTo(W * 0.2, Hh * 0.16); x.lineTo(W * 0.28, Hh * 0.13); x.lineTo(W * 0.36, Hh * 0.16); x.lineTo(W * 0.36, Hh * 0.26); x.lineTo(W * 0.2, Hh * 0.26); x.closePath(); x.stroke();   // lustre
+      for (i = 0; i < 6; i++) { x.fillStyle = '#ffd890'; x.beginPath(); x.arc(W * 0.2 + i * W * 0.032, Hh * 0.27, 4, 0, TAU); x.fill(); }
+      x.fillStyle = '#7a2a22'; x.beginPath(); x.moveTo(W * 0.1, Hh * 0.82); x.lineTo(W * 0.44, Hh * 0.74); x.lineTo(W * 0.62, Hh * 0.86); x.lineTo(W * 0.2, Hh * 0.95); x.closePath(); x.fill();     // tapis
+      x.fillStyle = '#4a3226'; x.fillRect(W * 0.14, Hh * 0.52, W * 0.2, Hh * 0.17); x.fillStyle = '#26282c'; x.fillRect(W * 0.16, Hh * 0.55, W * 0.12, Hh * 0.1);                                  // meuble télé
+      x.fillStyle = '#5a4030'; x.beginPath(); x.moveTo(W * 0.4, Hh * 0.72); x.lineTo(W * 0.56, Hh * 0.7); x.lineTo(W * 0.6, Hh * 0.82); x.lineTo(W * 0.42, Hh * 0.84); x.closePath(); x.fill();                 // canapé
+      x.fillStyle = '#6a6a58'; x.fillRect(W * 0.22, Hh * 0.8, W * 0.2, Hh * 0.1);                                                                                                                  // canapé 2
+      [[0.9, 0.62], [0.74, 0.8], [0.05, 0.7]].forEach(function (t2) { x.fillStyle = '#6a3a22'; x.fillRect(W * t2[0] - 8, Hh * t2[1] + 24, 16, 18); x.fillStyle = '#2f7a35'; for (var k = 0; k < 6; k++) { x.beginPath(); x.ellipse(W * t2[0] + (k - 2.5) * 7, Hh * t2[1] + (k % 2) * 8, 6, 22, (k - 2.5) * 0.35, 0, TAU); x.fill(); } });
+      var vg = x.createRadialGradient(W / 2, Hh / 2, W * 0.3, W / 2, Hh / 2, W * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)'); x.fillStyle = vg; x.fillRect(0, 0, W, Hh);
+      // bandeau du titre
+      x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillRect(0, 22, W, 64); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '700 40px ' + SERIF; x.fillText(M.name + ' – Hall d’entrée', W / 2, 55, W - 30);
+      // « PROP HUNT map »
+      x.save(); x.translate(W * 0.06, Hh - 74); x.rotate(-0.03); x.fillStyle = 'rgba(8,6,6,0.55)'; x.fillRect(-10, -48, W * 0.88, 124); x.textAlign = 'left'; x.fillStyle = '#f4f2ee'; x.font = 'italic 900 96px "Arial Black", Impact, sans-serif'; x.shadowColor = '#000'; x.shadowBlur = 8; x.fillText('PROP HUNT', 0, 8, W * 0.84); x.font = 'italic 700 34px sans-serif'; x.textAlign = 'right'; x.fillText('map', W * 0.84, 62); x.restore();
       var inf = info[id] || { n: 0, ph: 'lobby' }, st = inf.ph === 'lobby' ? (inf.n ? 'En attente de joueurs' : 'Salle vide') : 'Manche en cours';
-      x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(20, Hh - 78, W - 40, 56); x.fillStyle = inf.n ? '#7dffa8' : '#cfcfcf'; x.font = '900 26px sans-serif'; x.fillText('👥 ' + inf.n + ' joueur' + (inf.n > 1 ? 's' : '') + ' · ' + st, W / 2, Hh - 50, W - 50);
+      x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(0, 92, W, 36); x.fillStyle = inf.n ? '#7dffa8' : '#dcdcdc'; x.font = '900 22px sans-serif'; x.textAlign = 'center'; x.fillText('👥 ' + inf.n + ' joueur' + (inf.n > 1 ? 's' : '') + ' · ' + st, W / 2, 111, W - 30);
       p.tex.needsUpdate = true;
     }
     PS.MAP_IDS.forEach(function (id, k) {
-      var px = -12 + k * 4.8, c = mkCanvas(512, 380), t = mkTex(c), p = { id: id, c: c, tex: t, x: px };
-      box(4.4, 3.2, 0.12, gold, px, 2.75, -HZ + 0.1);
-      var pm = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 3.0), new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.55, roughness: 0.6 })); pm.position.set(px, 2.75, -HZ + 0.18); g.add(pm);
-      var sp = box(1.2, 0.08, 0.3, gold, px, 4.5, -HZ + 0.4); sp.rotation.x = -0.4;                                      // petit projecteur au-dessus de l'affiche
-      if (!low) { var lt = new THREE.PointLight(new THREE.Color(COL[id][1]), 0.55, 8); lt.position.set(px, 3.2, -HZ + 1.6); g.add(lt); }
+      var px = 0, c = mkCanvas(512, 512), t = mkTex(c), p = { id: id, c: c, tex: t, x: px };
+      box(4.3, 4.3, 0.12, gold, px, 2.85, -HZ + 0.1);
+      var pm = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 4.0), new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.55, roughness: 0.6 })); pm.position.set(px, 2.85, -HZ + 0.18); g.add(pm);
+      var sp = box(1.2, 0.08, 0.3, gold, px, 5.2, -HZ + 0.4); sp.rotation.x = -0.4;                                      // petit projecteur au-dessus de l'affiche
+      if (!low) { var lt = new THREE.PointLight(new THREE.Color(COL[id][1]), 0.7, 9); lt.position.set(px, 3.2, -HZ + 1.8); g.add(lt); }
       posters.push(p); drawPoster(p);
-      room.interactables.push({ hit: pm, x: px, z: -HZ + 2.0, radius: 2.3, enabled: function () { return true; }, prompt: function () { var n = (info[id] || { n: 0 }).n; return '🗺️ Jouer : ' + PS.MAPS[id].name + (n ? ' (' + n + ' en jeu)' : '') + '  [F / clic]'; }, use: function () { joinPublic(id); } });
+      room.interactables.push({ hit: pm, x: px, z: -HZ + 2.2, radius: 2.8, enabled: function () { return true; }, prompt: function () { var n = (info[id] || { n: 0 }).n; return '🗺️ Jouer : ' + PS.MAPS[id].name + (n ? ' (' + n + ' en jeu)' : '') + '  [F / clic]'; }, use: function () { joinPublic(id); } });
     });
     function joinPublic(id) { F.propJoin = { room: 'pub-' + id }; world.goRoom('prophuntgame', 'prophunt'); }
 

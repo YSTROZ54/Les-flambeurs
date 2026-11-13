@@ -18,6 +18,7 @@ import musiqueHandler from './api/musique.js';
 import pokerHandler from './api/poker.js';
 import posterHandler from './api/poster.js';
 import slotsHandler from './api/slots.js';
+import tableauxHandler from './api/tableaux.js';
 import { GolfRoom } from './api/_doGolf.js';
 
 // Les salles temps réel (golf, course) sont des Durable Objects : un petit programme toujours allumé par salle, relié aux joueurs par WebSocket.
@@ -38,6 +39,7 @@ const ROUTE_HANDLERS = {
   poker: pokerHandler,
   poster: posterHandler,
   slots: slotsHandler,
+  tableaux: tableauxHandler,
 };
 
 function createResponseAdapter() {
@@ -202,7 +204,7 @@ export default {
       if (!env.PROP) return new Response('{}', { status: 503 });
       if (!globalThis.__prInfo || Date.now() - globalThis.__prInfo.t > 4000) {
         const out = {};
-        await Promise.all(['manoir', 'casino', 'marche', 'station', 'musee', 'port'].map(async (m) => { try { const r = await env.PROP.get(env.PROP.idFromName('pub-' + m)).fetch('https://prop/?info=1'); out[m] = await r.json(); } catch (e) { out[m] = { n: 0, ph: 'lobby' }; } }));
+        await Promise.all(['manoir'].map(async (m) => { try { const r = await env.PROP.get(env.PROP.idFromName('pub-' + m)).fetch('https://prop/?info=1'); out[m] = await r.json(); } catch (e) { out[m] = { n: 0, ph: 'lobby' }; } }));
         globalThis.__prInfo = { t: Date.now(), d: out };
       }
       return new Response(JSON.stringify(globalThis.__prInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });

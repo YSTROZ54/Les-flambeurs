@@ -17,7 +17,7 @@ const MIME = {
   '.mjs': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp'
 };
-const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'loupgarou', 'ludo', 'minijeux', 'musique', 'slots', 'cinema', 'cinema-video'];
+const API = ['accounts', 'poker', 'blackjack', 'crash', 'blindtest', 'loupgarou', 'ludo', 'minijeux', 'musique', 'slots', 'tableaux', 'cinema', 'cinema-video'];
 const handlers = {};
 
 async function loadHandler(name) {
@@ -63,7 +63,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(out)); return;
   }
   if (path === '/api/prophunt-info') {          // nombre de joueurs par salle publique (comme sur Cloudflare)
-    const out = {}; for (const mp of ['manoir', 'casino', 'marche', 'station', 'musee', 'port']) { const r = rooms['/ws/prophunt:pub-' + mp]; out[mp] = { n: r ? r.players.size : 0, ph: r ? r.ph : 'lobby' }; }
+    const out = {}; for (const mp of ['manoir']) { const r = rooms['/ws/prophunt:pub-' + mp]; out[mp] = { n: r ? r.players.size : 0, ph: r ? r.ph : 'lobby' }; }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(out)); return;
   }
   const m = path.match(/^\/api\/([a-z-]+)$/);
@@ -110,7 +110,7 @@ server.on('upgrade', async (req, socket, head) => {
     const url = new URL(req.url, 'http://' + req.headers.host);
     if (url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt') { socket.destroy(); return; }
     let room, key = url.pathname;
-    if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-(manoir|casino|marche|station|musee|port)|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
+    if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-manoir|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
     else { key += ':' + url.searchParams.get('room'); if (!/^(pub-(prairie|automne|canyon|neige|ile|kraken|volcan)|priv-[A-Z0-9]{5})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salle\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
     const a = await room.admit(url);
     if (a.error) { socket.write('HTTP/1.1 ' + a.status + ' ' + a.error.replace(/[^a-zA-Z ]/g, '') + '\r\n\r\n'); socket.destroy(); return; }

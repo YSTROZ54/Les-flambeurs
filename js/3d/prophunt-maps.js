@@ -83,7 +83,7 @@
 
   /* ------------------------------ les styles ------------------------------ */
   var STYLE = {
-    manoir: { wall: function () { return mat('w_manoir', { map: T('damask', 0x1d3a2c, 0x56805a, 1, 1, 2), roughness: 0.9 }); }, base: 'wood', crown: 0x6a4a2a, ceil: function () { return mat('c_manoir', { map: T('plaster', 0xd6cdb8, 0, 1, 1, 3), roughness: 1 }); }, hemi: [0xffe6c8, 0x3a2a20, 0.95], bg: 0x0a0806, fog: [0x14100c, 0.008] },
+    manoir: { wall: function () { return mat('w_manoir', { map: T('plaster', 0xdcc596, 0, 1, 1, 2), roughness: 0.95 }); }, base: 'wood', crown: 0x5a3a20, ceil: function () { return mat('c_manoir', { map: T('planks', 0x6a4426, 0, 1, 1, 3), roughness: 0.8 }); }, hemi: [0xffe6c8, 0x3a2a20, 0.95], bg: 0x0a0806, fog: [0x14100c, 0.008] },
     casino: { wall: function () { return mat('w_casino', { map: T('damask', 0x1a0a26, 0x7a2a8a, 1, 1, 4), roughness: 0.8 }); }, base: 'gold', crown: 0xd4af37, ceil: function () { return mat('c_casino', { color: 0x120818, roughness: 0.6, metalness: 0.2 }); }, hemi: [0xffd9ff, 0x2a1030, 0.9], bg: 0x05020a, fog: [0x0c0414, 0.007] },
     station: { wall: function () { return mat('w_station', { map: T('panel', 0x4a5664, 0x39d6ff, 1, 1, 5), roughness: 0.5, metalness: 0.4 }); }, base: 'dark', crown: 0x2a303a, ceil: function () { return mat('c_station', { map: T('metal', 0x39424e, 0, 3, 3, 6), roughness: 0.5, metalness: 0.5 }); }, hemi: [0xc8e8ff, 0x20303a, 0.8], bg: 0x02060a, fog: [0x061018, 0.007] },
     musee: { wall: function () { return mat('w_musee', { map: T('plaster', 0xe6e0d2, 0, 1, 1, 7), roughness: 0.95 }); }, base: 'marble', crown: 0xcbb98a, ceil: function () { return mat('c_musee', { map: T('plaster', 0xf0ece2, 0, 1, 1, 8), roughness: 1 }); }, hemi: [0xfff4e0, 0x504a42, 0.7], bg: 0x0a0908, fog: [0x1a1814, 0.004] }
@@ -92,7 +92,7 @@
   // quel sol pour quelle pièce
   function floorFor(style, kind) {
     var tbl = {
-      bibliotheque: ['parquet', 0x5a3a22], hall: ['checker', 0xd8d2c6, 0x1a1a22], salon: ['parquet', 0x8a5a30], salle: ['planks', 0x7a4a26], cuisine: ['tile', 0x9a9a8e], chambre: ['planks', 0x9a7040], bureau: ['parquet', 0x6a4426], bain: ['tile', 0xb8d0d8], toilettes: ['tile', 0xc5d0d8],
+      bibliotheque: ['parquet', 0x5a3a22], hall: ['tile', 0xe4dbc2], salon: ['parquet', 0x8a5a30], salle: ['planks', 0x7a4a26], cuisine: ['tile', 0x9a9a8e], chambre: ['planks', 0x9a7040], bureau: ['parquet', 0x6a4426], bain: ['tile', 0xb8d0d8], toilettes: ['tile', 0xc5d0d8],
       garde: ['concrete', 0x77706a], bal: ['marble', 0xd0cabc], enfant: ['carpet', 0x2a4a6a, 0xe0b030],
       entree: ['marble', 0x16161c], vestiaire: ['carpet', 0x3a0a2a, 0xd4af37], cage: ['tile', 0x8a8a90], slots: ['carpet', 0x5a0a1c, 0xd4af37], tables: ['carpet', 0x0e3a2a, 0xd4af37], bar: ['checker', 0xf0ece4, 0x14141a], poker: ['carpet', 0x14305a, 0xd4af37], vip: ['marble', 0x16161c], direction: ['parquet', 0x4a2a1a], securite: ['tile', 0x6a707a],
       quartiers: ['carpet', 0x2a3a4a, 0x39d6ff], cantine: ['tile', 0x7a8890], infirmerie: ['tile', 0x9aa8b0], reunion: ['carpet', 0x2a3040, 0x39d6ff], cryo: ['panel', 0x34404c, 0x39d6ff], labo: ['tile', 0x8a98a2], reacteur: ['grating', 0x6a7886], passerelle: ['panel', 0x2a3a4c, 0xff9a2e], hangar: ['concrete', 0x6a7078], machines: ['grating', 0x5a6674], douches: ['tile', 0x6a8490],
@@ -157,6 +157,7 @@
           for (var q = 0; q < 8; q++) { var a = q / 8 * TAU, fl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), glowMat('lflame', 0xffc070, 3)); fl.position.set(Math.cos(a) * 0.7, 0.1, Math.sin(a) * 0.7); fl.scale.y = 1.6; lg.add(fl); var cd = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 6), mat('wax', { color: 0xf4ecd8, roughness: 0.8 })); cd.position.set(Math.cos(a) * 0.7, 0.02, Math.sin(a) * 0.7); lg.add(cd); }
           var crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), mat('cryst', { color: 0xe8f0ff, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.6, emissive: 0x88a0d0, emissiveIntensity: 0.3 })); crystal.position.y = -0.2; lg.add(crystal);
           lg.position.set(cx, H - 1.35, cz); grp.add(lg);
+          if (st === 'manoir' && rm.kind === 'hall') [-7.5, 7.5].forEach(function (o) { var c2 = lg.clone(); c2.position.set(cx + o, H - 1.35, cz); grp.add(c2); var pl3 = new THREE.PointLight(col, 0.9, 16, 1.6); pl3.position.set(cx + o, H - 1.9, cz); grp.add(pl3); lights.push(pl3); });
         }
         if (st === 'station' || st === 'musee') { var disk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 18), glowMat('disk' + st, st === 'station' ? 0xe8f6ff : 0xfff6e0, 1.3)); disk.position.set(cx, H - 0.04, cz + 3); grp.add(disk); }
         if (st === 'station' && rm.kind === 'reacteur') { var red = new THREE.PointLight(0xff3b3b, 0.0, 30, 1.5); red.position.set(cx, H - 1.2, cz); grp.add(red); var ph0 = 0; anim.push(function (dt) { ph0 += dt; red.intensity = Math.max(0, Math.sin(ph0 * 3)) * 1.4; }); var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), glowMat('beacon', 0xff3b3b, 2.5)); beacon.position.set(cx, H - 0.3, cz); grp.add(beacon); }
@@ -164,6 +165,33 @@
         if (st === 'manoir' && rm.kind === 'salon') { var rug2 = floorPlane(cx - 3, cz - 3, cx + 3, cz + 3, mat('rug2', { map: T('carpet', 0x1d3a5a, 0xd4af37, 1, 1, 4), roughness: 1 }), 6, 0.012); grp.add(rug2); }
         if (st === 'casino' && rm.kind === 'entree') { var med = new THREE.Mesh(new THREE.CircleGeometry(5, 48), mat('medal', { map: (function () { var c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#1a0a24'; x.fillRect(0, 0, 256, 256); for (var i = 0; i < 12; i++) { x.fillStyle = i % 2 ? '#d4af37' : '#b01818'; x.beginPath(); x.moveTo(128, 128); x.arc(128, 128, 124, i / 12 * TAU, (i + 1) / 12 * TAU); x.fill(); } x.fillStyle = '#12081a'; x.beginPath(); x.arc(128, 128, 40, 0, TAU); x.fill(); x.fillStyle = '#d4af37'; x.font = '900 38px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('777', 128, 130); return tex(c); })(), roughness: 0.4, metalness: 0.2 })); med.rotation.x = -Math.PI / 2; med.position.set(cx, 0.015, cz); grp.add(med); }
       });
+      // ----- le hall du manoir : tapis, mezzanine avec garde-corps, tableaux en hauteur, grande porte d'entrée
+      if (st === 'manoir') {
+        var hl = map.rooms[0], woodF = mat('mz_wood', { map: T('planks', 0x8a5a30, 0, 1, 1, 12), roughness: 0.6 }), iron = mat('mz_iron', { color: 0x1a1612, roughness: 0.5, metalness: 0.6 });
+        grp.add(floorPlane(hl.ix0 + (hl.ix1 - hl.ix0) * 0.27 - 3.4, hl.iz0 + (hl.iz1 - hl.iz0) * 0.6 - 2.4, hl.ix0 + (hl.ix1 - hl.ix0) * 0.27 + 3.4, hl.iz0 + (hl.iz1 - hl.iz0) * 0.6 + 2.4, mat('rug_h1', { map: T('carpet', 0x8a2f24, 0xd4af37, 1, 1, 21), roughness: 1 }), 7, 0.012));
+        grp.add(floorPlane(hl.ix0 + (hl.ix1 - hl.ix0) * 0.78 - 2.2, hl.iz0 + (hl.iz1 - hl.iz0) * 0.62 - 2.2, hl.ix0 + (hl.ix1 - hl.ix0) * 0.78 + 2.2, hl.iz0 + (hl.iz1 - hl.iz0) * 0.62 + 2.2, mat('rug_h2', { map: T('carpet', 0x1d3a5a, 0xd4af37, 1, 1, 22), roughness: 1 }), 5, 0.012));
+        var mzD = 4.2, mzY = 3.3, mzZ = -hd + mzD / 2;
+        var deck = boxT(map.W - 0.3, 0.26, mzD, woodF, 2); deck.position.set(0, mzY - 0.13, mzZ); grp.add(deck);
+        var edge = new THREE.Mesh(new THREE.BoxGeometry(map.W - 0.3, 0.32, 0.12), PM.darkwood()); edge.position.set(0, mzY - 0.16, -hd + mzD); grp.add(edge);
+        var rl = new THREE.Mesh(new THREE.BoxGeometry(map.W - 0.3, 0.06, 0.09), iron); rl.position.set(0, mzY + 1.0, -hd + mzD - 0.06); grp.add(rl);
+        var bc = cv(64, 128), bx2 = bc.getContext('2d'); bx2.strokeStyle = '#1a1612'; bx2.lineWidth = 5; bx2.beginPath(); bx2.moveTo(32, 0); bx2.lineTo(32, 128); bx2.stroke(); bx2.lineWidth = 4; bx2.beginPath(); bx2.arc(32, 64, 14, 0, TAU); bx2.stroke(); bx2.lineWidth = 7; bx2.beginPath(); bx2.moveTo(0, 125); bx2.lineTo(64, 125); bx2.moveTo(0, 3); bx2.lineTo(64, 3); bx2.stroke();
+        var bt = tex(bc); bt.repeat.set((map.W - 0.4) / 0.4, 1);
+        var bars = new THREE.Mesh(new THREE.PlaneGeometry(map.W - 0.4, 0.95), new THREE.MeshBasicMaterial({ map: bt, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide })); bars.position.set(0, mzY + 0.5, -hd + mzD - 0.06); grp.add(bars);
+        var dkTbl = [[-8.5, 1], [-2.5, -1], [4, 1], [9, -1]];
+        dkTbl.forEach(function (q, k) { var tb = PM.build('table_round'); tb.position.set(q[0], mzY, mzZ + q[1] * 0.2); grp.add(tb); for (var c = 0; c < 3; c++) { var ca = c * 2.1 + k, ch2 = PM.build('chair'); ch2.position.set(q[0] + Math.sin(ca) * 0.95, mzY, mzZ + q[1] * 0.2 + Math.cos(ca) * 0.95); ch2.rotation.y = ca + Math.PI; grp.add(ch2); } });
+        [-11, 11, 0].forEach(function (px) { var pt2 = PM.build('plant'); pt2.position.set(px, mzY, -hd + 0.7); grp.add(pt2); });
+        [[-7, 0], [0, 2], [7, 4]].forEach(function (q, k) { var pm2 = paintingMesh(2.2, 1.5, q[1] + 1, frameGold); pm2.position.set(q[0], 4.95, -hd + 0.06); grp.add(pm2); });
+        var dl = new THREE.PointLight(0xffd8a0, 0.9, 14, 1.6); dl.position.set(0, mzY - 0.5, mzZ + 0.5); grp.add(dl); lights.push(dl);
+        var dl2 = new THREE.PointLight(0xffe2b0, 0.8, 16, 1.6); dl2.position.set(0, mzY + 1.8, mzZ + 1); grp.add(dl2); lights.push(dl2);
+        // la grande porte d'entrée, en double battant, avec imposte vitrée
+        (map.deco || []).forEach(function (d) {
+          if (d.t !== 'entry') return; var dz = d.z - 0.07, dm = mat('door_w', { map: T('wood', 0x5a3418, 0, 1, 1, 33), roughness: 0.55 }), pw = d.w / 2;
+          [-1, 1].forEach(function (s) { var pn = boxT(pw - 0.04, d.h - 0.5, 0.1, dm, 1.2); pn.position.set(d.x + s * (pw / 2), (d.h - 0.5) / 2, dz); grp.add(pn); var hd2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 8), PM.brass ? PM.brass() : iron); hd2.position.set(d.x + s * 0.18, 1.1, dz - 0.09); grp.add(hd2); });
+          var tr = pl(grp, d.w, 0.42, windowMat('night'), d.x, d.h - 0.27, dz - 0.04, Math.PI);
+          var fr0 = PM.darkwood(); [-1, 1].forEach(function (s) { var fp = new THREE.Mesh(new THREE.BoxGeometry(0.2, d.h + 0.1, 0.22), fr0); fp.position.set(d.x + s * (pw + 0.1), (d.h + 0.1) / 2, d.z - 0.1); grp.add(fp); });
+          var fl = new THREE.Mesh(new THREE.BoxGeometry(d.w + 0.5, 0.2, 0.22), fr0); fl.position.set(d.x, d.h + 0.05, d.z - 0.1); grp.add(fl);
+        });
+      }
       // ----- éclairage de base + ambiance
       var hemi = new THREE.HemisphereLight(S.hemi[0], S.hemi[1], S.hemi[2]); grp.add(hemi);
       API.fog = { color: S.fog[0], density: S.fog[1] }; API.bg = S.bg;

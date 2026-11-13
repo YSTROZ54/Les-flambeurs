@@ -19,7 +19,7 @@
     chair: [0.26, 0.48, 0.26], armchair: [0.45, 0.45, 0.45], sofa: [1.0, 0.42, 0.45], table_round: [0.6, 0.38, 0.6], table_long: [1.3, 0.38, 0.45], bookshelf: [0.6, 1.0, 0.18],
     wardrobe: [0.55, 1.05, 0.3], bed: [0.55, 0.3, 1.0], piano: [0.75, 0.55, 0.65], clock: [0.2, 1.0, 0.14], fireplace: [0.85, 0.65, 0.3], floorlamp: [0.16, 0.85, 0.16],
     vase: [0.16, 0.34, 0.16], bust: [0.18, 0.62, 0.18], armor: [0.28, 0.9, 0.22], globe: [0.28, 0.5, 0.28], dresser: [0.55, 0.45, 0.25], desk: [0.7, 0.4, 0.35], candelabra: [0.14, 0.55, 0.14],
-    trunk: [0.4, 0.25, 0.25], bench: [0.7, 0.24, 0.2], stool: [0.2, 0.25, 0.2], teatable: [0.3, 0.3, 0.3], mirror: [0.4, 0.9, 0.12],
+    trunk: [0.4, 0.25, 0.25], bench: [0.7, 0.24, 0.2], stool: [0.2, 0.25, 0.2], teatable: [0.3, 0.3, 0.3], mirror: [0.4, 0.9, 0.12], plant: [0.38, 0.85, 0.38], tvunit: [0.7, 0.57, 0.35],
     // casino
     slot: [0.35, 0.95, 0.3], roulette: [0.85, 0.5, 0.85], blackjack: [1.0, 0.45, 0.6], poker: [0.85, 0.42, 0.85], chips: [0.18, 0.2, 0.18], barstool: [0.22, 0.38, 0.22],
     bar: [1.2, 0.55, 0.3], atm: [0.32, 0.9, 0.25], champagne: [0.28, 0.42, 0.28], dice: [0.35, 0.35, 0.35], safe: [0.38, 0.5, 0.35], trolley: [0.4, 0.55, 0.28],
@@ -67,40 +67,19 @@
 
   /* ------------------------------ les cartes ------------------------------ */
   var MAPS = {
-    manoir: { name: 'Le Manoir', icon: '🏠', style: 'manoir', indoor: true, desc: 'Un grand manoir : hall, salon, salle à manger, cuisine, bibliothèque, chambres et salles de bain', W: 64, D: 44, H: 4.6, seed: 11, spawn: 'hall' },
-    casino: { name: 'Casino des Flambeurs', icon: '🎰', style: 'casino', indoor: true, desc: 'Salle des machines à sous, tables, bar, poker, salon VIP, caisse et coulisses', W: 72, D: 48, H: 5.2, seed: 23, spawn: 'entree' },
-    marche: { name: 'Marché de nuit', icon: '🌙', style: 'marche', indoor: false, desc: 'Ruelles, étals, lanternes et néons sous la pluie', W: 70, D: 56, H: 9, seed: 37, target: 320 },
-    station: { name: 'Station Orion', icon: '🚀', style: 'station', indoor: true, desc: 'Une station orbitale : quartiers, cantine, infirmerie, labo, réacteur, passerelle et hangar', W: 70, D: 50, H: 5.0, seed: 41, spawn: 'quart' },
-    musee: { name: 'Musée des Merveilles', icon: '🏛️', style: 'musee', indoor: true, desc: 'Galeries, boutique, café, bureaux, réserve et salles de repos', W: 68, D: 46, H: 6.4, seed: 53, spawn: 'acc' },
-    port: { name: 'Le Port', icon: '⚓', style: 'port', indoor: false, desc: 'Quais, piles de conteneurs, entrepôts et grues au coucher du soleil', W: 80, D: 60, H: 12, seed: 67, target: 340 }
+    // une seule carte pour l'instant : le manoir, reconstruit pièce par pièce (pour l'instant : le hall d'entrée)
+    manoir: { name: 'Le Manoir', icon: '🏠', style: 'manoir', indoor: true, desc: 'Le hall d\'entrée : salon, grand lustre et mezzanine. Les autres pièces arrivent une par une.', W: 24, D: 16, H: 6.4, seed: 11, spawn: 'hall' }
   };
   var MAP_IDS = Object.keys(MAPS);
 
   // les plans : [identifiant, type de pièce, x0, z0, x1, z1] depuis le coin haut-gauche ; portes : [pièce A, pièce B, position 0..1 le long du mur commun, largeur]
   var LAYOUT = {
     manoir: {
-      rooms: [['bureau', 'bureau', 0, 0, 14, 12], ['biblio', 'bibliotheque', 0, 12, 14, 32], ['bain', 'bain', 0, 32, 14, 44], ['hall', 'hall', 14, 0, 34, 14], ['salon', 'salon', 14, 14, 34, 30], ['salle', 'salle', 14, 30, 34, 44],
-        ['cuisine', 'cuisine', 34, 0, 50, 14], ['garde', 'garde', 34, 14, 50, 22], ['bal', 'bal', 34, 22, 50, 44], ['ch1', 'chambre', 50, 0, 64, 14], ['wc', 'toilettes', 50, 14, 64, 20], ['ch2', 'chambre', 50, 20, 64, 34], ['enfant', 'enfant', 50, 34, 64, 44]],
-      doors: [['bureau', 'biblio'], ['biblio', 'bain'], ['bureau', 'hall'], ['biblio', 'salon', 0.5, 2.4], ['bain', 'salle'], ['hall', 'salon', 0.5, 2.6], ['salon', 'salle', 0.5, 2.6], ['hall', 'cuisine'], ['salon', 'bal', 0.5, 2.4], ['salle', 'bal'],
-        ['cuisine', 'garde'], ['garde', 'bal'], ['cuisine', 'ch1'], ['bal', 'ch2'], ['ch1', 'wc'], ['wc', 'ch2'], ['ch2', 'enfant'], ['bal', 'enfant']], windows: { w: 1.5, h: 2.2, y: 1.0, step: 4.6, kind: 'night', no: ['garde', 'wc', 'bain'] }
-    },
-    casino: {
-      rooms: [['entree', 'entree', 0, 0, 14, 14], ['vest', 'vestiaire', 0, 14, 14, 22], ['cage', 'cage', 0, 22, 14, 34], ['cuis', 'cuisine', 0, 34, 14, 48], ['slots', 'slots', 14, 0, 46, 20], ['tab', 'tables', 14, 20, 46, 36], ['bar', 'bar', 14, 36, 46, 48],
-        ['poker', 'poker', 46, 0, 72, 16], ['vip', 'vip', 46, 16, 72, 30], ['dir', 'direction', 46, 30, 60, 40], ['sec', 'securite', 60, 30, 72, 40], ['wc', 'toilettes', 46, 40, 72, 48]],
-      doors: [['entree', 'slots', 0.5, 2.6], ['entree', 'vest'], ['vest', 'slots'], ['cage', 'tab'], ['vest', 'cage'], ['cuis', 'cage'], ['cuis', 'bar'], ['slots', 'tab', 0.25, 2.6], ['slots', 'tab', 0.75, 2.6], ['tab', 'bar', 0.5, 2.6],
-        ['slots', 'poker'], ['tab', 'vip'], ['bar', 'wc'], ['poker', 'vip', 0.5, 2.4], ['vip', 'dir'], ['vip', 'sec'], ['dir', 'sec']], windows: { w: 1.5, h: 2.2, y: 1.0, step: 5, kind: 'night', no: ['cage', 'sec', 'vest', 'wc', 'cuis', 'dir'] }
-    },
-    station: {
-      rooms: [['quart', 'quartiers', 0, 0, 18, 14], ['cant', 'cantine', 18, 0, 36, 14], ['inf', 'infirmerie', 36, 0, 52, 14], ['reun', 'reunion', 52, 0, 70, 14], ['cryo', 'cryo', 0, 14, 16, 36], ['labo', 'labo', 16, 14, 30, 36],
-        ['reac', 'reacteur', 30, 14, 48, 36], ['pass', 'passerelle', 48, 14, 70, 36], ['hang', 'hangar', 0, 36, 34, 50], ['mach', 'machines', 34, 36, 52, 50], ['douch', 'douches', 52, 36, 70, 50]],
-      doors: [['quart', 'cant'], ['cant', 'inf'], ['inf', 'reun'], ['quart', 'cryo'], ['cant', 'labo'], ['cant', 'reac', 0.5, 1.8], ['inf', 'reac'], ['reun', 'pass'], ['cryo', 'labo'], ['labo', 'reac'], ['reac', 'pass'], ['cryo', 'hang'],
-        ['labo', 'hang'], ['hang', 'mach', 0.5, 2.6], ['reac', 'mach'], ['pass', 'douch'], ['mach', 'douch']], windows: { w: 2.8, h: 1.9, y: 1.1, step: 6.5, kind: 'space', no: ['douch', 'inf'] }
-    },
-    musee: {
-      rooms: [['acc', 'accueil', 0, 0, 16, 14], ['egy', 'egypte', 16, 0, 36, 14], ['ant', 'antique', 36, 0, 56, 14], ['bout', 'boutique', 56, 0, 68, 14], ['dino', 'dino', 0, 14, 20, 32], ['rot', 'rotonde', 20, 14, 48, 32], ['art', 'art', 48, 14, 68, 32],
-        ['cafe', 'cafe', 0, 32, 18, 46], ['reun', 'reunion', 18, 32, 32, 46], ['sec', 'securite', 32, 32, 42, 46], ['res', 'reserve', 42, 32, 56, 46], ['wc', 'toilettes', 56, 32, 68, 46]],
-      doors: [['acc', 'egy', 0.5, 2.6], ['egy', 'ant', 0.5, 2.6], ['ant', 'bout'], ['acc', 'dino', 0.5, 2.4], ['egy', 'rot', 0.5, 2.6], ['ant', 'rot', 0.5, 2.6], ['bout', 'art'], ['dino', 'rot', 0.5, 2.4], ['rot', 'art', 0.5, 2.4],
-        ['dino', 'cafe'], ['rot', 'reun'], ['rot', 'sec'], ['rot', 'res'], ['art', 'res'], ['art', 'wc'], ['cafe', 'reun'], ['reun', 'sec'], ['sec', 'res']], windows: null
+      // pour l'instant une seule pièce : le hall d'entrée (24 × 16 m, 6,4 m de haut) ; on ajoutera les autres pièces au fur et à mesure
+      rooms: [['hall', 'hall', 0, 0, 24, 16]],
+      doors: [], windows: null,
+      // la grande porte d'entrée (mur sud) et les piliers qui portent la mezzanine (au nord)
+      entry: { w: 3.2, h: 3.4 }, pillars: [[-9, -3.95], [-3, -3.95], [3, -3.95], [9, -3.95]], mezz: 4.2, mezzY: 3.3
     }
   };
 
@@ -206,12 +185,32 @@
         }
       });
     });
+    // la porte d'entrée (décor, au milieu du mur sud) et les piliers de la mezzanine (pleins : on ne passe pas à travers)
+    if (L.entry) {
+      var er = rooms[0], ew = L.entry.w;
+      reg.push({ x0: er.cx - ew / 2 - 0.4, x1: er.cx + ew / 2 + 0.4, z0: er.iz1 - 1.1, z1: er.iz1, y0: 0, y1: L.entry.h + 0.1, door: 1 });
+      deco.push({ t: 'entry', x: +er.cx.toFixed(2), z: +er.iz1.toFixed(2), yaw: Math.PI, w: ew, h: L.entry.h, room: er.id });
+    }
+    (L.pillars || []).forEach(function (pc) {
+      var pw = 0.25, bx = { x0: pc[0] - pw, x1: pc[0] + pw, z0: pc[1] - pw, z1: pc[1] + pw };
+      walls.push({ x0: bx.x0, z0: bx.z0, x1: bx.x1, z1: bx.z1, y0: 0, y1: L.mezzY || 3.3 }); reg.push({ x0: bx.x0, x1: bx.x1, z0: bx.z0, z1: bx.z1, y0: 0, y1: L.mezzY || 3.3 });
+    });
     // la zone de départ des chasseurs reste libre
     var sp = byId[M.spawn]; reg.push({ x0: sp.cx - 2.6, x1: sp.cx + 2.6, z0: sp.cz - 2.0, z1: sp.cz + 2.0, y0: 0, y1: 2.5 });
 
     /* --- les gabarits de pièces --- */
     var TPL = {
-      hall: function () { A('n', 'armor', 0.06); A('n', 'armor', 0.94); A('n', 'clock', 0.5); mrow('n', 'bigpainting', 2, 0.26, 0.74); row('s', 'bench', 2, 0.28, 0.72); A('e', 'coatrack', 0.12); A('w', 'mirror', 0.5); A('w', 'bust', 0.18); A('w', 'bust', 0.82); row('e', 'vase', 3, 0.3, 0.8); C('table_round', 0.5, 0.5, 0); C('floorlamp', 0.2, 0.25, 0); C('floorlamp', 0.8, 0.75, 0); Mt('s', 'wallclock', 0.5); Mt('w', 'sconce', 0.3); Mt('w', 'sconce', 0.7); Mt('e', 'sconce', 0.35); A('s', 'dresser', 0.1); },
+      // le hall d'entrée du manoir : coin salon (télé, canapés, table basse) à l'ouest, salon de thé à l'est, plantes partout, mezzanine au nord (décor dans prophunt-maps.js)
+      hall: function () {
+        var tv = A('w', 'tvunit', 0.6); var tt = C('teatable', 0.25, 0.6, 0); C('sofa', 0.335, 0.6, -90); C('sofa', 0.25, 0.51, 0); C('sofa', 0.25, 0.69, 180); C('armchair', 0.355, 0.74, -140); C('armchair', 0.355, 0.46, -40);
+        if (tt) topOn(tt, 2); if (tv) topOn(tv, 0);
+        A('w', 'plant', 0.1); A('w', 'plant', 0.94); A('e', 'plant', 0.1); A('e', 'plant', 0.94); A('s', 'plant', 0.22); A('s', 'plant', 0.78); A('n', 'plant', 0.04); A('n', 'plant', 0.96); C('plant', 0.1, 0.4, 0);
+        A('n', 'bookshelf', 0.2); A('n', 'bookshelf', 0.8); A('n', 'fireplace', 0.5); Mt('n', 'bigpainting', 0.5, 1.7); A('n', 'armor', 0.35); A('n', 'armor', 0.65); A('n', 'coatrack', 0.12);
+        row('s', 'bench', 2, 0.3, 0.7); A('s', 'coatrack', 0.06); A('s', 'dresser', 0.14); A('s', 'dresser', 0.9); A('s', 'mirror', 0.5, 4.0); Mt('s', 'bigpainting', 0.3, 1.6); Mt('s', 'bigpainting', 0.72, 1.6);
+        var et = C('table_round', 0.78, 0.62, 0); if (et) { ring(et, 4, 'chair', 1.12); topOn(et, 2); } C('armchair', 0.9, 0.45, 90); C('sofa', 0.7, 0.8, 180); A('e', 'piano', 0.45); A('e', 'clock', 0.2); row('e', 'vase', 2, 0.65, 0.75);
+        C('stool', 0.3, 0.8, 20); C('stool', 0.345, 0.83, -20); C('candelabra', 0.62, 0.55, 0); C('urn', 0.9, 0.7, 0); C('urn', 0.6, 0.88, 0); C('amphora', 0.07, 0.84, 0); A('s', 'wardrobe', 0.62); C('floorlamp', 0.15, 0.3, 0); C('floorlamp', 0.4, 0.78, 0); C('floorlamp', 0.6, 0.35, 0); C('bust', 0.62, 0.7, 0); C('trunk', 0.42, 0.34, 0); C('globe', 0.8, 0.35, 0);
+        Mt('w', 'painting', 0.2, 1.6); Mt('w', 'painting', 0.9, 1.6); Mt('w', 'sconce', 0.38, 2.1); Mt('w', 'sconce', 0.82, 2.1); Mt('e', 'sconce', 0.3, 2.1); Mt('e', 'sconce', 0.8, 2.1); Mt('e', 'wallclock', 0.5, 2.6); Mt('e', 'bigpainting', 0.62, 1.6); Mt('s', 'wallclock', 0.12, 2.6);
+      },
       salon: function () { A('n', 'fireplace', 0.5); Mt('n', 'bigpainting', 0.5, 2.1); Mt('n', 'sconce', 0.3); Mt('n', 'sconce', 0.7); C('sofa', 0.5, 0.62, 180); C('teatable', 0.5, 0.5, 0); C('armchair', 0.25, 0.5, 90); C('armchair', 0.75, 0.5, -90); A('w', 'piano', 0.5); A('e', 'bookshelf', 0.25); A('e', 'bookshelf', 0.75); A('s', 'mirror', 0.2); A('s', 'dresser', 0.8); row('s', 'floorlamp', 2, 0.04, 0.96); C('stool', 0.4, 0.8, 0); C('stool', 0.62, 0.8, 0); paint('w', 2); paint('e', 2); Mt('s', 'tapestry', 0.5); },
       salle: function () { var t = dineSet(0.5, 0.5, 0, 'table_long', 4, 1); A('n', 'dresser', 0.3); A('n', 'dresser', 0.7); A('n', 'candelabra', 0.5); A('s', 'mirror', 0.5); A('w', 'clock', 0.5); A('e', 'bust', 0.5); mrow('n', 'bigpainting', 2, 0.3, 0.7, 2.0); mrow('s', 'painting', 3, 0.2, 0.8); Mt('w', 'sconce', 0.25); Mt('w', 'sconce', 0.75); Mt('e', 'sconce', 0.3); Mt('e', 'sconce', 0.7); A('s', 'dresser', 0.12); A('s', 'dresser', 0.88); C('floorlamp', 0.08, 0.5, 0); if (t) topOn(t, 6); },
       cuisine: function () { A('n', 'fridge', 0.07); A('n', 'stove', 0.26); A('n', 'kcounter', 0.43); A('n', 'sinkunit', 0.6); A('n', 'kcounter', 0.77); A('n', 'kcounter', 0.93); mrow('n', 'wallshelf', 2, 0.42, 0.78, 1.55, 0); Mt('n', 'wallclock', 0.12, 2.6); A('w', 'kcounter', 0.5); A('w', 'cabinet', 0.2); C('kisland', 0.5, 0.52, 0); C('stool', 0.3, 0.78, 0); C('stool', 0.5, 0.78, 0); C('stool', 0.7, 0.78, 0); A('s', 'barrel', 0.1); A('s', 'barrel', 0.2); A('s', 'crate', 0.9); A('s', 'basket', 0.8); A('e', 'shelfunit', 0.3); A('e', 'trashbin', 0.8); Mt('e', 'extinguisher', 0.5); Mt('s', 'poster', 0.5); },
@@ -281,7 +280,7 @@
     function freeSpot(x, z, rad) { var b = { x0: x - rad, x1: x + rad, z0: z - rad, z1: z + rad, y0: 0.05, y1: 1.6 }; for (var q = 0; q < reg.length; q++) if (!reg[q].door && overlap(b, reg[q], 0)) return false; for (q = 0; q < walls.length; q++) if (b.x0 < walls[q].x1 && b.x1 > walls[q].x0 && b.z0 < walls[q].z1 && b.z1 > walls[q].z0) return false; return true; }
     var spawnS = [], spawnH = [], k2;
     for (i = 0; i < 6; i++) spawnS.push([sp.cx + (i % 3 - 1) * 1.7, sp.cz + (Math.floor(i / 3) - 0.5) * 1.7]);
-    rooms.forEach(function (rm) { var n = 0, tr = 0; while (n < 5 && tr++ < 60) { var x = rm.ix0 + 0.8 + r() * (rm.ix1 - rm.ix0 - 1.6), z = rm.iz0 + 0.8 + r() * (rm.iz1 - rm.iz0 - 1.6); if (freeSpot(x, z, 0.5)) { spawnH.push([+x.toFixed(2), +z.toFixed(2)]); n++; } } });
+    rooms.forEach(function (rm) { var n = 0, tr = 0, want = Math.max(5, Math.round(rm.area / 25)); while (n < want && tr++ < 200) { var x = rm.ix0 + 0.8 + r() * (rm.ix1 - rm.ix0 - 1.6), z = rm.iz0 + 0.8 + r() * (rm.iz1 - rm.iz0 - 1.6); if (freeSpot(x, z, 0.5)) { spawnH.push([+x.toFixed(2), +z.toFixed(2)]); n++; } } });
     props.forEach(function (p) { delete p.box; });
     return { id: id, name: M.name, style: M.style, indoor: true, W: W, D: D, H: H, walls: walls, blocks: [], rooms: rooms, doors: doors, deco: deco, props: props, spawnH: spawnH, spawnS: spawnS };
   }

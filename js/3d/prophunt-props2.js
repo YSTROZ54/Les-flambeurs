@@ -98,4 +98,17 @@
   def('radio', 'Radio', function (h) { var b = darkwood(); h.b(0.4, 0.24, 0.16, b, 0, 0, 0); plane(h.g, 0.2, 0.12, cvm(64, 40, function (x, w, hh) { x.fillStyle = '#e8d890'; x.fillRect(0, 0, w, hh); x.fillStyle = '#7a1a1a'; x.fillRect(8, 16, w - 16, 3); x.fillRect(30, 10, 2, 16); }, 0.4, 'radiod'), -0.07, 0.13, 0.081); h.c(0.06, 0.06, 0.02, M('spk', 0x2a2218, 0.8), 0.12, 0.12, 0.081, 14).rotation.x = Math.PI / 2; h.c(0.005, 0.005, 0.3, chrome(), 0.15, 0.24, -0.05, 4).rotation.z = 0.4; });
   def('candlesm', 'Bougie', function (h) { h.c(0.03, 0.04, 0.012, brass(), 0, 0, 0, 12); h.c(0.018, 0.018, 0.1, M('wax', 0xf6efdc, 0.8), 0, 0.012, 0, 10); h.s(0.014, glow('flame', 0xffb040, 2.5), 0, 0.14, 0, 1, 1.6, 1); });
   def('giftbox', 'Cadeau', function (h, v) { var cols = [0xc02a2a, 0x2a6ac0, 0x2aa05a, 0xe0b030]; var c = cols[v % 4]; h.b(0.3, 0.2, 0.24, M('gift' + c, c, 0.5), 0, 0, 0); h.b(0.04, 0.202, 0.242, M('ribbon', 0xf0e0a0, 0.4), 0, 0, 0); h.b(0.302, 0.202, 0.04, M('ribbon', 0xf0e0a0, 0.4), 0, 0, 0); h.s(0.04, M('ribbon', 0xf0e0a0, 0.4), 0, 0.22, 0, 1.4, 0.6, 1); });
+
+  /* ---------- hall du manoir : grande plante verte et meuble télé ---------- */
+  def('plant', 'Plante verte', function (h) {
+    h.c(0.26, 0.2, 0.4, M('plantpot', 0xa8552e, 0.8, 0), 0, 0, 0, 16); h.c(0.24, 0.24, 0.02, M('plantsoil', 0x2a1d14, 1, 0), 0, 0.4, 0, 16); h.c(0.025, 0.035, 0.75, M('plantstem', 0x4a3a22, 0.9, 0), 0, 0.4, 0, 6);
+    var l1 = M('plantleaf1', 0x2f7a35, 0.7, 0, { side: THREE.DoubleSide }), l2 = M('plantleaf2', 0x3f9a45, 0.7, 0, { side: THREE.DoubleSide }), k;
+    for (k = 0; k < 15; k++) { var a = k * 2.4, rr = 0.1 + (k % 4) * 0.045, lf = h.s(0.2, k % 2 ? l1 : l2, Math.cos(a) * rr, 0.85 + (k % 8) * 0.1, Math.sin(a) * rr, 1, 0.12, 0.45); lf.rotation.set(0, -a, 0.4 + (k % 3) * 0.12); }
+  });
+  def('tvunit', 'Meuble télé', function (h) {
+    var wd = darkwood(), ok = oak();
+    h.b(1.36, 0.5, 0.6, wd, 0, 0.05, 0); h.b(1.4, 0.04, 0.64, wd, 0, 0.55, 0); [-0.64, 0.64].forEach(function (x) { [-0.24, 0.24].forEach(function (z) { h.b(0.07, 0.05, 0.07, wd, x, 0, z); }); });
+    [-0.34, 0.34].forEach(function (x) { h.b(0.6, 0.38, 0.012, ok, x, 0.11, 0.306); h.s(0.02, brass(), x * 0.5, 0.3, 0.32); });
+    h.b(0.92, 0.55, 0.5, M('tvbody', 0x24262a, 0.5, 0.1), 0, 0.59, -0.04); h.b(0.72, 0.42, 0.012, glow('tvscr', 0x7ea6c0, 0.55), 0, 0.655, 0.216); h.b(0.1, 0.02, 0.012, M('tvled', 0x888888, 0.5, 0), 0.34, 0.61, 0.216);
+  });
 })();
