@@ -66,6 +66,10 @@ const server = http.createServer(async (req, res) => {
     const out = {}; for (const mp of ['manoir']) { const r = rooms['/ws/prophunt:pub-' + mp]; out[mp] = { n: r ? r.players.size : 0, ph: r ? r.ph : 'lobby' }; }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(out)); return;
   }
+  if (path === '/api/murder-info') {            // Murder : joueurs dans chacun des 5 salons
+    const out = {}; for (const mp of ['1', '2', '3', '4', '5']) { const r = rooms['/ws/murder:pub-' + mp]; out[mp] = r ? r.info() : { n: 0, ph: 'lobby' }; }
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(out)); return;
+  }
   const m = path.match(/^\/api\/([a-z-]+)$/);
   if (m && API.includes(m[1])) {
     try {
@@ -108,8 +112,10 @@ var rooms = {};
 server.on('upgrade', async (req, socket, head) => {
   try {
     const url = new URL(req.url, 'http://' + req.headers.host);
-    if (url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt') { socket.destroy(); return; }
+    if (url.pathname !== '/ws/golf' && url.pathname !== '/ws/prophunt' && url.pathname !== '/ws/murder') { socket.destroy(); return; }
     let room, key = url.pathname;
+    if (url.pathname === '/ws/murder') { key += ':' + (url.searchParams.get('room') || ''); if (!/^pub-[1-5]$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doMurder.js')).href)).MurderRoom({}, {}); room = rooms[key]; }
+    else
     if (url.pathname === '/ws/prophunt') { key += ':' + (url.searchParams.get('room') || ''); if (!/^(pub-manoir|priv-[A-Z0-9]{4,6})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salon\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doProp.js')).href)).PropRoom({}, {}); room = rooms[key]; }
     else { key += ':' + url.searchParams.get('room'); if (!/^(pub-(prairie|automne|canyon|neige|ile|kraken|volcan)|priv-[A-Z0-9]{5})$/.test(url.searchParams.get('room') || '')) { socket.write('HTTP/1.1 404 Salle\r\n\r\n'); socket.destroy(); return; } if (!rooms[key]) rooms[key] = new (await import(pathToFileURL(join(ROOT, 'api', '_doGolf.js')).href)).GolfRoom({}, {}); room = rooms[key]; }
     const a = await room.admit(url);

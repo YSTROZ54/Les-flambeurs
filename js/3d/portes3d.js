@@ -392,6 +392,15 @@
         crate(-w / 2 - 0.75, 0, 0.55, 0.6, 0.2); crate(-w / 2 - 0.7, 0.6, 0.5, 0.42, -0.3); crate(w / 2 + 0.7, 0, 0.55, 0.55, -0.15);
       }
     },
+    murder: {
+      frame: 0x8a1a1a, leaf: 0x1a0a0c, rgb: '255, 60, 60', logo: 'spy',
+      paint: function (c, W, H) {                              // porte sombre, traînées rouges et un couteau planté
+        var g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#120406'); g.addColorStop(1, '#2a0a0e'); c.fillStyle = g; c.fillRect(0, 0, W, H); border(c, W, H, '#c0262d', 7);
+        for (var i = 0; i < 9; i++) { var x = 30 + i * (W - 60) / 8, l = 40 + ((i * 53) % 90); c.fillStyle = '#9a0f18'; c.fillRect(x - 5, 14, 10, l); c.beginPath(); c.arc(x, 14 + l, 9, 0, TAU); c.fill(); }
+        c.save(); c.translate(W / 2, H * 0.62); c.rotate(-0.5); c.fillStyle = '#d8dee6'; c.beginPath(); c.moveTo(-14, -H * 0.2); c.lineTo(14, -H * 0.2); c.lineTo(10, H * 0.14); c.lineTo(0, H * 0.2); c.lineTo(-10, H * 0.14); c.closePath(); c.fill();
+        c.fillStyle = '#0c0c10'; c.fillRect(-12, H * 0.18, 24, H * 0.2); c.fillStyle = '#8a8a92'; c.fillRect(-26, H * 0.15, 52, 10); c.restore();
+      }
+    },
     dessin: {
       frame: 0x1c8fb8, leaf: 0xf4f1e8, rgb: '74, 208, 255', logo: 'palette', image: 'assets/icones/jeux/tableau-dessin.png', square: true,
       paint: function (c, W, H) {                              // toile blanche éclaboussée de peinture, trait de pinceau en bas

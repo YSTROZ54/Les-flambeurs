@@ -23,7 +23,8 @@ import { GolfRoom } from './api/_doGolf.js';
 
 // Les salles temps réel (golf, course) sont des Durable Objects : un petit programme toujours allumé par salle, relié aux joueurs par WebSocket.
 import { PropRoom } from './api/_doProp.js';
-export { GolfRoom, PropRoom };
+import { MurderRoom } from './api/_doMurder.js';
+export { GolfRoom, PropRoom, MurderRoom };
 
 const ROUTE_HANDLERS = {
   accounts: accountsHandler,
@@ -208,6 +209,24 @@ export default {
         globalThis.__prInfo = { t: Date.now(), d: out };
       }
       return new Response(JSON.stringify(globalThis.__prInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+
+    // Murder : joueurs dans chacun des 5 salons (6 places), mis en cache 3 s
+    if (pathname === '/api/murder-info') {
+      if (!env.MURDER) return new Response('{}', { status: 503 });
+      if (!globalThis.__muInfo || Date.now() - globalThis.__muInfo.t > 3000) {
+        const out = {};
+        await Promise.all(['1', '2', '3', '4', '5'].map(async (m) => { try { const r = await env.MURDER.get(env.MURDER.idFromName('pub-' + m)).fetch('https://murder/?info=1'); out[m] = await r.json(); } catch (e) { out[m] = { n: 0, ph: 'lobby' }; } }));
+        globalThis.__muInfo = { t: Date.now(), d: out };
+      }
+      return new Response(JSON.stringify(globalThis.__muInfo.d), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+    if (pathname === '/ws/murder') {
+      if (request.headers.get('Upgrade') !== 'websocket') return new Response('WebSocket requis', { status: 426 });
+      if (!env.MURDER) return new Response('Murder indisponible', { status: 503 });
+      const muRoom = url.searchParams.get('room') || '';
+      if (!/^pub-[1-5]$/.test(muRoom)) return new Response('Salon invalide', { status: 404 });
+      return env.MURDER.get(env.MURDER.idFromName(muRoom)).fetch(request);
     }
 
     // Mini golf : joueurs dans chaque salle publique + classement (accueil du golf), ou carte d'une partie privée (?code=XXXXX), mis en cache 4 s
