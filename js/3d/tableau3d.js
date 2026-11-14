@@ -6,7 +6,7 @@
    tableaux les plus votés, qui montent alors sur le podium du mur du fond.
    TOUT est décidé par le serveur (api/tableaux.js : paiement, votes, classement, partage) ; ici on ne fait que dessiner et demander.
    Salle : mur de gauche et mur de droite = 12 cadres chacun (les mieux votés d'abord), chacun avec son cœur pour voter d'un clic ;
-           mur du fond = podium de la semaine passée (contre le mur), un seul chevalet au milieu (un peintre à la fois, ouvert à tous), panneau du concours près de la porte.
+           mur du fond = podium de la semaine passée (contre le mur), un seul chevalet au milieu (plusieurs peintres en même temps, chacun sa toile), panneau du concours près de la porte.
    Quand quelqu'un peint, son personnage se place devant le chevalet et fait le geste de peindre chez tous les autres (message « paint »).
    Fichiers liés : api/tableaux.js, minijeux3d.js (la porte « TABLEAU DESSIN »), world3d.js.
    ===================================================================== */
@@ -307,9 +307,13 @@
 
     /* ---------- le chevalet (un seul, pour tout le monde) : on se place devant, face à la toile, pour peindre ---------- */
     var EASELS = [{ x: 0, z: 1.0 }];
-    var painters = {};                       // pseudo -> { n: numéro du chevalet, t: dernier signe de vie } (les autres joueurs en train de peindre)
-    function easelBusy(n) { var now = performance.now(), me = F.me(); return Object.keys(painters).some(function (k) { return k !== me && painters[k].n === n && now - painters[k].t < 8000; }); }
-    EASELS.forEach(function (E, n) {
+    var painters = {};                       // pseudo -> { n: numéro de la place devant le chevalet, t: dernier signe de vie } (les autres joueurs en train de peindre)
+    // Plusieurs personnes peignent en même temps devant le même chevalet, chacune sur SA toile : on se répartit en arc de cercle devant lui
+    var SPOTS = [[0, 1.6], [-0.55, 1.6], [0.55, 1.6], [-1.1, 1.7], [1.1, 1.7], [-0.3, 2.7], [0.3, 2.7], [-0.9, 2.8], [0.9, 2.8]];   // [angle, distance]
+    function spotTaken(i) { var now = performance.now(), me = F.me(); return Object.keys(painters).some(function (k) { return k !== me && painters[k].n === i && now - painters[k].t < 8000; }); }
+    function freeSpot() { for (var i = 0; i < SPOTS.length; i++) if (!spotTaken(i)) return i; return -1; }
+    function spotPose(i) { var E = EASELS[0], a0 = SPOTS[i][0], d = SPOTS[i][1], x = E.x + Math.sin(a0) * d, z = E.z + Math.cos(a0) * d; return { x: x, z: z, yaw: F.yawFor(E.x - x, E.z - z) }; }
+    EASELS.forEach(function (E) {
       var wood = std(0x8a5a30, 0.75, 0.05), e = new THREE.Group(); e.position.set(E.x, 0, E.z); g.add(e);   // la toile regarde vers +z, le peintre est devant
       box(e, 0.07, 2.1, 0.07, wood, -0.55, 1.05, -0.2).rotation.z = 0.05; box(e, 0.07, 2.1, 0.07, wood, 0.55, 1.05, -0.2).rotation.z = -0.05; box(e, 0.07, 2.0, 0.07, wood, 0, 1.0, -0.6).rotation.x = -0.18;
       box(e, 1.25, 0.06, 0.1, wood, 0, 0.75, -0.15);
@@ -318,11 +322,11 @@
       [0xff4a4a, 0x4ab0ff, 0xffd24a, 0x4aff9a, 0xc04aff, 0xff8a2a].forEach(function (col, i) { var dot = new THREE.Mesh(new THREE.CircleGeometry(0.06 + (i % 3) * 0.015, 12), new THREE.MeshBasicMaterial({ color: col })); dot.position.set(-0.4 + (i % 3) * 0.4, 1.2 + Math.floor(i / 3) * 0.45, -0.12); dot.rotation.x = -0.08; e.add(dot); });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(E.x, 1.1, E.z); g.add(hit);
       room.colliders.push({ x: E.x, z: E.z - 0.1, r: 0.7 });
-      E.sx = E.x; E.sz = E.z + 1.5;          // où se tient le peintre
-      room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.2,
-        enabled: function () { return !easelBusy(n); },
-        prompt: function () { return data && !data.price ? '🎨 Tu as déjà tes 3 tableaux (retire-en un pour peindre)' : '🎨 Peindre un tableau (chevalet libre) — ' + fmtN(data ? data.price : 300) + ' 🪙'; },
-        use: function () { if (!easelBusy(n)) openEditor(n); } });
+      E.sx = E.x; E.sz = E.z + 1.6;          // point d'approche pour la touche F
+      room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.6,
+        enabled: function () { return freeSpot() >= 0; },
+        prompt: function () { return data && !data.price ? '🎨 Tu as déjà tes 3 tableaux (retire-en un pour peindre)' : '🎨 Peindre un tableau — ' + fmtN(data ? data.price : 300) + ' 🪙'; },
+        use: function () { if (freeSpot() >= 0) openEditor(); } });
     });
 
     /* ---------- les cadres sont cliquables ---------- */
@@ -508,12 +512,13 @@
     function loadDraft() { try { var j = JSON.parse(localStorage.getItem(draftKey()) || 'null'); if (j && typeof j.img === 'string' && Date.now() - (j.t || 0) < 7 * 864e5) return j; } catch (e) { /* ok */ } return null; }
     function clearDraft() { try { localStorage.removeItem(draftKey()); } catch (e) { /* ok */ } }
 
-    function openEditor(n) {
+    function openEditor() {
       if (needLogin()) return;
       if (data && !data.price) { try { world.flash('🎨 Tu as déjà accroché ' + data.maxPerPlayer + ' tableaux cette semaine', 'Retire-en un pour en refaire un'); } catch (e) { /* ok */ } return; }
       // on se place devant le chevalet, face à la toile, immobile : les autres joueurs nous voient peindre (et non courir sur place)
-      var Ez = EASELS[n] || EASELS[0];
-      world.player.x = Ez.sx; world.player.z = Ez.sz; world.player.yaw = 0; world.player.pitch = -0.1; world.pv.x = 0; world.pv.z = 0;
+      var n = freeSpot(); if (n < 0) { try { world.flash('🎨 Le chevalet est complet', 'Réessaie dans un instant'); } catch (e) { /* ok */ } return; }
+      var sp = spotPose(n);
+      world.player.x = sp.x; world.player.z = sp.z; world.player.yaw = sp.yaw; world.player.pitch = -0.1; world.pv.x = 0; world.pv.z = 0;
       sendPaint(true, n); paintT = 2.5;
       view = null;
       var d = data, price = d ? d.price : 300;
