@@ -93,7 +93,7 @@
     for (var pi = 0; pi < 8; pi++) { fx.fillStyle = pi % 2 ? '#34231a' : '#2a1c14'; fx.fillRect(0, pi * 32, 256, 31); fx.fillStyle = 'rgba(0,0,0,.35)'; fx.fillRect((pi * 83) % 256, pi * 32, 2, 32); }
     var ft = mkTex(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 3, HZ * 2 / 3); ft.anisotropy = 8;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.5, metalness: 0.08 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
-    // murs de luxe : vert émeraude profond, losanges dorés très discrets, lambris sombre en bas
+    // murs de luxe : vert émeraude profond, losanges dorés très discrets
     var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#0d4034'; wx.fillRect(0, 0, 256, 256);
     var wgr = wx.createLinearGradient(0, 0, 0, 256); wgr.addColorStop(0, 'rgba(255,255,255,0.05)'); wgr.addColorStop(1, 'rgba(0,0,0,0.12)'); wx.fillStyle = wgr; wx.fillRect(0, 0, 256, 256);
     wx.strokeStyle = 'rgba(214,176,70,0.2)'; wx.lineWidth = 2;
@@ -103,10 +103,6 @@
     function wall(len, px, pz, ry) {
       var tx = wTex.clone(); tx.needsUpdate = true; tx.repeat.set(len / 3, H / 3);
       var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, metalness: 0.08 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m);
-      // lambris bas en bois sombre avec filet doré
-      var wd = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.16), new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.15 }));
-      var nxw = Math.sin(ry), nzw = Math.cos(ry);
-      wd.position.set(px + nxw * 0.012, 0.9, pz + nzw * 0.012); wd.rotation.y = ry; g.add(wd);
     }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
     var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x120a1c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
