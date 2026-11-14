@@ -6,7 +6,7 @@
    tableaux les plus votés, qui montent alors sur le podium du mur du fond.
    TOUT est décidé par le serveur (api/tableaux.js : paiement, votes, classement, partage) ; ici on ne fait que dessiner et demander.
    Salle : mur de gauche et mur de droite = 10 cadres chacun (les mieux votés d'abord), chacun avec son cœur pour voter d'un clic ;
-           mur du fond = podium de la semaine passée (contre le mur), quatre chevalets au milieu, panneau du concours près de la porte.
+           mur du fond = podium de la semaine passée (contre le mur), un seul chevalet au milieu (un peintre à la fois, ouvert à tous), panneau du concours près de la porte.
    Quand quelqu'un peint, son personnage se place devant le chevalet et fait le geste de peindre chez tous les autres (message « paint »).
    Fichiers liés : api/tableaux.js, minijeux3d.js (la porte « TABLEAU DESSIN »), world3d.js.
    ===================================================================== */
@@ -204,22 +204,22 @@
     }
     paintInfo();
 
-    /* ---------- quatre chevalets : on se place devant, face à la toile, pour peindre ---------- */
-    var EASELS = [{ x: -6, z: 1.5 }, { x: -2, z: 1.5 }, { x: 2, z: 1.5 }, { x: 6, z: 1.5 }];
+    /* ---------- le chevalet (un seul, pour tout le monde) : on se place devant, face à la toile, pour peindre ---------- */
+    var EASELS = [{ x: 0, z: 1.0 }];
     var painters = {};                       // pseudo -> { n: numéro du chevalet, t: dernier signe de vie } (les autres joueurs en train de peindre)
     function easelBusy(n) { var now = performance.now(), me = F.me(); return Object.keys(painters).some(function (k) { return k !== me && painters[k].n === n && now - painters[k].t < 8000; }); }
     EASELS.forEach(function (E, n) {
       var wood = std(0x8a5a30, 0.75, 0.05), e = new THREE.Group(); e.position.set(E.x, 0, E.z); g.add(e);   // la toile regarde vers +z, le peintre est devant
       box(e, 0.07, 2.1, 0.07, wood, -0.55, 1.05, -0.2).rotation.z = 0.05; box(e, 0.07, 2.1, 0.07, wood, 0.55, 1.05, -0.2).rotation.z = -0.05; box(e, 0.07, 2.0, 0.07, wood, 0, 1.0, -0.6).rotation.x = -0.18;
       box(e, 1.25, 0.06, 0.1, wood, 0, 0.75, -0.15);
-      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4 })); cv.position.set(0, 1.4, -0.13); cv.rotation.x = -0.08; e.add(cv);
+      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, side: THREE.DoubleSide }));   // toile visible des deux côtés cv.position.set(0, 1.4, -0.13); cv.rotation.x = -0.08; e.add(cv);
       [0xff4a4a, 0x4ab0ff, 0xffd24a, 0x4aff9a, 0xc04aff, 0xff8a2a].forEach(function (col, i) { var dot = new THREE.Mesh(new THREE.CircleGeometry(0.06 + (i % 3) * 0.015, 12), new THREE.MeshBasicMaterial({ color: col })); dot.position.set(-0.4 + (i % 3) * 0.4, 1.2 + Math.floor(i / 3) * 0.45, -0.12); dot.rotation.x = -0.08; e.add(dot); });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(E.x, 1.1, E.z); g.add(hit);
       room.colliders.push({ x: E.x, z: E.z - 0.1, r: 0.7 });
       E.sx = E.x; E.sz = E.z + 1.5;          // où se tient le peintre
       room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.2,
         enabled: function () { return !easelBusy(n); },
-        prompt: function () { return '🎨 Peindre un tableau — ' + (data ? data.price : 100) + ' 🪙'; },
+        prompt: function () { return '🎨 Peindre un tableau (chevalet libre) — ' + (data ? data.price : 100) + ' 🪙'; },
         use: function () { if (!easelBusy(n)) openEditor(n); } });
     });
 
@@ -302,7 +302,7 @@
     function closeAll(instant) {
       window.removeEventListener('keydown', onEsc, true);
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      var was = !!overlay; if (editor) sendPaint(false, editor.n); overlay = null; view = null; editor = null; busy = false;
+      var was = !!overlay; if (editor) { if (editor.save) editor.save(); sendPaint(false, editor.n); } overlay = null; view = null; editor = null; busy = false;
       if (was) unlockWorld(instant);
     }
     function open(html, wide) {
@@ -310,7 +310,7 @@
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       overlay = document.createElement('div'); overlay.className = 'tbl';
       overlay.innerHTML = '<div class="tbl-panel' + (wide ? ' wide' : '') + '">' + html + '</div>';
-      overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAll(); });
+      overlay.addEventListener('click', function (e) { if (e.target === overlay && !editor) closeAll(); });   // un clic à côté de l'éditeur ne le ferme plus (dessin perdu)
       world.container.appendChild(overlay);
       window.addEventListener('keydown', onEsc, true);
       return overlay.firstChild;
@@ -389,6 +389,12 @@
       });
     }
 
+    /* ----- brouillon : le dessin est gardé dans le navigateur (fenêtre fermée par erreur, onglet quitté, réseau coupé…) ----- */
+    function draftKey() { return 'tbl_draft_' + (F.me() || 'x'); }
+    function saveDraft(cv, title) { try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), title: String(title || ''), img: cv.toDataURL('image/jpeg', 0.85) })); } catch (e) { /* ok */ } }
+    function loadDraft() { try { var j = JSON.parse(localStorage.getItem(draftKey()) || 'null'); if (j && typeof j.img === 'string' && Date.now() - (j.t || 0) < 7 * 864e5) return j; } catch (e) { /* ok */ } return null; }
+    function clearDraft() { try { localStorage.removeItem(draftKey()); } catch (e) { /* ok */ } }
+
     function openEditor(n) {
       if (needLogin()) return;
       // on se place devant le chevalet, face à la toile, immobile : les autres joueurs nous voient peindre (et non courir sur place)
@@ -408,7 +414,16 @@
         '<div class="tbl-info"><span>Ton solde : <b data-r="bal">' + fmtN(balance()) + ' 🪙</b></span><span>Il te reste <b>' + Math.max(0, left) + '</b> tableau' + (left > 1 ? 'x' : '') + ' cette semaine</span></div>');
       var cv = p.querySelector('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
       cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, CW, CH); cx.lineCap = 'round'; cx.lineJoin = 'round';
-      var E = editor = { n: n, color: '#000000', size: 8, tool: 'brush', undo: [], drawing: false, lx: 0, ly: 0 };
+      var E = editor = { n: n, color: '#000000', size: 8, tool: 'brush', undo: [], drawing: false, lx: 0, ly: 0, sent: false, rid: '' };
+      var titleEl = p.querySelector('[data-r=title]');
+      E.save = function () { if (!E.sent && E.undo.length) saveDraft(cv, titleEl.value); };
+      var dr = loadDraft();
+      if (dr) {                                                  // on reprend là où on s'était arrêté
+        var blank = cx.getImageData(0, 0, CW, CH), im = new Image();
+        im.onload = function () { if (editor !== E) return; E.undo.push(blank); cx.drawImage(im, 0, 0, CW, CH); titleEl.value = dr.title || ''; msg('📝 Ton brouillon a été retrouvé : tu peux continuer.', true); };
+        im.src = dr.img;
+      }
+      titleEl.addEventListener('input', function () { E.save(); });
       function snap() { try { E.undo.push(cx.getImageData(0, 0, CW, CH)); if (E.undo.length > 25) E.undo.shift(); } catch (e) { /* ok */ } }
       function pos(ev) { var r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * CW / r.width, (ev.clientY - r.top) * CH / r.height]; }
       function hex2rgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
@@ -428,7 +443,7 @@
       }
       cv.addEventListener('pointerdown', function (ev) {
         ev.preventDefault(); var q = pos(ev); snap();
-        if (E.tool === 'fill') { floodFill(q[0], q[1], E.color); return; }
+        if (E.tool === 'fill') { floodFill(q[0], q[1], E.color); E.save(); return; }
         E.drawing = true; E.lx = q[0]; E.ly = q[1]; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
         cx.strokeStyle = E.tool === 'eraser' ? '#ffffff' : E.color; cx.lineWidth = E.size; cx.beginPath(); cx.moveTo(q[0], q[1]); cx.lineTo(q[0] + 0.01, q[1]); cx.stroke();
       });
@@ -436,7 +451,7 @@
         if (!E.drawing) return; ev.preventDefault(); var q = pos(ev);
         cx.beginPath(); cx.moveTo(E.lx, E.ly); cx.lineTo(q[0], q[1]); cx.stroke(); E.lx = q[0]; E.ly = q[1];
       });
-      var stop = function () { E.drawing = false; };
+      var stop = function () { var was = E.drawing; E.drawing = false; if (was) E.save(); };
       cv.addEventListener('pointerup', stop); cv.addEventListener('pointercancel', stop); cv.addEventListener('pointerleave', stop);
       function setOn(sel, el) { [].forEach.call(p.querySelectorAll(sel), function (b) { b.classList.toggle('on', b === el); }); }
       p.querySelector('[data-r=custom]').addEventListener('input', function (ev) { E.color = ev.target.value; if (E.tool === 'eraser') { E.tool = 'brush'; setOn('[data-t]', p.querySelector('[data-t=brush]')); } setOn('.tbl-sw', null); });
@@ -446,15 +461,18 @@
         if (b.hasAttribute('data-t')) { E.tool = b.getAttribute('data-t'); setOn('[data-t]', b); return; }
         if (b.hasAttribute('data-s')) { E.size = +b.getAttribute('data-s'); setOn('[data-s]', b); return; }
         var a = b.getAttribute('data-a');
-        if (a === 'close') { if (!E.undo.length || window.confirm('Fermer sans accrocher ton tableau ?')) closeAll(); }
-        else if (a === 'undo') { var s = E.undo.pop(); if (s) cx.putImageData(s, 0, 0); }
-        else if (a === 'clear') { snap(); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, CW, CH); }
+        if (a === 'close') closeAll();   // le brouillon est gardé : on le retrouve en revenant au chevalet
+        else if (a === 'undo') { var s = E.undo.pop(); if (s) cx.putImageData(s, 0, 0); if (E.undo.length) E.save(); else clearDraft(); }
+        else if (a === 'clear') { snap(); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, CW, CH); E.save(); }
         else if (a === 'send') send(p, cv, E);
       });
     }
     function exportJpeg(cv) {
       var q = 0.86, url = cv.toDataURL('image/jpeg', q);
       while (url.length > 140000 && q > 0.4) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
+      if (url.length > 150000) {                                // dessin très chargé : on réduit un peu l'image plutôt que d'échouer
+        var sm = mkCanvas(320, 240); sm.getContext('2d').drawImage(cv, 0, 0, 320, 240); url = sm.toDataURL('image/jpeg', 0.7);
+      }
       return url;
     }
     function send(p, cv, E) {
@@ -465,14 +483,16 @@
       var price = data ? data.price : 100;
       if (balance() < price) { msg('❌ Il te manque ' + fmtN(price - balance()) + ' 🪙.'); return; }
       busy = true; p.querySelector('[data-a=send]').disabled = true; msg('Accrochage en cours…', true);
-      call({ action: 'create', title: title, img: exportJpeg(cv) }).then(function (r) {
+      E.save();                                              // brouillon à jour avant d'envoyer, au cas où
+      if (!E.rid) E.rid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);   // même identifiant si on réessaie : jamais payé deux fois
+      call({ action: 'create', title: title, img: exportJpeg(cv), rid: E.rid }).then(function (r) {
         busy = false;
         if (r && r.ok) {
-          setBalance(r.balance); applyState(r); closeAll();
+          E.sent = true; clearDraft(); setBalance(r.balance); applyState(r); closeAll();
           try { world.flash('🎨 Ton tableau est accroché !', 'Bonne chance pour le podium'); } catch (e) { /* ok */ }
         } else {
           var b = p.querySelector('[data-a=send]'); if (b) b.disabled = false;
-          msg('❌ ' + ((r && r.error) || 'Impossible d\'accrocher le tableau.'));
+          msg('❌ ' + ((r && r.error) || 'Impossible d\'accrocher le tableau.') + ' Ton dessin est gardé, rien n\'a été payé : réessaie.');
         }
       });
     }

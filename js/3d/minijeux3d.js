@@ -27,7 +27,7 @@
     { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' },
     // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
     { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🔍 PROP HUNT', sub: 'CACHE-CACHE D’OBJETS', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt', pcOnly: true },
-    { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'EN TEST · STAFF', color: 0x4ad0ff, target: 'dessin', theme: 'dessin', staff: true },
+    { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'PEINS ET VOTE', color: 0x4ad0ff, target: 'dessin', theme: 'dessin' },
     { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'À PLUSIEURS', color: 0x5dff8a, target: 'golf', theme: 'golf' }
   ];
 

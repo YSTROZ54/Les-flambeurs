@@ -9,7 +9,7 @@
 // L'état est dans la ligne __tableaux__ (écriture « si personne n'a modifié entre-temps »), chaque image dans sa propre ligne __tabimg_<id>.
 import { Buffer } from 'node:buffer';
 import { actorOf } from './_auth.js';
-import { getRowExact, putRow, deleteRow, updateAccount, GameError } from './_store.js';
+import { getRow, getRowExact, putRow, deleteRow, updateAccount, GameError } from './_store.js';
 import { walletCharge, walletPay } from './_wallet.js';
 import { isStaffActor } from './_roles.js';
 
@@ -186,11 +186,18 @@ export default async function handler(req, res) {
     if (action === 'create') {
       const title = str(body.title, 30);
       if (!title) return fail(res, 400, 'Donne un titre à ton tableau.');
+      // « rid » : identifiant choisi par le navigateur pour cette création. Si la réponse s'est perdue et qu'il réessaie, le tableau existe déjà : on le renvoie, sans payer une 2e fois.
+      let rid = /^[a-z0-9]{8,24}$/.test(String(body.rid || '')) ? String(body.rid) : '';
+      if (rid) {
+        const dup = t.items.find((it) => it.id === rid);
+        if (dup && dup.author.toLowerCase() === actor) { const row = await getRow(actor); return res.status(200).json({ ...publicView(t, actor, Date.now()), balance: row ? row.balance : 0, created: rid }); }
+        if (dup) rid = '';
+      }
       const img = checkImage(body.img);
       if (!img) return fail(res, 400, 'Image invalide ou trop lourde.');
       if (t.items.length >= MAX_ITEMS) return fail(res, 409, 'Le mur est plein pour cette semaine.');
       if (t.items.filter((it) => it.author.toLowerCase() === actor).length >= MAX_PER_PLAYER) return fail(res, 409, 'Tu as déjà accroché ' + MAX_PER_PLAYER + ' tableaux cette semaine.');
-      const id = now.toString(36) + Math.random().toString(36).slice(2, 7);
+      const id = rid || (now.toString(36) + Math.random().toString(36).slice(2, 7));
       const paid = await walletCharge(actor, 'tab-new-' + id, PRICE);     // prélevé d'abord, remboursé si l'accrochage échoue
       try {
         await putRow({ username: IMG_ROW(id), password: 'sys', avatar: '🖼️', balance: 0, data: { mime: img.mime, b64: img.b64 } });
