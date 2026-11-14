@@ -950,7 +950,7 @@
       for (var cz2 = zA; cz2 >= zB - 0.01; cz2 -= 0.9) room.colliders.push({ x: 0, z: cz2, r: 0.62 });
     })();
     room.cab = room.cabs[Math.floor(n / 2)].cab;   // borne « active » (celle de l'assise)
-    built.plaques.forEach(function (pl) { room.interactables.push({ hit: pl, use: function () { world.setFull(!world.full); } }); });
+    built.plaques.forEach(function (pl) { room.interactables.push({ hit: pl, use: function () { world.toggleFull(); } }); });
 
     // porte de sortie vers le hall (seulement dans le monde complet)
     if (cfg && cfg.hall) world.addDoor(room, { x: 0, z: ROOM.front - 0.02, nx: 0, nz: -1, w: 2.2, h: 3.0, label: '🏛️ LE HALL', sub: 'RETOUR AU CASINO', color: 0xffe08a, target: 'hall', theme: 'exitSlots' });

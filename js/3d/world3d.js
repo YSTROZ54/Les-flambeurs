@@ -412,7 +412,7 @@
     if (this.opts.hall && F.initPlayerHud) this.ph = F.initPlayerHud(this);   // HUD du joueur, roue des emotes et téléphone (hud3d.js) : monde complet seulement
     if (this.opts.hall && F.voice && F.voice.mountHud) F.voice.mountHud(q('voice'));   // chat vocal de proximité (voice3d.js)
     if (this.touch) this.elStick.style.display = '';
-    this.elFull.addEventListener('click', function () { self.setFull(!self.full); });
+    this.elFull.addEventListener('click', function () { self.toggleFull(); });
     this.elQual.addEventListener('click', function () { Q.cycle(); self._applyQuality(); self.syncHud(); });
     var sensi = q('sensi'), sensiVal = q('sensival');
     if (sensi) {
@@ -487,6 +487,12 @@
     var enter = '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', exit = '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>';
     this.elFull.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + (this.full ? exit : enter) + '</svg><span>' + (this.full ? 'Quitter le grand écran' : 'Grand écran') + '</span>';
     this.elFull.classList.toggle('on', this.full);
+  };
+  // bouton « grand écran » choisi par le joueur : sur téléphone on ne repasse JAMAIS en mode fenêtré (le jeu retomberait sous la page du site, manettes hors de l'écran) ;
+  // le bouton redemande simplement le plein écran du navigateur et le paysage
+  World.prototype.toggleFull = function () {
+    if (this.touch) { if (!this.full) this.setFull(true); phoneLandscape(true); return; }
+    this.setFull(!this.full);
   };
   World.prototype.setFull = function (on) {
     on = !!on; if (on === this.full) return;
@@ -1162,7 +1168,14 @@
       if (place && main.room && main.room.id !== place) main.enterRoom(place, { from: null });
     }
     F.active = main;
-    if (phone) phoneLandscape(true);
+    if (phone) {
+      phoneLandscape(true);
+      // si le navigateur a refusé le plein écran à l'ouverture (il l'exige à l'intérieur d'un geste), on le redemande au premier toucher
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        var retry = function () { window.removeEventListener('pointerup', retry, true); if (F.active === main && !document.fullscreenElement && !document.webkitFullscreenElement) phoneLandscape(true); };
+        window.addEventListener('pointerup', retry, true);
+      }
+    }
     if ((phone || !main.touch) && !main.full && place !== 'blackjack') main.setFull(true);   // on entre en plein écran (Échap ou « Quitter » pour en sortir), sauf au blackjack : là c'est au joueur de cliquer sur « Plein écran »
     return true;
   };

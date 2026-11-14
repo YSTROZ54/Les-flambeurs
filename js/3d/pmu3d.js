@@ -217,8 +217,9 @@
     if (document.getElementById('pmu-style')) return;
     var s = document.createElement('style'); s.id = 'pmu-style';
     s.textContent =
-      '.pmu-card-ov{position:absolute;left:50%;top:12%;transform:translateX(-50%);z-index:6;pointer-events:auto;filter:drop-shadow(0 10px 28px rgba(0,0,0,.7));animation:pmuIn .35s ease-out}' +
-      '.pmu-card-ov canvas{display:block;width:min(360px,60vw);height:auto;cursor:crosshair;touch-action:none;border-radius:22px}' +
+      '.pmu-card-ov{position:absolute;left:50%;top:6px;bottom:6px;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;align-items:center;pointer-events:auto;filter:drop-shadow(0 10px 28px rgba(0,0,0,.7));animation:pmuIn .35s ease-out}' +
+      '.pmu-card-ov canvas{display:block;flex:1 1 0;min-height:0;width:auto;max-width:min(360px,86vw);max-height:520px;aspect-ratio:340/425;cursor:crosshair;touch-action:none;border-radius:22px}' +   // le ticket s'adapte à la hauteur de l'écran : visible en entier, même sur téléphone en paysage
+      '.pmu-card-ov .pmu-tip,.pmu-card-ov .pmu-reveal{flex:none}@media (max-height:520px){.pmu-card-ov .pmu-tip{display:none}.pmu-card-ov .pmu-reveal{margin-top:4px;padding:5px 12px;font-size:11px}}' +
       '.pmu-tip{margin-top:8px;text-align:center;font:700 12px "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.65);border-radius:10px;padding:6px 10px;max-width:360px}' +
       '.pmu-reveal{display:block;margin:6px auto 0;cursor:pointer;background:rgba(8,5,12,.85);color:#ffe9a8;border:1px solid rgba(255,233,168,.5);border-radius:10px;font-weight:800;font-size:12px;padding:7px 14px}' +
       '.pmu-stand{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:6}' +

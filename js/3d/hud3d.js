@@ -699,7 +699,7 @@
       if (sub === 'controls') return controlsHtml();
       if (sub === 'volume') return volumeHtml();
       if (sub === 'quality') return qualityHtml();
-      var fullLab = w.full ? 'Mode fenêtré' : 'Grand écran', fullIc = w.full ? 'fa-compress' : 'fa-expand';
+      var fullLab = w.touch ? 'Plein écran' : (w.full ? 'Mode fenêtré' : 'Grand écran'), fullIc = w.full ? 'fa-compress' : 'fa-expand';
       return subHead('Catégories') +
         catBtn('controls', 'fa-gamepad', '251,191,36', 'Souris &amp; manette', 'Touches, boutons, sensibilité') +
         catBtn('volume', 'fa-volume-high', '56,189,248', 'Volume', 'Général, musique, bruitages, chat vocal') +
@@ -1063,7 +1063,7 @@
       if (!w.canEmote()) return;
       closeWheel(); closePhone(); closeChat(); closeInv();
       w._libererSouris();
-      elPauseFull.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
+      elPauseFull.textContent = w.touch ? 'Plein écran' : (w.full ? 'Mode fenêtré' : 'Grand écran');
       elPause.hidden = false; pauseOpen = true; syncCursor(); pauseT = performance.now();
     }
     function closePause(reprendre) {
@@ -1336,7 +1336,7 @@
       else if (a === 'resume') closePause(true);
       else if (a === 'pause-settings') { closePause(); openPhone('settings'); }
       else if (a === 'pause-profile') { closePause(); openPhone('profile'); }
-      else if (a === 'pause-full') { w.setFull(!w.full); elPauseFull.textContent = w.full ? 'Mode fenêtré' : 'Grand écran'; }
+      else if (a === 'pause-full') { w.toggleFull(); elPauseFull.textContent = w.touch ? 'Plein écran' : (w.full ? 'Mode fenêtré' : 'Grand écran'); }
       else if (a === 'chat') { if (phoneOpen && page === 'chat') closePhone(true); else openChat(); }
       else if (t.hasAttribute('data-slot')) useSlot(+t.getAttribute('data-slot'));
       else if (a === 'stop') w.stopEmote();
@@ -1430,11 +1430,11 @@
           if (qb) qb.textContent = F.quality.label();
         }
       }
-      else if (a === 'fullscreen') { w.setFull(!w.full); sync(); }
+      else if (a === 'fullscreen') { w.toggleFull(); sync(); }
       else if (a === 'toggle-full') {
-        w.setFull(!w.full);
+        w.toggleFull();
         var fb = root.querySelector('[data-ph="fulllabel"]');
-        if (fb) fb.textContent = w.full ? 'Mode fenêtré' : 'Grand écran';
+        if (fb) fb.textContent = w.touch ? 'Plein écran' : (w.full ? 'Mode fenêtré' : 'Grand écran');
       }
       else if (t.hasAttribute('data-tab')) setTab(t.getAttribute('data-tab'));
       else if (t.hasAttribute('data-sub')) { stopKeyCapture(); sub = t.getAttribute('data-sub'); renderPhone(); }
