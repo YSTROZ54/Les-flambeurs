@@ -377,8 +377,7 @@
     }
     sofa(11.9, 8.2, -Math.PI / 2); sofa(7.6, 8.2, Math.PI / 2);
     box(g, 1.1, 0.05, 0.7, lam(0x1c1c22), 9.75, 0.42, 8.2); cyl(g, 0.04, 0.04, 0.4, chrome(), 9.75, 0.2, 8.2, 8); room.colliders.push({ x: 9.75, z: 8.2, r: 0.55 });
-    pendant(9.75, 8.2, 3.0, 0.7);
-    [[-8, -3.4], [-4.2, -3.4], [-0.4, -3.4], [3.4, -3.4], [7.2, -3.4], [10.8, -3.4]].forEach(function (p) { table(p[0], p[1]); pendant(p[0], p[1], 2.9, 0.55); });
+    [[-8, -3.4], [-4.2, -3.4], [-0.4, -3.4], [3.4, -3.4], [7.2, -3.4], [10.8, -3.4]].forEach(function (p) { table(p[0], p[1]); });   // lampes suspendues retirées
 
 
 
@@ -411,8 +410,8 @@
       var forearm = [box(g, 1, 0.07, 0.09, armMat[0], AX, 1, AZ), box(g, 1, 0.07, 0.09, armMat[1], AX, 1, AZ)];
       var fist = sph(g, 0.1, skinM, AX, 1, AZ);
       var abCv = mkCanvas(512, 192), abTex = mkTex(abCv);
-      var board = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: abTex, transparent: true, depthWrite: false })); board.position.set(AX, 2.3, AZ); g.add(board);
-      var tn = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'); x.fillStyle = '#d01a1a'; x.beginPath(); x.arc(32, 32, 30, 0, TAU); x.fill(); x.fillStyle = '#fff'; x.font = '900 40px ' + SERIF; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(idx + 1), 32, 36); return mkTex(c); })(), transparent: true })); tn.position.set(AX, 2.95, AZ); g.add(tn);
+      var board = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: abTex, transparent: true, depthWrite: false })); board.position.set(AX, 2.3, AZ); /* panneau retiré (non ajouté à la scène) */
+      var tn = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: (function () { var c = mkCanvas(64, 64), x = c.getContext('2d'); x.fillStyle = '#d01a1a'; x.beginPath(); x.arc(32, 32, 30, 0, TAU); x.fill(); x.fillStyle = '#fff'; x.font = '900 40px ' + SERIF; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(idx + 1), 32, 36); return mkTex(c); })(), transparent: true })); tn.position.set(AX, 2.95, AZ); /* numéro retiré */
       function armRemote(n) {
         var now = performance.now(), s = T.seats[n], found = null;
         Object.keys(world.remote).forEach(function (k) { var r = world.remote[k]; if (r && r.seat === s.n && now - (r.recv || 0) < 3200) found = r; });
@@ -578,8 +577,7 @@
       x.fillStyle = '#12090c'; x.fillRect(0, 0, 1024, 192); x.strokeStyle = '#d01a1a'; x.lineWidth = 10; x.strokeRect(8, 8, 1008, 176); x.strokeStyle = '#c9a227'; x.lineWidth = 3; x.strokeRect(22, 22, 980, 148);
       x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff4e0'; x.font = '900 92px ' + SERIF; x.fillText('💪 ARÈNE DU BRAS DE FER', 512, 92, 940);
       var sg = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 1.35), new THREE.MeshBasicMaterial({ map: mkTex(c), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-      sg.position.set(0, 4.15, HZ - 0.06); sg.rotation.y = Math.PI; g.add(sg);
-      box(g, 7.5, 1.6, 0.05, lam(0x111116), 0, 4.15, HZ - 0.03);
+      /* enseigne au-dessus de la porte retirée */
     })();
 
     /* --- lumières --- */
