@@ -26,9 +26,9 @@
     { id: 'blindtest', x: -HX, z: 3, nx: 1, nz: 0, label: '🎵 BLIND TEST', sub: 'DEVINE LE TITRE', color: 0xd9a0ff, target: 'blindtest', theme: 'blindtest' },
     { id: 'pmu', x: HX, z: 0, nx: -1, nz: 0, label: '🏇 PMU', sub: 'ESPACE SOCIAL', color: 0xff4a4a, target: 'pmu', theme: 'pmu' },
     // salles vides pour l'instant (bientot3d.js) : les jeux arrivent plus tard
-    { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🔍 PROP HUNT', sub: 'CACHE-CACHE D’OBJETS', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt', pcOnly: true },
+    { id: 'prophunt', x: HX, z: -5.5, nx: -1, nz: 0, label: '🔍 PROP HUNT', sub: 'CACHE-CACHE D’OBJETS', color: 0xff7a3d, target: 'prophunt', theme: 'prophunt', pcOnly: true, staff: true },
     { id: 'dessin', x: HX, z: 5.5, nx: -1, nz: 0, label: '🎨 TABLEAU DESSIN', sub: 'PEINS ET VOTE', color: 0x4ad0ff, target: 'dessin', theme: 'dessin' },
-    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'À PLUSIEURS', color: 0x5dff8a, target: 'golf', theme: 'golf' }
+    { id: 'golf', x: 9, z: HZ, nx: 0, nz: -1, label: '⛳ MINI GOLF', sub: 'EN TEST · STAFF', color: 0x5dff8a, target: 'golf', theme: 'golf', staff: true }
   ];
 
   function createMiniJeuxRoom(world) {

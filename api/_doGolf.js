@@ -10,6 +10,7 @@
 // Messages du serveur : welcome · lobby · hole · s (positions) · ev (évènements) · done · over · glue · top
 import { readToken } from './_auth.js';
 import GS from './_golfSim.js';
+import { isStaffActor } from './_roles.js';
 
 const TICK_MS = 1000 / 30, DONE_DELAY_MS = 2600, OVER_MS = 16000, HOLE_MAX_MS = 5 * 60000, AUTO_START_MS = 60000, GONE_KEEP_MS = 3 * 60000;
 const COLORS = 8, GLUE_MS = 10000, GLUE_R = 0.7, DICE_EVERY_MS = 10000, DICE_MAX = 6, MAX_POWERS = 1;
@@ -52,6 +53,7 @@ export class GolfRoom {
     if (!ROOM_RE.test(room)) return { error: 'Salle inconnue', status: 404 };
     const tok = readToken(String(url.searchParams.get('token') || ''));
     if (!tok) return { error: 'Connexion requise', status: 401 };
+    if (!(await isStaffActor(String(tok.u).toLowerCase()))) return { error: 'Réservé au Patron, au Co Fondateur et au Staff', status: 403 };     // le golf est encore en test
     if (!this.room) {
       this.room = room;
       const m = room.startsWith('pub-') ? room.slice(4) : String(url.searchParams.get('map') || 'prairie');
