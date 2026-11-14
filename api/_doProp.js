@@ -9,6 +9,7 @@
 // Messages du serveur : welcome · s (instantané 15 fois/s) · ev (tir, touche, mort, provocation, aïe) · end (résultats).
 import { readToken } from './_auth.js';
 import PS from './_propSim.js';
+import { isStaffActor } from './_roles.js';
 
 const STEP = 1 / 30, STEP_MS = 1000 / 30, SUB = 3, SNAP_EVERY = 2, MAX_PLAYERS = 16, MAX_QUEUE = 8;
 const num = (v, lo, hi) => { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0; };
@@ -28,6 +29,7 @@ export class PropRoom {
     const tok = readToken(String(url.searchParams.get('token') || ''));
     if (!tok) return { error: 'Connexion requise', status: 401 };
     const key = String(tok.u).toLowerCase();
+    if (!(await isStaffActor(key))) return { error: 'Prop Hunt est réservé au Patron, au Co Fondateur et au Staff pour l’instant', status: 403 };
     const room = String(url.searchParams.get('room') || '');
     if (!/^(pub-manoir|priv-[A-Z0-9]{4,6})$/.test(room)) return { error: 'Salon invalide', status: 404 };
     if (!this.cfg) {
