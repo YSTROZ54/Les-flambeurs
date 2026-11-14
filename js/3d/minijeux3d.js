@@ -89,7 +89,42 @@
       return { x: 0, z: HZ - 3, yaw: 0 };
     };
     room.hint = function (w) { return w.touch ? 'Joystick : marcher · avance vers une porte pour entrer' : 'ZQSD / flèches : marcher · Maj : courir · avance vers la porte du jeu que tu veux' + (w.full ? ' · Échap : quitter' : ''); };
-    room.update = function () { };
+    /* ----- s'asseoir sur les banquettes : trois places par banquette, on regarde autour, on se lève en marchant ----- */
+    room.sofa = null; room.ghost = false;
+    function standFromSofa() {
+      var sf = room.sofa, pl = world.player;
+      room.sofa = null; room.ghost = false; pl.jy = 0;
+      if (sf) { pl.x = sf.x; pl.z = sf.z - 1.1; }                                      // on se retrouve debout devant la banquette
+    }
+    function sitOnSofa(sp) {
+      if (world.trans || world.mode !== 'room' || room.sofa) return;
+      var pl = world.player;
+      pl.x = sp.x; pl.z = sp.z; pl.yaw = 0; pl.pitch = -0.04; pl.jy = -0.55; pl.air = false; pl.vy = 0;       // le dossier est derrière : on regarde vers le centre du salon
+      room.sofa = sp; room.ghost = true;
+      world.flash('Assis sur la banquette', world.touch ? 'Bouge le joystick pour te lever' : 'Bouge (ZQSD) pour te lever');
+    }
+    [-1, 1].forEach(function (sd) {
+      [-1.05, 0, 1.05].forEach(function (off) {
+        var spot = { x: sd * 6 + off, z: 1.2 };
+        var hit = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.9, 0.85), new THREE.MeshBasicMaterial({ visible: false }));
+        hit.position.set(spot.x, 0.5, spot.z); g.add(hit);
+        room.interactables.push({
+          hit: hit, x: spot.x, z: spot.z, radius: 1.5,
+          enabled: function () { return !room.sofa && world.mode === 'room'; },
+          prompt: function () { return '🛋️ Assieds-toi sur la banquette  [F]'; },
+          use: function () { sitOnSofa(spot); }
+        });
+      });
+    });
+    room.update = function () {
+      if (!room.sofa) return;
+      var pl = world.player, kk = world.keys || {}, sk = world.stick || { x: 0, y: 0 };
+      if (world.mode !== 'room' || world.trans || kk.f || kk.b || kk.l || kk.r || kk.jump || Math.abs(sk.x) > 0.3 || Math.abs(sk.y) > 0.3) standFromSofa();
+      else { pl.x = room.sofa.x; pl.z = room.sofa.z; pl.jy = -0.55; }                  // on reste bien posé sur la banquette
+    };
+    room.onEnter = function () { room.sofa = null; room.ghost = false; world.player.jy = 0; };
+    room.onLeave = function () { room.sofa = null; room.ghost = false; world.player.jy = 0; };
+
     return room;
   }
 
