@@ -390,7 +390,18 @@
       (this.opts.hall ? '<div class="s3d-voice s3d-room-only" data-s3d="voice"></div>' : '') +
       '<div data-s3d="roombottom" style="display:contents"></div>' +
       '<div class="s3d-fade" data-s3d="fade"></div>';
-    if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small></div>'); }
+    if (this.touch) { hud.classList.add('s3d-touch'); hud.insertAdjacentHTML('beforeend', '<div class="s3d-rotate"><i class="fa-solid fa-mobile-screen-button"></i>Tourne ton téléphone<small style="font-weight:600;font-size:13px;color:#d8c58a">Le casino 3D se joue en mode paysage</small>' +
+      '<button type="button" data-s3d-rot="land" style="margin-top:6px;min-height:48px;padding:0 22px;border-radius:14px;border:2px solid #ffe08a;background:linear-gradient(180deg,#d8a928,#8a6410);color:#1a1000;font-weight:900;font-size:15px">↻ Passer en paysage</button>' +
+      '<button type="button" data-s3d-rot="port" style="min-height:44px;padding:0 18px;border-radius:12px;border:1px solid rgba(243,207,98,.5);background:transparent;color:#f3cf62;font-weight:800;font-size:14px">Continuer en portrait</button></div>');
+      // la rotation de l'appareil n'est pas toujours possible (rotation automatique coupée, iPhone, navigateur intégré) : on ne bloque jamais le joueur
+      try { if (localStorage.getItem('f3d_portrait_ok') === '1') hud.classList.add('s3d-port-ok'); } catch (e) { /* ok */ }
+      hud.querySelector('.s3d-rotate').addEventListener('click', function (ev) {
+        var b = ev.target.closest && ev.target.closest('[data-s3d-rot]'); if (!b) return;
+        if (b.getAttribute('data-s3d-rot') === 'land') { phoneLandscape(true); return; }
+        hud.classList.add('s3d-port-ok'); try { localStorage.setItem('f3d_portrait_ok', '1'); } catch (e) { /* ok */ }
+        window.dispatchEvent(new Event('resize'));
+      });
+    }
     this.container.appendChild(hud);
     this.hud = hud;
     function q(k) { return hud.querySelector('[data-s3d="' + k + '"]'); }
