@@ -109,7 +109,7 @@
       wd.position.set(px + nxw * 0.012, 0.9, pz + nzw * 0.012); wd.rotation.y = ry; g.add(wd);
     }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x07040c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x120a1c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
 
     /* ---------- plafond : voile de guirlandes de LED et boule lumineuse (même style que le salon du Blind Test) ---------- */
     var ledTex = (function () {
@@ -117,12 +117,12 @@
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
     })();
-    var ledRows = [], ledWire = new THREE.MeshBasicMaterial({ color: 0x2a1a30 }), ledStep = low ? 0.26 : 0.14;
+    var ledRows = [], ledWire = new THREE.MeshBasicMaterial({ color: 0x2a1a30 }), ledStep = low ? 0.2 : 0.1;
     function ledString(pts, dir) {
       var curve = new THREE.CatmullRomCurve3(pts), cnt = Math.round(curve.getLength() / ledStep), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), k, v;
       for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
-      var pt = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.26, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      var pt = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.36, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
       pt.frustumCulled = false; g.add(pt);
       g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.008, 4, false), ledWire));
       ledRows.push({ geo: geo, col: col, cnt: cnt, dir: dir });
@@ -139,32 +139,42 @@
         ex = Math.cos(a0) * tt; ez = Math.sin(a0) * tt;
         swag(Math.cos(a0) * 0.34, Math.sin(a0) * 0.34, ex, ez, hubY, H - 0.12, 0.6 + (i % 2) * 0.4, i % 2 ? -1 : 1);
       }
+      // liseré lumineux tout autour du plafond, juste sous la corniche dorée
+      var cy = H - 0.28, px0 = HX - 0.35, pz0 = HZ - 0.35, edge = [[-px0, -pz0, px0, -pz0], [px0, -pz0, px0, pz0], [px0, pz0, -px0, pz0], [-px0, pz0, -px0, -pz0]];
+      edge.forEach(function (e, n) { var pts = [], q; for (q = 0; q <= 12; q++) pts.push(new THREE.Vector3(e[0] + (e[2] - e[0]) * q / 12, cy, e[1] + (e[3] - e[1]) * q / 12)); ledString(pts, n % 2 ? -1 : 1); });
+      for (i = -3; i <= 3; i++) {                                // guirlandes dans l'autre sens aussi : le plafond est un vrai voile de lumière
+        for (var s2 = 0; s2 < 4; s2++) swag(i * 3.6, -HZ + 0.4 + s2 * (HZ * 2 - 0.8) / 4, i * 3.6, -HZ + 0.4 + (s2 + 1) * (HZ * 2 - 0.8) / 4, H - 0.12, H - 0.12, 0.45, (i + s2) % 2 ? 1 : -1);
+      }
       for (i = -3; i <= 3; i++) { for (var s = 0; s < 4; s++) swag(-HX + 0.4 + s * (HX * 2 - 0.8) / 4, i * 3, -HX + 0.4 + (s + 1) * (HX * 2 - 0.8) / 4, i * 3, H - 0.12, H - 0.12, 0.5, (i + s) % 2 ? -1 : 1); }
       var shell = new THREE.Mesh(new THREE.SphereGeometry(0.33, 28, 20), new THREE.MeshBasicMaterial({ color: 0x120a18 })); shell.position.set(0, hubY, 0); g.add(shell);
       var nb = low ? 130 : 260, bp = new Float32Array(nb * 3), bc2 = new Float32Array(nb * 3), bg = new THREE.BufferGeometry(), ga = Math.PI * (3 - Math.sqrt(5)), yy, rr2;
       for (i = 0; i < nb; i++) { yy = 1 - 2 * (i + 0.5) / nb; rr2 = Math.sqrt(1 - yy * yy); bp[i * 3] = Math.cos(ga * i) * rr2 * 0.345; bp[i * 3 + 1] = hubY + yy * 0.345; bp[i * 3 + 2] = Math.sin(ga * i) * rr2 * 0.345; }
       bg.setAttribute('position', new THREE.BufferAttribute(bp, 3)); bg.setAttribute('color', new THREE.BufferAttribute(bc2, 3).setUsage(THREE.DynamicDrawUsage));
-      var ballPts = new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.16, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); ballPts.frustumCulled = false; g.add(ballPts);
+      var ballPts = new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.2, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); ballPts.frustumCulled = false; g.add(ballPts);
       ledRows.push({ geo: bg, col: bc2, cnt: nb, dir: 1 });
-      var halo = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, hubY, 0]), 3)), new THREE.PointsMaterial({ size: 2.6, map: ledTex, color: 0xffb84c, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })); halo.frustumCulled = false; g.add(halo);
+      var halo = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, hubY, 0]), 3)), new THREE.PointsMaterial({ size: 4.2, map: ledTex, color: 0xffb84c, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })); halo.frustumCulled = false; g.add(halo);
     })();
     var ledC = new THREE.Color(), ledT = 0;
-    function ledsUpdate(dt) {                                    // défilé de couleurs sur les guirlandes (or et rose, plus chaud que le Blind Test)
+    var ceilLights = [];                                        // vraies lumières colorées sous le plafond : elles suivent le défilé des guirlandes et éclairent murs et tableaux
+    function ledsUpdate(dt) {                                    // défilé de couleurs sur les guirlandes : du rose à l'or
       ledT += dt;
       ledRows.forEach(function (row) {
-        var k, wv, v;
+        var k, wv, v, hue;
         for (k = 0; k < row.cnt; k++) {
-          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 7 - ledT * 5 * row.dir); v = 0.25 + 0.75 * wv * wv;
-          ledC.setHSL((0.93 + 0.2 * (0.5 + 0.5 * Math.sin(k / row.cnt * TAU + ledT * 0.4))) % 1, 0.7, 0.62);   // du rose à l'or row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 7 - ledT * 5 * row.dir); v = 0.45 + 0.9 * wv * wv;
+          hue = (0.92 + 0.22 * (0.5 + 0.5 * Math.sin(k / row.cnt * TAU + ledT * 0.4))) % 1;
+          ledC.setHSL(hue, 0.85, 0.6);
+          row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
         }
         row.geo.attributes.color.needsUpdate = true;
       });
+      ceilLights.forEach(function (l, n) { l.color.setHSL((0.92 + 0.22 * (0.5 + 0.5 * Math.sin(ledT * 0.5 + n * 1.7))) % 1, 0.85, 0.6); });
     }
     var goldM = std(0xc9a227, 0.35, 0.7, 0x2a1d00);
     [[HX * 2, 0.15, 0.15, 0, H - 0.08, -HZ + 0.08], [HX * 2, 0.15, 0.15, 0, H - 0.08, HZ - 0.08], [0.15, 0.15, HZ * 2, -HX + 0.08, H - 0.08, 0], [0.15, 0.15, HZ * 2, HX - 0.08, H - 0.08, 0],
       [HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (b) { box(g, b[0], b[1], b[2], goldM, b[3], b[4], b[5]); });
     g.add(new THREE.AmbientLight(0xf4eaf4, 1.35));
-    if (!low) { [[-9, 4.6, 0], [9, 4.6, 0], [0, 4.6, -7], [0, 4.6, 6], [-9, 4.6, -7], [9, 4.6, -7]].forEach(function (p) { var l = new THREE.PointLight(0xffe2b0, 0.55, 11); l.position.set(p[0], p[1], p[2]); g.add(l); }); }
+    if (!low) { [[-8, H - 1.2, -4], [8, H - 1.2, -4], [-8, H - 1.2, 5], [8, H - 1.2, 5], [0, H - 1.2, 0]].forEach(function (q) { var l = new THREE.PointLight(0xff8ac0, 0.9, 17); l.position.set(q[0], q[1], q[2]); g.add(l); ceilLights.push(l); }); }
 
     /* ---------- images : chargées une fois par tableau, partagées entre cadres ---------- */
     var blankC = mkCanvas(64, 48), bx = blankC.getContext('2d'); bx.fillStyle = '#17121c'; bx.fillRect(0, 0, 64, 48); bx.strokeStyle = '#3a2f46'; bx.lineWidth = 2; bx.strokeRect(6, 6, 52, 36);
