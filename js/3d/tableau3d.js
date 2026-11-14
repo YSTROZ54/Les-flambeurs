@@ -79,8 +79,38 @@
       '.tbl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}' +
       '.tbl-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;border:1px solid rgba(201,162,39,.45);background:rgba(255,255,255,.05);cursor:pointer;font-size:13px}' +
       '.tbl-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#111}.tbl-card.mine{border-color:#4ad0ff}.tbl-card.vote{border-color:#ff6a8a;box-shadow:0 0 10px rgba(255,106,138,.4)}';
+    s.textContent += EDCSS;
     document.head.appendChild(s);
   }
+
+  // éditeur de dessin : outils à gauche, couleurs à droite, toile au centre (le plus grand possible, sur téléphone en paysage aussi)
+  var EDCSS = `
+.tbl.ed{z-index:60;padding:8px}
+.tbl-panel.ed{width:min(100%,1240px);height:100%;max-height:100%;overflow:hidden;gap:8px;padding:10px}
+.tbl-panel.ed .tbl-head{gap:8px;flex-wrap:wrap}.tbl-panel.ed .tbl-head h3{flex:none;font-size:17px}
+.tbl-panel.ed .tbl-head input[type=text]{flex:1;min-width:140px;max-width:420px}
+.tbl-ed{flex:1;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px}
+.tbl-side{display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden;min-height:0}
+.tbl-side h4{margin:4px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c9a227;font-weight:800}
+.tbl-side button{min-height:40px;white-space:nowrap}
+.tbl-side .row{display:flex;gap:4px}.tbl-side .row button{flex:1;padding:6px 4px}.tbl-panel.ed .tbl-msg{min-height:16px}
+.tbl-pal{display:grid;grid-template-columns:repeat(4,38px);gap:7px}
+.tbl-pal .tbl-sw{width:38px;height:38px}
+.tbl-mid{display:flex;flex-direction:column;gap:6px;min-height:0;min-width:0}
+.tbl-cvw{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.tbl-panel.ed .tbl-cv{max-width:none;margin:0;aspect-ratio:auto}
+.tbl-side .tbl-info{flex-direction:column;gap:2px;font-size:12px}
+@media (max-width:700px){
+  .tbl-panel.ed{overflow:auto}
+  .tbl-ed{grid-template-columns:1fr;grid-template-rows:auto auto auto}
+  .tbl-cvw{flex:none;aspect-ratio:4/3;width:100%}
+  .tbl-side{flex-direction:row;flex-wrap:wrap;overflow:visible}
+  .tbl-side h4{width:100%}
+  .tbl-pal{grid-template-columns:repeat(8,1fr);width:100%}.tbl-pal .tbl-sw{width:100%;height:34px;border-radius:10px}
+  .tbl-side.L{order:2}.tbl-side.R{order:3}.tbl-mid{order:1}
+}
+@media (max-height:520px){.tbl.ed{padding:4px}.tbl-panel.ed{padding:8px;gap:5px}.tbl-side{gap:4px}.tbl-side h4{margin:2px 0 0;font-size:11px}.tbl-side button{min-height:34px;padding:4px 10px}.tbl-panel.ed .tbl-head button{min-height:36px}.tbl-panel.ed .tbl-head h3{display:none}.tbl-pal{grid-template-columns:repeat(4,34px)}.tbl-pal .tbl-sw{width:34px;height:34px}}
+`;
 
   function createRoom(world) {
     var low = world.low;
@@ -375,14 +405,14 @@
     function closeAll(instant) {
       window.removeEventListener('keydown', onEsc, true);
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      var was = !!overlay; if (editor) { if (editor.save) editor.save(); sendPaint(false, editor.n); } overlay = null; view = null; editor = null; busy = false;
+      var was = !!overlay; if (editor) { if (editor.save) editor.save(); if (editor.unfit) editor.unfit(); sendPaint(false, editor.n); } overlay = null; view = null; editor = null; busy = false;
       if (was) unlockWorld(instant);
     }
-    function open(html, wide) {
+    function open(html, wide, ed) {
       injectCss(); lockWorld();
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      overlay = document.createElement('div'); overlay.className = 'tbl';
-      overlay.innerHTML = '<div class="tbl-panel' + (wide ? ' wide' : '') + '">' + html + '</div>';
+      overlay = document.createElement('div'); overlay.className = 'tbl' + (ed ? ' ed' : '');
+      overlay.innerHTML = '<div class="tbl-panel' + (wide ? ' wide' : '') + (ed ? ' ed' : '') + '">' + html + '</div>';
       overlay.addEventListener('click', function (e) { if (e.target === overlay && !editor) closeAll(); });   // un clic à côté de l'éditeur ne le ferme plus (dessin perdu)
       world.container.appendChild(overlay);
       window.addEventListener('keydown', onEsc, true);
@@ -488,18 +518,36 @@
       view = null;
       var d = data, price = d ? d.price : 300;
       var mineCount = d ? d.items.filter(function (x) { return x.mine; }).length : 0, left = d ? d.maxPerPlayer - mineCount : 3;
-      var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau — ' + fmtN(price) + ' 🪙</h3><button data-a="close">✕ Fermer</button></div>' +
-        '<div class="tbl-tools"><input type="text" data-r="title" maxlength="30" placeholder="Titre de ton tableau"><button class="go" data-a="send">🖼️ Accrocher (' + fmtN(price) + ' 🪙)</button></div><div class="tbl-msg"></div>' +
-        '<canvas class="tbl-cv" width="' + CW + '" height="' + CH + '"></canvas>' +
-        '<div class="tbl-tools" data-r="colors">' + COLORS.map(function (c, i) { return '<button class="tbl-sw' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join('') + '<input type="color" data-r="custom" value="#ff3b3b" title="Autre couleur"></div>' +
-        '<div class="tbl-tools"><button data-t="brush" class="on">🖌️ Pinceau</button><button data-t="fill">🪣 Remplir</button><button data-t="eraser">🧽 Gomme</button>' +
-        '<button data-s="3">·</button><button data-s="8" class="on">●</button><button data-s="18">⬤</button><button data-s="36">⬤⬤</button>' +
-        '<button data-a="undo">↩️ Annuler</button><button data-a="clear">🗑️ Tout effacer</button></div>' +
-        '<div class="tbl-info"><span>Ton solde : <b data-r="bal">' + fmtN(balance()) + ' 🪙</b></span><span>Il te reste <b>' + Math.max(0, left) + '</b> tableau' + (left > 1 ? 'x' : '') + ' cette semaine</span></div>');
+      var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau</h3>' +
+        '<input type="text" data-r="title" maxlength="30" placeholder="Titre de ton tableau">' +
+        '<button class="go" data-a="send">🖼️ Accrocher (' + fmtN(price) + ' 🪙)</button><button data-a="close">✕ Fermer</button></div>' +
+        '<div class="tbl-msg"></div>' +
+        '<div class="tbl-ed">' +
+          '<div class="tbl-side L">' +
+            '<h4>Outils</h4><button data-t="brush" class="on">🖌️ Pinceau</button><button data-t="fill">🪣 Remplir</button><button data-t="eraser">🧽 Gomme</button>' +
+            '<h4>Épaisseur du trait</h4><div class="row"><button data-s="3" title="Fin">·</button><button data-s="8" class="on" title="Moyen">●</button><button data-s="18" title="Gros">⬤</button><button data-s="36" title="Énorme">⬤⬤</button></div>' +
+            '<h4>Actions</h4><button data-a="undo">↩️ Annuler</button><button data-a="clear">🗑️ Tout effacer</button>' +
+          '</div>' +
+          '<div class="tbl-mid"><div class="tbl-cvw"><canvas class="tbl-cv" width="' + CW + '" height="' + CH + '"></canvas></div></div>' +
+          '<div class="tbl-side R">' +
+            '<h4>Couleurs</h4><div class="tbl-pal">' + COLORS.map(function (c, i) { return '<button class="tbl-sw' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join('') + '</div>' +
+            '<div class="row" style="align-items:center"><input type="color" data-r="custom" value="#ff3b3b" title="Autre couleur"><span style="font-size:12px;color:#cdbf94">Autre couleur</span></div>' +
+            '<div class="tbl-info"><span>Ton solde : <b data-r="bal">' + fmtN(balance()) + ' 🪙</b></span><span>Il te reste <b>' + Math.max(0, left) + '</b> tableau' + (left > 1 ? 'x' : '') + '</span></div>' +
+          '</div>' +
+        '</div>', false, true);
       var cv = p.querySelector('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+      var cvw = p.querySelector('.tbl-cvw');
+      function fit() {                                           // la toile prend toute la place du centre en gardant ses proportions 4/3
+        var w = cvw.clientWidth, h = cvw.clientHeight; if (!w || !h) return;
+        var k = Math.min(w / CW, h / CH); cv.style.width = Math.floor(CW * k) + 'px'; cv.style.height = Math.floor(CH * k) + 'px';
+      }
+      fit(); setTimeout(fit, 60); setTimeout(fit, 300);
+      var ro = null; try { ro = new ResizeObserver(fit); ro.observe(cvw); } catch (er) { /* ok */ }
+      window.addEventListener('resize', fit);
       cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, CW, CH); cx.lineCap = 'round'; cx.lineJoin = 'round';
       var E = editor = { n: n, color: '#000000', size: 8, tool: 'brush', undo: [], drawing: false, lx: 0, ly: 0, sent: false, rid: '' };
       var titleEl = p.querySelector('[data-r=title]');
+      E.unfit = function () { window.removeEventListener('resize', fit); if (ro) { try { ro.disconnect(); } catch (er) { /* ok */ } } };
       E.save = function () { if (!E.sent && E.undo.length) saveDraft(cv, titleEl.value); };
       var dr = loadDraft();
       if (dr) {                                                  // on reprend là où on s'était arrêté
