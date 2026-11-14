@@ -300,7 +300,7 @@
       c.fillStyle = '#cdbf94'; c.font = '700 40px ' + SERIF; c.fillText('cagnotte à partager entre le top 3', W / 2, 265, W - 60);
       c.fillStyle = '#f4e3b0'; c.font = '800 46px ' + SERIF + ',' + EMOJI; c.fillText(data ? '⏳ Fin dans ' + timeLeft(data.endsAt - (Date.now() + skew)) : '⏳ …', W / 2, 335, W - 60);
       c.fillStyle = '#d9cfae'; c.font = '600 33px ' + SERIF;
-      ['Tableaux : 300 · 800 · 1 500 🪙 (3 maximum par joueur)', 'Vote pour ton préféré (1 vote par semaine)', 'Lundi 00h00 : 1er 50 % · 2e 30 % · 3e 20 %', 'Tu retires ton tableau ? Tu récupères 90 %'].forEach(function (l, i) { c.fillText(l, W / 2, 410 + i * 52, W - 70); });
+      ['Tableaux : 300 · 800 · 1 500 🪙 (5 maximum par joueur)', 'Vote pour ton préféré (1 vote par semaine)', 'Lundi 00h00 : 1er 50 % · 2e 30 % · 3e 20 %', 'Tu retires ton tableau ? Tu récupères 90 %'].forEach(function (l, i) { c.fillText(l, W / 2, 410 + i * 52, W - 70); });
       infoT.needsUpdate = true;
     }
     paintInfo();
@@ -325,7 +325,7 @@
       E.sx = E.x; E.sz = E.z + 1.6;          // point d'approche pour la touche F
       room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.6,
         enabled: function () { return freeSpot() >= 0; },
-        prompt: function () { return data && !data.price ? '🎨 Tu as déjà tes 3 tableaux (retire-en un pour peindre)' : '🎨 Peindre un tableau — ' + fmtN(data ? data.price : 300) + ' 🪙'; },
+        prompt: function () { return data && !data.price ? '🎨 Tu as déjà tes ' + (data.maxPerPlayer || 5) + ' tableaux (retire-en un pour peindre)' : '🎨 Peindre un tableau — ' + fmtN(data ? data.price : 300) + ' 🪙'; },
         use: function () { if (freeSpot() >= 0) openEditor(); } });
     });
 
@@ -522,7 +522,7 @@
       sendPaint(true, n); paintT = 2.5;
       view = null;
       var d = data, price = d ? d.price : 300;
-      var mineCount = d ? d.items.filter(function (x) { return x.mine; }).length : 0, left = d ? d.maxPerPlayer - mineCount : 3;
+      var mineCount = d ? d.items.filter(function (x) { return x.mine; }).length : 0, left = d ? d.maxPerPlayer - mineCount : 5;
       var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau</h3>' +
         '<input type="text" data-r="title" maxlength="30" placeholder="Titre de ton tableau">' +
         '<button class="go" data-a="send">🖼️ Accrocher (' + fmtN(price) + ' 🪙)</button><button data-a="close">✕ Fermer</button></div>' +

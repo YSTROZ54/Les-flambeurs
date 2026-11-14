@@ -16,10 +16,10 @@ import { isStaffActor } from './_roles.js';
 
 const ROW = '__tableaux__';
 const IMG_ROW = (id) => '__tabimg_' + id;
-export const PRICES = [300, 800, 1500];  // prix du 1er, du 2e et du 3e tableau d'un joueur (pièces)
+export const PRICES = [300, 800, 1500, 1500, 1500];  // prix du 1er, 2e, 3e, 4e et 5e tableau d un joueur (pièces)
 export const REFUND_PCT = 90;            // part rendue quand l'auteur retire son tableau (le reste va dans la cagnotte)
 const LEGACY_PRICE = 100;                // les tableaux accrochés avant les prix progressifs avaient coûté 100
-export const MAX_PER_PLAYER = 3;         // tableaux par joueur et par semaine
+export const MAX_PER_PLAYER = 5;         // tableaux par joueur et par semaine
 export const MAX_ITEMS = 24;             // tableaux accrochés en même temps (autant que de cadres sur les murs de la salle)
 export const MAX_IMG_CHARS = 160000;     // taille maximale de l'image (texte base64)
 export const SHARES = { 1: [100], 2: [60, 40], 3: [50, 30, 20] };   // partage de la cagnotte selon le nombre de gagnants
