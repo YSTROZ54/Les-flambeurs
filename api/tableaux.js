@@ -113,7 +113,7 @@ async function settle(t, now) {
     podium = { week: t.week, pot, entries: pay.map((p) => ({ id: p.item.id, title: p.item.title, author: p.item.author, avatar: p.item.avatar, votes: p.item.votes, prize: p.prize })) };
   } else if (items.length) {
     for (const it of items) await walletPay(it.author, 'tab-' + t.week + '-' + it.id + '-refund', paidOf(it));   // aucun vote : chacun récupère sa mise (les 10 % gardés passent à la semaine suivante)
-    podium = { week: t.week, pot, entries: [], refunded: true };
+    // aucun vote : on rembourse, mais on ne touche PAS au podium affiché (il reste jusqu'au prochain vrai podium)
   }
   let old = [];
   const res = await mutate((cur) => {
