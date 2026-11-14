@@ -421,8 +421,7 @@
         c.fillStyle = '#f4f4f4'; c.fillRect(W / 2 - 3, H * 0.2, 6, H * 0.58); c.fillStyle = '#ff4040'; c.beginPath(); c.moveTo(W / 2 + 3, H * 0.2); c.lineTo(W / 2 + 90, H * 0.29); c.lineTo(W / 2 + 3, H * 0.38); c.closePath(); c.fill();
         c.fillStyle = '#fff'; c.beginPath(); c.arc(W * 0.28, H * 0.88, 14, 0, TAU); c.fill();
       },
-      deco: function (g, w, h) {                               // gazon devant la porte et un drapeau à côté
-        var t = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.4, 2.4), new THREE.MeshLambertMaterial({ color: 0x2e8b4a })); t.rotation.x = -Math.PI / 2; t.position.set(0, 0.015, 1.3); g.add(t);
+      deco: function (g, w, h) {                               // un drapeau à côté de la porte (plus de tapis)
         var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.6, 8), new THREE.MeshLambertMaterial({ color: 0xf4f4f4 })); pole.position.set(w / 2 + 0.7, 0.8, 0.6); g.add(pole);
         var fl = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.26), new THREE.MeshBasicMaterial({ color: 0xff4040, side: THREE.DoubleSide })); fl.position.set(w / 2 + 0.9, 1.45, 0.6); g.add(fl);
       }
