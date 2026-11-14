@@ -94,9 +94,9 @@
 
     /* le bureau du salon privé */
     var desk = PM.build('console'); desk.position.set(HX - 1.3, 0, 0); desk.rotation.y = -Math.PI / 2; g.add(desk); room.colliders.push({ x: HX - 1.3, z: -0.5, r: 0.7 }, { x: HX - 1.3, z: 0.5, r: 0.7 });
-    var sc = mkCanvas(512, 160), sx = sc.getContext('2d'); sx.fillStyle = 'rgba(8,4,16,0.92)'; sx.fillRect(0, 0, 512, 160); sx.strokeStyle = '#3ddc84'; sx.lineWidth = 7; sx.shadowColor = '#3ddc84'; sx.shadowBlur = 20; sx.strokeRect(10, 10, 492, 140); sx.fillStyle = '#c8ffe0'; sx.font = '900 56px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('🔒 SALON PRIVÉ', 256, 62); sx.font = '700 26px sans-serif'; sx.fillText('Crée un salon · rejoins avec un code', 256, 118);
-    var stex = mkTex(sc), sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.31), new THREE.MeshStandardMaterial({ map: stex, emissive: 0xffffff, emissiveMap: stex, emissiveIntensity: 1.2 })); sign.position.set(HX - 0.08, 3.1, 0); sign.rotation.y = -Math.PI / 2; g.add(sign);
-    if (!low) { var gl = new THREE.PointLight(0x3ddc84, 0.8, 9); gl.position.set(HX - 2.5, 3, 0); g.add(gl); }
+    var sc = mkCanvas(512, 160), sx = sc.getContext('2d'); sx.fillStyle = '#1a1410'; sx.fillRect(0, 0, 512, 160); sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(10, 10, 492, 140); sx.fillStyle = '#f3e6c4'; sx.font = '900 56px ' + SERIF; sx.textAlign = 'center'; sx.textBaseline = 'middle'; sx.fillText('🔒 SALON PRIVÉ', 256, 62); sx.font = '700 26px sans-serif'; sx.fillText('Crée un salon · rejoins avec un code', 256, 118);
+    var stex = mkTex(sc), sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.31), new THREE.MeshStandardMaterial({ map: stex, emissive: 0xffffff, emissiveMap: stex, emissiveIntensity: 0.35 })); sign.position.set(HX - 0.08, 3.1, 0); sign.rotation.y = -Math.PI / 2; g.add(sign);
+    if (!low) { var gl = new THREE.PointLight(0xffe0b0, 0.5, 8); gl.position.set(HX - 2.5, 3, 0); g.add(gl); }
     var hitDesk = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); hitDesk.position.set(HX - 1.3, 0.8, 0); g.add(hitDesk);
     room.interactables.push({ hit: hitDesk, x: HX - 2.6, z: 0, radius: 2.4, enabled: function () { return !modal; }, prompt: function () { return '🔒 Salon privé : créer ou rejoindre  [F / clic]'; }, use: function () { openModal(); } });
 
