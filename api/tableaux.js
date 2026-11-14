@@ -1,9 +1,10 @@
-// Salle « Tableau dessin » : chaque semaine, les joueurs paient 100 pièces pour accrocher un tableau au mur, tout le monde vote
+// Salle « Tableau dessin » : chaque semaine, les joueurs paient (300, puis 800, puis 1500 pièces pour leur 1er, 2e et 3e tableau) pour accrocher un tableau au mur, tout le monde vote
 // pour son préféré, et à la fin de la semaine (lundi 00h00, heure de Paris) toutes les pièces récoltées sont redistribuées
 // aux auteurs des trois tableaux les plus votés. Tout se passe ici, côté serveur : le navigateur ne fait que dessiner et demander.
 //   GET  /api/tableaux            → l'état de la semaine (tableaux, votes, podium de la semaine passée, cagnotte)
 //   GET  /api/tableaux?img=<id>   → l'image d'un tableau (mise en cache : un identifiant ne change jamais d'image)
-//   POST { action: 'create', title, img }  → paie 100 🪙 et accroche le tableau (3 tableaux maximum par joueur et par semaine)
+//   POST { action: 'create', title, img, rid } → paie 300 / 800 / 1500 🪙 selon le nombre de tableaux déjà accrochés et accroche le tableau (3 maximum par joueur)
+//   POST { action: 'withdraw', id }        → l'auteur retire son tableau : il récupère 90 % de ce qu'il a payé, les 10 % restent dans la cagnotte
 //   POST { action: 'vote', id }            → un seul vote par semaine, modifiable ; id vide = retirer son vote ; pas pour son propre tableau
 //   POST { action: 'remove', id }          → Patron / Co Fondateur / Staff : retire un tableau (l'auteur est remboursé)
 // L'état est dans la ligne __tableaux__ (écriture « si personne n'a modifié entre-temps »), chaque image dans sa propre ligne __tabimg_<id>.
@@ -15,9 +16,11 @@ import { isStaffActor } from './_roles.js';
 
 const ROW = '__tableaux__';
 const IMG_ROW = (id) => '__tabimg_' + id;
-export const PRICE = 100;                // prix d'un tableau (pièces)
+export const PRICES = [300, 800, 1500];  // prix du 1er, du 2e et du 3e tableau d'un joueur (pièces)
+export const REFUND_PCT = 90;            // part rendue quand l'auteur retire son tableau (le reste va dans la cagnotte)
+const LEGACY_PRICE = 100;                // les tableaux accrochés avant les prix progressifs avaient coûté 100
 export const MAX_PER_PLAYER = 3;         // tableaux par joueur et par semaine
-export const MAX_ITEMS = 20;             // tableaux accrochés en même temps (autant que de cadres sur les murs de la salle)
+export const MAX_ITEMS = 24;             // tableaux accrochés en même temps (autant que de cadres sur les murs de la salle)
 export const MAX_IMG_CHARS = 160000;     // taille maximale de l'image (texte base64)
 export const SHARES = { 1: [100], 2: [60, 40], 3: [50, 30, 20] };   // partage de la cagnotte selon le nombre de gagnants
 
@@ -58,7 +61,10 @@ export function payouts(items, pot) {
 }
 
 /* ---------- état ---------- */
-const emptyState = (week) => ({ week, items: [], votes: {}, podium: null });
+const emptyState = (week) => ({ week, items: [], votes: {}, podium: null, kept: 0 });
+const paidOf = (it) => (Number.isFinite(it.paid) ? it.paid : LEGACY_PRICE);
+const potOf = (t) => t.items.reduce((s, it) => s + paidOf(it), 0) + (Number.isFinite(t.kept) ? t.kept : 0);   // mises + 10 % gardés des tableaux retirés
+const mineOf = (t, who) => t.items.filter((it) => it.author.toLowerCase() === who);
 
 async function ensureRow() {
   const r = await getRowExact(ROW);
@@ -70,6 +76,7 @@ async function readState() {
   const t = r && r.data && r.data.t && typeof r.data.t === 'object' ? r.data.t : emptyState(weekOf(Date.now()).key);
   if (!Array.isArray(t.items)) t.items = [];
   if (!t.votes || typeof t.votes !== 'object') t.votes = {};
+  if (!Number.isFinite(t.kept)) t.kept = 0;
   return t;
 }
 async function mutate(fn) {
@@ -78,6 +85,7 @@ async function mutate(fn) {
     const t = d.data.t && typeof d.data.t === 'object' ? d.data.t : emptyState(weekOf(Date.now()).key);
     if (!Array.isArray(t.items)) t.items = [];
     if (!t.votes || typeof t.votes !== 'object') t.votes = {};
+    if (!Number.isFinite(t.kept)) t.kept = 0;
     const out = fn(t);
     d.data.t = t;
     return out;
@@ -97,14 +105,14 @@ async function settle(t, now) {
   const wk = weekOf(now).key;
   if (t.week === wk) return t;
   const items = tally(t);
-  const pot = items.length * PRICE;
+  const pot = potOf(t);
   const pay = payouts(items, pot);
   let podium = null;
   if (pay) {
     for (const p of pay) await walletPay(p.item.author, 'tab-' + t.week + '-' + p.item.id, p.prize);
     podium = { week: t.week, pot, entries: pay.map((p) => ({ id: p.item.id, title: p.item.title, author: p.item.author, avatar: p.item.avatar, votes: p.item.votes, prize: p.prize })) };
   } else if (items.length) {
-    for (const it of items) await walletPay(it.author, 'tab-' + t.week + '-' + it.id + '-refund', PRICE);   // aucun vote : chacun récupère sa mise
+    for (const it of items) await walletPay(it.author, 'tab-' + t.week + '-' + it.id + '-refund', paidOf(it));   // aucun vote : chacun récupère sa mise (les 10 % gardés passent à la semaine suivante)
     podium = { week: t.week, pot, entries: [], refunded: true };
   }
   let old = [];
@@ -113,7 +121,7 @@ async function settle(t, now) {
     const prevPodium = cur.podium;
     const keep = new Set((podium ? podium.entries : []).map((e) => e.id));
     old = cur.items.filter((it) => !keep.has(it.id)).map((it) => it.id).concat(podium && prevPodium ? prevPodium.entries.map((e) => e.id) : []);
-    cur.week = wk; cur.items = []; cur.votes = {}; cur.podium = podium || prevPodium || null;   // une semaine vide garde le podium précédent affiché
+    cur.week = wk; cur.items = []; cur.votes = {}; cur.kept = pay ? 0 : (cur.kept || 0); cur.podium = podium || prevPodium || null;   // une semaine vide garde le podium précédent affiché
     return { done: false };
   });
   if (!res.done) { for (const id of old) { try { await deleteRow(IMG_ROW(id)); } catch (e) { /* ok */ } } }   // les images du podium précédent et des perdants ne servent plus
@@ -124,10 +132,11 @@ function publicView(t, actor, now) {
   const w = weekOf(now);
   const items = tally(t);
   const mine = actor || '';
+  const mineCount = mine ? mineOf(t, mine).length : 0;
   return {
-    ok: true, serverNow: now, week: t.week, endsAt: w.endsAt, price: PRICE, maxPerPlayer: MAX_PER_PLAYER,
-    pot: items.length * PRICE,
-    items: rank(items).map((it) => ({ id: it.id, title: it.title, author: it.author, avatar: it.avatar, votes: it.votes, ts: it.ts, mine: it.author.toLowerCase() === mine })),
+    ok: true, serverNow: now, week: t.week, endsAt: w.endsAt, price: mineCount < MAX_PER_PLAYER ? PRICES[mineCount] : 0, prices: PRICES, maxPerPlayer: MAX_PER_PLAYER, refundPct: REFUND_PCT,
+    pot: potOf(t),
+    items: rank(items).map((it) => { const m = it.author.toLowerCase() === mine; return { id: it.id, title: it.title, author: it.author, avatar: it.avatar, votes: it.votes, ts: it.ts, mine: m, ...(m ? { refund: Math.floor(paidOf(it) * REFUND_PCT / 100) } : {}) }; }),
     myVote: mine && t.votes[mine] ? t.votes[mine] : '',
     podium: t.podium || null
   };
@@ -196,21 +205,23 @@ export default async function handler(req, res) {
       const img = checkImage(body.img);
       if (!img) return fail(res, 400, 'Image invalide ou trop lourde.');
       if (t.items.length >= MAX_ITEMS) return fail(res, 409, 'Le mur est plein pour cette semaine.');
-      if (t.items.filter((it) => it.author.toLowerCase() === actor).length >= MAX_PER_PLAYER) return fail(res, 409, 'Tu as déjà accroché ' + MAX_PER_PLAYER + ' tableaux cette semaine.');
+      const mineCount = mineOf(t, actor).length;
+      if (mineCount >= MAX_PER_PLAYER) return fail(res, 409, 'Tu as déjà accroché ' + MAX_PER_PLAYER + ' tableaux cette semaine.');
+      const price = PRICES[mineCount];
       const id = rid || (now.toString(36) + Math.random().toString(36).slice(2, 7));
-      const paid = await walletCharge(actor, 'tab-new-' + id, PRICE);     // prélevé d'abord, remboursé si l'accrochage échoue
+      const paid = await walletCharge(actor, 'tab-new-' + id, price);     // prélevé d'abord, remboursé si l'accrochage échoue
       try {
         await putRow({ username: IMG_ROW(id), password: 'sys', avatar: '🖼️', balance: 0, data: { mime: img.mime, b64: img.b64 } });
         const r = await mutate((cur) => {
           if (cur.week !== t.week) throw new GameError(409, 'La semaine vient de se terminer, réessaie.');
           if (cur.items.length >= MAX_ITEMS) throw new GameError(409, 'Le mur est plein pour cette semaine.');
-          if (cur.items.filter((it) => it.author.toLowerCase() === actor).length >= MAX_PER_PLAYER) throw new GameError(409, 'Tu as déjà accroché ' + MAX_PER_PLAYER + ' tableaux cette semaine.');
-          cur.items.push({ id, title, author: paid.username || actor, avatar: str(body.avatar, 12) || '🧑', ts: now });
+          if (mineOf(cur, actor).length !== mineCount) throw new GameError(409, 'Ton nombre de tableaux vient de changer, réessaie.');   // le prix dépendait de ce nombre
+          cur.items.push({ id, title, author: paid.username || actor, avatar: str(body.avatar, 12) || '🧑', ts: now, paid: price });
           return { ok: true };
         });
         void r;
       } catch (e) {
-        await walletPay(actor, 'tab-new-' + id + '-refund', PRICE).catch(() => { /* ok */ });
+        await walletPay(actor, 'tab-new-' + id + '-refund', price).catch(() => { /* ok */ });
         try { await deleteRow(IMG_ROW(id)); } catch (e2) { /* ok */ }
         throw e;
       }
@@ -232,6 +243,24 @@ export default async function handler(req, res) {
       return res.status(200).json(publicView(t, actor, Date.now()));
     }
 
+    if (action === 'withdraw') {
+      const id = str(body.id, 40);
+      let gone = null, back = 0;
+      await mutate((cur) => {
+        const i = cur.items.findIndex((x) => x.id === id && x.author.toLowerCase() === actor);
+        if (i < 0) throw new GameError(404, 'Tableau introuvable.');
+        gone = cur.items.splice(i, 1)[0];
+        Object.keys(cur.votes).forEach((v) => { if (cur.votes[v] === id) delete cur.votes[v]; });
+        back = Math.floor(paidOf(gone) * REFUND_PCT / 100);
+        cur.kept = (cur.kept || 0) + paidOf(gone) - back;               // les 10 % restent dans la cagnotte
+        return {};
+      });
+      const w = await walletPay(actor, 'tab-' + t.week + '-' + gone.id + '-withdraw', back);
+      try { await deleteRow(IMG_ROW(gone.id)); } catch (e) { /* ok */ }
+      t = await readState();
+      return res.status(200).json({ ...publicView(t, actor, Date.now()), balance: w.balance, refunded: back });
+    }
+
     if (action === 'remove') {
       if (!(await isStaffActor(actor))) return fail(res, 403, 'Réservé au staff.');
       const id = str(body.id, 40);
@@ -243,7 +272,7 @@ export default async function handler(req, res) {
         Object.keys(cur.votes).forEach((v) => { if (cur.votes[v] === id) delete cur.votes[v]; });
         return {};
       });
-      if (gone) { await walletPay(gone.author, 'tab-' + t.week + '-' + gone.id + '-removed', PRICE); try { await deleteRow(IMG_ROW(gone.id)); } catch (e) { /* ok */ } }
+      if (gone) { await walletPay(gone.author, 'tab-' + t.week + '-' + gone.id + '-removed', paidOf(gone)); try { await deleteRow(IMG_ROW(gone.id)); } catch (e) { /* ok */ } }
       t = await readState();
       return res.status(200).json(publicView(t, actor, Date.now()));
     }

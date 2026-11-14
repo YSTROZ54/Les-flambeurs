@@ -5,7 +5,7 @@
    (un vote par semaine, pas pour soi) ; le lundi à minuit (heure de Paris) la cagnotte entière est partagée entre les auteurs des trois
    tableaux les plus votés, qui montent alors sur le podium du mur du fond.
    TOUT est décidé par le serveur (api/tableaux.js : paiement, votes, classement, partage) ; ici on ne fait que dessiner et demander.
-   Salle : mur de gauche et mur de droite = 10 cadres chacun (les mieux votés d'abord), chacun avec son cœur pour voter d'un clic ;
+   Salle : mur de gauche et mur de droite = 12 cadres chacun (les mieux votés d'abord), chacun avec son cœur pour voter d'un clic ;
            mur du fond = podium de la semaine passée (contre le mur), un seul chevalet au milieu (un peintre à la fois, ouvert à tous), panneau du concours près de la porte.
    Quand quelqu'un peint, son personnage se place devant le chevalet et fait le geste de peindre chez tous les autres (message « paint »).
    Fichiers liés : api/tableaux.js, minijeux3d.js (la porte « TABLEAU DESSIN »), world3d.js.
@@ -15,10 +15,10 @@
   var F = window.F3D;
   if (!F || !F.registerRoom) return;
   var mkCanvas = F.mkCanvas, mkTex = F.mkTex, SERIF = F.SERIF, MONO = F.MONO, EMOJI = F.EMOJI_FONT, TAU = F.TAU, fmtN = F.fmtN;
-  var HX = 11, HZ = 9, H = 5.2;
+  var HX = 14, HZ = 11, H = 6.4;
   var API = '/api/tableaux';
   var CW = 480, CH = 360;                 // taille d'un tableau (pixels)
-  var COLS_Z = [-6.8, -3.4, 0, 3.4, 6.8], ROWS_Y = [1.35, 3.35], FW = 1.75, FH = 1.3125;
+  var COLS_Z = [-8.5, -5.1, -1.7, 1.7, 5.1, 8.5], ROWS_Y = [1.35, 3.35], FW = 1.75, FH = 1.3125;
 
   function st() { try { return (typeof state !== 'undefined' && state) || null; } catch (e) { return null; } }
   function balance() { var s = st(); return s && typeof s.balance === 'number' ? s.balance : 0; }
@@ -93,15 +93,78 @@
     for (var pi = 0; pi < 8; pi++) { fx.fillStyle = pi % 2 ? '#34231a' : '#2a1c14'; fx.fillRect(0, pi * 32, 256, 31); fx.fillStyle = 'rgba(0,0,0,.35)'; fx.fillRect((pi * 83) % 256, pi * 32, 2, 32); }
     var ft = mkTex(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(HX * 2 / 3, HZ * 2 / 3); ft.anisotropy = 8;
     var floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.5, metalness: 0.08 })); floor.rotation.x = -Math.PI / 2; g.add(floor);
-    var wm = new THREE.MeshStandardMaterial({ color: new THREE.Color('#241a2c'), roughness: 0.9, metalness: 0.02 });
-    function wall(len, px, pz, ry) { var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), wm); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m); }
+    // murs de luxe : vert émeraude profond, losanges dorés très discrets, lambris sombre en bas
+    var wc = mkCanvas(256, 256), wx = wc.getContext('2d'); wx.fillStyle = '#0d4034'; wx.fillRect(0, 0, 256, 256);
+    var wgr = wx.createLinearGradient(0, 0, 0, 256); wgr.addColorStop(0, 'rgba(255,255,255,0.05)'); wgr.addColorStop(1, 'rgba(0,0,0,0.12)'); wx.fillStyle = wgr; wx.fillRect(0, 0, 256, 256);
+    wx.strokeStyle = 'rgba(214,176,70,0.2)'; wx.lineWidth = 2;
+    for (var wi = -1; wi < 3; wi++) { wx.beginPath(); wx.moveTo(wi * 128, 0); wx.lineTo(wi * 128 + 256, 256); wx.moveTo(wi * 128 + 256, 0); wx.lineTo(wi * 128, 256); wx.stroke(); }
+    wx.fillStyle = 'rgba(214,176,70,0.3)'; [[0, 128], [128, 0], [128, 256], [256, 128]].forEach(function (d) { wx.beginPath(); wx.arc(d[0], d[1], 4, 0, TAU); wx.fill(); });
+    var wTex = mkTex(wc); wTex.wrapS = wTex.wrapT = THREE.RepeatWrapping; wTex.anisotropy = 8;
+    function wall(len, px, pz, ry) {
+      var tx = wTex.clone(); tx.needsUpdate = true; tx.repeat.set(len / 3, H / 3);
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, metalness: 0.08 })); m.position.set(px, H / 2, pz); m.rotation.y = ry; g.add(m);
+      // lambris bas en bois sombre avec filet doré
+      var wd = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.16), new THREE.MeshStandardMaterial({ color: 0x2a140c, roughness: 0.5, metalness: 0.15 }));
+      var nxw = Math.sin(ry), nzw = Math.cos(ry);
+      wd.position.set(px + nxw * 0.012, 0.9, pz + nzw * 0.012); wd.rotation.y = ry; g.add(wd);
+    }
     wall(HX * 2, 0, -HZ, 0); wall(HX * 2, 0, HZ, Math.PI); wall(HZ * 2, -HX, 0, Math.PI / 2); wall(HZ * 2, HX, 0, -Math.PI / 2);
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x0a070c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), new THREE.MeshBasicMaterial({ color: 0x07040c })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; g.add(ceil);
+
+    /* ---------- plafond : voile de guirlandes de LED et boule lumineuse (même style que le salon du Blind Test) ---------- */
+    var ledTex = (function () {
+      var c = mkCanvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.38, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return mkTex(c);
+    })();
+    var ledRows = [], ledWire = new THREE.MeshBasicMaterial({ color: 0x2a1a30 }), ledStep = low ? 0.26 : 0.14;
+    function ledString(pts, dir) {
+      var curve = new THREE.CatmullRomCurve3(pts), cnt = Math.round(curve.getLength() / ledStep), pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), geo = new THREE.BufferGeometry(), k, v;
+      for (k = 0; k < cnt; k++) { v = curve.getPoint(k / cnt); pos[k * 3] = v.x; pos[k * 3 + 1] = v.y; pos[k * 3 + 2] = v.z; }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+      var pt = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.26, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      pt.frustumCulled = false; g.add(pt);
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.008, 4, false), ledWire));
+      ledRows.push({ geo: geo, col: col, cnt: cnt, dir: dir });
+    }
+    function swag(x0, z0, x1, z1, y0, y1, sag, dir) {
+      var pts = [], k, n = 14, f;
+      for (k = 0; k <= n; k++) { f = k / n; pts.push(new THREE.Vector3(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f - sag * Math.sin(Math.PI * f), z0 + (z1 - z0) * f)); }
+      ledString(pts, dir);
+    }
+    (function () {
+      var i, a0, hubY = H - 0.4, ex, ez, tt;
+      for (i = 0; i < 32; i++) {                                 // éventail depuis le centre jusqu'aux murs
+        a0 = i / 32 * TAU; tt = Math.min((HX - 0.4) / Math.abs(Math.cos(a0) || 1e-6), (HZ - 0.4) / Math.abs(Math.sin(a0) || 1e-6));
+        ex = Math.cos(a0) * tt; ez = Math.sin(a0) * tt;
+        swag(Math.cos(a0) * 0.34, Math.sin(a0) * 0.34, ex, ez, hubY, H - 0.12, 0.6 + (i % 2) * 0.4, i % 2 ? -1 : 1);
+      }
+      for (i = -3; i <= 3; i++) { for (var s = 0; s < 4; s++) swag(-HX + 0.4 + s * (HX * 2 - 0.8) / 4, i * 3, -HX + 0.4 + (s + 1) * (HX * 2 - 0.8) / 4, i * 3, H - 0.12, H - 0.12, 0.5, (i + s) % 2 ? -1 : 1); }
+      var shell = new THREE.Mesh(new THREE.SphereGeometry(0.33, 28, 20), new THREE.MeshBasicMaterial({ color: 0x120a18 })); shell.position.set(0, hubY, 0); g.add(shell);
+      var nb = low ? 130 : 260, bp = new Float32Array(nb * 3), bc2 = new Float32Array(nb * 3), bg = new THREE.BufferGeometry(), ga = Math.PI * (3 - Math.sqrt(5)), yy, rr2;
+      for (i = 0; i < nb; i++) { yy = 1 - 2 * (i + 0.5) / nb; rr2 = Math.sqrt(1 - yy * yy); bp[i * 3] = Math.cos(ga * i) * rr2 * 0.345; bp[i * 3 + 1] = hubY + yy * 0.345; bp[i * 3 + 2] = Math.sin(ga * i) * rr2 * 0.345; }
+      bg.setAttribute('position', new THREE.BufferAttribute(bp, 3)); bg.setAttribute('color', new THREE.BufferAttribute(bc2, 3).setUsage(THREE.DynamicDrawUsage));
+      var ballPts = new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.16, map: ledTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); ballPts.frustumCulled = false; g.add(ballPts);
+      ledRows.push({ geo: bg, col: bc2, cnt: nb, dir: 1 });
+      var halo = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, hubY, 0]), 3)), new THREE.PointsMaterial({ size: 2.6, map: ledTex, color: 0xffb84c, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })); halo.frustumCulled = false; g.add(halo);
+    })();
+    var ledC = new THREE.Color(), ledT = 0;
+    function ledsUpdate(dt) {                                    // défilé de couleurs sur les guirlandes (or et rose, plus chaud que le Blind Test)
+      ledT += dt;
+      ledRows.forEach(function (row) {
+        var k, wv, v;
+        for (k = 0; k < row.cnt; k++) {
+          wv = 0.5 + 0.5 * Math.sin(k / row.cnt * TAU * 7 - ledT * 5 * row.dir); v = 0.25 + 0.75 * wv * wv;
+          ledC.setHSL((0.93 + 0.2 * (0.5 + 0.5 * Math.sin(k / row.cnt * TAU + ledT * 0.4))) % 1, 0.7, 0.62);   // du rose à l'or row.col[k * 3] = ledC.r * v; row.col[k * 3 + 1] = ledC.g * v; row.col[k * 3 + 2] = ledC.b * v;
+        }
+        row.geo.attributes.color.needsUpdate = true;
+      });
+    }
     var goldM = std(0xc9a227, 0.35, 0.7, 0x2a1d00);
     [[HX * 2, 0.15, 0.15, 0, H - 0.08, -HZ + 0.08], [HX * 2, 0.15, 0.15, 0, H - 0.08, HZ - 0.08], [0.15, 0.15, HZ * 2, -HX + 0.08, H - 0.08, 0], [0.15, 0.15, HZ * 2, HX - 0.08, H - 0.08, 0],
       [HX * 2, 0.12, 0.1, 0, 0.06, -HZ + 0.05], [HX * 2, 0.12, 0.1, 0, 0.06, HZ - 0.05], [0.1, 0.12, HZ * 2, -HX + 0.05, 0.06, 0], [0.1, 0.12, HZ * 2, HX - 0.05, 0.06, 0]].forEach(function (b) { box(g, b[0], b[1], b[2], goldM, b[3], b[4], b[5]); });
     g.add(new THREE.AmbientLight(0xf4eaf4, 1.35));
-    if (!low) { [[-6, 4.2, 0], [6, 4.2, 0], [0, 4.2, -6], [0, 4.2, 4]].forEach(function (p) { var l = new THREE.PointLight(0xffe2b0, 0.55, 11); l.position.set(p[0], p[1], p[2]); g.add(l); }); }
+    if (!low) { [[-9, 4.6, 0], [9, 4.6, 0], [0, 4.6, -7], [0, 4.6, 6], [-9, 4.6, -7], [9, 4.6, -7]].forEach(function (p) { var l = new THREE.PointLight(0xffe2b0, 0.55, 11); l.position.set(p[0], p[1], p[2]); g.add(l); }); }
 
     /* ---------- images : chargées une fois par tableau, partagées entre cadres ---------- */
     var blankC = mkCanvas(64, 48), bx = blankC.getContext('2d'); bx.fillStyle = '#17121c'; bx.fillRect(0, 0, 64, 48); bx.strokeStyle = '#3a2f46'; bx.lineWidth = 2; bx.strokeRect(6, 6, 52, 36);
@@ -163,21 +226,23 @@
 
     /* ---------- mur du fond : le podium de la semaine passée ---------- */
     var PODS = [
-      { rank: 1, x: 0, y: 2.9, w: 2.6, h: 1.95, bh: 1.0, col: '#ffd24a', name: 'OR' },
-      { rank: 2, x: -3.6, y: 2.5, w: 2.0, h: 1.5, bh: 0.7, col: '#d7dde6', name: 'ARGENT' },
-      { rank: 3, x: 3.6, y: 2.3, w: 2.0, h: 1.5, bh: 0.45, col: '#d58a4a', name: 'BRONZE' }
+      { rank: 1, x: 0, y: 3.4, w: 2.6, h: 1.95, col: '#ffd24a', name: 'OR' },
+      { rank: 2, x: -4.2, y: 3.0, w: 2.0, h: 1.5, col: '#d7dde6', name: 'ARGENT' },
+      { rank: 3, x: 4.2, y: 2.8, w: 2.0, h: 1.5, col: '#d58a4a', name: 'BRONZE' }
     ];
     PODS.forEach(function (p) {
       p.f = makeFrame(p.x, p.y, -HZ + 0.03, 0, p.w, p.h);
-      var bc = mkCanvas(256, 128), bctx = bc.getContext('2d'); bctx.fillStyle = p.col; bctx.fillRect(0, 0, 256, 128);
-      bctx.fillStyle = 'rgba(0,0,0,.22)'; bctx.fillRect(0, 0, 256, 10); bctx.fillStyle = '#2a1c00'; bctx.font = '900 96px ' + SERIF; bctx.textAlign = 'center'; bctx.textBaseline = 'middle'; bctx.fillText(String(p.rank), 128, 70);
-      var side = new THREE.MeshStandardMaterial({ map: mkTex(bc), roughness: 0.35, metalness: 0.55 }), topM = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.col), roughness: 0.35, metalness: 0.55 });
-      box(g, 2.3, p.bh, 0.45, [side, side, topM, topM, side, side], p.x, p.bh / 2, -HZ + 0.3);
-      room.colliders.push({ x: p.x - 0.8, z: -HZ + 0.3, r: 0.5 }, { x: p.x, z: -HZ + 0.3, r: 0.5 }, { x: p.x + 0.8, z: -HZ + 0.3, r: 0.5 });
+      // affiche à plat sur le mur, sous le cartel : seulement le numéro de la place dans un cercle (plus de bloc posé au sol)
+      var pc = mkCanvas(256, 256), px = pc.getContext('2d'), pgr = px.createRadialGradient(100, 90, 20, 128, 128, 120);
+      pgr.addColorStop(0, '#ffffff'); pgr.addColorStop(0.25, p.col); pgr.addColorStop(1, 'rgba(60,40,10,1)');
+      px.beginPath(); px.arc(128, 128, 118, 0, TAU); px.fillStyle = pgr; px.fill(); px.lineWidth = 10; px.strokeStyle = '#2a1c00'; px.stroke();
+      px.beginPath(); px.arc(128, 128, 98, 0, TAU); px.lineWidth = 4; px.strokeStyle = 'rgba(42,28,0,0.55)'; px.stroke();
+      px.fillStyle = '#2a1c00'; px.font = '900 150px ' + SERIF; px.textAlign = 'center'; px.textBaseline = 'middle'; px.fillText(String(p.rank), 128, 138);
+      var pm = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.82), new THREE.MeshBasicMaterial({ map: mkTex(pc), transparent: true })); pm.position.set(p.x, p.y - p.h / 2 - 1.08, -HZ + 0.03); g.add(pm);
       paintPlaque(p.f, p.name, 'à venir…'); paintHeart(p.f, 0, false, false); p.f.hhit.visible = false;
     });
     var titleC = mkCanvas(1024, 96), titleX = titleC.getContext('2d'), titleT = mkTex(titleC);
-    var titleM = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.46), new THREE.MeshBasicMaterial({ map: titleT, transparent: true })); titleM.position.set(0, 4.45, -HZ + 0.04); g.add(titleM);
+    var titleM = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.46), new THREE.MeshBasicMaterial({ map: titleT, transparent: true })); titleM.position.set(0, 4.95, -HZ + 0.04); g.add(titleM);
     function paintTitle(txt) {
       titleX.clearRect(0, 0, 1024, 96); titleX.textAlign = 'center'; titleX.textBaseline = 'middle'; titleX.shadowColor = '#ffd24a'; titleX.shadowBlur = 16;
       titleX.fillStyle = '#ffe08a'; titleX.font = '900 58px ' + SERIF + ',' + EMOJI; titleX.fillText(txt, 512, 50, 990); titleT.needsUpdate = true;
@@ -186,7 +251,7 @@
 
     /* ---------- panneau d'information (mur de l'entrée, à gauche de la porte) ---------- */
     var infoC = mkCanvas(2048, 1280), infoX = infoC.getContext('2d'), infoT = mkTex(infoC); infoT.anisotropy = 8;
-    var INFO_X = -6.2, INFO_W = 4.4, INFO_H = INFO_W * 0.625;
+    var INFO_X = -6.5, INFO_W = 4.8, INFO_H = INFO_W * 0.625;
     var infoM = new THREE.Mesh(new THREE.PlaneGeometry(INFO_W, INFO_H), new THREE.MeshBasicMaterial({ map: infoT })); infoM.position.set(INFO_X, 2.55, HZ - 0.07); infoM.rotation.y = Math.PI; g.add(infoM);   // une seule face, tournée vers la salle
     box(g, INFO_W + 0.3, INFO_H + 0.3, 0.04, std(0x120c08, 0.8, 0.1), INFO_X, 2.55, HZ - 0.02);                      // fond derrière le panneau (jamais au même endroit : plus de moiré)
     [[INFO_W + 0.3, 0.12, 0, INFO_H / 2 + 0.15], [INFO_W + 0.3, 0.12, 0, -INFO_H / 2 - 0.15], [0.12, INFO_H + 0.3, INFO_W / 2 + 0.15, 0], [0.12, INFO_H + 0.3, -INFO_W / 2 - 0.15, 0]].forEach(function (b) { box(g, b[0], b[1], 0.08, goldM, INFO_X + b[2], 2.55 + b[3], HZ - 0.05); });
@@ -199,7 +264,7 @@
       c.fillStyle = '#cdbf94'; c.font = '700 40px ' + SERIF; c.fillText('cagnotte à partager entre le top 3', W / 2, 265, W - 60);
       c.fillStyle = '#f4e3b0'; c.font = '800 46px ' + SERIF + ',' + EMOJI; c.fillText(data ? '⏳ Fin dans ' + timeLeft(data.endsAt - (Date.now() + skew)) : '⏳ …', W / 2, 335, W - 60);
       c.fillStyle = '#d9cfae'; c.font = '600 33px ' + SERIF;
-      ['Peins un tableau au chevalet : ' + (data ? data.price : 100) + ' 🪙', 'Vote pour ton préféré (1 vote par semaine)', 'Lundi 00h00 : 1er 50 % · 2e 30 % · 3e 20 %', 'Personne ne vote ? Tout le monde est remboursé'].forEach(function (l, i) { c.fillText(l, W / 2, 410 + i * 52, W - 70); });
+      ['Tableaux : 300 · 800 · 1 500 🪙 (3 maximum par joueur)', 'Vote pour ton préféré (1 vote par semaine)', 'Lundi 00h00 : 1er 50 % · 2e 30 % · 3e 20 %', 'Tu retires ton tableau ? Tu récupères 90 %'].forEach(function (l, i) { c.fillText(l, W / 2, 410 + i * 52, W - 70); });
       infoT.needsUpdate = true;
     }
     paintInfo();
@@ -212,14 +277,15 @@
       var wood = std(0x8a5a30, 0.75, 0.05), e = new THREE.Group(); e.position.set(E.x, 0, E.z); g.add(e);   // la toile regarde vers +z, le peintre est devant
       box(e, 0.07, 2.1, 0.07, wood, -0.55, 1.05, -0.2).rotation.z = 0.05; box(e, 0.07, 2.1, 0.07, wood, 0.55, 1.05, -0.2).rotation.z = -0.05; box(e, 0.07, 2.0, 0.07, wood, 0, 1.0, -0.6).rotation.x = -0.18;
       box(e, 1.25, 0.06, 0.1, wood, 0, 0.75, -0.15);
-      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, side: THREE.DoubleSide }));   // toile visible des deux côtés cv.position.set(0, 1.4, -0.13); cv.rotation.x = -0.08; e.add(cv);
+      var cv = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.825), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, side: THREE.DoubleSide }));   // toile visible des deux côtés
+      cv.position.set(0, 1.4, -0.13); cv.rotation.x = -0.08; e.add(cv);
       [0xff4a4a, 0x4ab0ff, 0xffd24a, 0x4aff9a, 0xc04aff, 0xff8a2a].forEach(function (col, i) { var dot = new THREE.Mesh(new THREE.CircleGeometry(0.06 + (i % 3) * 0.015, 12), new THREE.MeshBasicMaterial({ color: col })); dot.position.set(-0.4 + (i % 3) * 0.4, 1.2 + Math.floor(i / 3) * 0.45, -0.12); dot.rotation.x = -0.08; e.add(dot); });
       var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 10), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(E.x, 1.1, E.z); g.add(hit);
       room.colliders.push({ x: E.x, z: E.z - 0.1, r: 0.7 });
       E.sx = E.x; E.sz = E.z + 1.5;          // où se tient le peintre
       room.interactables.push({ hit: hit, x: E.sx, z: E.sz, radius: 2.2,
         enabled: function () { return !easelBusy(n); },
-        prompt: function () { return '🎨 Peindre un tableau (chevalet libre) — ' + (data ? data.price : 100) + ' 🪙'; },
+        prompt: function () { return data && !data.price ? '🎨 Tu as déjà tes 3 tableaux (retire-en un pour peindre)' : '🎨 Peindre un tableau (chevalet libre) — ' + fmtN(data ? data.price : 300) + ' 🪙'; },
         use: function () { if (!easelBusy(n)) openEditor(n); } });
     });
 
@@ -290,6 +356,7 @@
     room.onPause = function () { closeAll(true); };
     var infoTick = 0;
     room.update = function (dt) {
+      ledsUpdate(dt);
       infoTick += dt; if (infoTick > 20) { infoTick = 0; paintInfo(); }
       if (editor) { paintT -= dt; if (paintT <= 0) { paintT = 2.5; sendPaint(true, editor.n); } }
     };
@@ -332,7 +399,7 @@
       p.addEventListener('click', function (e) {
         var b = e.target.closest ? e.target.closest('[data-a]') : null; if (!b || b.disabled) return;
         var a = b.getAttribute('data-a');
-        if (a === 'close') closeAll(); else if (a === 'vote') doVote(view.id); else if (a === 'unvote') doVote(''); else if (a === 'remove') doRemove(view.id);
+        if (a === 'close') closeAll(); else if (a === 'vote') doVote(view.id); else if (a === 'unvote') doVote(''); else if (a === 'remove') doRemove(view.id); else if (a === 'withdraw') doWithdraw(view.id);
       });
       p.querySelector('.tbl-big').src = imgUrl(item.id);
       refreshView();
@@ -350,7 +417,7 @@
         : '<span>Auteur : <b>' + esc(it.author) + '</b></span><span>Votes : <b>' + it.votes + '</b></span><span>Cagnotte : <b>' + fmtN(d.pot || 0) + ' 🪙</b></span>';
       var t = p.querySelector('.tbl-tools'), h = '';
       if (!view.podium) {
-        if (it.mine) h += '<button disabled>Ton propre tableau</button>';
+        if (it.mine) h += '<button disabled>Ton propre tableau</button><button data-a="withdraw"' + (busy ? ' disabled' : '') + '>🗑️ Retirer mon tableau (+' + fmtN(it.refund || 0) + ' 🪙 · ' + (d.refundPct || 90) + ' %)</button>';
         else if (d.myVote === it.id) h += '<button class="on" data-a="unvote"' + (busy ? ' disabled' : '') + '>❤️ Ton vote — retirer</button>';
         else h += '<button class="go" data-a="vote"' + (busy ? ' disabled' : '') + '>❤️ Voter pour ce tableau' + (d.myVote ? ' (change ton vote)' : '') + '</button>';
         if (staff) h += '<button data-a="remove"' + (busy ? ' disabled' : '') + '>🗑️ Retirer (staff)</button>';
@@ -363,6 +430,16 @@
       call({ action: 'vote', id: id }).then(function (r) {
         busy = false;
         if (r && r.ok) { applyState(r); msg(id ? '❤️ Vote enregistré !' : 'Vote retiré.', true); } else { msg('❌ ' + ((r && r.error) || 'Vote impossible.')); refreshView(); }
+      });
+    }
+    function doWithdraw(id) {
+      var it = itemById(id); if (!it || busy) return;
+      if (!window.confirm('Retirer « ' + it.title + ' » ?\nTu récupères ' + fmtN(it.refund || 0) + ' 🪙 (' + ((data && data.refundPct) || 90) + ' % de ce que tu as payé) ; le reste reste dans la cagnotte.')) return;
+      busy = true; refreshView(); msg('…', true);
+      call({ action: 'withdraw', id: id }).then(function (r) {
+        busy = false;
+        if (r && r.ok) { setBalance(r.balance); applyState(r); closeAll(); try { world.flash('🗑️ Tableau retiré', '+' + fmtN(r.refunded || 0) + ' 🪙 remboursés'); } catch (e) { /* ok */ } }
+        else { msg('❌ ' + ((r && r.error) || 'Impossible de retirer ce tableau.')); refreshView(); }
       });
     }
     function doRemove(id) {
@@ -397,15 +474,16 @@
 
     function openEditor(n) {
       if (needLogin()) return;
+      if (data && !data.price) { try { world.flash('🎨 Tu as déjà accroché ' + data.maxPerPlayer + ' tableaux cette semaine', 'Retire-en un pour en refaire un'); } catch (e) { /* ok */ } return; }
       // on se place devant le chevalet, face à la toile, immobile : les autres joueurs nous voient peindre (et non courir sur place)
       var Ez = EASELS[n] || EASELS[0];
       world.player.x = Ez.sx; world.player.z = Ez.sz; world.player.yaw = 0; world.player.pitch = -0.1; world.pv.x = 0; world.pv.z = 0;
       sendPaint(true, n); paintT = 2.5;
       view = null;
-      var d = data, price = d ? d.price : 100;
+      var d = data, price = d ? d.price : 300;
       var mineCount = d ? d.items.filter(function (x) { return x.mine; }).length : 0, left = d ? d.maxPerPlayer - mineCount : 3;
-      var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau — ' + price + ' 🪙</h3><button data-a="close">✕ Fermer</button></div>' +
-        '<div class="tbl-tools"><input type="text" data-r="title" maxlength="30" placeholder="Titre de ton tableau"><button class="go" data-a="send">🖼️ Accrocher (' + price + ' 🪙)</button></div><div class="tbl-msg"></div>' +
+      var p = open('<div class="tbl-head"><h3>🎨 Nouveau tableau — ' + fmtN(price) + ' 🪙</h3><button data-a="close">✕ Fermer</button></div>' +
+        '<div class="tbl-tools"><input type="text" data-r="title" maxlength="30" placeholder="Titre de ton tableau"><button class="go" data-a="send">🖼️ Accrocher (' + fmtN(price) + ' 🪙)</button></div><div class="tbl-msg"></div>' +
         '<canvas class="tbl-cv" width="' + CW + '" height="' + CH + '"></canvas>' +
         '<div class="tbl-tools" data-r="colors">' + COLORS.map(function (c, i) { return '<button class="tbl-sw' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join('') + '<input type="color" data-r="custom" value="#ff3b3b" title="Autre couleur"></div>' +
         '<div class="tbl-tools"><button data-t="brush" class="on">🖌️ Pinceau</button><button data-t="fill">🪣 Remplir</button><button data-t="eraser">🧽 Gomme</button>' +
@@ -480,7 +558,7 @@
       var title = (p.querySelector('[data-r=title]').value || '').trim();
       if (!title) { msg('✏️ Donne un titre à ton tableau.'); return; }
       if (!E.undo.length) { msg('🖌️ Ton tableau est encore vide !'); return; }
-      var price = data ? data.price : 100;
+      var price = data ? data.price : 300;
       if (balance() < price) { msg('❌ Il te manque ' + fmtN(price - balance()) + ' 🪙.'); return; }
       busy = true; p.querySelector('[data-a=send]').disabled = true; msg('Accrochage en cours…', true);
       E.save();                                              // brouillon à jour avant d'envoyer, au cas où
