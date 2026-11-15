@@ -424,7 +424,7 @@
       // regard : on glisse le doigt sur la moitié droite de l'écran
       var lk = q('.mdr-look'), lp = null;
       lk.addEventListener('pointerdown', function (e) { lp = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: 0 }; try { lk.setPointerCapture(e.pointerId); } catch (er) { /* ok */ } });
-      lk.addEventListener('pointermove', function (e) { if (!lp || e.pointerId !== lp.id) return; var dx = e.clientX - lp.x, dy = e.clientY - lp.y; lp.x = e.clientX; lp.y = e.clientY; lp.moved += Math.abs(dx) + Math.abs(dy); var s = 0.0058 * (world.sensi || (F.sensi ? F.sensi() : 1)); cam.yaw += dx * s; cam.pitch = Math.max(-1.0, Math.min(1.0, cam.pitch + dy * s * 0.8)); });
+      lk.addEventListener('pointermove', function (e) { if (!lp || e.pointerId !== lp.id) return; var dx = e.clientX - lp.x, dy = e.clientY - lp.y; lp.x = e.clientX; lp.y = e.clientY; lp.moved += Math.abs(dx) + Math.abs(dy); var s = 0.0058 * (world.sensi || (F.sensi ? F.sensi() : 1)); cam.yaw += dx * s; cam.pitch = Math.max(-1.0, Math.min(1.0, cam.pitch - dy * s * 0.8)); });
       lk.addEventListener('pointerup', function (e) { if (lp && lp.moved < 8 && !me.alive) nextSpectate(1); lp = null; }); lk.addEventListener('pointercancel', function () { lp = null; });
       // boutons
       Array.prototype.forEach.call(el.querySelectorAll('.mdr-b'), function (b) {
@@ -488,14 +488,14 @@
     /* ---------- commandes ---------- */
     function typing() { var a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable); }
     function codes() { var k = F.keys(); return { f: [k.f, 'ArrowUp'], b: [k.b, 'ArrowDown'], l: [k.l, 'ArrowLeft'], r: [k.r, 'ArrowRight'], run: [k.run, 'ShiftLeft', 'ShiftRight'] }; }
-    var MY_KEYS = { Digit1: 1, Numpad1: 1, KeyE: 1, KeyF: 1, KeyR: 1, KeyG: 1, Tab: 1, KeyA: 0, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, ShiftLeft: 1, ShiftRight: 1 };
+    var MY_KEYS = { Space: 1, Enter: 1, NumpadEnter: 1, Digit1: 1, Numpad1: 1, KeyE: 1, KeyF: 1, KeyR: 1, KeyG: 1, Tab: 1, KeyA: 0, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, ShiftLeft: 1, ShiftRight: 1 };
     function isMine(code) { if (MY_KEYS[code]) return true; var c = codes(), a; for (a in c) if (c[a].indexOf(code) >= 0) return true; return false; }
     function onKey(e) {
       if (!active || world.mode !== 'seat' || typing() || !isMine(e.code)) return;
       e.preventDefault(); e.stopImmediatePropagation();
       if (e.type === 'keydown') {
         if (e.repeat && keys[e.code]) return; keys[e.code] = true;
-        if (e.code === 'KeyE' || e.code === 'KeyF') doUse();
+        if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') doUse();
         else if (e.code === 'Digit1' || e.code === 'Numpad1') doKnife();
         else if (e.code === 'KeyR') doReload();
         else if (e.code === 'KeyG') chargeStart();
@@ -528,7 +528,7 @@
       var x = me.c.x, z = me.c.z, yaw = cam.yaw, pitch = cam.pitch;
       if (!me.alive && curPh !== 'lobby') { var t = remotes[spectate]; if (!t || !t.al) { nextSpectate(1); t = remotes[spectate]; } if (t) { x = t.x; z = t.z; yaw = t.yaw; pitch = 0.05; } }
       var ey = MS.EYE + Math.sin(bob * 9) * 0.014 * Math.min(1, Math.hypot(me.c.vx, me.c.vz) / 4), cp = Math.cos(pitch);
-      return { cx: x, cy: ey, cz: z, tx: x + Math.sin(yaw) * cp * 5, ty: ey - Math.sin(pitch) * 5, tz: z - Math.cos(yaw) * cp * 5, fov: 72 };
+      return { cx: x, cy: ey, cz: z, tx: x + Math.sin(yaw) * cp * 5, ty: ey + Math.sin(pitch) * 5, tz: z - Math.cos(yaw) * cp * 5, fov: 72 };
     };
 
     /* ---------- entrée / sortie ---------- */
@@ -612,7 +612,7 @@
       // la porte visée (indication)
       hudT -= dt; if (hudT <= 0) {
         hudT = 0.1; doorHint = me.alive && me.ready && curPh !== 'results' && curPh !== 'intro' ? MS.nearestDoor(c.x, c.z, cam.yaw) : -1;
-        if (ui) { ui.hint.textContent = doorHint >= 0 ? (touch ? 'Bouton « Ouvrir » : ' : 'E : ') + (open[doorHint] ? 'fermer la porte' : 'ouvrir la porte') : ''; ui.hint.classList.toggle('on', doorHint >= 0); }
+        if (ui) { ui.hint.textContent = doorHint >= 0 ? (touch ? 'Bouton « Ouvrir » : ' : 'E ou F : ') + (open[doorHint] ? 'fermer la porte' : 'ouvrir la porte') : ''; ui.hint.classList.toggle('on', doorHint >= 0); }
         refreshHud();
       }
       if (toastT > 0) { toastT -= dt; if (toastT <= 0 && ui) ui.toast.classList.remove('in'); }

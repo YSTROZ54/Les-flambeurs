@@ -13,7 +13,7 @@ const SIM = (function () {
     chargeMax: 1.2,                   // temps (s) pour remplir la barre de force du lancer
     throwMin: 5, throwMax: 22, knifeSpeed: 26, throwCd: 0.4,   // portée du lancer selon la force, vitesse du couteau
     gunRange: 45, hitR: 0.42,         // portée du revolver, « largeur » d'un joueur pour les tirs
-    reach: 2.0, pickR: 1.0,           // portée pour ouvrir une porte, pour ramasser
+    reach: 2.5, pickR: 1.0,           // portée pour ouvrir une porte, pour ramasser
     blockH: 1.0                       // les meubles plus hauts arrêtent les tirs et le couteau
   };
   var RADIUS = 0.35, WALK = 4.2, RUN = 6.3, EYE = 1.6;
@@ -161,7 +161,7 @@ const SIM = (function () {
   // la porte la plus proche devant moi (index) ou -1
   function nearestDoor(x, z, yaw) {
     var best = -1, bd = CFG.reach, fx = Math.sin(yaw), fz = -Math.cos(yaw);
-    MAP.doors.forEach(function (d, i) { var dx = d.x - x, dz = d.z - z, dist = Math.hypot(dx, dz); if (dist > bd) return; if (dist > 0.9 && (dx * fx + dz * fz) / dist < 0.35) return; bd = dist; best = i; });
+    MAP.doors.forEach(function (d, i) { var dx = d.x - x, dz = d.z - z, dist = Math.hypot(dx, dz); if (dist > bd) return; if (dist > 0.9 && (dx * fx + dz * fz) / dist < 0.1) return; bd = dist; best = i; });
     return best;
   }
   function angDiff(a, b) { var d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }

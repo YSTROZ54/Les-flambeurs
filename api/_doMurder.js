@@ -128,8 +128,8 @@ export class MurderRoom {
       const inp = { seq: Math.floor(Number(m.seq)) || 0, f: num(m.f, -1, 1), s: num(m.s, -1, 1), run: !!m.run, yaw: num(m.yaw, -1000, 1000), pitch: num(m.pitch, -1.5, 1.5) };
       if (p.queue.length >= MAX_QUEUE) p.queue.shift();
       p.queue.push(inp);
-    } else if (this.ph !== 'play' || !p.alive) return;
-    else if (m.t === 'use') this.useDoor(p);
+    } else if (m.t === 'use') { if (p.alive && (this.ph === 'play' || this.ph === 'lobby')) this.useDoor(p); }
+    else if (this.ph !== 'play' || !p.alive) return;
     else if (m.t === 'knife') { if (p.role === 'm' && this.knife.st === 'hand') p.knifeOut = !p.knifeOut; }
     else if (m.t === 'stab') this.stab(p);
     else if (m.t === 'tc') { if (p.role === 'm' && this.knife.st === 'hand' && !p.charge) p.charge = this.t; }
