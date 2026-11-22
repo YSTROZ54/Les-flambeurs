@@ -928,8 +928,8 @@
       if (url && type === 'hls' && !video.canPlayType('application/vnd.apple.mpegurl')) {
         loadHlsLib(function (Hls) {
           if (!Hls) { world.flash('🎬 Lecture HLS indisponible.', 'Réessaie dans un instant.'); return; }
-          // grosse avance de lecture : on charge la suite bien avant d'en avoir besoin (moins de « chargement du flux » en cours de film)
-          hlsInst = new Hls({ maxBufferLength: 90, maxMaxBufferLength: 180, maxBufferSize: 200 * 1000 * 1000, backBufferLength: 20, startFragPrefetch: true, manifestLoadingMaxRetry: 4, fragLoadingMaxRetry: 6, levelLoadingMaxRetry: 4 });
+          // grosse avance de lecture : ~10 min chargées d'avance (plafonné à 300 Mo de mémoire), et ce qui est déjà passé (au-delà de 30 s) est libéré pour ne pas saturer la mémoire
+          hlsInst = new Hls({ maxBufferLength: 600, maxMaxBufferLength: 660, maxBufferSize: 300 * 1000 * 1000, backBufferLength: 30, maxBufferHole: 0.5, startFragPrefetch: true, manifestLoadingMaxRetry: 4, fragLoadingMaxRetry: 6, levelLoadingMaxRetry: 4 });
           hlsInst.on(Hls.Events.ERROR, function (ev, data) {
             if (!data || !data.fatal) return;
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR) { try { hlsInst.startLoad(); } catch (e) { /* ok */ } }          // coupure réseau : on relance le chargement sans bruit
@@ -960,7 +960,7 @@
       }, 700 * recoverN);
     }
     video.addEventListener('error', function () { if (!net.url) return; if (net.status === 'playing' || net.status === 'paused') recoverVideo(); else world.flash('🎬 Ce lien n\'a pas pu être lu.', 'Vérifie l\'adresse depuis la régie.'); });
-    var endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null, lastSeekAt = 0;
+    var nudgeAt = 0, endedUrl = '', lastSt = null, stallT = 0, started = false, bufEl = null, lastSeekAt = 0;
     // fin du film : chez tout le monde on revient à l'écran de base (aucune séance), et le Patron/Co Fondateur coupe la séance pour tout le monde
     video.addEventListener('ended', function () {
       var dur = video.duration, realEnd = isFinite(dur) && dur > 0 && video.currentTime >= dur - 8 && netPosNow() >= dur - 15;
@@ -1044,7 +1044,11 @@
         ensureVideoAudio();
         var drift = netPosNow() - video.currentTime, nowT = performance.now();
         if (video.seeking || video.readyState < 3) { /* recherche ou chargement en cours : surtout pas une 2e recherche par-dessus (c'est ce qui bloquait tout) */ }
-        else if (Math.abs(drift) > 2.5) { if (nowT - lastSeekAt > 4000) { lastSeekAt = nowT; video.currentTime = Math.max(0, netPosNow() + 1.0); } }   // gros écart : une seule recherche, un peu en avance pour compenser le chargement
+        else if (Math.abs(drift) > 2.5) {
+          var tgt = netPosNow() + 1.0, inBuf = false, bi; for (bi = 0; bi < video.buffered.length; bi++) if (tgt >= video.buffered.start(bi) && tgt <= video.buffered.end(bi) - 0.5) inBuf = true;
+          if (inBuf || drift < 0 || drift > 25) { if (nowT - lastSeekAt > 4000) { lastSeekAt = nowT; video.currentTime = Math.max(0, tgt); } }   // saut seulement si l'endroit est déjà chargé (instantané) ou si l'écart est énorme
+          else video.playbackRate = 1.12;   // sinon on rattrape en douceur : une recherche vers une zone non chargée vide la mémoire tampon et relance un chargement (c'est ce qui enchaînait les « mise en mémoire »)
+        }   // gros écart : une seule recherche, un peu en avance pour compenser le chargement
         else if (Math.abs(drift) > 0.4) video.playbackRate = drift > 0 ? 1.06 : 0.94;  // petit écart : on rattrape en douceur
         else if (video.playbackRate !== 1) video.playbackRate = 1;
         if (video.readyState >= 3) showVideo(true);
@@ -1732,6 +1736,7 @@
       var adOn = applyAd();   // pub : elle prend la main sur l'écran à chaque image (et passe au film pile à 0:00)
       if (net.status === 'playing' && !adOn) {   // chargement : seulement si le film manque de données depuis plus d'une seconde
         stallT =(video.readyState < 3 || video.seeking) ? stallT + dt : 0;
+        if (started && stallT > 5 && performance.now() - nudgeAt > 15000 && !video.seeking && video.currentTime > 1) { nudgeAt = performance.now(); try { video.currentTime = video.currentTime + 0.05; } catch (e) { /* ok */ } }   // connexion qui traîne : on redemande les données à l'endroit exact (souvent suffisant)
         if (stallT > 12) { stallT = 0; recoverVideo(); }                // bloqué depuis 12 s : on relance le chargement au bon moment
         setLoading(!started && stallT > 1.0);          // écran « chargement » seulement avant le début du film ; ensuite l'image reste figée le temps de recharger
         if (!stallT && screenM.map !== vtex && video.readyState >= 3) showVideo(true);
